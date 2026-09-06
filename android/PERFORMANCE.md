@@ -753,3 +753,41 @@ The device's writable INI is left at `shadowMapResolution=1024` for the next mob
 The game was stopped after the final trace to cool, with saves and assets preserved.
 Source and results are committed locally; nothing was pushed.
 Next: investigate fog and the remaining GPU/CPU costs, and eventually repeat controlled, longer thermal tests rather than treating a short near-60-FPS sample as completion.
+
+### Cooled 1024-shadow run without restarting, 2026-09-07
+
+The same installed APK and writable settings were retained: 75% scene resolution, half-resolution SSAO, 1024 shadows and the 60 FPS cap.
+The waterfall scene was confirmed by screenshots before and after measurement.
+The game remained in the foreground without restarting, reloading or changing settings between captures; normal game time and lighting continued to advance.
+Nine 30-second Perfetto captures covered 270 seconds of a session spanning approximately six minutes, with gaps for capture transfer and analysis.
+These are sampled Vulkan presentation intervals, not continuous display-scanout measurements or a controlled comparison against another build.
+
+| Observation | Early capture | Final capture |
+| --- | --- | --- |
+| Presentation cadence | 59.93 FPS | 59.83 FPS |
+| Intervals | 1,796 | 1,789 |
+| Mean / median interval | 16.69 / 16.67 ms | 16.71 / 16.58 ms |
+| p95 / p99 interval | 18.82 / 20.77 ms | 20.23 / 21.68 ms |
+| Worst interval | 28.18 ms | 24.90 ms |
+| Live skin temperature after capture | 40.5 C | 43.7 C |
+| Main-thread CPU time in 30 seconds | 18.145 s | 20.564 s |
+| Mean pacing sleep, when a wait occurred | 5.410 ms | 3.118 ms |
+
+All nine window averages were between 59.83 and 59.99 FPS.
+Live skin temperature was 39.0 C immediately before the early trace and reached 43.7 C, with reported thermal status progressing from 0 to 2.
+GPU clock samples were mostly 700-800 MHz, with a brief 545-650 MHz dip and final samples at 700 MHz.
+The sustained clock log contains 140 two-second samples; neither it nor the early clock log changes clocks, power policy or thermal controls.
+This run did not reproduce the previous 252 MHz condition or its approximately 35 FPS result.
+It supports near-60-FPS operation for this stationary scene over this session, not a guarantee for longer play, other scenes or severe throttling.
+
+The bounded, early 600-frame GPU capture averaged an 11.695 ms total marker span.
+SSAO calculation/upsampling accounted for 1.91/0.28 ms, fog LUTs for 1.48 ms, and the two shadow maps for approximately 0.45/1.08 ms.
+Those GPU markers precede the later cadence captures and must not be used as measurements of the final warm state.
+The final CPU trace still contained 1,690 pacing waits across 1,789 complete frame scopes, but animation wall time increased from 3.742 to 5.765 ms per call.
+Wall-time regions overlap and include scheduling delays; these observations do not isolate a new optimization or establish power savings.
+
+All nine traces reported no nonzero capture-quality errors.
+The collected process logcat contained no fatal-signal, fatal-exception, Vulkan-error or abort-message matches.
+Screenshots, traces, clock logs, CPU/GPU reports and the unchanged writable INI are retained locally in `build/performance/cooled-1024-sustained/`.
+No source, APK, device setting or asset was changed for this measurement; the game was left running afterward.
+Next candidates remain fog rendering and animation/worker costs, followed by longer thermal verification that reproduces the low-clock condition.
