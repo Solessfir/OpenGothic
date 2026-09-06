@@ -1,6 +1,8 @@
 #include "installdetect.h"
 
 #include <Tempest/Platform>
+#include <Tempest/SystemApi>
+#include <Tempest/TextCodec>
 
 #ifdef __WINDOWS__
 #include "windows.h"
@@ -16,7 +18,7 @@ InstallDetect::InstallDetect() {
   pfiles    = programFiles(false);
   pfilesX86 = programFiles(true);
 #endif
-#if defined(__OSX__) || defined(__IOS__)
+#if defined(__OSX__) || defined(__IOS__) || defined(__ANDROID__)
   appDir    = applicationSupportDirectory();
 #endif
   }
@@ -27,6 +29,14 @@ std::u16string InstallDetect::detectG2() {
   if(ret.empty())
     ret = detectG2(pfilesX86);
   return ret;
+#elif defined(__ANDROID__)
+  auto game = appDir;
+  if(!game.empty() && game.back()!=u'/')
+    game.push_back(u'/');
+  game += u"Gothic2";
+  if(FileUtil::exists(game))
+    return game;
+  return u"";
 #elif defined(__OSX__) || defined(__IOS__)
   if(FileUtil::exists(appDir))
     return appDir;
@@ -34,6 +44,7 @@ std::u16string InstallDetect::detectG2() {
 #else
   return u"";
 #endif
+
   }
 
 std::u16string InstallDetect::detectG2(std::u16string pfiles) {
@@ -60,5 +71,11 @@ std::u16string InstallDetect::programFiles(bool x86) {
   ret.resize(len);
   std::memcpy(&ret[0],path,len*sizeof(char16_t));
   return ret;
+  }
+#endif
+
+#ifdef __ANDROID__
+std::u16string InstallDetect::applicationSupportDirectory() {
+  return Tempest::TextCodec::toUtf16(Tempest::SystemApi::appDataPath());
   }
 #endif

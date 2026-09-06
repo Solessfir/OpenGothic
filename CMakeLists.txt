@@ -12,8 +12,13 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_SKIP_RPATH ON)
 
 add_library(${PROJECT_NAME} STATIC)
-add_executable(Gothic2Notr)
-add_executable(Spacer)
+if(ANDROID)
+  add_library(Gothic2Notr SHARED)
+  set_target_properties(Gothic2Notr PROPERTIES OUTPUT_NAME "opengothic")
+else()
+  add_executable(Gothic2Notr)
+  add_executable(Spacer)
+endif()
 
 if(MSVC)
   add_definitions(-D_USE_MATH_DEFINES)
@@ -31,7 +36,7 @@ if(NOT MSVC)
   if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "7.1" AND NOT APPLE AND NOT ${CMAKE_CXX_COMPILER_ID} MATCHES "Clang")
     target_compile_options(${PROJECT_NAME} PRIVATE -Wno-format-truncation)
   endif()
-  if(UNIX)
+  if(UNIX AND NOT ANDROID)
     # -rdynamic is needed to allow obtaining meaningful backtraces
     target_link_options(${PROJECT_NAME} PRIVATE -rdynamic)
   endif()
@@ -85,7 +90,9 @@ add_subdirectory(shader)
 target_link_libraries(${PROJECT_NAME} GothicShaders)
 
 # editor icons and such
-add_subdirectory(spacer/assets)
+if(NOT ANDROID)
+  add_subdirectory(spacer/assets)
+endif()
 
 include_directories("common")
 
@@ -100,6 +107,8 @@ endif()
 
 if(WIN32)
   target_link_libraries(${PROJECT_NAME} shlwapi DbgHelp)
+elseif(ANDROID)
+  target_link_libraries(${PROJECT_NAME} android log)
 elseif(UNIX)
   target_link_libraries(${PROJECT_NAME} -lpthread -ldl)
 endif()
@@ -186,7 +195,7 @@ if(WIN32)
 endif()
 
 # in debug mode, enable sanitizers
-if(${CMAKE_BUILD_TYPE} MATCHES "Debug")
+if(${CMAKE_BUILD_TYPE} MATCHES "Debug" AND NOT ANDROID)
   add_compile_options(-fsanitize=address)
   add_compile_options(-fsanitize=leak)
   add_link_options   (-fsanitize=address)
@@ -194,13 +203,24 @@ if(${CMAKE_BUILD_TYPE} MATCHES "Debug")
 endif()
 
 # the game
-target_sources(Gothic2Notr PRIVATE game/main.cpp icon.rc)
+target_sources(Gothic2Notr PRIVATE game/main.cpp)
+if(WIN32)
+  target_sources(Gothic2Notr PRIVATE icon.rc)
+endif()
 target_link_libraries(Gothic2Notr PRIVATE OpenGothic)
+if(ANDROID)
+  target_link_options(Gothic2Notr PRIVATE
+    "-Wl,-u,ANativeActivity_onCreate"
+    "-Wl,-u,android_main"
+    "-Wl,-z,max-page-size=16384")
+endif()
 
 # editor
-target_sources(Spacer PRIVATE ${SPACER_SOURCES} spacer/main.cpp)
-target_include_directories(Spacer PRIVATE "spacer")
-target_link_libraries(Spacer PRIVATE OpenGothic SpacerAssets)
+if(NOT ANDROID)
+  target_sources(Spacer PRIVATE ${SPACER_SOURCES} spacer/main.cpp)
+  target_include_directories(Spacer PRIVATE "spacer")
+  target_link_libraries(Spacer PRIVATE OpenGothic SpacerAssets)
+endif()
 
 # installation
 install(TARGETS ${PROJECT_NAME} DESTINATION bin)
