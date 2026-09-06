@@ -60,6 +60,37 @@ int main() {
     events=b.update(lb|menu,C::Gameplay,1);
     check(has(events,A::QuickSave) && !has(events,A::Pause),"Quicksave consumes Menu");
     check(!has(b.update(menu,C::Gameplay,2),A::Pause),"No Menu fallthrough on LB release");
+    b.reset(a);
+    check(b.update(a,C::UI,0).empty(),"Reconnect blocks held input");
+    b.update(0,C::UI,1);
+    check(has(b.update(a,C::UI,2),A::Accept),"Reconnect permits a fresh press");
+    B defaultsOnly;
+    defaultsOnly.update(up,C::Gameplay,0);
+    check(!has(defaultsOnly.update(up,C::UI,500),A::EquipmentWheel),"Context change cancels pending hold");
+    defaultsOnly.reset();
+    auto lt=B::button("LT"), rt=B::button("RT");
+    defaultsOnly.update(lt,C::ModernMelee,0);
+    events=defaultsOnly.update(lt|rt,C::ModernMelee,1);
+    check(has(events,A::Finish) && !has(events,A::AttackForward),"Finisher does not fire ordinary attack");
+    defaultsOnly.reset();
+    defaultsOnly.update(lb,C::Inventory,0);
+    check(!has(defaultsOnly.update(lb|menu,C::Inventory,1),A::QuickSave),"UI does not inherit gameplay saves");
+    defaultsOnly.reset();
+    defaultsOnly.update(lt,C::Inventory,0);
+    events=defaultsOnly.update(lt|up,C::Inventory,1);
+    check(has(events,A::Spell3) && !has(events,A::Up),"Spell assignment consumes navigation");
+    std::istringstream ambiguous("[Gameplay]\nJump=LB+A\nJournal=RB+A\n");
+    check(defaultsOnly.load(ambiguous).empty(),"Independent chords validate");
+    defaultsOnly.update(lb|rb,C::Gameplay,0);
+    events=defaultsOnly.update(lb|rb|a,C::Gameplay,1);
+    check(events.empty(),"Ambiguous held modifiers cannot choose an arbitrary action");
+    std::istringstream unknown("[Axes]\nDeadZoon=0.2\n[Controller]\nVersion=2\n");
+    check(defaultsOnly.load(unknown).size()==2,"Unknown options and versions are reported");
+    B holdOnly;
+    std::istringstream unbind("[Gameplay]\nDrawSheathe=None\n");
+    check(holdOnly.load(unbind).empty(),"Tap can be unbound independently");
+    holdOnly.update(up,C::Gameplay,0);
+    check(holdOnly.update(0,C::Gameplay,100).empty(),"A hold-only short tap does nothing");
     std::cout<<"Controller binding tests passed\n";
     }
   catch(const std::exception& e) { std::cerr<<e.what()<<'\n'; return 1; }

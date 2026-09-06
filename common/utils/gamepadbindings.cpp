@@ -236,6 +236,7 @@ std::vector<std::string> GamepadBindings::load(std::istream& input) {
     return fallback;
     };
   options.enabled=number("Controller","Enabled",options.enabled?1.f:0.f,0,1)!=0;
+  number("Controller","Version",1,1,1);
   options.cameraAssist=number("Controller","CameraAssist",options.cameraAssist?1.f:0.f,0,1)!=0;
   options.holdMs=uint64_t(number("Controller","HoldMs",float(options.holdMs),150,2000));
   options.repeatDelayMs=uint64_t(number("Controller","RepeatDelayMs",float(options.repeatDelayMs),100,2000));
@@ -265,7 +266,15 @@ std::vector<std::string> GamepadBindings::load(std::istream& input) {
   options.switchCooldownMs=uint64_t(number("TargetLock","SwitchCooldownMs",float(options.switchCooldownMs),0,2000));
   options.cameraSmoothing=number("TargetLock","CameraSmoothingSeconds",options.cameraSmoothing,0.01f,2);
   for(auto& [sec,v]:values) {
-    (void)v;
+    std::string_view allowed;
+    if(sec=="Controller") allowed="|Version|Enabled|ExplorationModifier|HoldMs|RepeatDelayMs|RepeatMs|CameraAssist|";
+    if(sec=="Axes") allowed="|MovementStick|CameraStick|StickDeadZone|WalkThreshold|TriggerPressThreshold|TriggerReleaseThreshold|";
+    if(sec=="TargetLock") allowed="|SwitchThreshold|SwitchResetThreshold|SwitchCooldownMs|CameraSmoothingSeconds|";
+    if(!allowed.empty()) for(auto& [key,value]:v) {
+      (void)value;
+      if(allowed.find("|"+key+"|")==std::string_view::npos)
+        errors.push_back(sec+"/"+key+": unknown option");
+      }
     if(std::find(std::begin(names),std::end(names),sec)==std::end(names) && sec!="Controller" && sec!="Axes" && sec!="TargetLock")
       errors.push_back(sec+": unknown section");
     }
@@ -348,6 +357,14 @@ std::vector<GamepadBindings::Event> GamepadBindings::update(uint32_t buttons,Con
       if(!best || std::popcount(b.mask)>std::popcount(best->mask) || (b.mask==best->mask && !b.hold)) best=&b;
       }
     if(!best) continue;
+    // Equally specific chords with different modifiers are ambiguous.
+    // Suppress them instead of depending on INI iteration order.
+    bool ambiguous=false;
+    for(auto& b:available) {
+      if(b.trigger==bit && b.mask!=best->mask && std::popcount(b.mask)==std::popcount(best->mask) &&
+         (buttons&b.mask)==b.mask && ((b.mask^bit)&previous)==(b.mask^bit)) ambiguous=true;
+      }
+    if(ambiguous) { blocked|=bit; continue; }
     for(auto& b:available) if(b.mask==best->mask && b.trigger==bit && b.hold) hold=&b;
     p.binding=*best; p.started=now; p.repeat=now+options.repeatDelayMs; p.active=true;
     p.pending=hold!=nullptr;
