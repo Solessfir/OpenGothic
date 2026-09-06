@@ -1,0 +1,140 @@
+# OpenGothic for Android
+
+This project builds a sideloadable NativeActivity debug APK for 64-bit ARM Android devices with Vulkan 1.1. It does not package Gothic II game files. You must copy a legally owned Gothic II: Night of the Raven installation after installing the APK.
+
+## Requirements
+
+- Windows 10 or newer with PowerShell and Git.
+- JDK 17.
+- Android SDK command-line tools and platform-tools.
+- Android SDK Platform 35, Build Tools 35.0.0, NDK 27.0.12077973, and CMake 3.22.1.
+- A Vulkan 1.1 Android device. The Gradle project builds only `arm64-v8a`.
+
+The Gradle wrapper downloads Gradle 8.9. The Android build also downloads a pinned official Khronos Vulkan-Headers archive during CMake configuration.
+
+## Prepare the source and SDK
+
+Clone with submodules, or initialize them in an existing checkout:
+
+```powershell
+git submodule update --init --recursive
+```
+
+Set the JDK and Android SDK paths for the current PowerShell session. Change these paths if your installations are elsewhere:
+
+```powershell
+$env:JAVA_HOME = 'C:\Android\jdk17\jdk-17.0.20.1+1'
+$env:ANDROID_HOME = 'C:\Android\Sdk'
+$env:ANDROID_SDK_ROOT = $env:ANDROID_HOME
+```
+
+Install the required Android packages and accept their licenses:
+
+```powershell
+& "$env:ANDROID_HOME\cmdline-tools\latest\bin\sdkmanager.bat" `
+  'platform-tools' `
+  'platforms;android-35' `
+  'build-tools;35.0.0' `
+  'ndk;27.0.12077973' `
+  'cmake;3.22.1'
+& "$env:ANDROID_HOME\cmdline-tools\latest\bin\sdkmanager.bat" --licenses
+```
+
+## Build the APK
+
+Run this from the repository root:
+
+```powershell
+Set-Location android
+.\gradlew.bat --no-daemon assembleDebug
+Set-Location ..
+```
+
+The resulting APK is `android\app\build\outputs\apk\debug\app-debug.apk`.
+
+## Install and copy Gothic II
+
+Enable Developer options and USB debugging on the phone, connect it, approve the debugging prompt, and confirm that ADB sees it:
+
+```powershell
+& "$env:ANDROID_HOME\platform-tools\adb.exe" devices -l
+```
+
+Install the APK, start it once to create its app-specific external directory, and stop it before copying files:
+
+```powershell
+$adb = "$env:ANDROID_HOME\platform-tools\adb.exe"
+& $adb install -r 'android\app\build\outputs\apk\debug\app-debug.apk'
+& $adb shell am start -W -n 'org.opengothic.app/android.app.NativeActivity'
+& $adb shell am force-stop 'org.opengothic.app'
+& $adb shell mkdir -p '/sdcard/Android/data/org.opengothic.app/files/Gothic2'
+```
+
+Copy the complete legally owned installation. This example uses the default Steam location:
+
+```powershell
+& $adb push 'C:\Program Files (x86)\Steam\steamapps\common\Gothic II\.' '/sdcard/Android/data/org.opengothic.app/files/Gothic2/'
+```
+
+OpenGothic automatically uses `/sdcard/Android/data/org.opengothic.app/files/Gothic2` as its game-data path. That directory should directly contain `Data`, `System`, and `_work`; do not create another `Gothic II` directory below it. Android removes this app-specific directory when the application is uninstalled, so keep the original PC installation.
+
+If direct ADB access to `Android/data` is restricted by a device build, use Android Studio's Device Explorer to copy the files into the same app-specific directory while the debug APK is installed.
+
+## Launch and collect logs
+
+Launch or stop the application from PowerShell:
+
+```powershell
+& $adb shell am start -W -n 'org.opengothic.app/android.app.NativeActivity'
+& $adb shell am force-stop 'org.opengothic.app'
+```
+
+Capture NativeActivity, Tempest, loader, and crash messages:
+
+```powershell
+& $adb logcat -c
+& $adb shell am start -W -n 'org.opengothic.app/android.app.NativeActivity'
+& $adb logcat -v threadtime 'Tempest:I' 'Vulkan:I' 'AndroidRuntime:E' 'libc:F' '*:S'
+```
+
+OpenGothic also writes `log.txt` beside the `Gothic2` directory. Pull it with:
+
+```powershell
+& $adb pull '/sdcard/Android/data/org.opengothic.app/files/log.txt' '.\opengothic-android-log.txt'
+```
+
+## Controls and current limitations
+
+A Bluetooth or USB gamepad is the supported control method for this first milestone.
+
+| Control | Android mapping | OpenGothic input |
+| --- | --- | --- |
+| Left stick | X/Y axes | Movement |
+| Right stick | Z/RZ axes | Camera and character look |
+| D-pad | Hat axes | Arrow keys |
+| Right trigger | R trigger | Left Ctrl / primary action |
+| Left trigger | L trigger | Left Shift / walk modifier |
+| A | Button A | Enter |
+| B | Button B | Escape |
+| X | Button X | Left Alt |
+| Y | Button Y | Space |
+| L1 | Left shoulder | Tab |
+| R1 | Right shoulder | F |
+| Left stick click | Button thumb-left | Caps Lock |
+| Right stick click | Button thumb-right | R |
+| Start | Button Start | Escape |
+| Select | Button Select | B |
+
+Basic touch events are translated to pointer movement and clicks, but there is no usable on-screen control overlay yet. Controller layouts vary, so Android may report different axes for some third-party devices. Ray queries and mesh shaders are disabled by default, and the build uses conservative desktop-compatible rendering paths for sustained mobile operation.
+
+## Inspect the APK
+
+These commands verify signing, manifest metadata, ABI contents, and 16 KiB ZIP alignment:
+
+```powershell
+$apk = 'android\app\build\outputs\apk\debug\app-debug.apk'
+& "$env:ANDROID_HOME\build-tools\35.0.0\apksigner.bat" verify --verbose --print-certs $apk
+& "$env:ANDROID_HOME\build-tools\35.0.0\aapt2.exe" dump badging $apk
+& "$env:JAVA_HOME\bin\jar.exe" tf $apk | Select-String '^lib/'
+& "$env:ANDROID_HOME\build-tools\35.0.0\zipalign.exe" -c -P 16 -v 4 $apk
+```
