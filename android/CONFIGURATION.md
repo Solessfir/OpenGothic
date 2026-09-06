@@ -23,7 +23,7 @@ showFps=1
 - `usePotionKeys`: enables the existing health/mana potion hotkeys. These currently call the original game's script functions; availability and selection depend on the installed scripts. Setting it to `0` disables those hotkeys, not using an item from inventory.
 - `showFps`: Android-only, `0` by default. Set `1` for padded Gothic text in the upper-left corner, or `0` to hide it. It uses the normal name-label font's original warm color, without a background rectangle or yellow tint. This does not change the FPS limit or desktop debug displays.
 
-The copied Steam INI inspected during development disables both shortcut options. OpenGothic respects those values unless overridden. The proposed controller shortcut chords, remappable `Gamepad.ini`, and target lock are not implemented by changing these flags; the current APK's mappings are listed in [README.md](README.md#controls-and-current-limitations). Planned controller potion actions will reuse the existing Gothic hotkey scripts, not introduce a separate potion-selection policy.
+The copied Steam INI inspected during development disables both shortcut options. OpenGothic respects those values unless overridden. Controller chords follow the same gates: LB+Menu saves, LB+View loads, and D-pad Left/Right invoke the original potion scripts. See [controller controls](CONTROLLER.md) for the full layout and the separate remappable `Gamepad.ini`. No separate potion-selection policy is added.
 
 ### Edit safely from Windows
 
@@ -60,8 +60,8 @@ This is an audit of native source readers, not a promise of complete original-en
 
 | Setting | Current Android behavior |
 | --- | --- |
-| `[GAME] useGothic1Controls` | Selects classic (`1`) versus Gothic II (`0`) combat handling. The planned controller combat contexts will follow this choice. |
-| `[GAME] mouseSensitivity`, `camLookaroundInverse` | Read by the mouse-camera path. Sharing these with gamepad/touch camera movement is still planned; current stick/touch camera handling does not use them. |
+| `[GAME] useGothic1Controls` | Selects classic (`1`) versus Gothic II (`0`) combat handling, including the controller's melee context. |
+| `[GAME] mouseSensitivity`, `camLookaroundInverse` | Shared by mouse, controller camera, and the existing Android touch-camera path. |
 | `[GAME] enableMouse`, `enableJoystick` | `enableMouse` gates mouse input. No native reader for `enableJoystick`; the Android gamepad works independently of the copied PC value, which is often `0`. |
 | `[GAME] subTitles`, `subTitlesPlayer` | Control dialogue subtitles and the player's subtitles. No separate native readers were found for `subTitlesAmbient` or `subTitlesNoise`. |
 | `[GAME] animatedWindows` | Used for dialogue-window animation. Does not imply every original window-animation setting is implemented. |
@@ -83,9 +83,8 @@ Do not tune Android using original Windows display modes, refresh-rate overrides
 
 ### Useful follow-up support, not included yet
 
-- Share mouse sensitivity and vertical inversion with gamepad camera input, while keeping `enableMouse` independent. Do not accidentally disable Android controllers because an imported PC INI contains `enableJoystick=0`; provide an explicit controller configuration switch.
-- Respect shortcut gates at the game-action level in the upcoming controller/touch system, including remapped chords. A disabled chord must not fall through to its unmodified menu/inventory action.
-- Add interaction-focus feedback alongside target lock, and audit separate ambient/player/NPC subtitle preferences for mobile readability.
+- Extend the new controller actions to the next touch layout, including wheel and shortcut gestures.
+- Add interaction-focus feedback beyond the existing name label and controller lock brackets, and audit separate ambient/player/NPC subtitle preferences for mobile readability.
 - Fit inventory columns/rows to available UI space, preserving category selection when changing trade panels. Audit `invMaxRows`, `invShowArrows`, `invSplitScreen`, and `invSwitchToFirstCategory` rather than claiming their original semantics already work.
 - Audit video skipping and `disallowVideoInput` before adding new controller/touch skip actions. Keep Android system navigation and volume buttons available.
 

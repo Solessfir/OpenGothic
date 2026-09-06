@@ -139,25 +139,7 @@ Dragging the dynamic movement stick also emits arrow-key navigation for menus an
 
 Choosing an empty save slot opens the Android keyboard. Enter a save name and press the keyboard's Done button to accept it and write the save. The keyboard stays hidden during normal gameplay and menu navigation.
 
-The physical gamepad mapping is:
-
-| Control | Android mapping | OpenGothic input |
-| --- | --- | --- |
-| Left stick | X/Y axes | Movement |
-| Right stick | Z/RZ axes | Camera and character look |
-| D-pad | Hat axes | Arrow keys |
-| Right trigger | R trigger | Left Ctrl / primary action |
-| Left trigger | L trigger | Left Shift / walk modifier |
-| A | Button A | Jump |
-| B | Button B | Draw or sheathe weapon |
-| X | Button X | Interact, attack, or confirm |
-| Y | Button Y | Inventory |
-| L1 | Left shoulder | Tab |
-| R1 | Right shoulder | F |
-| Left stick click | Button thumb-left | Caps Lock |
-| Right stick click | Button thumb-right | Sneak |
-| Start | Button Start | Menu or Escape |
-| Select | Button Select | B |
+Physical controllers now use camera-relative directional movement, A to accept/interact, B to go back, R3 target lock, and LB+L3 walk. Classic/modern combat, D-pad shortcuts, inventory panels, and the equipment wheel have context-specific mappings. See [controller controls and Gamepad.ini](CONTROLLER.md) for the complete layout, remapping commands, and device-test checklist.
 
 No touchscreen controls are drawn over the game. Controller layouts vary, so Android may report different axes for some third-party devices. Ray queries and mesh shaders are disabled by default, and the build uses conservative desktop-compatible rendering paths for sustained mobile operation.
 
