@@ -446,3 +446,43 @@ The game was force-stopped after the candidate trace to let the phone cool; exis
 Next: repeat with comparable temperature/clock conditions, using identical CPU tracing settings, and check animation/wait latency as well as FPS.
 Keep or revise the waiting policy based on that comparison; do not count fewer CPU seconds caused by fewer frames as an optimization gain.
 Animation remains the largest measured main-thread region.
+
+### Worker-wait retest after cooling, 2026-09-06
+
+The user cooled and reconnected the S24.
+The installed APK's on-device SHA-256 matched the atomic-wait candidate above; no rebuild or reinstall was needed.
+The app was stopped initially, live skin temperature was 33.8 C and thermal status was 0.
+Cold launch returned `Status: ok`, and the user loaded the same waterfall scene.
+Render scale remained 50%, with both CPU and bounded GPU profiling enabled.
+The previous GPU CSV was preserved before launch.
+
+Local evidence: `build/performance/s24-worker-cooled-20260906-231800/`.
+The first trace is `capture.perfetto-trace`; the later, warmer trace is `capture-warm.perfetto-trace`.
+Both traces lasted 30 seconds and reported no nonzero errors in the checked Perfetto quality statistics.
+
+| Observation | After cooling | Later warm sample |
+| --- | --- | --- |
+| Presentation FPS | 97.80 | 85.73 |
+| Presentation intervals | 2,923 | 2,564 |
+| Mean / median interval | 10.23 / 10.14 ms | 11.66 / 11.64 ms |
+| p95 / p99 interval | 12.16 / 13.47 ms | 13.03 / 13.92 ms |
+| Worst interval | 16.97 ms | 16.98 ms |
+| Sampled GPU clocks / ceiling | 700-800 MHz | 700-800 MHz |
+| Live skin temperature before / after | 38.8 / 41.0 C | 43.8 / 44.2 C |
+| Thermal status before / after | 0 / 1 | 2 / 2 |
+| Main-thread CPU time | 22.059 s | 25.122 s |
+| Worker-wait CPU time | 0.971 s | 1.164 s |
+| Worker-wait CPU per complete frame | approximately 0.33 ms | approximately 0.45 ms |
+| Worker-wait wall time per call | 0.392 ms | 0.586 ms |
+| Animation wall time per call | 3.494 ms | 4.532 ms |
+
+The new waits continued to consume less scheduled CPU per frame than the earlier yield-loop baseline's approximately 1.26 ms.
+The latest warm wait duration also did not show the earlier candidate's increased mean wall latency, although CPU/GPU clock conditions still differ between runs.
+The same candidate previously measured 52.45 FPS with a 400-450 MHz GPU ceiling; its much faster cooled result confirms that the earlier low reading was not a fixed throughput limit of this APK.
+It does not isolate the wait change's FPS benefit or prove that thermal state explains every difference.
+Similar skin temperatures alone do not imply identical thermal or frequency conditions: this warm run still held higher GPU clocks than the old yield-loop baseline.
+
+The game remained alive through both captures and was stopped afterward to avoid further heating.
+No assets, saves, graphics settings or clock controls were changed.
+Retain the worker-wait candidate for further testing; long gameplay runs and a clock/temperature-matched baseline comparison remain outstanding.
+These stationary, uncapped 50% render-scale samples are not a native-resolution or whole-game sustained-60-FPS guarantee.
