@@ -375,3 +375,74 @@ The run is not directly comparable to the preceding 75.25 FPS sample: its freque
 
 Next priorities are a more tightly controlled before/after SSAO comparison and CPU profiling of frame preparation and animation updates.
 Do not lower quality or attribute the entire frame-time variation to this cleanup without those measurements.
+
+## CPU profiling and worker completion waits, 2026-09-06
+
+Tempest `23d8764a` adds opt-in scoped Android CPU markers, with balanced scope tests and a no-op backend on other platforms.
+OpenGothic `eb1f4020` instruments frame stages and worker execution/waits without changing their ordering.
+The first incremental link failed because Tempest's existing source glob did not notice the new implementation file.
+Source/header globs now use `CONFIGURE_DEPENDS`; Android and Windows rebuilt successfully.
+Enable `[DEBUG] cpuProfile=1` only for diagnostics as described in [CONFIGURATION.md](CONFIGURATION.md#opt-in-cpu-profiling).
+
+The diagnostic APK installed and cold-launched successfully on the S24.
+Its SHA-256 was `24D98CEE071CE1F335F6994A1D09344C381E0101F40B3C4D9FA0CCCF31FCA41E`.
+The phone's INI was backed up before enabling CPU tracing; render scale remained 50%.
+Local evidence: `build/performance/s24-cpu-20260906-224147/`.
+
+The 30-second waterfall trace contained 2,090 complete frame scopes:
+
+| Main-thread region | Mean wall time per call | Total scheduled CPU time |
+| --- | --- | --- |
+| Simulation | 2.687 ms | 5.610 s |
+| Animation | 5.250 ms | 10.961 s |
+| Command recording | 4.173 ms | 6.307 s |
+| Presentation | 1.766 ms | 1.054 s |
+| Worker completion wait, 4,186 calls | 0.632 ms | 2.643 s |
+| All complete frame scopes | 14.251 ms | 24.717 s |
+
+Regions are inclusive: worker execution/waits overlap animation, so their totals must not be added to the animation total.
+The worker wait used approximately 1.26 CPU ms per frame, almost all of its wall duration.
+No skipped-frame or frame-cap sleep markers appeared in this sample.
+Consequently, frame-update ordering and Tempest's sleep policy were left unchanged.
+
+### Notification-based worker completion
+
+OpenGothic `cacd3f45` replaces repeated `yield()` polling with C++20 atomic waiting on the observed completion count.
+Workers notify after publishing completion, including shutdown.
+The caller still executes its normal share of tasks and observes all results before returning.
+Task scheduling, simulation, animation sampling and graphics quality are otherwise unchanged.
+
+Windows Release and Android ARM64 `assembleDebug lintDebug` passed.
+The 11,000-batch worker regression passed both on Windows and as an ARM64 executable running on the S24.
+It checks delayed completion, exactly-once execution, result visibility, empty/small/chunk-boundary batches and clean shutdown.
+The CPU trace pairing test and the existing eight rendering/timestamp/controller tests also passed locally.
+Commands are in [tests/workers/README.md](../tests/workers/README.md).
+
+Candidate APK: `android/app/build/outputs/apk/debug/app-debug.apk`.
+SHA-256: `7E42EA921B3C67E8D394F7ED958D5C5E43EA283EA5EED7022C02F7287676FFD1`.
+APK signature/alignment checks passed; upgrade installation returned `Success` and cold launch returned `Status: ok`.
+The waterfall scene was visible after loading.
+Local evidence: `build/performance/s24-worker-wait-20260906-225113/`.
+
+| Observation | Yield-loop baseline | Atomic-wait candidate |
+| --- | --- | --- |
+| Presentation FPS | 69.94 | 52.45 |
+| Mean / p95 / p99 frame interval | 14.30 / 16.16 / 17.39 ms | 19.07 / 23.44 / 27.23 ms |
+| Worst frame interval | 21.24 ms | 34.86 ms |
+| Main-thread CPU time | 24.816 s | 20.523 s |
+| Worker wait CPU time | 2.643 s | 0.786 s |
+| Worker wait CPU per complete frame | approximately 1.26 ms | approximately 0.50 ms |
+| Worker wait wall time per call | 0.632 ms | 0.818 ms |
+| Sampled GPU clock ceiling | 545-600 MHz | 400-450 MHz |
+| Live skin temperature before / after | 42.7 / 43.3 C | 43.9 / 44.1 C |
+| Thermal status at endpoints | 2 | 2 |
+
+The candidate reduced measured CPU work in completion waits, including when normalized per frame.
+However, the two runs have different clock and thermal conditions, and the candidate's measured FPS is worse.
+This is not an established frame-rate improvement or proof that the wait change has no latency regression.
+Both traces reported no nonzero errors in the checked Perfetto quality statistics.
+The game was force-stopped after the candidate trace to let the phone cool; existing saves/assets were preserved.
+
+Next: repeat with comparable temperature/clock conditions, using identical CPU tracing settings, and check animation/wait latency as well as FPS.
+Keep or revise the waiting policy based on that comparison; do not count fewer CPU seconds caused by fewer frames as an optimization gain.
+Animation remains the largest measured main-thread region.

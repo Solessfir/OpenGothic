@@ -78,6 +78,28 @@ if ($LASTEXITCODE -ne 0) { throw 'Could not retrieve GPU timings.' }
 
 The summary combines repeated marker names within each frame and includes zero contribution from frames where a pass was absent. Compare the same save/camera with profiling both off and on. See [PERFORMANCE.md](PERFORMANCE.md) for the baseline and measurement limitations.
 
+## Opt-in CPU profiling
+
+Add `[DEBUG] cpuProfile=1` to the writable `Gothic.ini` with the app stopped, then restart.
+This enables scoped Android trace markers for simulation, animation, camera, UI, command recording, presentation, frame fences, worker tasks and completion waits.
+Markers are emitted only while a platform trace is recording the app; there is no CPU CSV or continuous log stream.
+The default is off, and the Tempest implementation is a no-op on other platforms.
+Set `cpuProfile=0` and restart to disable it.
+
+Use `android/tools/performance.pbtxt` as described in [PERFORMANCE.md](PERFORMANCE.md) to capture the app with Perfetto.
+Then run both analyses from the repository root:
+
+```powershell
+python build/performance/trace_processor query -f android/tools/performance.sql '<capture.perfetto-trace>'
+python build/performance/trace_processor query -f android/tools/cpu-performance.sql '<capture.perfetto-trace>'
+```
+
+The CPU report separates inclusive wall time from scheduled CPU time within each marker.
+Nested regions overlap, so do not add their durations together.
+An empty report means no matching markers were captured, not that those operations took zero time.
+Tracing adds overhead; compare identical scenes and trace settings when testing a scheduling change.
+The backend uses the [Android NDK tracing API](https://developer.android.com/ndk/reference/group/tracing), with paired scopes on the same thread.
+
 ## Original settings worth knowing about
 
 This is an audit of native source readers, not a promise of complete original-engine compatibility. Game/menu scripts and mods can also read settings dynamically.
