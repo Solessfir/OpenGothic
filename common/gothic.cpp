@@ -113,6 +113,9 @@ Gothic::Gothic() {
 #if defined(__ANDROID__)
   constexpr int defaultResolutionIndex = 1; // 75% scene resolution
   constexpr int defaultSsaoHalfResolution = 1;
+  // Copied PC settings commonly request uncapped rendering; Android starts with a writable 60 FPS preference.
+  if(!iniFile->has("ENGINE", "zMaxFPS"))
+    iniFile->set("ENGINE", "zMaxFPS", 60);
 #else
   constexpr int defaultResolutionIndex = 0; // native scene resolution
   constexpr int defaultSsaoHalfResolution = 0;

@@ -22,6 +22,9 @@
 #include <vector>
 #include <thread>
 #include <fstream>
+#if defined(__ANDROID__)
+#include <Tempest/FramePacer>
+#endif
 
 #include "world/world.h"
 #include "world/focus.h"
@@ -210,6 +213,8 @@ class MainWindow : public Tempest::Window {
 #if defined(__ANDROID__)
     uint64_t      fpsOverlayUpdated = 0;
     bool          showFps = false;
+    uint32_t      maxFps = 60;
+    Tempest::FramePacer framePacer;
 #endif
     BenchmarkData benchmark;
     uint64_t      maxFpsInv = 0;

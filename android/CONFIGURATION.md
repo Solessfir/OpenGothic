@@ -55,6 +55,32 @@ Use the safe INI-edit commands below with the game stopped, and restart after ed
 Set `ssaoHalfResolution=0` to restore full-resolution AO without changing the scene render scale or rebuilding the APK.
 GPU profiling labels the new resolve as `SSAO upsample`; compare its combined cost with `SSAO` against the old `SSAO` plus `SSAO blur`.
 
+## Frame-rate limit and low-power waits
+
+Android initializes a missing writable `[ENGINE] zMaxFPS` to `60`, including when copied PC settings request uncapped rendering.
+An existing writable value is preserved; set `0` to disable the gameplay cap or another positive value to change it.
+A positive `[PARAMETERS] FPS_Limit` in `Gothic2/System/SystemPack.ini` still takes precedence.
+To use the writable Gothic limit, leave that SystemPack value at `0`.
+
+```ini
+[ENGINE]
+zMaxFPS=60
+```
+
+Android uses monotonic fractional-frame deadlines: 60 FPS is approximately 16.667 ms, not the old integer 16 ms interval.
+The render thread sleeps until the next deadline without busy-spinning, and missed deadlines restart the schedule without catch-up bursts.
+Focus, resize and world-loading transitions reset the schedule.
+The main menu is limited to at most 60 FPS, including when gameplay is uncapped; a lower explicit limit also applies to menus.
+CI timedemos bypass the Android cap.
+The FPS counter uses elapsed time after actual rendering, not a requested sleep duration added to the clock.
+Desktop timing behavior is unchanged.
+
+This is application-side rate limiting, not display-synchronized presentation or a guarantee that every frame reaches the screen within 16.667 ms.
+Android Frame Pacing (Swappy) integration remains a separate backend improvement for display synchronization and queue management.
+See the [Android frame-pacing overview](https://developer.android.com/games/sdk/frame-pacing) for that distinction.
+A cap avoids excess work when there is spare performance; it cannot make an over-budget CPU/GPU frame complete faster.
+Measure long, warmed-up gameplay before claiming sustained 60 FPS.
+
 ## Enable shortcuts and the FPS counter
 
 These are supported settings, not edits to Gothic's scripts or assets:
@@ -163,7 +189,7 @@ This is an audit of native source readers, not a promise of complete original-en
 | `[GAME] scaleVideos` | Used by video rendering. Original extended video-key and video-input-disabling options have no native readers. |
 | `[SOUND] soundEnabled`, `soundVolume`, `musicEnabled`, `musicVolume` | Supported mute/volume controls; volume range is `0` to `1`. Android media volume remains a separate system control. |
 | `[VIDEO] zVidBrightness`, `zVidContrast`, `zVidGamma` | Used by OpenGothic's renderer. The copied INI uses `0.5` for each. |
-| `[ENGINE] zMaxFPS` | Frame-rate cap, unless a positive `SystemPack.ini` `[PARAMETERS] FPS_Limit` overrides it. `0` means uncapped. A cap of `30` is an optional mobile power/heat tradeoff, not a way to raise low FPS. |
+| `[ENGINE] zMaxFPS` | Android initializes a missing writable value to `60`; explicit values are preserved. A positive `SystemPack.ini` `[PARAMETERS] FPS_Limit` overrides it. `0` means uncapped gameplay; `30` is an optional power/heat tradeoff. |
 | `[INTERNAL] vidResIndex` | OpenGothic render scale: `0` = native, `1` = 75% width/height, `2` = 50%. This is not the original game's display-mode index. The inspected PC value `13` should not be copied into the writable override. |
 | `[ENGINE] zEnvMappingEnabled` | Reflection toggle. |
 | `[ENGINE] zCloudShadowScale` | Reused as an ambient-occlusion/indirect-lighting toggle, not the original cloud-shadow intensity. |

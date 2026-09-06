@@ -112,6 +112,7 @@ Android supports an optional text-only FPS counter in the top-left corner using 
 See [Android configuration](CONFIGURATION.md) for the writable INI location, enabling quicksave/load and potion shortcuts, and which original Gothic settings affect this port.
 
 Fresh Android installations use 75% scene resolution and half-resolution SSAO for a mobile performance/quality balance.
+Android also initializes a missing writable `[ENGINE] zMaxFPS` to `60` and uses low-power fractional-frame waits.
 Both are configurable: choose full resolution in the Resolution menu and set `[ENGINE] ssaoHalfResolution=0` for full-resolution AO.
 Existing explicit choices are preserved, and desktop defaults are unchanged.
 

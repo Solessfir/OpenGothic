@@ -321,6 +321,9 @@ void MainWindow::paintEvent(PaintEvent& event) {
   }
 
 void MainWindow::resizeEvent(SizeEvent&) {
+#if defined(__ANDROID__)
+  framePacer.reset();
+#endif
   for(auto& i:fence)
     i.wait();
   swapchain.reset();
@@ -466,9 +469,13 @@ void MainWindow::onSettings() {
   auto zMaxFps = Gothic::options().fpsLimit;
   if(zMaxFps<=0)
     zMaxFps = Gothic::inst().settingsGetI("ENGINE", "zMaxFps");
+#if defined(__ANDROID__)
+  maxFps = uint32_t(std::max(0,zMaxFps));
+#else
   if(zMaxFps>0)
     maxFpsInv = 1000u/uint64_t(zMaxFps); else
     maxFpsInv = 0;
+#endif
   }
 
 void MainWindow::mouseWheelEvent(MouseEvent &event) {
@@ -646,6 +653,7 @@ void MainWindow::keyUpEvent(KeyEvent &event) {
 
 void MainWindow::focusEvent(FocusEvent &event) {
 #if defined(__ANDROID__)
+  framePacer.reset();
   controllerFocused=event.in;
   if(!event.in) {
     clearInput();
@@ -1227,12 +1235,18 @@ void MainWindow::onVideo(std::string_view fname) {
   }
 
 void MainWindow::onStartLoading() {
+#if defined(__ANDROID__)
+  framePacer.reset();
+#endif
   player   .clearInput();
   inventory.onWorldChanged();
   dialogs  .onWorldChanged();
   }
 
 void MainWindow::onWorldLoaded() {
+#if defined(__ANDROID__)
+  framePacer.reset();
+#endif
   dMouse = Point();
 
   if(Gothic::inst().isBenchmarkMode()) {
@@ -1334,6 +1348,13 @@ void MainWindow::render(){
         return;
         }
       }
+
+#if defined(__ANDROID__)
+    const bool menuFrame = !Gothic::inst().isInGame() && !video.isActive();
+    const uint32_t targetFps = menuFrame ? (maxFps==0 ? 60 : std::min(maxFps,60u)) : maxFps;
+    framePacer.setFrameRate(Gothic::inst().isBenchmarkModeCi() ? 0 : targetFps);
+    framePacer.wait();
+#endif
 
     /*
       Note: game update goes first
@@ -1450,6 +1471,7 @@ void MainWindow::render(){
     cmdId = (cmdId+1u)%Resources::MaxFramesInFlight;
 
     auto t = Application::tickCount();
+#if !defined(__ANDROID__)
     if(t-time<16 && !Gothic::inst().isInGame() && !video.isActive()) {
       uint32_t delay = uint32_t(16-(t-time));
       Application::sleep(delay);
@@ -1460,6 +1482,7 @@ void MainWindow::render(){
       Application::sleep(delay);
       t += delay;
       }
+#endif
     fps.push(t-time);
     if(Gothic::inst().isBenchmarkMode() && Gothic::inst().world()!=nullptr && Gothic::inst().world()->currentCs()!=nullptr)
       benchmark.push(t-time);
