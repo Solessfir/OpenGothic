@@ -696,8 +696,22 @@ SHA-256: `0621E2FB2E23053D550767B453E18742F999CE935CBA147C9DA4E72914D27CDB`.
 Local build logs and the unchanged device INI backup are in `build/performance/shadow-resolution/`.
 Separate local candidate INIs for 1024, 1536 and 2048 preserve 75% scene resolution, half-resolution SSAO, the 60 FPS cap and the user's input/FPS preferences.
 
-The S24 disappeared from ADB just before installation: `adb.exe: device 'RFCX10M60QT' not found`.
-`adb reconnect offline` still listed no devices.
-The candidate APK was not installed and no candidate INI was uploaded; device assets, saves and graphics settings were not altered by the failed attempt.
-No real-device shadow-quality or performance result is claimed yet.
-Next: reconnect, install the candidate with `adb install -r`, test each dimension using the same waterfall save/camera, and capture shadow-pass timings, images and clocks before selecting a mobile default.
+The S24 disappeared from ADB just before the first installation attempt: `adb.exe: device 'RFCX10M60QT' not found`.
+After reconnection, upgrade installation succeeded and the installed APK hash matched the candidate above.
+The 1024 and 1536 INI settings were applied with the game stopped and confirmed in the native log after successful launches.
+Existing saves and assets were preserved.
+
+The 1024 waterfall trace recorded 59.99 presentation FPS over 1,791 intervals, with mean/median 16.67/16.65 ms, p95/p99 18.90/20.21 ms and worst 22.28 ms.
+Its 600-frame GPU capture reported 0.41 ms for ShadowMap #0 and 0.99 ms for ShadowMap #1, with a 10.807 ms total marker span.
+The phone had cooled to 37.9 C skin temperature before launch and reached 41.2 C after tracing; this must not be compared directly with the heavily throttled earlier run.
+
+The first 1536 launch loaded the Xardas room instead of the waterfall.
+Its bounded GPU capture had already completed by the time the user corrected the scene.
+That CSV is preserved as `1536-wrong-scene-gpu-profile.csv` and is excluded from the shadow-performance comparison.
+A fresh `1536-correct.perfetto-trace` and `1536-correct.png` captured the corrected waterfall scene without restarting.
+This trace recorded 59.80 presentation FPS over 1,787 intervals, mean/median 16.72/16.57 ms, p95/p99 19.79/21.65 ms and worst 25.58 ms.
+Live skin temperature rose from 43.5 to 43.8 C at thermal status 2; the observed GPU ceiling remained high, so this is not equivalent to the earlier 252-315 MHz hot-phone test.
+Both checked traces reported no nonzero Perfetto quality errors.
+
+The app was then restarted at the same 1536 setting to reset the bounded GPU profiler, and loading the waterfall first was confirmed by screenshot.
+Subsequent 1536 GPU results use this retry, not the invalid Xardas capture.
