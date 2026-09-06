@@ -117,6 +117,18 @@ To restore the native-scale configuration, first save and exit the game, then ru
 
 This restores the entire backed-up INI, so merge later setting changes first if necessary. The S23 Ultra configuration was not changed.
 
+## S24 50% scale experiment prepared
+
+After the user exited, confirmed the S24 app was no longer running and backed up its 75% configuration to local `build/performance/s24-scale50-20260906-213003/Gothic.ini.backup`. Changed only `vidResIndex=1` to `2`, verified the device file and relaunched successfully (`Status: ok`). This requests 1170x540 3D rendering, one quarter of native pixel count; UI scale and all other settings remain unchanged. Before launch, live skin temperature was 42.9 C and thermal status remained 2. An in-game 50% capture is still pending; no performance result is claimed yet.
+
+To return to the preceding 75% configuration, save and exit before restoring this backup:
+
+```powershell
+& C:\Android\Sdk\platform-tools\adb.exe -s RFCX10M60QT push build/performance/s24-scale50-20260906-213003/Gothic.ini.backup /sdcard/Android/data/org.opengothic.app/files/Gothic.ini
+```
+
+As with the native-scale backup above, this restores the entire INI. Preserve any later setting changes before restoring it.
+
 ## Reproduce from PowerShell
 
 Start from the repository root. Load the same save and leave the character/camera still. Keep brightness, power mode, charging state and warm-up duration comparable. Do not take screenshots or stream logcat during the trace. Record both cold and sustained samples separately.
