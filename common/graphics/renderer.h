@@ -124,7 +124,7 @@ class Renderer final {
     void togglePathtrace();
 
     struct Settings {
-      const uint32_t shadowResolution   = 2048;
+      uint32_t       shadowResolution   = 2048;
       bool           vsmEnabled         = false;
       bool           rtsmEnabled        = false;
       bool           swrEnabled         = false;

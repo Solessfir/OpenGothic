@@ -111,6 +111,18 @@ Renderer::~Renderer() {
   }
 
 void Renderer::setupSettings() {
+  const int shadowResolution = Gothic::settingsGetI("ENGINE", "shadowMapResolution");
+  switch(shadowResolution) {
+    case 1024:
+    case 1536:
+    case 2048:
+      settings.shadowResolution = uint32_t(shadowResolution);
+      break;
+    default:
+      // Missing, malformed and unsupported values retain the original shadow quality.
+      settings.shadowResolution = 2048;
+      break;
+    }
   settings.zEnvMappingEnabled = Gothic::settingsGetI("ENGINE","zEnvMappingEnabled")!=0;
   settings.zCloudShadowScale  = Gothic::settingsGetI("ENGINE","zCloudShadowScale") !=0;
   settings.ssaoHalfResolution = Gothic::settingsGetI("ENGINE","ssaoHalfResolution")!=0;
@@ -423,6 +435,8 @@ void Renderer::resetViewport(Tempest::Size res, Tempest::Size fullRes) {
 
 void Renderer::resetShadowmap() {
   auto& device = Resources::device();
+
+  Log::i("Shadow map resolution = ", settings.shadowResolution);
 
   for(int i=0; i<Resources::ShadowLayers; ++i)
     Resources::recycle(std::move(shadowMap[i]));

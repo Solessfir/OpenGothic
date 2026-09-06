@@ -55,6 +55,27 @@ Use the safe INI-edit commands below with the game stopped, and restart after ed
 Set `ssaoHalfResolution=0` to restore full-resolution AO without changing the scene render scale or rebuilding the APK.
 GPU profiling labels the new resolve as `SSAO upsample`; compare its combined cost with `SSAO` against the old `SSAO` plus `SSAO blur`.
 
+## Shadow-map resolution
+
+The conventional sunlight shadow maps support three resolutions through writable `Gothic.ini`:
+
+```ini
+[ENGINE]
+shadowMapResolution=1024
+```
+
+Use `2048` for the original quality, `1536` for an intermediate setting, or `1024` for the lowest-cost option.
+The default remains `2048` on both Android and desktop; missing, malformed and unsupported values fall back to it.
+In particular, `0` does not disable shadows or allocate an empty texture.
+The setting applies to both conventional sunlight shadow maps, including their fog consumers, not virtual shadow-map pages or ray-traced shadow quality.
+Restart after editing the INI; `log.txt` reports the effective value as `Shadow map resolution = ...`.
+
+Compared with 2048, 1536 stores 56.25% as many depth texels and 1024 stores 25%.
+This does not imply an equivalent frame-time saving: geometry processing, draw submission and much of shadow sampling still remain.
+Lower resolutions can make shadow edges softer or more visibly stepped, especially on vegetation and thin geometry.
+Scene resolution, SSAO, shadow coverage and lighting direction remain unchanged; the existing shadow filter already uses the texture's actual dimensions.
+Set `shadowMapResolution=2048` to restore the original quality without changing other graphics settings.
+
 ## Frame-rate limit and low-power waits
 
 Android initializes a missing writable `[ENGINE] zMaxFPS` to `60`, including when copied PC settings request uncapped rendering.
