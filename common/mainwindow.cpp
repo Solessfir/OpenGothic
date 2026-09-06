@@ -1360,7 +1360,7 @@ void MainWindow::render(){
         const int margin = int(16.f*density);
         auto& font = Resources::font(density);
         char text[32] = {};
-        std::snprintf(text,sizeof(text),"%.1f FPS",fps.get());
+        std::snprintf(text,sizeof(text),"%.0f FPS",fps.get());
         font.drawText(painter,margin,margin+font.pixelSize(),text);
         fpsOverlayUpdated = Application::tickCount();
         }
