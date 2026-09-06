@@ -2,6 +2,14 @@
 
 ## Latest follow-up
 
+### Tempest master update and history cleanup
+
+Tempest is now pinned to `b8c952ef1c723082a23c5e373e95f5ad65027419`, published on the user's fork. That merge contains all eight previously missing master commits through `02e1e053`; both local Tempest checkouts were fast-forwarded to it without conflicts. Android `assembleDebug lintDebug`, the Windows game target, and all three controller/save/camera regression tests passed. APK signature and 16 KB ZIP alignment checks passed, with only the ARM64 library and no game assets packaged. The rebuilt APK has not been installed on the phone.
+
+Current APK SHA-256: `F01D1F1523303AE1610E5FC9893209617EC9C547F7B096ED025791B39198E67D`.
+
+Before updating the engine, OpenGothic's local history was cleaned up: 19 dependency-only commits were consolidated into one fork/submodule commit, preserving all 41 OpenGothic code/documentation snapshots. The final tree was verified identical before the subsequent master update. Earlier OpenGothic hashes below describe the original verification history; the old history remains locally at `refs/backup/android-before-tempest-cleanup-20260906-192737`, with a local hash map in `build/history-cleanup/result.json`. Tempest history was not rewritten, OpenGothic was not pushed, and the ignored D-pad TODO was preserved.
+
 ### Sidestep animation selection
 
 The user confirmed the animation problem persisted after the input-axis correction and identified excessive enemy distance as the separate lock-loss cause. Lock range/retention was not changed. OpenGothic `9c4747f5` disables automatic low-stick walk mode for locked ground sidesteps: crossing the low-speed range previously selected `WALKWSTRAFE` instead of `RUNSTRAFE`, and the animation layer can retain a sequence until its interruption window. Intentional LB+L3 walk mode, sneak, swimming/diving, and animation interruption rules are preserved. Locked forward/back movement and unlocked movement still support automatic walking.
