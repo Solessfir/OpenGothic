@@ -121,6 +121,8 @@ The rightmost 16% of the screen contains five invisible virtual buttons:
 
 Dragging the dynamic movement stick also emits arrow-key navigation for menus and dialog choices. This avoids precision tapping on the original desktop-sized UI.
 
+Choosing an empty save slot opens the Android keyboard. Enter a save name and press the keyboard's Done button to accept it and write the save. The keyboard stays hidden during normal gameplay and menu navigation.
+
 The physical gamepad mapping is:
 
 | Control | Android mapping | OpenGothic input |
