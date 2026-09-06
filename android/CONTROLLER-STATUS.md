@@ -2,6 +2,18 @@
 
 ## Latest follow-up
 
+### Save deletion
+
+OpenGothic `05ad0fcd` adds `[UI] DeleteSave=X`. Only occupied save/load slots open the named confirmation; A confirms permanent deletion and B cancels. Keyboard Delete/Enter/Escape are supported too. Inventory X still drops items. Empty slots, directories, and symbolic links cannot be deleted as save files. The original assets are unchanged.
+
+Android `assembleDebug lintDebug`, the Windows game build, and CTest (2/2) passed. The new deletion test uses synthetic temporary files and checks that neighboring saves and directories survive. APK v2 signing and 16 KB ZIP alignment checks passed; only the ARM64 native library is packaged, with no game assets. No user save was deleted in testing. Device testing is left to the user as requested; installation is pending confirmation that the running game is saved and ready to restart.
+
+Current APK SHA-256: `A4FB141B426E9BF6BF167ADCB641AD12829CBC8CF0E70CB6C61CE57404DD1B01`.
+
+### Save-name rendering
+
+The earlier `832a86a9` APK was subsequently installed successfully on the S24 and cold-launched to the main menu. The user confirmed that live save-name editing works. The following rendering-fix record describes its build-time status; its pending-install note and APK hash are historical.
+
 OpenGothic `832a86a9` adds live save-name rendering after the controller fixes in `15e1ec0c` and the dropped-item crash fix in `2a29bc29`. Tempest remains pinned to `b8f8b053` on the user's fork. These OpenGothic commits have not been pushed.
 
 The user has now tested a physical controller and confirmed that target lock works; the subsequent missing-lock report was a test misunderstanding. No further targeting changes were made. The user also confirmed the previous fix worked, while reporting that save-name deletion only became visible after closing and reopening the menu.
