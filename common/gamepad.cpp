@@ -272,7 +272,10 @@ void MainWindow::tickGamepad() {
   const PointF move(movement.first,movement.second);
   auto look=options.swapCamera?left:right;
   const float magnitude=std::sqrt(move.x*move.x+move.y*move.y);
-  player.setControllerMovement(move.x,move.y,camera->spin().y,magnitude>0 && magnitude<options.walkThreshold,options.movementTurnSpeed);
+  auto pl=Gothic::inst().player();
+  const bool lockedGround=player.lockedTarget()!=nullptr && pl!=nullptr && !pl->isSwim() && !pl->isDive();
+  const bool automaticWalk=controllerBindings.automaticWalk(move.x,move.y,lockedGround);
+  player.setControllerMovement(move.x,move.y,camera->spin().y,automaticWalk,options.movementTurnSpeed);
   const float dtSec=float(dt)/1000.f;
   const float sensitivity=Gothic::settingsGetF("GAME","mouseSensitivity")/0.5f;
   const float inverse=Gothic::settingsGetI("GAME","camLookaroundInverse")?-1.f:1.f;
@@ -286,7 +289,6 @@ void MainWindow::tickGamepad() {
       }
     }
   if(look!=PointF()) controllerLookIdle=0; else controllerLookIdle+=dt;
-  auto pl=Gothic::inst().player();
   if(pl && !player.isPressed(KeyCodec::LookBack) && !camera->isFirstPerson() &&
      (player.lockedTarget()!=nullptr || (options.cameraAssist && magnitude>0 && controllerLookIdle>800))) {
     // Gentle movement should produce gentle camera assistance, without disabling stationary lock tracking.

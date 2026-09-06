@@ -342,6 +342,14 @@ std::pair<float,float> GamepadBindings::targetMovementAxis(float x,float y) {
   return {0.f,y};
   }
 
+bool GamepadBindings::automaticWalk(float x,float y,bool targetRelative) const {
+  // Switching walk modes during a sidestep selects a different, potentially uninterruptible animation.
+  if(targetRelative && targetMovementAxis(x,y).second==0.f)
+    return false;
+  const float magnitude=std::sqrt(x*x+y*y);
+  return magnitude>0.f && magnitude<options.walkThreshold;
+  }
+
 std::vector<GamepadBindings::Event> GamepadBindings::update(uint32_t buttons,Context context,uint64_t now) {
   std::vector<Event> out;
   if(initialized && context!=lastContext) {

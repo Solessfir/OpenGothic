@@ -56,6 +56,7 @@ class GamepadBindings final {
     void reset(uint32_t held = 0);
     std::pair<float,float> movementAxis(float x, float y) const;
     static std::pair<float,float> targetMovementAxis(float x, float y);
+    bool automaticWalk(float x, float y, bool targetRelative) const;
 
   private:
     struct Binding {

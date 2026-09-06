@@ -27,6 +27,7 @@ int main() {
       const auto locked=B::targetMovementAxis(curved.first,curved.second);
       check(locked.second==0.f,"Left-right reversal with vertical noise never requests forward movement");
       check(locked.first==curved.first,"Reversal preserves sideways input immediately without a second dead zone");
+      check(!b.automaticWalk(curved.first,curved.second,true),"Locked sidestep reversal never enables automatic walk animations");
       }
     for(float rawY:{-1.f,-0.4f,0.f,0.4f,1.f}) {
       const auto curved=b.movementAxis(0.04f,rawY);
@@ -37,6 +38,14 @@ int main() {
     check(B::targetMovementAxis(0.f,0.f)==std::pair<float,float>(0.f,0.f),"Neutral locked stick does not retain movement");
     check(B::targetMovementAxis(0.6f,-0.5f)==std::pair<float,float>(0.6f,0.f),"Side-dominant diagonal strafes");
     check(B::targetMovementAxis(0.5f,-0.6f)==std::pair<float,float>(0.f,-0.6f),"Forward-dominant diagonal advances");
+    check(b.automaticWalk(0.2f,0.f,false),"Gentle unlocked movement still walks");
+    check(b.automaticWalk(0.f,-0.2f,true),"Gentle locked forward movement still walks");
+    check(b.automaticWalk(0.f,0.2f,true),"Gentle locked backward movement retains automatic walk mode");
+    check(!b.automaticWalk(0.f,0.f,true),"Neutral locked input does not switch to walk idle");
+    check(!b.automaticWalk(0.f,-1.f,true),"Full locked forward input does not walk");
+    check(!b.automaticWalk(0.3f,0.2f,true),"Side-dominant diagonal keeps combat sidestep animation");
+    for(float x:{-1.f,-0.7f,-0.4f,-0.1f,0.f,0.1f,0.4f,0.7f,1.f})
+      check(!b.automaticWalk(x,0.f,true),"Crossing the walk threshold sideways never changes gait");
     std::istringstream defaults(B::defaults());
     check(b.load(defaults).empty(),"Default bindings must validate");
     const auto x=B::button("X");

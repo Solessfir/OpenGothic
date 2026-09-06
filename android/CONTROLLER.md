@@ -33,6 +33,8 @@ While locked, right-stick up/down still adjusts camera elevation, respecting Mou
 
 Locked ground movement chooses the left stick's dominant axis for Gothic's movement animation. Small vertical noise during a left/right reversal therefore cannot start a forward walk. Both directions use the same radial dead zone and response curve, without an extra sideways threshold. Neutral input stops requesting movement, and intentionally pushing forward/back still advances/retreats. Swimming, diving, keyboard movement, and touch input retain their existing handling.
 
+Automatic low-stick walking applies to unlocked movement and locked forward/back movement, not locked sidesteps. This keeps a reversal from switching between Gothic's run-strafe and walk-strafe animations as the stick passes through the low-speed range. Combat sidesteps use their normal animation speed even at a small sideways deflection. Explicit walk mode (LB+L3), sneak, water movement, and the original animation interruption rules remain intact.
+
 Left-stick responsiveness is separate from Mouse speed. These `Gamepad.ini` options soften movement without reducing full-stick running speed:
 
 ```ini
