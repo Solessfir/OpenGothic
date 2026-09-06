@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 
 #include <Tempest/Except>
+#include <Tempest/CpuTrace>
 #include <Tempest/Painter>
 
 #include <Tempest/Brush>
@@ -438,6 +439,7 @@ void MainWindow::onTouchCommand(TouchInput::Command command, bool pressed) {
 #endif
 
 void MainWindow::onSettings() {
+  CpuTrace::setEnabled(Gothic::settingsGetI("DEBUG", "cpuProfile")!=0);
   const bool gpuProfiling = Gothic::settingsGetI("DEBUG", "gpuProfile")!=0;
   if(profileGpu!=gpuProfiling) {
     profileGpu = gpuProfiling;
@@ -1315,6 +1317,7 @@ void MainWindow::setFullscreen(bool fs) {
   }
 
 void MainWindow::render(){
+  CpuTrace frameTrace("OpenGothic::frame");
   try {
     static uint64_t time=Application::tickCount();
 
@@ -1337,18 +1340,36 @@ void MainWindow::render(){
       once player position is updated, animation bones(cameraBone in particular) can be updated
       lastly - camera position
       */
-    const uint64_t dt = tick();
+    uint64_t dt;
+    {
+    CpuTrace trace("OpenGothic::simulation");
+    dt = tick();
+    }
+    {
+    CpuTrace trace("OpenGothic::animation");
     updateAnimation(dt);
+    }
+    {
+    CpuTrace trace("OpenGothic::camera");
     tickCamera(dt);
+    }
 
     auto& sync = fence[cmdId];
-    if(!sync.wait(0)) {
+    bool ready;
+    {
+    CpuTrace trace("OpenGothic::frame fence");
+    ready = sync.wait(0);
+    }
+    if(!ready) {
+      CpuTrace trace("OpenGothic::skipped frame");
       // GPU rendering is not done, pass to next frame
       std::this_thread::yield();
       return;
       }
     Resources::resetRecycled(cmdId);
 
+    {
+    CpuTrace trace("OpenGothic::UI");
     bool refreshFps = false;
 #if defined(__ANDROID__)
     refreshFps = showFps && Application::tickCount()-fpsOverlayUpdated >= 250;
@@ -1381,6 +1402,7 @@ void MainWindow::render(){
       }
     uiMesh [cmdId].update(device,uiLayer);
     numMesh[cmdId].update(device,numOverlay);
+    }
 
     CommandBuffer& cmd = commands[cmdId];
     // This slot's normal submission fence has completed above.
@@ -1413,11 +1435,18 @@ void MainWindow::render(){
     if(captureGpu)
       ++gpuProfileAttempts;
     {
+    CpuTrace trace("OpenGothic::record");
     auto enc = cmd.startEncoding(device,captureGpu);
     renderer.draw(swapchain[swapchain.currentImage()],enc,cmdId,uiMesh[cmdId],numMesh[cmdId],inventory,video);
     }
+    {
+    CpuTrace trace("OpenGothic::submit");
     sync = device.submit(cmd);
+    }
+    {
+    CpuTrace trace("OpenGothic::present");
     device.present(swapchain);
+    }
     cmdId = (cmdId+1u)%Resources::MaxFramesInFlight;
 
     auto t = Application::tickCount();
