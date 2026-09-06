@@ -269,11 +269,56 @@ Verification completed locally:
 
 Candidate APK: `android/app/build/outputs/apk/debug/app-debug.apk`.
 SHA-256: `09A85FA94D969BC8F0C54EA0E7B98A1108658206267745464C8604554D12D73C`.
-It has not yet been installed or measured on a phone: `adb devices -l` returned no devices after the baseline capture.
-No phone FPS improvement is claimed from these compilation and correctness checks.
+The initial install was blocked by an empty ADB device list; the successful S24 installation and measurements below supersede that blocker.
 Test commands are in [tests/rendering/README.md](../tests/rendering/README.md).
 
-Next: reconnect the S24, install with `adb -s RFCX10M60QT install -r android/app/build/outputs/apk/debug/app-debug.apk`, and load the same waterfall save at 50% scale.
-Preserve the baseline CSV and pull the new capture to a different directory before restarting again.
-Run `android/tools/Summarize-GpuProfile.ps1` on both files, then repeat the 30-second presentation/thermal trace above under comparable conditions.
 Game shutdown/relaunch during this testing is authorized; existing saves and assets must still be preserved.
+
+### S24 installation and paired-filter measurements, 2026-09-06
+
+After USB reconnection, the candidate APK above installed with `adb install -r` (`Success`) and cold-launched with `Status: ok`.
+The waterfall scene was visible and the process remained alive after both traces.
+The writable INI was backed up and confirmed unchanged: 50% scale, FPS display, quicksave/potion keys and GPU profiling enabled.
+The previous CSV was copied before restarting; no saves or assets were removed.
+Local evidence is in `build/performance/s24-paired-lanczos-20260906-221727/`.
+
+The new 600-frame GPU capture shows a localized improvement:
+
+| Marker | Previous mean | Paired-filter mean |
+| --- | --- | --- |
+| Tonemapping / upscale | 2.32 ms | 0.78 ms |
+| SSAO | 2.94 ms | 2.91 ms |
+| ShadowMap #1 | 1.58 ms | 1.62 ms |
+| ShadowMap #0 | 1.10 ms | 1.09 ms |
+| Sum of marker regions | 12.061 ms | 10.421 ms |
+
+The approximately 66% reduction in the tonemapping region, with largely unchanged neighboring regions, supports a real benefit from the filter change.
+It does not prove a 66% whole-game FPS improvement.
+Clock/thermal conditions were not synchronized between these two short GPU captures.
+
+Two subsequent 30-second traces recorded presentation cadence after the bounded GPU capture had finished:
+
+| Observation | First sample | Warmer sample |
+| --- | --- | --- |
+| Presentation FPS | 86.89 | 75.25 |
+| Mean / median interval | 11.51 / 11.52 ms | 13.29 / 13.36 ms |
+| 95th / 99th percentile interval | 13.29 / 14.43 ms | 15.15 / 16.13 ms |
+| Worst interval | 17.48 ms | 20.98 ms |
+| Intervals | 2,598 | 2,250 |
+| Sampled GPU clocks | 700-800 MHz | 600-650 MHz |
+| Live skin temperature before / after | 42.6 / 43.4 C | 44.1 / 44.3 C |
+| Android thermal status | 2 | 2 |
+| Main game thread CPU time | 23.183 s | 26.367 s |
+
+Neither trace reported nonzero trace-quality errors in the checked Perfetto statistics.
+Sampling GPU clocks started shortly after each trace began and partially extends beyond the trace, rather than aligning exactly with its frame intervals.
+The earlier 50% baseline was 58.46 FPS at predominantly 500-545 MHz and 44.4-44.5 C skin temperature.
+The newer samples are encouraging, but their higher clocks prevent attributing the entire FPS difference to this patch.
+These are short stationary scene tests, not a guarantee of sustained 60 FPS throughout gameplay.
+
+Startup logs contain the existing `Failed to created DmLoader object. Out of memory?` warning and ZenKit `1 bytes overflowed in section f590` messages.
+No fatal crash was observed during these captures; music correctness and those warnings remain separate follow-up checks.
+
+Next: repeat a longer warm gameplay run and the 75% render scale, with comparable conditions.
+SSAO remains the largest measured GPU region, while the warmer trace also shows high main-thread CPU use.
+Investigate those separately and retain this APK/capture as the paired-filter baseline.
