@@ -120,6 +120,7 @@ void Workers::threadFunc(size_t id) {
 
     if(!running) {
       taskDone.fetch_add(1);
+      taskDone.notify_one();
       return;
       }
 
@@ -131,6 +132,7 @@ void Workers::threadFunc(size_t id) {
       }
 
     taskDone.fetch_add(1);
+    taskDone.notify_one();
     // if(size_t(taskDone.fetch_add(1)+1)==taskCount)
     //   std::this_thread::yield();
     }
@@ -202,10 +204,12 @@ void Workers::execWork(uint32_t& minElts) {
   CpuTrace waitTrace("OpenGothic::worker wait");
   while(true) {
     int expect = int(taskCount);
-    if(taskDone.load()==expect) {
+    int completed = taskDone.load();
+    if(completed==expect) {
       taskDone.store(0);
       break;
       }
-    std::this_thread::yield();
+    // Waiting on the observed value also handles completion before this call.
+    taskDone.wait(completed);
     }
   }
