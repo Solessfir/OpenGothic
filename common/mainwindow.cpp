@@ -124,9 +124,17 @@ MainWindow::MainWindow(Device& device)
 
   displayPos = Shortcut(*this,Event::M_Alt,Event::K_P);
   displayPos.onActivated.bind(this, &MainWindow::onMarvinKey<Event::K_P>);
+#if defined(__ANDROID__)
+  // Controller menu actions can open modal dialogs, so dispatch them outside rendering.
+  controllerTimer.timeout.bind(this,&MainWindow::tickGamepad);
+  controllerTimer.start(1);
+#endif
   }
 
 MainWindow::~MainWindow() {
+#if defined(__ANDROID__)
+  controllerTimer.stop();
+#endif
   GameMusic::inst().stopMusic();
   Gothic::inst().cancelLoading();
   device.waitIdle();
@@ -1311,7 +1319,6 @@ void MainWindow::render(){
       once player position is updated, animation bones(cameraBone in particular) can be updated
       lastly - camera position
       */
-    tickGamepad(0);
     const uint64_t dt = tick();
     updateAnimation(dt);
     tickCamera(dt);

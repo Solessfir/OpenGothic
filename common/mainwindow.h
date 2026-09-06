@@ -93,7 +93,7 @@ class MainWindow : public Tempest::Window {
 
     void processMouse(Tempest::MouseEvent& event, bool enable);
     void tickMouse(uint64_t dt);
-    void tickGamepad(uint64_t dt);
+    void tickGamepad();
     GamepadBindings::Context controllerContext() const;
     void controllerAction(const GamepadBindings::Event& event);
     void controllerUiKey(Tempest::Event::KeyType key, bool repeat);
@@ -166,6 +166,7 @@ class MainWindow : public Tempest::Window {
     Tempest::Point            dMouse;
     PlayerControl             player;
 #if defined(__ANDROID__)
+    Tempest::Timer            controllerTimer;
     GamepadBindings           controllerBindings;
     bool                      controllerConnected=false;
     bool                      controllerExploration=false;

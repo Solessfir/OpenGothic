@@ -216,7 +216,7 @@ struct GameMenu::KeyEditDialog : Dialog {
   };
 
 struct GameMenu::SavNameDialog : Dialog {
-  SavNameDialog(std::string& text):text(text), text0(text) {
+  SavNameDialog(GameMenu& menu, std::string& text):menu(menu), text(text), text0(text) {
     setFocusPolicy(ClickFocus);
     setCursorShape(CursorShape::Hidden);
     setFocus(true);
@@ -224,9 +224,11 @@ struct GameMenu::SavNameDialog : Dialog {
 
   ~SavNameDialog() override {
     SystemApi::hideSoftInput();
+    menu.update();
     }
 
   void beginTextInput() {
+    menu.update();
     SystemApi::showSoftInput(text);
     }
 
@@ -239,6 +241,8 @@ struct GameMenu::SavNameDialog : Dialog {
   void keyDownEvent(KeyEvent &e) override { e.accept(); }
   void keyUpEvent  (KeyEvent &e) override {
     update();
+    // The name is painted by the underlying menu, not this transparent input dialog.
+    menu.update();
 
     if(e.key==Event::K_ESCAPE) {
       text = text0;
@@ -267,6 +271,7 @@ struct GameMenu::SavNameDialog : Dialog {
   void paintEvent (PaintEvent&) override {}
   void paintShadow(PaintEvent&) override {}
 
+  GameMenu&    menu;
   std::string& text;
   std::string  text0;
 
@@ -807,7 +812,7 @@ void GameMenu::execSingle(Item &it, int slideDx, KeyCodec::Action hint) {
   if(item->type==zenkit::MenuItemType::INPUT && slideDx==0) {
     ctrlInput = &it;
     if(item->on_chg_set_option.empty()) {
-      SavNameDialog dlg{item->text[0]};
+      SavNameDialog dlg{*this,item->text[0]};
       if(it.savHdr.version==0)
         dlg.text = "";
       dlg.beginTextInput();

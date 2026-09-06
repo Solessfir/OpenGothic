@@ -160,10 +160,10 @@ void MainWindow::controllerAction(const GamepadBindings::Event& event) {
 #endif
   }
 
-void MainWindow::tickGamepad(uint64_t dt) {
+void MainWindow::tickGamepad() {
 #if defined(__ANDROID__)
   const auto now=Application::tickCount();
-  dt=std::min<uint64_t>(50,now-controllerLastPoll);
+  const auto dt=std::min<uint64_t>(50,now-controllerLastPoll);
   controllerLastPoll=now;
   const auto gp=SystemApi::gamepadState();
   auto& options=controllerBindings.options;
@@ -286,7 +286,5 @@ void MainWindow::tickGamepad(uint64_t dt) {
     const float error=std::remainder(pl->rotation()-camera->spin().y,360.f);
     camera->onRotateMouse(PointF(0,error*std::min(1.f,dtSec/options.cameraSmoothing)));
     }
-#else
-  (void)dt;
 #endif
   }
