@@ -52,6 +52,13 @@ class InventoryMenu : public Tempest::Widget {
     void  tick(uint64_t dt);
     void  draw(Tempest::Encoder<Tempest::CommandBuffer>& cmd);
     void  paintNumOverlay(Tempest::PaintEvent& e);
+    void  controllerAction(int action);
+    void  openWheel(Npc& pl);
+    bool  isWheelOpen() const { return wheelActive; }
+    void  wheelMove(float x, float y);
+    void  wheelPage(int direction);
+    size_t wheelSelection() const;
+    void  setWheelHint(std::string hint) { wheelHint=std::move(hint); }
 
     void  keyDownEvent  (Tempest::KeyEvent&   e) override;
     void  keyRepeatEvent(Tempest::KeyEvent&   e) override;
@@ -98,6 +105,13 @@ class InventoryMenu : public Tempest::Widget {
 
     size_t                    columsCount = 5;
     int32_t                   scrollDelta = 0;
+    bool                      wheelActive = false;
+    bool                      wheelCentered = true;
+    size_t                    wheelPageId = 0;
+    int                       wheelSelected = -1;
+    std::vector<size_t>        wheelItems;
+    std::string               wheelHint;
+    void                      drawWheel(Tempest::Painter& p, DrawPass pass);
 
     size_t                    rowsCount() const;
 

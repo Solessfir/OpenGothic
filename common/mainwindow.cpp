@@ -25,6 +25,8 @@
 
 #include "commandline.h"
 #include "gothic.h"
+#include <filesystem>
+#include <fstream>
 
 using namespace Tempest;
 
@@ -40,6 +42,17 @@ MainWindow::MainWindow(Device& device)
     {
   Gothic::inst().onSettingsChanged.bind(this,&MainWindow::onSettings);
   onSettings();
+#if defined(__ANDROID__)
+  if(!std::filesystem::exists("Gamepad.ini")) {
+    std::ofstream file("Gamepad.ini");
+    file<<GamepadBindings::defaults();
+    if(!file) Log::e("Unable to create Gamepad.ini");
+    }
+  std::ifstream bindings("Gamepad.ini");
+  if(bindings) {
+    for(auto& error:controllerBindings.load(bindings)) Log::e("Gamepad.ini: ",error);
+    }
+#endif
 
   if(Gothic::inst().version().game==2)
     setWindowTitle("Gothic II"); else
@@ -390,46 +403,6 @@ void MainWindow::tickMouse(uint64_t dt) {
   dMouse = Point();
   }
 
-void MainWindow::tickGamepad(uint64_t dt) {
-#if defined(__ANDROID__)
-  const auto gp = SystemApi::gamepadState();
-  mobileUi.setTouchEnabled(!gp.connected);
-  const auto touchMove = mobileUi.movementAxis();
-  player.setGamepadAxis(gp.connected ? gp.leftStickX : 0.f,
-                        gp.connected ? gp.leftStickY : touchMove.y);
-
-  auto camera = Gothic::inst().camera();
-  if(dialogs.hasContent() || Gothic::inst().isPause() || camera==nullptr || camera->isCutscene())
-    return;
-
-  const float dtSec = float(dt)/1000.f;
-  float       yaw   = -gp.rightStickX*180.f*dtSec;
-  float       pitch = gp.rightStickY*140.f*dtSec;
-  if(!gp.connected) {
-    const auto look = mobileUi.takeLookDelta();
-    yaw   = float(look.x)*300.f/float(std::max(w(),1));
-    pitch = float(look.y)*220.f/float(std::max(h(),1));
-    if(mobileUi.isLooking() || look!=Point()) {
-      touchLookIdle = 0;
-      }
-    else {
-      touchLookIdle += dt;
-      if(touchLookIdle>800 && touchMove.y < -0.35f) {
-        const float maxStep = 90.f*dtSec;
-        const float assist  = std::clamp(-camera->azimuth()*2.f*dtSec,-maxStep,maxStep);
-        camera->onRotateMouse(PointF(0.f,assist));
-        }
-      }
-    }
-  if(yaw==0.f && pitch==0.f)
-    return;
-  camera->onRotateMouse(PointF(pitch,-yaw));
-  if(!inventory.isActive())
-    player.onRotateMouse(yaw,pitch);
-#else
-  (void)dt;
-#endif
-  }
 
 #if defined(__MOBILE_PLATFORM__)
 void MainWindow::onTouchCommand(TouchInput::Command command, bool pressed) {
@@ -644,6 +617,15 @@ void MainWindow::keyUpEvent(KeyEvent &event) {
   }
 
 void MainWindow::focusEvent(FocusEvent &event) {
+#if defined(__ANDROID__)
+  controllerFocused=event.in;
+  if(!event.in) {
+    clearInput();
+    controllerBindings.reset(controllerButtons);
+    if(inventory.isWheelOpen()) inventory.close();
+    wheelHeldMask=0;
+    }
+#endif
   if(!event.in)
     return;
   dMouse = Point();
@@ -681,6 +663,10 @@ void MainWindow::paintFocus(Painter& p, const Focus& focus, const Matrix4x4& vp)
   if(iy>h())
     iy = h();
   fnt.drawText(p,ix,iy,focus.displayName());
+  if(focus.npc!=nullptr && player.lockedTarget()==focus.npc) {
+    fnt.drawText(p,ix-fnt.textSize("[ ").w,iy,"[ ");
+    fnt.drawText(p,ix+tsize.w,iy," ]");
+    }
 
   if(focus.npc!=nullptr && !focus.npc->isDead()) {
     float hp = float(focus.npc->attribute(ATR_HITPOINTS))/float(focus.npc->attribute(ATR_HITPOINTSMAX));
@@ -997,7 +983,6 @@ uint64_t MainWindow::tick() {
     auto camera = Gothic::inst().camera();
     if(camera!=nullptr && camera->isFree()) {
       tickMouse(dt);
-      tickGamepad(dt);
       }
     update();
     return 0;
@@ -1013,7 +998,6 @@ uint64_t MainWindow::tick() {
   if(document.isActive())
     clearInput();
   tickMouse(dt);
-  tickGamepad(dt);
   player.tickMove(dt);
   update();
   return dt;
@@ -1048,6 +1032,11 @@ void MainWindow::tickCamera(uint64_t dt) {
     else if(inventory.isActive()) {
       camera.setTarget(pos);
       }
+#if defined(__ANDROID__)
+    else if(controllerConnected && pl!=nullptr && pl->interactive()==nullptr) {
+      camera.setTarget(pos);
+      }
+#endif
     else if(player.focus().npc!=nullptr && meleeFocus && pl!=nullptr) {
       auto spin = camera.spin();
       spin.y = pl->rotation();
@@ -1324,6 +1313,7 @@ void MainWindow::render(){
       once player position is updated, animation bones(cameraBone in particular) can be updated
       lastly - camera position
       */
+    tickGamepad(0);
     const uint64_t dt = tick();
     updateAnimation(dt);
     tickCamera(dt);

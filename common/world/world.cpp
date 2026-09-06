@@ -414,17 +414,17 @@ Focus World::validateFocus(const Focus &def) {
   return ret;
   }
 
-Focus World::findFocus(const Npc &pl, const Focus& def) {
+Focus World::findFocus(const Npc &pl, const Focus& def, bool unarmed) {
   auto  opt      = WorldObjects::NoFlg;
   auto  collAlgo = TARGET_COLLECT_FOCUS;
   auto  collType = TARGET_TYPE_ALL;
-  auto& policy   = searchPolicy(pl,collAlgo,collType,opt);
+  auto& policy   = searchPolicy(pl,collAlgo,collType,opt,unarmed);
 
   WorldObjects::SearchOpt optNpc {policy.npc_range1,  policy.npc_range2,  policy.npc_azi,  collAlgo, collType, opt};
   WorldObjects::SearchOpt optMob {policy.mob_range1,  policy.mob_range2,  policy.mob_azi,  collAlgo};
   WorldObjects::SearchOpt optItm {policy.item_range1, policy.item_range2, policy.item_azi, collAlgo, collType};
 
-  if(pl.weaponState()==WeaponState::NoWeapon) {
+  if(unarmed || pl.weaponState()==WeaponState::NoWeapon) {
     // used only for dialogs it seems
     optNpc.rangeMax = std::max(optNpc.rangeMax, policy.npc_longrange);
     }
@@ -432,7 +432,7 @@ Focus World::findFocus(const Npc &pl, const Focus& def) {
   auto n     = policy.npc_prio <0 ? nullptr : wobj.findNpcNear    (pl,def.npc,        optNpc);
   auto it    = policy.item_prio<0 ? nullptr : wobj.findItem       (pl,def.item,       optItm);
   auto inter = policy.mob_prio <0 ? nullptr : wobj.findInteractive(pl,def.interactive,optMob);
-  auto ws = pl.weaponState();
+  auto ws = unarmed ? WeaponState::NoWeapon : pl.weaponState();
   if(ws==WeaponState::Bow || ws==WeaponState::CBow) {
     optMob.flags = WorldObjects::SearchFlg(WorldObjects::FcOverride | WorldObjects::NoRay);
     inter = wobj.findInteractive(pl,def.interactive,optMob);
@@ -843,12 +843,12 @@ void World::invalidateVobIndex() {
   wobj.invalidateVobIndex();
   }
 
-const zenkit::IFocus& World::searchPolicy(const Npc& pl, TargetCollect& collAlgo, TargetType& collType, WorldObjects::SearchFlg& opt) const {
+const zenkit::IFocus& World::searchPolicy(const Npc& pl, TargetCollect& collAlgo, TargetType& collType, WorldObjects::SearchFlg& opt, bool unarmed) const {
   opt      = WorldObjects::NoFlg;
   collAlgo = TARGET_COLLECT_FOCUS;
   collType = TARGET_TYPE_ALL;
 
-  switch(pl.weaponState()) {
+  switch(unarmed ? WeaponState::NoWeapon : pl.weaponState()) {
     case WeaponState::Fist:
     case WeaponState::W1H:
     case WeaponState::W2H:

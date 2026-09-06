@@ -12,6 +12,7 @@
 #include "utils/keycodec.h"
 #include "gothic.h"
 #include "resources.h"
+#include "utils/gamepadbindings.h"
 
 using namespace Tempest;
 
@@ -96,6 +97,7 @@ InventoryMenu::~InventoryMenu() {
   }
 
 void InventoryMenu::close() {
+  wheelActive=false;
   if(state!=State::Closed) {
     if(state==State::Trade)
       Gothic::inst().emitGlobalSound("TRADE_CLOSE"); else
@@ -588,6 +590,7 @@ void InventoryMenu::adjustScroll() {
   }
 
 void InventoryMenu::drawAll(Painter &p, Npc &player, DrawPass pass) {
+  if(wheelActive) { drawWheel(p,pass); return; }
   const int padd = 43;
 
   const int iy = gridTop();
@@ -792,4 +795,105 @@ void InventoryMenu::drawInfo(Painter &p) {
 
 void InventoryMenu::draw(Tempest::Encoder<CommandBuffer>& cmd) {
   renderer.draw(cmd);
+  }
+
+void InventoryMenu::controllerAction(int action) {
+  using A=GamepadBindings::Action;
+  if(player==nullptr || state==State::Closed || state==State::LockPicking) return;
+  switch(A(action)) {
+    case A::Back: close(); return;
+    case A::Up: moveUp(); break;
+    case A::Down: moveDown(); break;
+    case A::Left: moveLeft(false); break;
+    case A::Right: moveRight(false); break;
+    case A::LeftPanel: if(pagesCount()==2) page=0; break;
+    case A::RightPanel: if(pagesCount()==2) page=1; break;
+    case A::Accept: onItemAction(Item::NSLOT); takeTimer.stop(); takeCount=0; break;
+    case A::TakeStack:
+      if(state==State::Chest || state==State::Trade || state==State::Ransack) {
+        lootMode=LootMode::Stack; onTakeStuff(); lootMode=LootMode::Normal;
+        }
+      break;
+    case A::Drop: {
+      if(!activePage().is(&player->inventory())) break;
+      auto it=activePage().get(activePageSel().sel);
+      if(it.isValid()) player->dropItem(it->clsId(),1);
+      break;
+      }
+    default:
+      if(A(action)>=A::Spell3 && A(action)<=A::Spell10 && state==State::Equip) {
+        auto it=activePage().get(activePageSel().sel);
+        if(it.isValid() && it->isSpellOrRune()) onItemAction(uint8_t(action-int(A::Spell3)+3));
+        }
+      break;
+    }
+  adjustScroll(); update();
+  }
+
+void InventoryMenu::openWheel(Npc& pl) {
+  if(pl.isDown() || pl.isMonster() || pl.interactive()!=nullptr || !pl.canSwitchWeapon() || !pl.isAiQueueEmpty()) return;
+  state=State::Equip; player=&pl; trader=nullptr; chest=nullptr; page=0;
+  pagePl.reset(new InvPage(pl.inventory())); pageOth.reset();
+  wheelItems.clear();
+  for(auto it=pl.inventory().iterator(Inventory::T_Inventory);it.isValid();++it) {
+    if((it->mainFlag()&(ITM_CAT_NF|ITM_CAT_FF))!=0 || (it->isSpellOrRune() && it.slot()!=Item::NSLOT))
+      wheelItems.push_back(it->clsId());
+    }
+  wheelActive=true; wheelPageId=0; wheelSelected=-1; wheelCentered=true;
+  update();
+  }
+
+void InventoryMenu::wheelMove(float x,float y) {
+  if(x*x+y*y<0.25f) { wheelSelected=-1; wheelCentered=true; update(); return; }
+  if(!wheelCentered) return;
+  float angle=std::atan2(x,-y);
+  if(angle<0) angle+=2.f*float(M_PI);
+  wheelSelected=int(std::floor(angle/(float(M_PI)/4.f)+0.5f))%8;
+  if(wheelPageId*8+size_t(wheelSelected)>=wheelItems.size()) wheelSelected=-1;
+  update();
+  }
+
+void InventoryMenu::wheelPage(int direction) {
+  const auto pages=std::max<size_t>(1,(wheelItems.size()+7)/8);
+  wheelPageId=(wheelPageId+pages+(direction<0?pages-1:1))%pages;
+  wheelSelected=-1; wheelCentered=false;
+  update();
+  }
+
+size_t InventoryMenu::wheelSelection() const {
+  if(wheelSelected<0 || wheelPageId*8+size_t(wheelSelected)>=wheelItems.size()) return size_t(-1);
+  return wheelItems[wheelPageId*8+size_t(wheelSelected)];
+  }
+
+void InventoryMenu::drawWheel(Painter& p,DrawPass pass) {
+  const float scale=Gothic::interfaceScale(this);
+  const int cell=int(64*scale);
+  const float radius=std::min(float(h())*0.30f,float(w())*0.20f);
+  const int cx=w()/2, cy=h()/2;
+  auto& font=Resources::font(scale);
+  if(pass==DrawPass::Back) {
+    p.setBrush(Color(0.04f,0.03f,0.02f,0.85f));
+    p.drawRect(cx-int(radius)-cell,cy-int(radius)-cell,2*(int(radius)+cell),2*(int(radius)+cell));
+    }
+  for(size_t i=0;i<8 && wheelPageId*8+i<wheelItems.size();++i) {
+    auto item=player->getItem(wheelItems[wheelPageId*8+i]);
+    if(item==nullptr) continue;
+    const float angle=float(i)*float(M_PI)/4.f;
+    const int x=cx+int(std::sin(angle)*radius)-cell/2;
+    const int y=cy-int(std::cos(angle)*radius)-cell/2;
+    if(pass==DrawPass::Back) {
+      const auto texture=int(i)==wheelSelected?selT:slot;
+      if(texture) { p.setBrush(*texture); p.drawRect(x,y,cell,cell); }
+      renderer.drawItem(x,y,cell,cell,*item);
+      }
+    }
+  if(pass==DrawPass::Front) {
+    string_frm pageLabel("Equipment ",wheelPageId+1," / ",std::max<size_t>(1,(wheelItems.size()+7)/8));
+    const int textWidth=int(radius*1.7f);
+    font.drawText(p,cx-textWidth/2,cy-font.pixelSize(),textWidth,4*font.pixelSize(),pageLabel,AlignHCenter);
+    auto item=player->getItem(wheelSelection());
+    const auto name=item?item->description():std::string_view("Select equipment");
+    font.drawText(p,cx-textWidth/2,cy+font.pixelSize(),textWidth,3*font.pixelSize(),name,AlignHCenter);
+    font.drawText(p,20,h()-20,w()-40,2*font.pixelSize(),wheelHint,AlignHCenter);
+    }
   }

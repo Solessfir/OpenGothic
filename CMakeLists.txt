@@ -80,7 +80,7 @@ endif()
 ## OpenGothic
 
 # sources
-file(GLOB_RECURSE OPENGOTHIC_SOURCES "common/*.h" "common/*.cpp")
+file(GLOB_RECURSE OPENGOTHIC_SOURCES CONFIGURE_DEPENDS "common/*.h" "common/*.cpp")
 file(GLOB_RECURSE SPACER_SOURCES "spacer/*.h" "spacer/*.cpp")
 
 target_sources(${PROJECT_NAME} PRIVATE ${OPENGOTHIC_SOURCES} ${ObjCSOURCES})

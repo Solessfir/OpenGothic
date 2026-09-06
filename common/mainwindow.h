@@ -38,6 +38,7 @@
 #endif
 
 #include "utils/keycodec.h"
+#include "utils/gamepadbindings.h"
 #include "resources.h"
 
 class MenuRoot;
@@ -93,6 +94,9 @@ class MainWindow : public Tempest::Window {
     void processMouse(Tempest::MouseEvent& event, bool enable);
     void tickMouse(uint64_t dt);
     void tickGamepad(uint64_t dt);
+    GamepadBindings::Context controllerContext() const;
+    void controllerAction(const GamepadBindings::Event& event);
+    void controllerUiKey(Tempest::Event::KeyType key, bool repeat);
 #if defined(__MOBILE_PLATFORM__)
     void onTouchCommand(TouchInput::Command command, bool pressed);
 #endif
@@ -161,6 +165,20 @@ class MainWindow : public Tempest::Window {
     Tempest::Widget*          uiKeyUp=nullptr;
     Tempest::Point            dMouse;
     PlayerControl             player;
+#if defined(__ANDROID__)
+    GamepadBindings           controllerBindings;
+    bool                      controllerConnected=false;
+    bool                      controllerExploration=false;
+    bool                      controllerFocused=true;
+    bool                      controllerAxesBlocked=true;
+    uint32_t                  controllerButtons=0;
+    uint32_t                  controllerTriggers=0;
+    uint32_t                  wheelHeldMask=0;
+    uint64_t                  controllerLastPoll=0;
+    uint64_t                  controllerLookIdle=0;
+    uint64_t                  controllerLastSwitch=0;
+    bool                      controllerSwitchReady=true;
+#endif
 #if defined(__MOBILE_PLATFORM__)
     TouchInput                mobileUi;
     uint64_t                  touchLookIdle=0;

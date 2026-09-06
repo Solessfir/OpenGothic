@@ -120,7 +120,7 @@ class World final {
     gtime                time() const;
 
     Focus                validateFocus(const Focus& def);
-    Focus                findFocus(const Npc& pl, const Focus &def);
+    Focus                findFocus(const Npc& pl, const Focus &def, bool unarmed = false);
     Focus                findFocus(const Focus& def);
     bool                 testFocusNpc(Npc *def);
 
@@ -193,7 +193,7 @@ class World final {
     void                 invalidateVobIndex();
 
   private:
-    const zenkit::IFocus& searchPolicy(const Npc& pl, TargetCollect& collAlgo, TargetType& collType, WorldObjects::SearchFlg& opt) const;
+    const zenkit::IFocus& searchPolicy(const Npc& pl, TargetCollect& collAlgo, TargetType& collType, WorldObjects::SearchFlg& opt, bool unarmed = false) const;
     std::string                           wname;
     GameSession&                          game;
 

@@ -46,6 +46,7 @@ void PlayerControl::setTarget(Npc *other) {
   }
 
 void PlayerControl::onKeyPressed(KeyCodec::Action a, Tempest::KeyEvent::KeyType key, KeyCodec::Mapping mapping) {
+  controllerKeyReleases[a]=false;
   auto       w    = Gothic::inst().world();
   auto       c    = Gothic::inst().camera();
   auto       pl   = w  ? w->player() : nullptr;
@@ -248,8 +249,116 @@ bool PlayerControl::isPressed(KeyCodec::Action a) const {
   }
 
 void PlayerControl::setGamepadAxis(float lx, float ly) {
+  controllerDirectional = false;
   gamepadLX = lx;
   gamepadLY = ly;
+  }
+
+void PlayerControl::setControllerMovement(float x,float y,float cameraYaw,bool walk) {
+  auto pl=Gothic::inst().player();
+  if(pl==nullptr) return;
+  if(controllerWalkApplied) {
+    pl->setWalkMode(WalkBit(uint8_t(pl->walkMode()) & ~uint8_t(WalkBit::WM_Walk)));
+    controllerWalkApplied=false;
+    }
+  if(walk && (pl->walkMode()&WalkBit::WM_Walk)==WalkBit::WM_Run) {
+    pl->setWalkMode(pl->walkMode()|WalkBit::WM_Walk);
+    controllerWalkApplied=true;
+    }
+  controllerDirectional=true;
+  if(controllerTarget!=nullptr || pl->isSwim() || pl->isDive()) {
+    gamepadLX=x; gamepadLY=y;
+    } else {
+    gamepadLX=0; gamepadLY=-std::sqrt(x*x+y*y);
+    }
+  controllerYaw=cameraYaw-std::atan2(x,-y)*180.f/float(M_PI);
+  }
+
+void PlayerControl::releaseControllerKey(KeyCodec::Action action,bool cancel) {
+  if(!cancel && ctrl[action]) {
+    controllerKeyReleases[action]=true;
+    return;
+    }
+  controllerKeyReleases[action]=false;
+  ctrl[action]=false;
+  handleMovementAction({action,KeyCodec::Mapping::Secondary},false);
+  }
+
+void PlayerControl::controllerCombat(int direction,bool pressed,bool cancel) {
+  // Explicit combat requests must not turn movement into an attack modifier.
+  if(direction<0 || direction>=7) return;
+  if(cancel) {
+    actrl[direction]=false;
+    if(direction==ActForward) controllerReleaseAttack=false;
+    return;
+    }
+  if(!pressed) {
+    // Keep a short attack tap until the simulation has consumed it.
+    if(direction==ActBack) actrl[direction]=false;
+    if(direction==ActForward) controllerReleaseAttack=true;
+    return;
+    }
+  auto pl=Gothic::inst().player();
+  if(pl==nullptr || pl->isDown() || pl->interactive()!=nullptr || pl->isAiBusy()) return;
+  const auto ws=pl->weaponState();
+  if(ws==WeaponState::NoWeapon) return;
+  if(direction==ActKill && (pl->target()==nullptr || !pl->canFinish(*pl->target()))) return;
+  if(ws==WeaponState::Fist && (direction==ActLeft || direction==ActRight)) return;
+  if(direction==ActForward) controllerReleaseAttack=false;
+  actrl[direction]=true;
+  }
+
+void PlayerControl::controllerInteract(bool sheath) {
+  auto w=Gothic::inst().world();
+  auto pl=Gothic::inst().player();
+  if(w==nullptr || pl==nullptr || pl->isDown()) return;
+  if(pl->weaponState()!=WeaponState::NoWeapon) {
+    if(!sheath) return;
+    pendingInteraction=w->findFocus(*pl,Focus(),true);
+    pendingInteractionUntil=w->tickCount()+3000;
+    controllerTarget=nullptr;
+    wctrl[WeaponClose]=true;
+    return;
+    }
+  auto f=w->findFocus(Focus());
+  if(f.item) interact(*f.item);
+  else if(f.interactive) interact(*f.interactive);
+  else if(f.npc) interact(*f.npc);
+  }
+
+void PlayerControl::controllerEquip(size_t item) {
+  pendingEquipment=item;
+  }
+
+void PlayerControl::toggleControllerTarget() {
+  if(controllerTarget!=nullptr) { controllerTarget=nullptr; return; }
+  auto w=Gothic::inst().world();
+  auto pl=Gothic::inst().player();
+  if(w==nullptr || pl==nullptr || pl->weaponState()==WeaponState::NoWeapon) return;
+  auto f=w->findFocus(Focus());
+  if(f.npc!=nullptr && !f.npc->isDown() && w->testFocusNpc(f.npc)) {
+    controllerTarget=f.npc;
+    currentFocus=f;
+    setTarget(f.npc);
+    }
+  }
+
+void PlayerControl::switchControllerTarget(bool right) {
+  if(controllerTarget==nullptr) return;
+  auto world=Gothic::inst().world();
+  Focus target;
+  target.npc=controllerTarget;
+  if(world==nullptr || world->validateFocus(target).npc==nullptr) {
+    controllerTarget=nullptr;
+    return;
+    }
+  auto old=controllerTarget;
+  currentFocus=Focus(*controllerTarget);
+  moveFocus(right?ActRight:ActLeft);
+  if(currentFocus.npc!=nullptr && !currentFocus.npc->isDown())
+    controllerTarget=currentFocus.npc;
+  else currentFocus=Focus(*old);
+  setTarget(controllerTarget);
   }
 
 void PlayerControl::onRotateMouse(float dAngleX, float dAngleY) {
@@ -275,8 +384,33 @@ void PlayerControl::drawVobRay(DbgPainter& p) const {
   }
 
 void PlayerControl::tickFocus() {
+  auto w=Gothic::inst().world();
+  auto pl=Gothic::inst().player();
+  if(controllerTarget!=nullptr && w!=nullptr && pl!=nullptr) {
+    Focus target;
+    target.npc=controllerTarget;
+    auto valid=w->validateFocus(target);
+    if(valid.npc==nullptr || valid.npc->isDown() || pl->isDown() || pl->weaponState()==WeaponState::NoWeapon || !w->testFocusNpc(valid.npc))
+      controllerTarget=nullptr;
+    }
   currentFocus = findFocus(&currentFocus);
+  if(controllerTarget!=nullptr)
+    currentFocus=Focus(*controllerTarget);
   setTarget(currentFocus.npc);
+
+  if(pendingInteractionUntil!=0 && w!=nullptr && pl!=nullptr) {
+    const auto valid=w->validateFocus(pendingInteraction);
+    const auto now=w->findFocus(*pl,Focus(),true);
+    if(w->tickCount()>pendingInteractionUntil || pl->isDown() ||
+       valid.item!=pendingInteraction.item || valid.npc!=pendingInteraction.npc || valid.interactive!=pendingInteraction.interactive ||
+       now.item!=pendingInteraction.item || now.npc!=pendingInteraction.npc || now.interactive!=pendingInteraction.interactive) {
+      pendingInteractionUntil=0;
+      }
+    else if(pl->weaponState()==WeaponState::NoWeapon && canInteract()) {
+      pendingInteractionUntil=0;
+      controllerInteract(false);
+      }
+    }
 
   if(!ctrl[Action::ActionGeneric])
     return;
@@ -298,7 +432,11 @@ void PlayerControl::tickFocus() {
   }
 
 void PlayerControl::clearFocus() {
+  controllerReleaseAttack=false;
   currentFocus = Focus();
+  controllerTarget=nullptr;
+  pendingInteractionUntil=0;
+  pendingEquipment=size_t(-1);
   }
 
 void PlayerControl::actionFocus(Npc& other) {
@@ -419,6 +557,10 @@ void PlayerControl::toggleWalkMode() {
   if(w==nullptr || w->player()==nullptr)
     return;
   auto pl = w->player();
+  if(controllerWalkApplied) {
+    pl->setWalkMode(pl->walkMode()^WalkBit::WM_Walk);
+    controllerWalkApplied=false;
+    }
   pl->setWalkMode(pl->walkMode()^WalkBit::WM_Walk);
   }
 
@@ -442,6 +584,18 @@ bool PlayerControl::canInteract() const {
   }
 
 void PlayerControl::clearInput() {
+  controllerKeyReleases.fill(false);
+  controllerReleaseAttack=false;
+  pendingEquipment=size_t(-1);
+  if(controllerWalkApplied) {
+    if(auto pl=Gothic::inst().player())
+      pl->setWalkMode(WalkBit(uint8_t(pl->walkMode()) & ~uint8_t(WalkBit::WM_Walk)));
+    }
+  controllerWalkApplied=false;
+  controllerDirectional=false;
+  gamepadLX=0; gamepadLY=0;
+  controllerTarget=nullptr;
+  pendingInteractionUntil=0;
   movement.reset();
   std::memset(ctrl, 0,sizeof(ctrl));
   std::memset(actrl,0,sizeof(actrl));
@@ -574,7 +728,7 @@ bool PlayerControl::tickMove(uint64_t dt) {
     marvinF8(dt);
   if(ctrl[Action::K_K] && Gothic::inst().isMarvinEnabled())
     marvinK(dt);
-  cacheFocus = ctrl[Action::ActionGeneric];
+  cacheFocus = ctrl[Action::ActionGeneric] || controllerTarget!=nullptr;
   if(camera!=nullptr)
     camera->setLookBack(ctrl[Action::LookBack]);
 
@@ -582,6 +736,8 @@ bool PlayerControl::tickMove(uint64_t dt) {
     return true;
 
   implMove(dt);
+  for(size_t i=0;i<controllerKeyReleases.size();++i)
+    if(controllerKeyReleases[i]) releaseControllerKey(Action(i),true);
 
   float runAngle = pl->runAngle();
   if(runAngle!=0.f || std::fabs(runAngleDest)>0.01f) {
@@ -634,6 +790,25 @@ void PlayerControl::implMove(uint64_t dt) {
     }
 
   if(pl.canSwitchWeapon()) {
+    if(pendingEquipment!=size_t(-1)) {
+      if(pl.weaponState()!=WeaponState::NoWeapon) {
+        pl.closeWeapon(false);
+        return;
+        }
+      const auto id=pendingEquipment;
+      pendingEquipment=size_t(-1);
+      auto item=pl.getItem(id);
+      if(item!=nullptr) {
+        if((item->mainFlag()&(ITM_CAT_NF|ITM_CAT_FF))!=0) {
+          if(pl.currentMeleeWeapon()!=item && pl.currentRangedWeapon()!=item)
+            pl.useItem(id,Item::NSLOT,false);
+          if(pl.currentMeleeWeapon()==item) wctrl[WeaponMele]=true;
+          if(pl.currentRangedWeapon()==item) wctrl[WeaponBow]=true;
+          }
+        else for(uint8_t i=0;i<8;++i)
+          if(pl.inventory().currentSpell(i)==item) wctrl[Weapon3+i]=true;
+        }
+      }
     if(wctrl[WeaponClose]) {
       wctrl[WeaponClose] = !(pl.closeWeapon(false) || pl.isMonster());
       return;
@@ -683,6 +858,10 @@ void PlayerControl::implMove(uint64_t dt) {
     }
 
   int rotation = 0;
+  if(controllerDirectional && controllerTarget==nullptr && gamepadLY!=0.f && allowRot && !pl.isAttackAnim()) {
+    const float delta=std::remainder(controllerYaw-rot,360.f);
+    rot+=std::clamp(delta,-360.f*float(dt)/1000.f,360.f*float(dt)/1000.f);
+    }
   if(allowRot) {
     if(this->wantsToTurnLeft()) {
       rot += rspeed;
@@ -715,6 +894,10 @@ void PlayerControl::implMove(uint64_t dt) {
     }
 
   if(casting) {
+    if(controllerReleaseAttack) {
+      actrl[ActForward]=false;
+      controllerReleaseAttack=false;
+      }
     if(!actrl[ActForward] || (Gothic::inst().version().game==1 && pl.attribute(ATR_MANA)==0)) {
       casting = false;
       pl.endCastSpell(true);
@@ -783,6 +966,10 @@ void PlayerControl::implMove(uint64_t dt) {
     }
 
   if(actrl[ActForward] || actrl[ActMove]) {
+    if(controllerReleaseAttack) {
+      actrl[ActForward]=false;
+      controllerReleaseAttack=false;
+      }
     ctrl [Action::Forward] = actrl[ActMove];
     actrl[ActMove]         = false;
     if(ws!=WeaponState::Mage && !(g2Ctrl && (ws==WeaponState::Bow || ws==WeaponState::CBow))) {
@@ -947,7 +1134,7 @@ void PlayerControl::implMove(uint64_t dt) {
     }
 
   setAnimRotate(pl, rot, ani==Npc::Anim::Idle ? rotation : 0, movement.turnRightLeft.any(), dt);
-  if(actrl[ActGeneric] || ani==Npc::Anim::MoveL || ani==Npc::Anim::MoveR || pl.isFinishingMove()) {
+  if(controllerTarget!=nullptr || actrl[ActGeneric] || ani==Npc::Anim::MoveL || ani==Npc::Anim::MoveR || pl.isFinishingMove()) {
     processAutoRotate(pl,rot,dt);
     }
 

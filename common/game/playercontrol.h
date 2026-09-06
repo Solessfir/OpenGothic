@@ -25,6 +25,16 @@ class PlayerControl final {
     void  onKeyReleased(KeyCodec::Action a, KeyCodec::Mapping mapping);
     bool  isPressed(KeyCodec::Action a) const;
     void  setGamepadAxis(float lx, float ly);
+    void  setControllerMovement(float x, float y, float cameraYaw, bool walk);
+    void  controllerCombat(int direction, bool pressed, bool cancel=false);
+    void  releaseControllerKey(KeyCodec::Action action, bool cancel=false);
+    void  controllerInteract(bool sheath);
+    void  controllerEquip(size_t item);
+    void  toggleControllerTarget();
+    void  switchControllerTarget(bool right);
+    Npc*  lockedTarget() const { return controllerTarget; }
+    bool  isControllerMoving() const { return controllerDirectional && gamepadLY!=0.f; }
+    bool  isClassicCombat() const { return !g2Ctrl; }
     void  onRotateMouse(float dAngleX, float dAngleY);
 
     void  drawVobRay(DbgPainter& p) const;
@@ -137,6 +147,7 @@ class PlayerControl final {
       } movement;
     
     bool           ctrl[Action::Last]={};
+    std::array<bool,Action::Last> controllerKeyReleases={};
     bool           wctrl[WeaponAction::Last]={};
     bool           actrl[7]={};
 
@@ -148,6 +159,14 @@ class PlayerControl final {
     float          rotMouseY=0;
     float          gamepadLX=0;
     float          gamepadLY=0;
+    bool           controllerDirectional=false;
+    bool           controllerReleaseAttack=false;
+    bool           controllerWalkApplied=false;
+    float          controllerYaw=0;
+    Npc*           controllerTarget=nullptr;
+    Focus          pendingInteraction;
+    uint64_t       pendingInteractionUntil=0;
+    size_t         pendingEquipment=size_t(-1);
     bool           casting = false;
     size_t         pickLockProgress = 0;
 
@@ -186,10 +205,10 @@ class PlayerControl final {
     //////////////////////////////////
 
     auto wantsToMoveForward() const -> bool {
-      return movement.forwardBackward.value() > 0.f || gamepadLY < -0.2f;
+      return movement.forwardBackward.value() > 0.f || gamepadLY < -(controllerDirectional ? 0.f : 0.2f);
       }
     auto wantsToMoveBackward() const -> bool {
-      return movement.forwardBackward.value() < 0.f || gamepadLY > 0.2f;
+      return movement.forwardBackward.value() < 0.f || gamepadLY > (controllerDirectional ? 0.f : 0.2f);
       }
 
     auto wantsToStrafeRight() const -> bool {
