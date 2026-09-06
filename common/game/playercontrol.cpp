@@ -247,6 +247,11 @@ bool PlayerControl::isPressed(KeyCodec::Action a) const {
   return ctrl[a];
   }
 
+void PlayerControl::setGamepadAxis(float lx, float ly) {
+  gamepadLX = lx;
+  gamepadLY = ly;
+  }
+
 void PlayerControl::onRotateMouse(float dAngleX, float dAngleY) {
   rotMouse  += dAngleX;
   rotMouseY += dAngleY;

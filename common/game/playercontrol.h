@@ -24,6 +24,7 @@ class PlayerControl final {
     void  onKeyPressed (KeyCodec::Action a, Tempest::Event::KeyType key, KeyCodec::Mapping mapping);
     void  onKeyReleased(KeyCodec::Action a, KeyCodec::Mapping mapping);
     bool  isPressed(KeyCodec::Action a) const;
+    void  setGamepadAxis(float lx, float ly);
     void  onRotateMouse(float dAngleX, float dAngleY);
 
     void  drawVobRay(DbgPainter& p) const;
@@ -145,6 +146,8 @@ class PlayerControl final {
     Focus          currentFocus;
     float          rotMouse=0;
     float          rotMouseY=0;
+    float          gamepadLX=0;
+    float          gamepadLY=0;
     bool           casting = false;
     size_t         pickLockProgress = 0;
 
@@ -183,17 +186,17 @@ class PlayerControl final {
     //////////////////////////////////
 
     auto wantsToMoveForward() const -> bool {
-      return movement.forwardBackward.value() > 0.f;
+      return movement.forwardBackward.value() > 0.f || gamepadLY < -0.2f;
       }
     auto wantsToMoveBackward() const -> bool {
-      return movement.forwardBackward.value() < 0.f;
+      return movement.forwardBackward.value() < 0.f || gamepadLY > 0.2f;
       }
 
     auto wantsToStrafeRight() const -> bool {
-      return movement.strafeRightLeft.value() > 0.f;
+      return movement.strafeRightLeft.value() > 0.f || gamepadLX > 0.2f;
       }
     auto wantsToStrafeLeft() const -> bool {
-      return movement.strafeRightLeft.value() < 0.f;
+      return movement.strafeRightLeft.value() < 0.f || gamepadLX < -0.2f;
       }
 
     auto wantsToTurnRight() const -> bool {

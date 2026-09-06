@@ -382,6 +382,31 @@ void MainWindow::tickMouse(uint64_t dt) {
   dMouse = Point();
   }
 
+void MainWindow::tickGamepad(uint64_t dt) {
+#if defined(__ANDROID__)
+  const auto gp = SystemApi::gamepadState();
+  player.setGamepadAxis(gp.connected ? gp.leftStickX : 0.f,
+                        gp.connected ? gp.leftStickY : 0.f);
+  if(!gp.connected)
+    return;
+
+  auto camera = Gothic::inst().camera();
+  if(dialogs.hasContent() || Gothic::inst().isPause() || camera==nullptr || camera->isCutscene())
+    return;
+
+  const float dtSec = float(dt)/1000.f;
+  const float yaw   = gp.rightStickX*180.f*dtSec;
+  const float pitch = gp.rightStickY*140.f*dtSec;
+  if(yaw==0.f && pitch==0.f)
+    return;
+  camera->onRotateMouse(PointF(pitch,-yaw));
+  if(!inventory.isActive())
+    player.onRotateMouse(yaw,pitch);
+#else
+  (void)dt;
+#endif
+  }
+
 void MainWindow::onSettings() {
   auto zMaxFps = Gothic::options().fpsLimit;
   if(zMaxFps<=0)
@@ -910,6 +935,7 @@ uint64_t MainWindow::tick() {
     auto camera = Gothic::inst().camera();
     if(camera!=nullptr && camera->isFree()) {
       tickMouse(dt);
+      tickGamepad(dt);
       }
     update();
     return 0;
@@ -925,6 +951,7 @@ uint64_t MainWindow::tick() {
   if(document.isActive())
     clearInput();
   tickMouse(dt);
+  tickGamepad(dt);
   player.tickMove(dt);
   update();
   return dt;
