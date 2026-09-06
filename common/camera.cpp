@@ -14,6 +14,7 @@
 #include "gothic.h"
 
 #include "utils/string_frm.h"
+#include "utils/cameramath.h"
 
 using namespace Tempest;
 
@@ -934,18 +935,18 @@ Vec3 Camera::clampRotation(Tempest::Vec3 spin) {
   //NOTE: min elevation is zero for nomal camera. assume that it's ignored by vanilla
   float       maxElev = +85;
   float       minElev = -60;
-  float       maxAzim = +180;
-  float       minAzim = -180;
 
   const auto pl = Gothic::inst().player();
   if(pl==nullptr)
     return spin;
 
   const auto plSpin = (Vec3{0,  pl->rotation(), 0});
+  // Equivalent yaw angles must stay near the character before applying pitch limits.
+  // Clamping an unwrapped yaw can turn a small boundary crossing into a half-turn.
+  spin.y = CameraMath::yawNear(spin.y,plSpin.y);
   spin = spin - plSpin;
 
   spin.x = std::clamp(spin.x, minElev, maxElev);
-  spin.y = std::clamp(spin.y, minAzim, maxAzim);
   return (spin + plSpin);
   }
 

@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include "gothic.h"
+#include "utils/cameramath.h"
 #include "world/objects/npc.h"
 #include "world/objects/interactive.h"
 #include <Tempest/Application>
@@ -273,23 +274,25 @@ void MainWindow::tickGamepad() {
   const float magnitude=std::sqrt(move.x*move.x+move.y*move.y);
   player.setControllerMovement(move.x,move.y,camera->spin().y,magnitude>0 && magnitude<options.walkThreshold,options.movementTurnSpeed);
   const float dtSec=float(dt)/1000.f;
-  if(player.lockedTarget()!=nullptr) {
+  const float sensitivity=Gothic::settingsGetF("GAME","mouseSensitivity")/0.5f;
+  const float inverse=Gothic::settingsGetI("GAME","camLookaroundInverse")?-1.f:1.f;
+  const bool locked=player.lockedTarget()!=nullptr;
+  // Lock owns horizontal tracking, but vertical look remains under player control.
+  camera->onRotateMouse(PointF(look.y*140.f*dtSec*sensitivity*inverse,locked?0.f:-look.x*180.f*dtSec*sensitivity));
+  if(locked) {
     if(std::abs(look.x)<options.switchReset) controllerSwitchReady=true;
     if(controllerSwitchReady && std::abs(look.x)>options.switchThreshold && now-controllerLastSwitch>=options.switchCooldownMs) {
       player.switchControllerTarget(look.x>0); controllerSwitchReady=false; controllerLastSwitch=now;
       }
     }
-  else {
-    const float sensitivity=Gothic::settingsGetF("GAME","mouseSensitivity")/0.5f;
-    const float inverse=Gothic::settingsGetI("GAME","camLookaroundInverse")?-1.f:1.f;
-    camera->onRotateMouse(PointF(look.y*140.f*dtSec*sensitivity*inverse,-look.x*180.f*dtSec*sensitivity));
-    }
   if(look!=PointF()) controllerLookIdle=0; else controllerLookIdle+=dt;
   auto pl=Gothic::inst().player();
   if(pl && !player.isPressed(KeyCodec::LookBack) && !camera->isFirstPerson() &&
      (player.lockedTarget()!=nullptr || (options.cameraAssist && magnitude>0 && controllerLookIdle>800))) {
-    const float error=std::remainder(pl->rotation()-camera->spin().y,360.f);
-    camera->onRotateMouse(PointF(0,error*std::min(1.f,dtSec/options.cameraSmoothing)));
+    // Gentle movement should produce gentle camera assistance, without disabling stationary lock tracking.
+    const float strength=player.lockedTarget()!=nullptr?1.f:magnitude;
+    const float yaw=CameraMath::followYawDelta(camera->spin().y,pl->rotation(),dtSec,options.cameraSmoothing,strength);
+    camera->onRotateMouse(PointF(0,yaw));
     }
 #endif
   }

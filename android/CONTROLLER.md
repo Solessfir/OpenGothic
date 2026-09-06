@@ -29,6 +29,8 @@ The native controller path uses semantic game actions, not simulated PC key bind
 
 Unlocked movement turns toward the chosen direction instead of strafing. Target lock retains an eligible NPC selected by Gothic's existing focus rules; it does not use a new enemy-scoring or distance system. While locked, horizontal movement strafes and the character/camera face the target. The name gains a ` (locked)` suffix. Retention uses the existing cached-focus rules instead of rechecking the acquisition angle every frame. Death, unconsciousness, sheathing, or loss of eligibility releases it. Swimming and diving retain Gothic's native movement constraints. The original `Gothic.ini` `keyLockTarget` now dispatches this same lock action for keyboard input.
 
+While locked, right-stick up/down still adjusts camera elevation, respecting Mouse speed, vertical inversion, and Gothic's pitch limits. Horizontal stick flicks still switch targets. Camera yaw wraps across zero and ±180 degrees before following, so an equivalent angle does not force a long rotation.
+
 Left-stick responsiveness is separate from Mouse speed. These `Gamepad.ini` options soften movement without reducing full-stick running speed:
 
 ```ini
@@ -42,6 +44,8 @@ WalkThreshold=0.65
 `MovementDeadZone` ignores small deflections. An exponent above `1` makes partial tilts gentler and extends the walking region. `MovementTurnSpeed` limits unlocked character turning in degrees per second (the first prototype used 360). Mouse speed continues to control the camera only. Missing keys inherit these defaults, including in an existing Gamepad.ini; restart after editing.
 
 The existing Mouse speed setting (`[GAME] mouseSensitivity`) also scales the controller camera. `camLookaroundInverse` controls vertical inversion. Camera assistance waits 800 ms after manual input before recentering during movement; disable it with `[Controller] CameraAssist=0` in `Gamepad.ini`.
+
+Unlocked camera assistance scales with the left stick's effective movement amount after its dead zone and response curve: small deflections recenter gently, full deflection gives full assistance, and releasing the stick stops assistance. Locked tracking remains active while stationary. Both use frame-rate-independent smoothing controlled by `[TargetLock] CameraSmoothingSeconds`; mouse sensitivity still controls manual camera input, not movement-stick assistance.
 
 Quicksave/load require `[GAME] useQuickSaveKeys=1` in `Gothic.ini`. Potion shortcuts require `usePotionKeys=1`. Disabled shortcuts remain consumed: LB+View never falls through to opening inventory. Potion selection and restrictions come from the installed Gothic scripts, exactly as with the keyboard hotkeys. No separate potion-selection policy is added. See [configuration](CONFIGURATION.md) for safely editing these flags.
 
