@@ -10,7 +10,6 @@
 
     <application
         android:allowBackup="false"
-        android:extractNativeLibs="true"
         android:hasCode="false"
         android:label="OpenGothic"
         android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen">
