@@ -15,6 +15,10 @@ CMakeLists.txt.user*
 # Build-dir
 build/
 build-*/
+android/.gradle/
+android/app/.cxx/
+android/app/build/
+android/local.properties
 bin/log.txt
 bin/crash.log
 bin/dbg.bin
