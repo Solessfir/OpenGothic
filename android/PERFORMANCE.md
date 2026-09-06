@@ -210,8 +210,70 @@ Driver markers may be absent on other devices; an empty cadence result is not ze
 ## Next optimization experiments
 
 1. The initial warm native/75%/50% comparisons are complete above. Repeat with comparable warm-up durations and genuinely cold conditions, then test longer gameplay runs. This is a diagnostic quality tradeoff, not yet a new packaged default or a promise of 60 FPS. The existing scaler also disables the AA preset when leaving native resolution, so document that confound if AA is enabled.
-2. Add per-pass GPU timestamps before choosing expensive renderer work to optimize. Current shadow maps are fixed at 2048; shadow resolution, reflection, AO and fog passes are candidates, not established bottlenecks.
+2. Per-pass GPU timestamps are now implemented; see the capture below. Measure the paired Lanczos upscaler on the phone before changing additional passes. SSAO and shadow rendering are the next measured candidates.
 3. Measure the CPU contribution of world/animation updates, command recording and frame pacing. Source inspection found world/animation updates before the nonblocking frame-fence check and a five-millisecond busy-spin tail in Tempest's sleep implementation. Neither is proven to explain this trace; optimize and A/B test rather than assuming.
 4. Rebuild Android and Windows, run regression tests and repeat this scene after each change. Keep Android-specific backend changes in Tempest. Target sustained 60 FPS, not a cold menu reading.
 
-No renderer or gameplay changes were made in this measurement pass, and no new APK is needed for the capture tools.
+The initial cadence measurement pass above did not change rendering or gameplay. The following GPU profiler and upscaler work require a rebuilt APK.
+
+## Per-pass GPU capture and first renderer optimization
+
+The profiling build adds opt-in `[DEBUG] gpuProfile=1`; see [CONFIGURATION.md](CONFIGURATION.md#opt-in-gpu-profiling).
+Tempest records Vulkan timestamps at renderer debug markers and reads completed frame slots without adding GPU waits.
+Capture stops after 600 completed frames, is disabled by default, and writes `gpu-profile.csv` beside the writable INI.
+Unsupported backends return no GPU timings.
+
+The S24 waterfall capture used OpenGothic `41234dfb` and Tempest `46ed0d56` at 50% render scale.
+The installed profiling-only APK SHA-256 was `1AAD89517E7ED44BD9A44F5E3C230DD84E2099F3F56BB363834653F4085196C8`.
+Local evidence: `build/performance/s24-gpu-markers-20260906/gpu-profile.csv`, 600 frames; `scene.png` records the scene.
+
+| Marker region | Mean GPU interval per frame |
+| --- | --- |
+| SSAO | 2.94 ms |
+| Tonemapping, including upscale | 2.32 ms |
+| ShadowMap #1 | 1.58 ms |
+| ShadowMap #0 | 1.10 ms |
+| Fog-LUTs | 0.86 ms |
+| GBuffer | 0.78 ms |
+| GWater | 0.52 ms |
+| Sum of all marker regions | 12.061 ms |
+
+These are GPU queue intervals, not CPU frame time or isolated shader execution costs.
+They can include stalls, overlap and deferred tiled work.
+There was no synchronized clock/thermal capture for these 600 frames, so the sum must not be interpreted as an improvement over the earlier 17.11 ms presentation cadence.
+The screenshot's instantaneous FPS reading is not a sustained benchmark.
+
+### Paired Lanczos candidate
+
+The first renderer change reduces the existing Lanczos upscaler from 21 nearest texture reads to 12 bilinear reads.
+It computes the one-dimensional weights once and pairs the positive central weights, retaining the original footprint and omitted corners.
+Native-resolution rendering keeps its existing sampler and shader path.
+No resolution defaults, SSAO, shadow quality or gameplay settings were reduced for this change.
+
+The GPU comparison initially found a large mismatch near a zero-distance weight in the original sine/division expression.
+Using the analytic limit of one for distances below 0.0001 resolves that numerical instability.
+Both GPU reference and optimized filters use this stable weight function.
+Hardware interpolation has finite precision, so the paired result is not bit-identical to 21 individual reads.
+
+Verification completed locally:
+
+- Windows Release game build and Android ARM64 `assembleDebug lintDebug` succeeded.
+- 114,444 ideal-filter CPU cases passed, maximum absolute difference `2.84217e-14`.
+- 40,441,744 Vulkan output-pixel comparisons passed, including RGBA8, HDR R11G11B10UF, borders and both S24 upscale sizes.
+  Maximum error was `0.00645709` of the input range; mean error was `0.000841665`, below the fixed `0.01` limit.
+- Vulkan validation passed, including device teardown.
+  The test exposed a separate Tempest sampler-cache leak and invalid allocation-failure path; Tempest `1dfee2d0` fixes both.
+- Both timestamp tests and all three controller/save/camera tests passed.
+- APK inspection confirmed only `lib/arm64-v8a/libopengothic.so`, no bundled Gothic assets, NativeActivity, SDK 24/35, Vulkan 1.1 and landscape support.
+  APK v2 signature and 16 KB ZIP alignment checks passed.
+
+Candidate APK: `android/app/build/outputs/apk/debug/app-debug.apk`.
+SHA-256: `09A85FA94D969BC8F0C54EA0E7B98A1108658206267745464C8604554D12D73C`.
+It has not yet been installed or measured on a phone: `adb devices -l` returned no devices after the baseline capture.
+No phone FPS improvement is claimed from these compilation and correctness checks.
+Test commands are in [tests/rendering/README.md](../tests/rendering/README.md).
+
+Next: reconnect the S24, install with `adb -s RFCX10M60QT install -r android/app/build/outputs/apk/debug/app-debug.apk`, and load the same waterfall save at 50% scale.
+Preserve the baseline CSV and pull the new capture to a different directory before restarting again.
+Run `android/tools/Summarize-GpuProfile.ps1` on both files, then repeat the 30-second presentation/thermal trace above under comparable conditions.
+Game shutdown/relaunch during this testing is authorized; existing saves and assets must still be preserved.
