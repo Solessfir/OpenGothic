@@ -255,6 +255,7 @@ void MainWindow::paintEvent(PaintEvent& event) {
   renderer.dbgDraw(p);
 
   const float scale = Gothic::interfaceScale(this);
+#if !defined(__ANDROID__)
   if(Gothic::inst().doFrate() && !Gothic::inst().isDesktop()) {
     char fpsT[64]={};
     std::snprintf(fpsT,sizeof(fpsT),"fps = %.2f",fps.get());
@@ -262,6 +263,7 @@ void MainWindow::paintEvent(PaintEvent& event) {
     auto& fnt = Resources::font(scale);
     fnt.drawText(p,5,fnt.pixelSize()+5,fpsT);
     }
+#endif
 
   if(!Gothic::inst().isDesktop() && world!=nullptr) {
     if(Gothic::inst().doClock()) {
@@ -1322,18 +1324,33 @@ void MainWindow::render(){
       }
     Resources::resetRecycled(cmdId);
 
+    bool refreshFps = false;
+#if defined(__ANDROID__)
+    refreshFps = Application::tickCount()-fpsOverlayUpdated >= 250;
+#endif
     if(video.isActive()) {
       video.paint(device,cmdId);
       uiLayer.clear();
       PaintEvent p(uiLayer,atlas,this->w(),this->h());
       video.paintEvent(p);
       }
-    else if(needToUpdate() || Gothic::inst().checkLoading()!=Gothic::LoadState::Idle) {
+    else if(needToUpdate() || refreshFps || Gothic::inst().checkLoading()!=Gothic::LoadState::Idle) {
       dispatchPaintEvent(uiLayer,atlas);
 
       numOverlay.clear();
       PaintEvent p(numOverlay,atlas,this->w(),this->h());
       inventory.paintNumOverlay(p);
+#if defined(__ANDROID__)
+      // Draw above menus and scale the padding with the display density.
+      Painter painter(p);
+      const float density = std::max(uiScale(),1.f);
+      const int margin = int(16.f*density);
+      auto& font = Resources::font(Resources::FontType::Yellow,density);
+      char text[32] = {};
+      std::snprintf(text,sizeof(text),"%.1f FPS",fps.get());
+      font.drawText(painter,margin,margin+font.pixelSize(),text);
+      fpsOverlayUpdated = Application::tickCount();
+#endif
       }
     uiMesh [cmdId].update(device,uiLayer);
     numMesh[cmdId].update(device,numOverlay);

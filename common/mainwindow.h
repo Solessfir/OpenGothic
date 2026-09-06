@@ -183,6 +183,9 @@ class MainWindow : public Tempest::Window {
       void     push(uint64_t t);
       };
     Fps           fps;
+#if defined(__ANDROID__)
+    uint64_t      fpsOverlayUpdated = 0;
+#endif
     BenchmarkData benchmark;
     uint64_t      maxFpsInv = 0;
   };

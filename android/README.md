@@ -105,6 +105,8 @@ OpenGothic also writes `log.txt` beside the `Gothic2` directory. Pull it with:
 
 ## Controls and current limitations
 
+Android displays a text-only FPS counter in the top-left corner using Gothic's yellow font and density-scaled padding. It measures rendered frame intervals and refreshes at least four times per second while rendering, including in menus. Video playback hides the counter.
+
 OpenGothic uses invisible touchscreen controls when no physical gamepad is connected. Connecting a Bluetooth or USB gamepad disables the touch controls and switches to the physical controller.
 
 The left half of the screen is a dynamic movement stick. Touch anywhere on that half to place its center, then drag relative to that point. The middle-right area, from 50% to 84% of the screen width, controls the camera. These areas support simultaneous touches, so the player can move and look at the same time. After 800 ms without manual camera input, moving forward gently recenters the camera behind the player. Gothic's existing focus system supplies interaction targeting and combat auto-rotation.

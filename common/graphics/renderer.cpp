@@ -565,8 +565,15 @@ void Renderer::draw(Attachment& result, Encoder<CommandBuffer>& cmd, uint8_t fId
 
     cmd.setFramebuffer({{result, Tempest::Preserve, Tempest::Preserve}});
     cmd.setDebugMarker("Inventory-counters");
+#if !defined(__ANDROID__)
     numOverlay.draw(cmd);
+#endif
     }
+#if defined(__ANDROID__)
+  // The Android overlay also contains the FPS counter outside the inventory.
+  if(!video.isActive())
+    numOverlay.draw(cmd);
+#endif
   }
 
 void Renderer::dbgDraw(Tempest::Painter& p) {
