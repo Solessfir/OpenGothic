@@ -2,6 +2,14 @@
 
 ## Latest follow-up
 
+### Locked strafe reversals
+
+After confirming the previous camera update works, the user reported temporary walking during rapid locked left/right reversals. OpenGothic `94accbd6` fixes a concrete input mismatch: sideways motion had an extra 0.2 component threshold after the radial dead zone/curve, while forward motion accepted any remaining vertical component. Locked ground input now chooses the dominant axis and accepts its effective sideways amount without a second threshold. Neutral input does not retain movement. Keyboard, touch, swimming/diving, and animation interruption rules are unchanged.
+
+Android `assembleDebug lintDebug` and the Windows game target built successfully. CTest passed 3/3, including replayed left/right reversals with vertical noise, intentional forward/back input with horizontal noise, neutral input, and dominant-axis diagonals. APK v2 signing and 16 KB ZIP alignment checks passed; the APK contains only the ARM64 native library and no game assets. This validates the input correction, not yet the reported in-game animation timing. Installation and user play testing are pending confirmation that progress is saved and the game is closed.
+
+Current APK SHA-256: `67B7F9CE28FBD3B845A5233CC2FA668FB95887B60FCAD9F5C42E86D72CC4426B`.
+
 ### Locked camera and analog assistance
 
 OpenGothic `ebe4101b` allows right-stick vertical look while locked, retaining Mouse speed, inversion, and pitch limits. Horizontal flicks still switch targets. The shared camera now wraps yaw near the character before applying pitch limits; previously an unwrapped yaw could be clamped to the wrong side of the character at an angle boundary. Unlocked automatic recentering scales with effective movement-stick magnitude. Locked tracking remains active at rest. Following uses exponential smoothing to keep its response consistent across frame rates.
