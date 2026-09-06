@@ -33,7 +33,9 @@
 #include "ui/videowidget.h"
 #include "ui/menuroot.h"
 #include "ui/consolewidget.h"
+#if defined(__IOS__)
 #include "ui/touchinput.h"
+#endif
 
 #include "utils/keycodec.h"
 #include "resources.h"
@@ -151,7 +153,7 @@ class MainWindow : public Tempest::Window {
     DocumentMenu              document;
     ChapterScreen             chapter;
     ConsoleWidget             console;
-#if defined(__MOBILE_PLATFORM__)
+#if defined(__IOS__)
     TouchInput                mobileUi;
 #endif
     RuntimeMode               runtimeMode = R_Normal;

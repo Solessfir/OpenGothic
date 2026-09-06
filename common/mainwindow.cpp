@@ -33,7 +33,7 @@ MainWindow::MainWindow(Device& device)
     atlas(device),rootMenu(keycodec),inventory(keycodec),
     dialogs(inventory),document(keycodec),
     console(*this),
-#if defined(__MOBILE_PLATFORM__)
+#if defined(__IOS__)
     mobileUi(player),
 #endif
     player(dialogs,inventory) {
@@ -122,7 +122,7 @@ MainWindow::~MainWindow() {
   takeWidget(&document);
   takeWidget(&video);
   takeWidget(&rootMenu);
-#if defined(__MOBILE_PLATFORM__)
+#if defined(__IOS__)
   takeWidget(&mobileUi);
 #endif
   removeAllWidgets();
@@ -142,7 +142,7 @@ void MainWindow::setupUi() {
   addWidget(&chapter);
   addWidget(&video);
   addWidget(&rootMenu);
-#if defined(__MOBILE_PLATFORM__)
+#if defined(__IOS__)
   addWidget(&mobileUi);
 #endif
 
