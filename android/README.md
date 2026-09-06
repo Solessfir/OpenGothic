@@ -105,7 +105,17 @@ OpenGothic also writes `log.txt` beside the `Gothic2` directory. Pull it with:
 
 ## Controls and current limitations
 
-Android displays a text-only FPS counter in the top-left corner using Gothic's yellow font and density-scaled padding. It measures rendered frame intervals and refreshes at least four times per second while rendering, including in menus. Video playback hides the counter.
+Android displays a text-only FPS counter in the top-left corner using Gothic's yellow font and screen-scaled padding. It measures rendered frame intervals and refreshes at least four times per second while rendering, including in menus. Video playback hides the counter.
+
+Menus, dialogue text, and inventory cells scale automatically to fit Gothic's 640x480 reference interface into 85% of the Android viewport. At 2340x1080 this gives a base scale of 1.9125. The existing `[INTERFACE]` `Scale` setting in `Gothic2/System/SystemPack.ini` multiplies that value: `1` uses the automatic size, `0.85` makes it smaller, and `1.1` makes it larger. Restart the game after editing it; very large values can clip menus. Desktop scaling is unchanged.
+
+To adjust the phone's own configuration from PowerShell without changing the PC installation:
+
+```powershell
+& $adb pull '/sdcard/Android/data/org.opengothic.app/files/Gothic2/System/SystemPack.ini' '.\SystemPack-android.ini'
+notepad '.\SystemPack-android.ini'
+& $adb push '.\SystemPack-android.ini' '/sdcard/Android/data/org.opengothic.app/files/Gothic2/System/SystemPack.ini'
+```
 
 OpenGothic uses invisible touchscreen controls when no physical gamepad is connected. Connecting a Bluetooth or USB gamepad disables the touch controls and switches to the physical controller.
 

@@ -132,7 +132,12 @@ MainWindow::~MainWindow() {
   }
 
 float MainWindow::uiScale() const {
+#if defined(__ANDROID__)
+  // Fit Gothic's reference interface to the phone with room around its edges.
+  return std::max(0.5f,0.85f*std::min(float(w())/640.f,float(h())/480.f));
+#else
   return SystemApi::uiScale(hwnd());
+#endif
   }
 
 void MainWindow::setupUi() {
@@ -1341,7 +1346,7 @@ void MainWindow::render(){
       PaintEvent p(numOverlay,atlas,this->w(),this->h());
       inventory.paintNumOverlay(p);
 #if defined(__ANDROID__)
-      // Draw above menus and scale the padding with the display density.
+      // Draw above menus and scale the padding with the interface.
       Painter painter(p);
       const float density = std::max(uiScale(),1.f);
       const int margin = int(16.f*density);
