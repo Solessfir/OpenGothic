@@ -10,6 +10,8 @@ Android `assembleDebug lintDebug`, the Windows game build, and CTest (3/3) passe
 
 Current APK SHA-256: `7C8965F193FAA5CF4249DC6BEE301DAC722820422196F4B7E37E65BB832BDDE1`.
 
+Subsequently installed successfully on `RFCX10M60QT` at the user's request; cold launch returned `Status: ok`. This supersedes the pending-install note above. Gameplay verification remains with the user; no saves or controller inputs were modified during installation.
+
 ### Locked strafe reversals
 
 After confirming the previous camera update works, the user reported temporary walking during rapid locked left/right reversals. OpenGothic `94accbd6` fixes a concrete input mismatch: sideways motion had an extra 0.2 component threshold after the radial dead zone/curve, while forward motion accepted any remaining vertical component. Locked ground input now chooses the dominant axis and accepts its effective sideways amount without a second threshold. Neutral input does not retain movement. Keyboard, touch, swimming/diving, and animation interruption rules are unchanged.
