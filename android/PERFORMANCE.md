@@ -322,3 +322,56 @@ No fatal crash was observed during these captures; music correctness and those w
 Next: repeat a longer warm gameplay run and the 75% render scale, with comparable conditions.
 SSAO remains the largest measured GPU region, while the warmer trace also shows high main-thread CPU use.
 Investigate those separately and retain this APK/capture as the paired-filter baseline.
+
+## SSAO convergence cleanup, 2026-09-06
+
+OpenGothic `d467c1ba` retains the same SSAO sample budget and convergence threshold, removes the redundant workgroup-wide vote counter, and exits the sampling loop when the whole group has converged.
+Previously, converged lanes stopped sampling but continued synchronization rounds through the remaining iterations.
+Shared state is initialized by one lane and a barrier ensures all lanes read the result before another iteration resets it.
+The existing NaN comparison behavior is retained; this is not a change to sky occlusion, reconstruction, sample placement or blur quality.
+
+A separate `SSAO blur` marker now follows `SSAO`.
+Compare their sum with earlier captures, which included both operations under `SSAO`.
+
+Verification:
+
+- Windows Release and Android ARM64 `assembleDebug lintDebug` succeeded.
+- All eight rendering, timestamp and controller/save/camera regression tests passed.
+- The new Vulkan convergence test verified 1,048,576 lane cases against the counter-based decision, including uniform exit and identical evaluated sample signatures.
+  Its synthetic synchronization-round reduction is not a measured in-game speedup.
+  See [rendering tests](../tests/rendering/README.md#ssao-convergence-regression) for coverage and limitations.
+- APK v2 signing and 16 KB ZIP alignment checks passed; manifest inspection confirmed ARM64, NativeActivity, SDK 24/35 and Vulkan 1.1.
+- Installation with `adb install -r` returned `Success`; cold launch returned `Status: ok`.
+  The user loaded the waterfall save; a screenshot showed the expected scene and the process remained alive after the trace.
+  This was a visual sanity check, not a pixel-exact comparison of complete SSAO output.
+- The previous GPU CSV and writable INI were backed up before restarting.
+  No game assets, saves or graphics settings were removed or changed.
+
+APK: `android/app/build/outputs/apk/debug/app-debug.apk`.
+SHA-256: `88B31EDB61AAEC8B9572914C20EF68A1493A54C142235318B37DBF900980897F`.
+Local evidence: `build/performance/s24-ssao-20260906-223243/`.
+
+The 600-frame GPU capture at 50% scale measured:
+
+| Marker | Mean interval |
+| --- | --- |
+| SSAO calculation | 2.48 ms |
+| SSAO blur | 0.50 ms |
+| SSAO combined | approximately 2.98 ms |
+| ShadowMap #1 / #0 | 1.80 / 1.26 ms |
+| Tonemapping | 0.92 ms |
+| Sum of marker regions | 11.528 ms |
+
+The preceding paired-filter capture measured combined SSAO at 2.91 ms and tonemapping at 0.78 ms.
+Other regions also grew in this capture, so the raw timings are not a controlled comparison of the SSAO code alone.
+No in-game performance improvement from this cleanup is established yet.
+
+The subsequent 30-second trace measured 71.99 presentation FPS across 2,150 intervals.
+Mean/median intervals were 13.89/13.85 ms; p95/p99 were 15.73/16.84 ms; the worst was 20.77 ms.
+Sampled GPU clocks were 600-650 MHz, with utilization ranging from 91 to 100.
+Live skin temperature rose from 42.6 to 43.3 C, with thermal status 2 throughout the trace endpoints.
+Main-thread CPU use was 24.736 seconds; no nonzero trace-quality errors were reported by the checked statistics.
+The run is not directly comparable to the preceding 75.25 FPS sample: its frequency distribution and warm-up state differ.
+
+Next priorities are a more tightly controlled before/after SSAO comparison and CPU profiling of frame preparation and animation updates.
+Do not lower quality or attribute the entire frame-time variation to this cleanup without those measurements.
