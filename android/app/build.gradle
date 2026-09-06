@@ -59,6 +59,10 @@ android {
         }
     }
 
+    sourceSets {
+        main.java.srcDir file('../../lib/Tempest/Engine/system/android/java')
+    }
+
     lint {
         disable 'ChromeOsAbiSupport'
     }

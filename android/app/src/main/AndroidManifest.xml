@@ -14,16 +14,17 @@
         android:appCategory="game"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="false"
-        android:hasCode="false"
+        android:hasCode="true"
         android:icon="@drawable/opengothic_icon"
         android:label="OpenGothic"
         android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen">
         <activity
-            android:name="android.app.NativeActivity"
+            android:name="org.tempest.TempestNativeActivity"
             android:configChanges="colorMode|density|fontScale|fontWeightAdjustment|keyboard|keyboardHidden|layoutDirection|locale|mcc|mnc|navigation|orientation|screenLayout|screenSize|smallestScreenSize|touchscreen|uiMode"
             android:exported="true"
             android:launchMode="singleTask"
             android:screenOrientation="sensorLandscape"
+            android:windowSoftInputMode="adjustNothing"
             tools:ignore="DiscouragedApi">
             <meta-data
                 android:name="android.app.lib_name"
