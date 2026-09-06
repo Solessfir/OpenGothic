@@ -130,14 +130,14 @@ The physical gamepad mapping is:
 | D-pad | Hat axes | Arrow keys |
 | Right trigger | R trigger | Left Ctrl / primary action |
 | Left trigger | L trigger | Left Shift / walk modifier |
-| A | Button A | Interact, attack, or confirm |
-| B | Button B | Jump |
-| X | Button X | Draw or sheathe weapon |
+| A | Button A | Jump |
+| B | Button B | Draw or sheathe weapon |
+| X | Button X | Interact, attack, or confirm |
 | Y | Button Y | Inventory |
 | L1 | Left shoulder | Tab |
 | R1 | Right shoulder | F |
 | Left stick click | Button thumb-left | Caps Lock |
-| Right stick click | Button thumb-right | R |
+| Right stick click | Button thumb-right | Sneak |
 | Start | Button Start | Menu or Escape |
 | Select | Button Select | B |
 
