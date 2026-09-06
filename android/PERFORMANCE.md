@@ -6,8 +6,9 @@ The user prefers 75% render scale for acceptable image quality.
 The S24's writable `Gothic.ini` was changed to `[INTERNAL] vidResIndex=1` after the cooled worker-wait tests.
 Future default comparison runs should use 75%; any explicit native/50% diagnostic runs must remain clearly labeled.
 Earlier 50% FPS results below do not describe performance at 75%.
-Render scale remains optional through the existing Resolution choice or INI; fresh installations still default to native resolution.
-No APK rebuild or packaged default change was made for this preference.
+Render scale remains configurable through the existing Resolution choice or INI.
+After the half-resolution SSAO test, the user requested 75% scene scale and half-resolution SSAO as Android defaults.
+New Android installations now use those defaults; existing explicit choices and desktop defaults are preserved.
 The previous local configuration is backed up at `build/performance/s24-preferred75-20260906-232501/Gothic.ini.backup`.
 
 ## S24 baseline, 2026-09-06
@@ -511,7 +512,9 @@ Each 2x2 depth block contributes its nearest surface, with linear representative
 The nine-tap resolve combines spatial and depth weights; missing background representatives resolve to unoccluded rather than borrowing foreground shadows.
 The final lighting input remains an R8 image at scene resolution.
 This trades some fine AO detail for fewer evaluated pixels; it is not an identical-image optimization or a forced Android setting.
-Full-resolution SSAO remains the default and is also the fallback when RG32F storage is unsupported.
+The initial candidate kept full-resolution SSAO as the default.
+The subsequent user-requested defaults change selects half-resolution SSAO on Android, while preserving explicit settings and desktop defaults.
+Full resolution remains the fallback when RG32F storage is unsupported.
 See [configuration](CONFIGURATION.md#optional-half-resolution-ambient-occlusion) for enabling and reverting it.
 
 Verification completed locally:
@@ -538,8 +541,39 @@ SHA-256: `B11847B1A7B7EBFC895202BF2B8B75E1146EB7F3DF6925D175C215976961D60F`.
 Local build logs, a pre-change screenshot and an unchanged device INI backup are in `build/performance/ssao-half/`.
 The screenshot taken immediately before stopping the game shows a downward-looking barrel/path scene, not the earlier waterfall camera; it must not be treated as a matched waterfall image comparison.
 
-The S24 disconnected from ADB during the build.
-Installation returned `adb.exe: device 'RFCX10M60QT' not found`; `adb reconnect offline` still listed no devices.
-The candidate APK and its enabled INI have not yet reached the phone.
-No on-device performance or image-quality improvement is claimed for this candidate yet.
-Next: reconnect, install with `adb install -r`, enable the option in the backed-up writable INI, load the same save/camera, and compare `SSAO` plus `SSAO upsample` with the full-resolution baseline under comparable clocks/thermal conditions.
+The S24 disconnected from ADB during the build; the initial installation attempt returned `adb.exe: device 'RFCX10M60QT' not found`.
+After the user reconnected it, `adb install -r` succeeded and the installed APK hash matched the candidate above.
+The device INI was backed up again and matched the earlier backup before enabling the option; 75% scale, FPS, shortcut and sensitivity preferences were preserved.
+Launch returned `Status: ok`; the user loaded the waterfall scene, which was confirmed by screenshot.
+
+### Half-resolution SSAO on the S24
+
+Local evidence: `build/performance/ssao-half/` (`gpu-profile.csv`, `capture.perfetto-trace`, `performance.txt`, thermal snapshots, `gpu-clocks.txt`, `after-launch.png`, `logcat.txt`).
+The bounded GPU capture recorded 600 frames; the subsequent Perfetto trace recorded 30 seconds of the waterfall scene.
+
+| Observation | Earlier full-resolution AO | Half-resolution AO |
+| --- | --- | --- |
+| Scene resolution | 1755x810 | 1755x810 |
+| AO calculation | 5.90 ms | 2.27 ms |
+| AO blur / depth-aware resolve | 1.01 ms | 0.33 ms |
+| Combined AO | 6.91 ms | 2.60 ms |
+| Total GPU marker span | 17.179 ms | 15.382 ms |
+| Fog-LUTs | 1.65 ms | 2.11 ms |
+| ShadowMap #1 | 1.65 ms | 2.01 ms |
+| Tonemapping | 0.84 ms | 1.03 ms |
+
+The localized AO reduction is encouraging, but unrelated passes were slower in the candidate capture.
+The earlier GPU-only capture lacks matching clock samples, so this is not a controlled clock/thermal-matched A/B test or a measured 4.31 ms whole-frame saving.
+The two GPU captures and the later Perfetto cadence measurement also cover different time windows.
+
+The candidate's presentation cadence averaged 67.56 FPS over 2,020 intervals.
+Mean/median intervals were 14.80/14.76 ms; p95/p99 were 17.91/19.66 ms, with a worst interval of 23.80 ms.
+Sampled GPU clocks were 650-700 MHz at 100% reported utilization.
+Live HAL skin temperature rose from 41.7 to 42.9 C, with thermal status changing from 1 to 2.
+The checked Perfetto quality statistics contained no nonzero errors.
+The app remained alive and its collected logcat contained no fatal signal, Vulkan error or abort matches.
+This is a short stationary-scene result, not proof of sustained 60 FPS throughout the game.
+
+The waterfall rendered without obvious gross corruption in the screenshot.
+Fine AO quality still needs a matched full/half screenshot comparison and moving-camera review, especially around thin geometry and contact shadows.
+The game was stopped after measurement while rebuilding the requested Android defaults; assets and saves were preserved.

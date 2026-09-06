@@ -10,9 +10,10 @@ Keep the writable file small. Do not replace it with the entire PC INI: some ori
 
 ## Optional render scale
 
-Reduced-resolution rendering is optional, not an Android requirement or a forced optimization.
+Reduced-resolution rendering is configurable, not an Android requirement or a forced optimization.
 The in-game Resolution choice offers `full`, `upscale(75%)`, and `upscale(half)`.
-Fresh installations default to full/native resolution.
+Fresh Android installations default to 75% scene resolution for a better mobile performance/quality balance.
+Existing writable render-scale choices are preserved; desktop installations still default to full/native resolution.
 
 The equivalent writable `Gothic.ini` setting is:
 
@@ -32,14 +33,15 @@ The 50% measurements in the performance report are diagnostic results, not a rec
 
 ## Optional half-resolution ambient occlusion
 
-To reduce the cost of SSAO independently of scene resolution, add this to the writable `Gothic.ini`:
+Android defaults to half-resolution SSAO, independently of scene resolution.
+The equivalent writable `Gothic.ini` option is:
 
 ```ini
 [ENGINE]
 ssaoHalfResolution=1
 ```
 
-The default is `0`, which preserves the existing full-resolution SSAO calculation and blur.
+Use `0` to restore the existing full-resolution SSAO calculation and blur; this remains the desktop default.
 With `1`, AO is calculated at half the scene width and height, then blurred and resolved back to scene resolution using depth to avoid blending unrelated surfaces.
 At 75% render scale on a 2340x1080 screen, the scene remains 1755x810 and AO calculation uses 878x405.
 Textures, geometry, UI resolution and the AO sampling radius are unchanged.
@@ -47,7 +49,8 @@ Fine contact shadows can be softer or missing, especially around thin geometry; 
 The existing `zCloudShadowScale` gate still controls whether SSAO runs at all.
 If the required RG32F storage format is unavailable, rendering falls back to full-resolution SSAO.
 
-This renderer option also works on desktop; it is not forced by the Android build.
+This renderer option also works on desktop; either setting can be overridden on Android.
+Existing explicit AO settings are preserved, and missing settings inherit the platform default.
 Use the safe INI-edit commands below with the game stopped, and restart after editing.
 Set `ssaoHalfResolution=0` to restore full-resolution AO without changing the scene render scale or rebuilding the APK.
 GPU profiling labels the new resolve as `SSAO upsample`; compare its combined cost with `SSAO` against the old `SSAO` plus `SSAO blur`.

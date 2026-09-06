@@ -110,8 +110,16 @@ Gothic::Gothic() {
 
   baseIniFile.reset(new IniFile(nestedPath({u"system",u"Gothic.ini"},Dir::FT_File)));
   iniFile    .reset(new IniFile(u"Gothic.ini"));
+#if defined(__ANDROID__)
+  constexpr int defaultResolutionIndex = 1; // 75% scene resolution
+  constexpr int defaultSsaoHalfResolution = 1;
+#else
+  constexpr int defaultResolutionIndex = 0; // native scene resolution
+  constexpr int defaultSsaoHalfResolution = 0;
+#endif
   if(!iniFile->has("INTERNAL", "vidResIndex")) {
-    iniFile->set("INTERNAL", "vidResIndex", 0); // full-res
+    // The original game's display-mode index is not an OpenGothic render-scale choice.
+    iniFile->set("INTERNAL", "vidResIndex", defaultResolutionIndex);
     }
   {
   defaults.reset(new IniFile());
@@ -146,7 +154,8 @@ Gothic::Gothic() {
   defaults->set("RENDERER_D3D", "zFogRadial", 1); // sunshafts
   defaults->set("ENGINE",       "zEnvMappingEnabled", 1); // reflections
   defaults->set("ENGINE",       "zCloudShadowScale", gpu.type==Tempest::DeviceType::Discrete); // ssao
-  defaults->set("INTERNAL",     "vidResIndex", 0); // full-res
+  defaults->set("INTERNAL",     "vidResIndex", defaultResolutionIndex);
+  defaults->set("ENGINE",       "ssaoHalfResolution", defaultSsaoHalfResolution);
 
   defaults->set("VIDEO", "zVidBrightness", 0.5f);
   defaults->set("VIDEO", "zVidContrast",   0.5f);
