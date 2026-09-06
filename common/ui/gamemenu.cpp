@@ -4,6 +4,7 @@
 #include <Tempest/Log>
 #include <Tempest/TextCodec>
 #include <Tempest/Dialog>
+#include <Tempest/SystemApi>
 
 #include <algorithm>
 
@@ -219,6 +220,14 @@ struct GameMenu::SavNameDialog : Dialog {
     setFocusPolicy(ClickFocus);
     setCursorShape(CursorShape::Hidden);
     setFocus(true);
+    }
+
+  ~SavNameDialog() override {
+    SystemApi::hideSoftInput();
+    }
+
+  void beginTextInput() {
+    SystemApi::showSoftInput(text);
     }
 
   void mouseDownEvent(MouseEvent& e) override { e.accept(); }
@@ -801,6 +810,7 @@ void GameMenu::execSingle(Item &it, int slideDx, KeyCodec::Action hint) {
       SavNameDialog dlg{item->text[0]};
       if(it.savHdr.version==0)
         dlg.text = "";
+      dlg.beginTextInput();
       dlg.resize(owner.size());
       dlg.exec();
       ctrlInput = nullptr;
