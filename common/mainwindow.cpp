@@ -27,6 +27,8 @@
 #include "gothic.h"
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
+#include <locale>
 
 using namespace Tempest;
 
@@ -436,6 +438,22 @@ void MainWindow::onTouchCommand(TouchInput::Command command, bool pressed) {
 #endif
 
 void MainWindow::onSettings() {
+  const bool gpuProfiling = Gothic::settingsGetI("DEBUG", "gpuProfile")!=0;
+  if(profileGpu!=gpuProfiling) {
+    profileGpu = gpuProfiling;
+    gpuProfileFrames = 0;
+    gpuProfileAttempts = 0;
+    gpuProfileLog.close();
+    if(profileGpu) {
+      gpuProfileLog.clear();
+      gpuProfileLog.open("gpu-profile.csv",std::ios::trunc);
+      gpuProfileLog.imbue(std::locale::classic());
+      gpuProfileLog << "frame,pass,milliseconds\n" << std::fixed << std::setprecision(6);
+      gpuProfileLog.flush();
+      if(!gpuProfileLog)
+        Log::e("Unable to open gpu-profile.csv; GPU profiling disabled");
+      }
+    }
 #if defined(__ANDROID__)
   const bool enabled = Gothic::settingsGetI("GAME", "showFps")!=0;
   if(showFps!=enabled) {
@@ -1365,8 +1383,37 @@ void MainWindow::render(){
     numMesh[cmdId].update(device,numOverlay);
 
     CommandBuffer& cmd = commands[cmdId];
+    // This slot's normal submission fence has completed above.
+    // Read timestamps before startEncoding resets the previous recording.
+    if(profileGpu && gpuProfileLog.is_open() && gpuProfileFrames<600) {
+      const auto timings = cmd.gpuTimings();
+      if(!timings.empty()) {
+        for(const auto& timing:timings) {
+          gpuProfileLog << gpuProfileFrames << ",\"";
+          for(char c:timing.name) {
+            if(c=='\"')
+              gpuProfileLog << '\"';
+            gpuProfileLog << c;
+            }
+          gpuProfileLog << "\"," << timing.milliseconds << '\n';
+          }
+        ++gpuProfileFrames;
+        if(gpuProfileFrames%120==0)
+          gpuProfileLog.flush();
+        }
+      if(gpuProfileFrames==600 || gpuProfileAttempts>=1200) {
+        gpuProfileLog.close();
+        Log::i("GPU profile complete: ",gpuProfileFrames," frames in gpu-profile.csv");
+        }
+      }
+    const bool captureGpu = profileGpu && gpuProfileLog.is_open() && bool(gpuProfileLog) &&
+                            gpuProfileFrames<600 && gpuProfileAttempts<1200 &&
+                            Gothic::inst().isInGame() &&
+                            Gothic::inst().checkLoading()==Gothic::LoadState::Idle && !video.isActive();
+    if(captureGpu)
+      ++gpuProfileAttempts;
     {
-    auto enc = cmd.startEncoding(device);
+    auto enc = cmd.startEncoding(device,captureGpu);
     renderer.draw(swapchain[swapchain.currentImage()],enc,cmdId,uiMesh[cmdId],numMesh[cmdId],inventory,video);
     }
     sync = device.submit(cmd);

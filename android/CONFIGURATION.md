@@ -54,6 +54,30 @@ if ($LASTEXITCODE -ne 0) { throw 'Configuration upload failed.' }
 
 Restart after external edits; the running game does not watch INI files and may overwrite them on exit. Keep the printed `$configWork` location for recovery; push its `Gothic.ini.backup` to `$deviceIni` with the app stopped to restore it. If the device file is absent, first launch and exit OpenGothic once. These commands do not modify your PC installation. APK upgrades with `adb install -r` preserve app data; uninstalling removes it.
 
+## Opt-in GPU profiling
+
+For Vulkan diagnostics, add this to the writable `Gothic.ini` with the game stopped:
+
+```ini
+[DEBUG]
+gpuProfile=1
+```
+
+Restart and load a game. OpenGothic records up to 600 completed frames to `gpu-profile.csv` beside the writable INI and saves. Capture begins after loading, includes named renderer markers, and automatically stops; unavailable results stop capture after 1,200 attempted frames. The file is flushed every 120 recorded frames and when capture ends. A restart with profiling enabled replaces the previous CSV, so copy it first. Set `gpuProfile=0` and restart to disable profiling. It is off by default, adds measurement overhead when enabled, and does not change graphics quality or grant a higher frame rate. Unsupported graphics backends return no timings.
+
+Results are GPU elapsed intervals between markers, including pipeline stalls and overlap, not CPU recording time or isolated shader execution cost. Readback uses each frame slot's completed submission fence and never requests an additional GPU wait. The existing frame/command-buffer lifecycle still applies. More than 254 markers merges the remainder into `[marker limit]`.
+
+Pull and summarize a completed capture (replace the serial for another phone):
+
+```powershell
+New-Item -ItemType Directory -Force build/performance | Out-Null
+& C:\Android\Sdk\platform-tools\adb.exe -s RFCX10M60QT pull /sdcard/Android/data/org.opengothic.app/files/gpu-profile.csv build/performance/gpu-profile.csv
+if ($LASTEXITCODE -ne 0) { throw 'Could not retrieve GPU timings.' }
+./android/tools/Summarize-GpuProfile.ps1 -Path build/performance/gpu-profile.csv
+```
+
+The summary combines repeated marker names within each frame and includes zero contribution from frames where a pass was absent. Compare the same save/camera with profiling both off and on. See [PERFORMANCE.md](PERFORMANCE.md) for the baseline and measurement limitations.
+
 ## Original settings worth knowing about
 
 This is an audit of native source readers, not a promise of complete original-engine compatibility. Game/menu scripts and mods can also read settings dynamically.

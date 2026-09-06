@@ -21,6 +21,7 @@
 
 #include <vector>
 #include <thread>
+#include <fstream>
 
 #include "world/world.h"
 #include "world/focus.h"
@@ -202,6 +203,10 @@ class MainWindow : public Tempest::Window {
       void     push(uint64_t t);
       };
     Fps           fps;
+    bool          profileGpu = false;
+    uint32_t      gpuProfileFrames = 0;
+    uint32_t      gpuProfileAttempts = 0;
+    std::ofstream gpuProfileLog;
 #if defined(__ANDROID__)
     uint64_t      fpsOverlayUpdated = 0;
     bool          showFps = false;
