@@ -107,7 +107,7 @@ After the user loaded the comparison save, USB disconnected before capture could
 
 Compared with the original 28.36 FPS native sample, cadence improved by about 64% while frame interval fell from 35.26 to 21.50 ms. Both runs sampled the same GPU clock range and similar skin temperature, though conditions were not perfectly controlled. This is strong evidence that resolution-dependent rendering cost is a major bottleneck, not proof of a specific expensive shader. The game is still GPU-saturated and has not reached the 16.67 ms / 60 FPS target. Raw data remains local in `build/performance/s24-scale75-20260906-212657/`.
 
-The 75% setting remains enabled for testing. A 50% comparison and per-pass GPU profiling remain pending; do not infer their results from this sample.
+The subsequent 50% experiment below supersedes this device setting. Per-pass GPU profiling remains pending.
 
 To restore the native-scale configuration, first save and exit the game, then run from this workspace:
 
@@ -117,9 +117,43 @@ To restore the native-scale configuration, first save and exit the game, then ru
 
 This restores the entire backed-up INI, so merge later setting changes first if necessary. The S23 Ultra configuration was not changed.
 
-## S24 50% scale experiment prepared
+## S24 50% scale experiment
 
-After the user exited, confirmed the S24 app was no longer running and backed up its 75% configuration to local `build/performance/s24-scale50-20260906-213003/Gothic.ini.backup`. Changed only `vidResIndex=1` to `2`, verified the device file and relaunched successfully (`Status: ok`). This requests 1170x540 3D rendering, one quarter of native pixel count; UI scale and all other settings remain unchanged. Before launch, live skin temperature was 42.9 C and thermal status remained 2. An in-game 50% capture is still pending; no performance result is claimed yet.
+After the user exited, confirmed the S24 app was no longer running and backed up its 75% configuration to local `build/performance/s24-scale50-20260906-213003/Gothic.ini.backup`. Changed only `vidResIndex=1` to `2`, verified the device file and relaunched successfully (`Status: ok`). This requests 1170x540 3D rendering, one quarter of native pixel count; UI scale and all other settings remain unchanged. Before launch, live skin temperature was 42.9 C and thermal status remained 2.
+
+After the user loaded the comparison scene, captured another trace without changing settings or injecting gameplay inputs. ADB remained connected. A screenshot after capture showed the same waterfall/path viewpoint and 57 FPS.
+
+| Observation | 50% width/height |
+| --- | --- |
+| Trace duration | 29.999 seconds |
+| Vulkan presentation cadence | 58.46 FPS over 1,749 intervals |
+| Mean / median interval | 17.11 / 16.79 ms |
+| 95th / 99th percentile interval | 21.24 / 23.30 ms |
+| Worst interval | 136.79 ms |
+| Intervals longer than 33.33 ms | Two: 136.79 and 134.52 ms, about 9.3 and 9.7 seconds into the trace |
+| GPU utilization | 100 in 15 of 16 samples; one sample reported 17 |
+| GPU allowed maximum | 500-545 MHz |
+| GPU current clock | 500-545 MHz except one 252 MHz sample with the utilization dip |
+| Live skin temperature before / after | 44.4 / 44.5 C |
+| Live battery temperature before / after | 43.8 / 44.0 C |
+| Thermal status before / after | 2 / 2 |
+| Game/render thread CPU time | 18.309 CPU seconds, about 10.5 ms per presented frame |
+| Presentation-call duration | 5.423 ms average, including waits |
+| Trace error/loss counters | No nonzero warning/error statistics |
+
+This is close to 60 FPS on average despite a lower sampled GPU ceiling than the 75% run, but it is not a stable 60 FPS result. Both long intervals remain included in the averages and percentiles; their cause is undiagnosed. The isolated utilization dip does not prove that the GPU clock change caused the hitches. No app pause/resume or fatal error appeared during the capture in the inspected process lifecycle/crash logs.
+
+The warm scene comparisons now read:
+
+| 3D scale | Internal resolution | Average presentation FPS | 95th percentile interval |
+| --- | --- | --- | --- |
+| Native | 2340x1080 | 28.36 | 40.10 ms |
+| 75% | 1755x810 | 46.51 | 24.14 ms |
+| 50% | 1170x540 | 58.46 | 21.24 ms |
+
+These are separate 30-second samples, not clock-controlled benchmarks or proof of sustained performance throughout gameplay. The freshly reloaded native sample was slower still at 24.76 FPS with a lower clock ceiling. The results establish a strong render-resolution tradeoff; they do not yet identify expensive individual passes. Per-pass GPU profiling is the next step toward retaining more image detail while meeting the frame budget.
+
+The S24 remains at 50% render scale. Raw data and the screenshot are local in `build/performance/s24-scale50-20260906-213206/`. No APK or engine code changed.
 
 To return to the preceding 75% configuration, save and exit before restoring this backup:
 
@@ -175,7 +209,7 @@ Driver markers may be absent on other devices; an empty cadence result is not ze
 
 ## Next optimization experiments
 
-1. Save and exit, back up the writable INI as described in [CONFIGURATION.md](CONFIGURATION.md), then compare the same scene at `vidResIndex=1` (1755x810, 56% of native pixels) and `2` (1170x540, 25%). Preserve UI scale. Compare warm runs as well as cold ones. This is a diagnostic quality tradeoff, not yet a new default or a promise of 60 FPS. The existing scaler also disables the AA preset when leaving native resolution, so document that confound if AA is enabled.
+1. The initial warm native/75%/50% comparisons are complete above. Repeat with comparable warm-up durations and genuinely cold conditions, then test longer gameplay runs. This is a diagnostic quality tradeoff, not yet a new packaged default or a promise of 60 FPS. The existing scaler also disables the AA preset when leaving native resolution, so document that confound if AA is enabled.
 2. Add per-pass GPU timestamps before choosing expensive renderer work to optimize. Current shadow maps are fixed at 2048; shadow resolution, reflection, AO and fog passes are candidates, not established bottlenecks.
 3. Measure the CPU contribution of world/animation updates, command recording and frame pacing. Source inspection found world/animation updates before the nonblocking frame-fence check and a five-millisecond busy-spin tail in Tempest's sleep implementation. Neither is proven to explain this trace; optimize and A/B test rather than assuming.
 4. Rebuild Android and Windows, run regression tests and repeat this scene after each change. Keep Android-specific backend changes in Tempest. Target sustained 60 FPS, not a cold menu reading.
