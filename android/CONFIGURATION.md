@@ -8,6 +8,28 @@ OpenGothic reads individual `Gothic.ini` settings in this order:
 
 Keep the writable file small. Do not replace it with the entire PC INI: some original settings have different meanings in OpenGothic. Preserve existing sections and keys, and edit an existing key instead of adding duplicates. Android paths are case-sensitive; use the actual `System` or `system` spelling in your copied installation.
 
+## Optional render scale
+
+Reduced-resolution rendering is optional, not an Android requirement or a forced optimization.
+The in-game Resolution choice offers `full`, `upscale(75%)`, and `upscale(half)`.
+Fresh installations default to full/native resolution.
+
+The equivalent writable `Gothic.ini` setting is:
+
+```ini
+[INTERNAL]
+vidResIndex=1
+```
+
+Use `0` for native resolution, `1` for 75% of the output width and height, or `2` for 50%.
+On a 2340x1080 display these correspond to 2340x1080, 1755x810, and 1170x540 for the 3D scene.
+Lower scales improve performance at the cost of image detail; the upscaler cannot recover all of the missing detail.
+UI scaling is a separate setting.
+Edit the INI with the game stopped; no APK rebuild is required.
+
+The Lanczos optimization applies only when reduced-resolution rendering is selected.
+The 50% measurements in the performance report are diagnostic results, not a recommended or packaged default.
+
 ## Enable shortcuts and the FPS counter
 
 These are supported settings, not edits to Gothic's scripts or assets:

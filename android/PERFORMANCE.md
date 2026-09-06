@@ -1,5 +1,15 @@
 # Android performance measurements
 
+## Current test preference
+
+The user prefers 75% render scale for acceptable image quality.
+The S24's writable `Gothic.ini` was changed to `[INTERNAL] vidResIndex=1` after the cooled worker-wait tests.
+Future default comparison runs should use 75%; any explicit native/50% diagnostic runs must remain clearly labeled.
+Earlier 50% FPS results below do not describe performance at 75%.
+Render scale remains optional through the existing Resolution choice or INI; fresh installations still default to native resolution.
+No APK rebuild or packaged default change was made for this preference.
+The previous local configuration is backed up at `build/performance/s24-preferred75-20260906-232501/Gothic.ini.backup`.
+
 ## S24 baseline, 2026-09-06
 
 Measured the installed OpenGothic `38fd92e6` / Tempest `b8c952ef` build on an SM-S921B (Xclipse 940), Android 16. The debug APK uses optimized native code (`RelWithDebInfo`, `-O2 -g -DNDEBUG`), not an unoptimized C++ Debug build.
