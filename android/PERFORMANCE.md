@@ -81,6 +81,20 @@ Local setup files and the verification screenshot are under ignored `build/devic
 & C:\Android\Sdk\platform-tools\adb.exe -s R5CX520FJDJ shell cat /sdcard/Android/data/org.opengothic.app/files/Gothic.ini
 ```
 
+## S24 75% scale experiment prepared
+
+On reconnecting the S24 after a cooling break, OpenGothic was closed. Live skin temperature was 42.4 C, battery 39.8 C, and thermal status was still 2. This is not an unthrottled cold baseline.
+
+Backed up the complete writable INI to local `build/performance/s24-scale75-20260906-212213/Gothic.ini.backup`, then changed only `[INTERNAL] vidResIndex` from `0` to `1` and verified the uploaded file. This requests 1755x810 3D rendering instead of 2340x1080, while leaving UI scale, shortcuts, FPS display and sensitivity unchanged. Launched successfully to the main menu; loading the comparison save and collecting an in-game trace remain pending. No engine code or APK was changed.
+
+To restore the native-scale configuration, first save and exit the game, then run from this workspace:
+
+```powershell
+& C:\Android\Sdk\platform-tools\adb.exe -s RFCX10M60QT push build/performance/s24-scale75-20260906-212213/Gothic.ini.backup /sdcard/Android/data/org.opengothic.app/files/Gothic.ini
+```
+
+This restores the entire backed-up INI, so merge later setting changes first if necessary. The S23 Ultra configuration was not changed.
+
 ## Reproduce from PowerShell
 
 Start from the repository root. Load the same save and leave the character/camera still. Keep brightness, power mode, charging state and warm-up duration comparable. Do not take screenshots or stream logcat during the trace. Record both cold and sustained samples separately.
