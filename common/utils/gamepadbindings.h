@@ -55,6 +55,7 @@ class GamepadBindings final {
     std::vector<Event> update(uint32_t buttons, Context context, uint64_t now);
     void reset(uint32_t held = 0);
     std::pair<float,float> movementAxis(float x, float y) const;
+    static std::pair<float,float> targetMovementAxis(float x, float y);
 
   private:
     struct Binding {

@@ -9,6 +9,7 @@
 #include "ui/dialogmenu.h"
 #include "ui/inventorymenu.h"
 #include "gothic.h"
+#include "utils/gamepadbindings.h"
 
 PlayerControl::PlayerControl(DialogMenu& dlg, InventoryMenu &inv)
   :dlg(dlg),inv(inv) {
@@ -254,6 +255,7 @@ bool PlayerControl::isPressed(KeyCodec::Action a) const {
   }
 
 void PlayerControl::setGamepadAxis(float lx, float ly) {
+  controllerGroundStrafe = false;
   controllerDirectional = false;
   gamepadLX = lx;
   gamepadLY = ly;
@@ -271,9 +273,14 @@ void PlayerControl::setControllerMovement(float x,float y,float cameraYaw,bool w
     controllerWalkApplied=true;
     }
   controllerDirectional=true;
+  controllerGroundStrafe=false;
   controllerTurnSpeed=turnSpeed;
-  if(controllerTarget!=nullptr || pl->isSwim() || pl->isDive()) {
+  if(pl->isSwim() || pl->isDive()) {
     gamepadLX=x; gamepadLY=y;
+    } else if(controllerTarget!=nullptr) {
+    controllerGroundStrafe=true;
+    const auto axis=GamepadBindings::targetMovementAxis(x,y);
+    gamepadLX=axis.first; gamepadLY=axis.second;
     } else {
     gamepadLX=0; gamepadLY=-std::sqrt(x*x+y*y);
     }
@@ -601,6 +608,7 @@ void PlayerControl::clearInput() {
     }
   controllerWalkApplied=false;
   controllerDirectional=false;
+  controllerGroundStrafe=false;
   gamepadLX=0; gamepadLY=0;
   controllerTarget=nullptr;
   pendingInteractionUntil=0;

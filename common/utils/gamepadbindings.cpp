@@ -334,6 +334,14 @@ std::pair<float,float> GamepadBindings::movementAxis(float x,float y) const {
   return {x*scale,y*scale};
   }
 
+std::pair<float,float> GamepadBindings::targetMovementAxis(float x,float y) {
+  // Gothic chooses one movement animation, so ignore noise on the weaker axis.
+  // The radial dead zone has already been applied equally to both components.
+  if(std::abs(x)>=std::abs(y))
+    return {x,0.f};
+  return {0.f,y};
+  }
+
 std::vector<GamepadBindings::Event> GamepadBindings::update(uint32_t buttons,Context context,uint64_t now) {
   std::vector<Event> out;
   if(initialized && context!=lastContext) {

@@ -21,6 +21,22 @@ int main() {
     check(b.movementAxis(-1.f,0.f).first==-1.f,"Movement curve preserves direction");
     const auto diagonal=b.movementAxis(1.f,1.f);
     check(diagonal.first*diagonal.first+diagonal.second*diagonal.second<1.001f,"Diagonal movement remains normalized");
+    for(float rawX:{-1.f,-0.6f,-0.4f,-0.2f,0.f,0.2f,0.4f,0.6f,1.f,
+                    0.6f,0.4f,0.2f,0.f,-0.2f,-0.4f,-0.6f,-1.f}) {
+      const auto curved=b.movementAxis(rawX,-0.04f);
+      const auto locked=B::targetMovementAxis(curved.first,curved.second);
+      check(locked.second==0.f,"Left-right reversal with vertical noise never requests forward movement");
+      check(locked.first==curved.first,"Reversal preserves sideways input immediately without a second dead zone");
+      }
+    for(float rawY:{-1.f,-0.4f,0.f,0.4f,1.f}) {
+      const auto curved=b.movementAxis(0.04f,rawY);
+      const auto locked=B::targetMovementAxis(curved.first,curved.second);
+      check(locked.first==0.f,"Forward-back movement ignores small horizontal noise");
+      check(locked.second==curved.second,"Intentional forward-back movement remains available while locked");
+      }
+    check(B::targetMovementAxis(0.f,0.f)==std::pair<float,float>(0.f,0.f),"Neutral locked stick does not retain movement");
+    check(B::targetMovementAxis(0.6f,-0.5f)==std::pair<float,float>(0.6f,0.f),"Side-dominant diagonal strafes");
+    check(B::targetMovementAxis(0.5f,-0.6f)==std::pair<float,float>(0.f,-0.6f),"Forward-dominant diagonal advances");
     std::istringstream defaults(B::defaults());
     check(b.load(defaults).empty(),"Default bindings must validate");
     const auto x=B::button("X");

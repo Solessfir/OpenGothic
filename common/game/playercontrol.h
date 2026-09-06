@@ -159,6 +159,7 @@ class PlayerControl final {
     float          rotMouseY=0;
     float          gamepadLX=0;
     float          gamepadLY=0;
+    bool           controllerGroundStrafe=false;
     bool           controllerDirectional=false;
     bool           controllerReleaseAttack=false;
     bool           controllerWalkApplied=false;
@@ -213,10 +214,10 @@ class PlayerControl final {
       }
 
     auto wantsToStrafeRight() const -> bool {
-      return movement.strafeRightLeft.value() > 0.f || gamepadLX > 0.2f;
+      return movement.strafeRightLeft.value() > 0.f || gamepadLX > (controllerGroundStrafe ? 0.f : 0.2f);
       }
     auto wantsToStrafeLeft() const -> bool {
-      return movement.strafeRightLeft.value() < 0.f || gamepadLX < -0.2f;
+      return movement.strafeRightLeft.value() < 0.f || gamepadLX < -(controllerGroundStrafe ? 0.f : 0.2f);
       }
 
     auto wantsToTurnRight() const -> bool {

@@ -31,6 +31,8 @@ Unlocked movement turns toward the chosen direction instead of strafing. Target 
 
 While locked, right-stick up/down still adjusts camera elevation, respecting Mouse speed, vertical inversion, and Gothic's pitch limits. Horizontal stick flicks still switch targets. Camera yaw wraps across zero and ±180 degrees before following, so an equivalent angle does not force a long rotation.
 
+Locked ground movement chooses the left stick's dominant axis for Gothic's movement animation. Small vertical noise during a left/right reversal therefore cannot start a forward walk. Both directions use the same radial dead zone and response curve, without an extra sideways threshold. Neutral input stops requesting movement, and intentionally pushing forward/back still advances/retreats. Swimming, diving, keyboard movement, and touch input retain their existing handling.
+
 Left-stick responsiveness is separate from Mouse speed. These `Gamepad.ini` options soften movement without reducing full-stick running speed:
 
 ```ini
