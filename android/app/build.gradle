@@ -58,4 +58,8 @@ android {
             useLegacyPackaging true
         }
     }
+
+    lint {
+        disable 'ChromeOsAbiSupport'
+    }
 }
