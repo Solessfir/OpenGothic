@@ -51,6 +51,36 @@ After the user freshly reloaded, ADB confirmed a new app process. A second 29.96
 
 A screenshot after recording showed 24 FPS and a comparable camera position. Reloading did not restore performance during this sample; the lower observed GPU ceiling is consistent with the slower cadence. This does not rule out other time-dependent engine problems or replace a cooled-device comparison. No settings or gameplay inputs were changed, and ADB remained online. Raw data is local in `build/performance/reloaded-20260906/`.
 
+## S23 Ultra installation, 2026-09-06
+
+Installed the same baseline APK on an SM-S918B, Android 16, with `adb -s R5CX520FJDJ install -r`. Package inspection confirmed `arm64-v8a`. The S24 was disconnected and was not modified.
+
+Copied the user's legally owned Steam installation directly to the new phone's app-specific `Gothic2` directory: 518 files, 3,347,791,152 bytes. Device file count matched; SHA-256 checks of `Data/Worlds.vdf` and `_work/Data/Scripts/_compiled/GOTHIC.DAT` matched the PC source. No game assets were added to Git or the APK, and no S24 saves were transferred.
+
+The new writable `Gothic.ini` matches the last measured S24 overrides:
+
+```ini
+[INTERNAL]
+vidResIndex=0
+
+[GAME]
+useQuickSaveKeys=1
+usePotionKeys=1
+showFps=1
+mouseSensitivity=0.500000
+```
+
+The copied SystemPack settings retain `Scale=1` and `FPS_Limit=0`. The app generated the current default `Gamepad.ini`, including health/mana on D-pad Left/Right, quicksave/load chords, and the revised movement settings. Original potion-script restrictions still apply; enabling shortcuts does not grant potions or mana.
+
+Cold activity launch returned `Status: ok`; the main menu rendered in landscape at 2316x1080 with the padded FPS counter visible. A menu screenshot showed 62 FPS, which is not an in-game or sustained-performance result. No gameplay inputs were injected; gameplay and audible audio testing remain with the user. Startup logs contained no fatal native or AndroidRuntime error in the inspected process output, but `log.txt` reported `Failed to created DmLoader object. Out of memory?`. The message is not proof of actual memory exhaustion: the loader can also fail during mutex initialization. This warning remains to be diagnosed; reaching the menu does not verify music playback.
+
+Local setup files and the verification screenshot are under ignored `build/device-setup/s23-ultra/`. Launch and inspect this phone explicitly when multiple devices are connected:
+
+```powershell
+& C:\Android\Sdk\platform-tools\adb.exe -s R5CX520FJDJ shell am start -W -n org.opengothic.app/org.tempest.TempestNativeActivity
+& C:\Android\Sdk\platform-tools\adb.exe -s R5CX520FJDJ shell cat /sdcard/Android/data/org.opengothic.app/files/Gothic.ini
+```
+
 ## Reproduce from PowerShell
 
 Start from the repository root. Load the same save and leave the character/camera still. Keep brightness, power mode, charging state and warm-up duration comparable. Do not take screenshots or stream logcat during the trace. Record both cold and sustained samples separately.
