@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.16)
+project(ControllerTests LANGUAGES CXX)
+enable_testing()
+add_executable(controller-tests bindings.cpp ../../common/utils/gamepadbindings.cpp)
+target_compile_features(controller-tests PRIVATE cxx_std_20)
+add_test(NAME controller-bindings COMMAND controller-tests)
