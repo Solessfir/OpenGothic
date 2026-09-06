@@ -308,6 +308,8 @@ add_shader(patch.comp                patch.comp)
 
 add_shader(ssao.comp                 ssao/ssao.comp)
 add_shader(ssao_blur.comp            ssao/ssao_blur.comp)
+add_shader(ssao_half.comp            ssao/ssao.comp -DSSAO_HALF_RES)
+add_shader(ssao_upsample.comp        ssao/ssao_upsample.comp)
 
 # GPU-driven: HiZ
 if(IOS)

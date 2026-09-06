@@ -6,6 +6,10 @@
 #include "scene.glsl"
 #include "common.glsl"
 
+#ifdef SSAO_HALF_RES
+#include "half_resolution.glsl"
+#endif
+
 layout(local_size_x = 8, local_size_y = 8) in;
 
 #include "convergence.glsl"
@@ -97,7 +101,11 @@ int estimateMaxSteps(float z) {
 
 float resolveOcclusion() {
   float weights = occlusionAll + bitCount(anySmp & (~hits));
+#ifdef SSAO_HALF_RES
+  return weights>0.0 ? occlusionAll/weights : 0.0;
+#else
   return (occlusionAll/weights);
+#endif
   }
 
 vec3 unproject(vec3 pos) {
@@ -196,7 +204,13 @@ void main() {
   screenSize = ivec2(textureSize(depthBuf,0));
   fragCoord  = ivec2(gl_GlobalInvocationID.xy);
 
+#ifdef SSAO_HALF_RES
+  const bool valid = all(lessThan(fragCoord, imageSize(result)));
+  // Keep foreground depth in each 2x2 block and reconstruct using its original pixel coordinates.
+  fragCoord = ssaoNearestDepthPixel(depthBuf, fragCoord);
+#else
   const bool valid = all(lessThan(fragCoord, screenSize));
+#endif
   const vec2 inPos = vec2(2*fragCoord+ivec2(1,1))/vec2(screenSize)-vec2(1,1);
   vec3 norm = vec3(0);
 
@@ -248,7 +262,15 @@ void main() {
     occlusion = resolveOcclusion();
 #endif
 
+#ifdef SSAO_HALF_RES
+    float ao = clamp(1.0 - occlusion, 0.0, 1.0);
+    if(isnan(ao) || isinf(ao) || at0.z>=1.0)
+      ao = 1.0;
+    // Store the actual representative depth alongside AO for the edge-aware resolve.
+    imageStore(result, ivec2(gl_GlobalInvocationID.xy), vec4(ao, linearDepth(at0.z, scene.clipInfo), 0, 0));
+#else
     imageStore(result, ivec2(gl_GlobalInvocationID.xy), vec4(1.0 - occlusion));
+#endif
     // if(dbg>4)
     //   imageStore(result, ivec2(gl_GlobalInvocationID.xy), vec4(0.0));
     // imageStore(result, ivec2(gl_GlobalInvocationID.xy), vec4(float(dbg)/10.0));

@@ -113,6 +113,7 @@ Renderer::~Renderer() {
 void Renderer::setupSettings() {
   settings.zEnvMappingEnabled = Gothic::settingsGetI("ENGINE","zEnvMappingEnabled")!=0;
   settings.zCloudShadowScale  = Gothic::settingsGetI("ENGINE","zCloudShadowScale") !=0;
+  settings.ssaoHalfResolution = Gothic::settingsGetI("ENGINE","ssaoHalfResolution")!=0;
   settings.zFogRadial         = Gothic::settingsGetI("RENDERER_D3D","zFogRadial")!=0;
   {
     // wind
@@ -1891,10 +1892,13 @@ void Renderer::prepareSSAO(Encoder<CommandBuffer>& cmd, WorldView& wview) {
   push.projInv.inverse();
 
   auto& device = Resources::device();
-  if(ssao.ssaoBuf.size()!=zbuffer.size()) {
+  const bool halfResolution = settings.ssaoHalfResolution && device.properties().hasStorageFormat(TextureFormat::RG32F);
+  const auto aoSize = halfResolution ? Size((zbuffer.w()+1)/2, (zbuffer.h()+1)/2) : zbuffer.size();
+  const auto aoFormat = halfResolution ? TextureFormat::RG32F : ssao.aoFormat;
+  if(ssao.ssaoBuf.size()!=aoSize || ssao.ssaoBuf.format()!=aoFormat || ssao.ssaoBlur.size()!=zbuffer.size()) {
     Resources::recycle(std::move(ssao.ssaoBuf));
     Resources::recycle(std::move(ssao.ssaoBlur));
-    ssao.ssaoBuf  = device.image2d(ssao.aoFormat, zbuffer.size());
+    ssao.ssaoBuf  = device.image2d(aoFormat, aoSize);
     ssao.ssaoBlur = device.image2d(ssao.aoFormat, zbuffer.size());
     }
 
@@ -1907,16 +1911,19 @@ void Renderer::prepareSSAO(Encoder<CommandBuffer>& cmd, WorldView& wview) {
   cmd.setBinding(3, gbufNormal,  Sampler::nearest(ClampMode::ClampToEdge));
   cmd.setBinding(4, zbuffer,     Sampler::nearest(ClampMode::ClampToEdge));
   cmd.setPushData(&push, sizeof(push));
-  cmd.setPipeline(shaders.ssao);
+  cmd.setPipeline(halfResolution ? shaders.ssaoHalf : shaders.ssao);
   cmd.dispatchThreads(ssao.ssaoBuf.size());
 
-  cmd.setDebugMarker("SSAO blur");
+  cmd.setDebugMarker(halfResolution ? "SSAO upsample" : "SSAO blur");
   cmd.setBinding(0, ssao.ssaoBlur);
   cmd.setBinding(1, wview.sceneGlobals().uboGlobal[SceneGlobals::V_Main]);
-  cmd.setBinding(2, ssao.ssaoBuf);
+  if(halfResolution)
+    cmd.setBinding(2, ssao.ssaoBuf, Sampler::nearest(ClampMode::ClampToEdge));
+  else
+    cmd.setBinding(2, ssao.ssaoBuf);
   cmd.setBinding(3, zbuffer, Sampler::nearest(ClampMode::ClampToEdge));
-  cmd.setPipeline(shaders.ssaoBlur);
-  cmd.dispatchThreads(ssao.ssaoBuf.size());
+  cmd.setPipeline(halfResolution ? shaders.ssaoUpsample : shaders.ssaoBlur);
+  cmd.dispatchThreads(ssao.ssaoBlur.size());
   }
 
 void Renderer::prepareFog(Encoder<Tempest::CommandBuffer>& cmd, WorldView& wview) {

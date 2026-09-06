@@ -30,6 +30,28 @@ Edit the INI with the game stopped; no APK rebuild is required.
 The Lanczos optimization applies only when reduced-resolution rendering is selected.
 The 50% measurements in the performance report are diagnostic results, not a recommended or packaged default.
 
+## Optional half-resolution ambient occlusion
+
+To reduce the cost of SSAO independently of scene resolution, add this to the writable `Gothic.ini`:
+
+```ini
+[ENGINE]
+ssaoHalfResolution=1
+```
+
+The default is `0`, which preserves the existing full-resolution SSAO calculation and blur.
+With `1`, AO is calculated at half the scene width and height, then blurred and resolved back to scene resolution using depth to avoid blending unrelated surfaces.
+At 75% render scale on a 2340x1080 screen, the scene remains 1755x810 and AO calculation uses 878x405.
+Textures, geometry, UI resolution and the AO sampling radius are unchanged.
+Fine contact shadows can be softer or missing, especially around thin geometry; this is an optional quality/performance tradeoff, not an identical-image optimization.
+The existing `zCloudShadowScale` gate still controls whether SSAO runs at all.
+If the required RG32F storage format is unavailable, rendering falls back to full-resolution SSAO.
+
+This renderer option also works on desktop; it is not forced by the Android build.
+Use the safe INI-edit commands below with the game stopped, and restart after editing.
+Set `ssaoHalfResolution=0` to restore full-resolution AO without changing the scene render scale or rebuilding the APK.
+GPU profiling labels the new resolve as `SSAO upsample`; compare its combined cost with `SSAO` against the old `SSAO` plus `SSAO blur`.
+
 ## Enable shortcuts and the FPS counter
 
 These are supported settings, not edits to Gothic's scripts or assets:

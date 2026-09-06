@@ -68,6 +68,8 @@ void Shaders::compileShaders() {
 
   ssao                = computeShader("ssao.comp.sprv");
   ssaoBlur            = computeShader("ssao_blur.comp.sprv");
+  ssaoHalf            = computeShader("ssao_half.comp.sprv");
+  ssaoUpsample        = computeShader("ssao_upsample.comp.sprv");
 
   directLight      = postEffect("direct_light",    RenderState::ZTestMode::NoEqual);
   directLightSh    = postEffect("direct_light_sh", RenderState::ZTestMode::NoEqual);

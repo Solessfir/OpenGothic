@@ -133,6 +133,7 @@ class Renderer final {
 
       bool           zEnvMappingEnabled = false;
       bool           zCloudShadowScale  = false;
+      bool           ssaoHalfResolution = false;
       bool           zFogRadial         = false;
 
       bool           zWindEnabled       = false;
