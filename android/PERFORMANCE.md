@@ -32,6 +32,25 @@ The evidence strongly points to GPU saturation with thermal/power limits contrib
 
 `dumpsys SurfaceFlinger --latency` returned only the refresh period, and FrameTimeline contained no app-layer frames on this device. The FPS above therefore uses the driver's `QueuePresentKHR` markers, not verified display scanout. GPU-completion fence waits averaged 35.091 ms on a separate tracing thread; that includes queued work and is not a per-pass GPU timer. Raw traces remain local under ignored `build/performance/` and should not be published without inspection because system traces contain other process names and activity.
 
+## Fresh-process reload follow-up
+
+After the user freshly reloaded, ADB confirmed a new app process. A second 29.960-second trace covered the same waterfall/path viewpoint at unchanged native resolution. This was a fresh process, not a thermally cold start: live skin temperature was already 44.0 C before recording and Android thermal status remained 2.
+
+| Observation | After reload |
+| --- | --- |
+| Vulkan presentation cadence | 24.76 FPS over 739 intervals |
+| Mean / median interval | 40.39 / 40.48 ms |
+| 95th / 99th percentile interval | 44.67 / 46.97 ms |
+| Worst interval | 50.29 ms |
+| GPU utilization | 100 in all 16 samples |
+| GPU current clock and allowed maximum | 600 MHz for the first two samples, then 545 MHz for the remaining 14 |
+| Live temperatures after recording | Skin 44.3 C, battery 44.6 C, AP 53.3 C |
+| Game/render thread CPU time | 15.521 CPU seconds |
+| Presentation-call duration | 18.808 ms average, including waits |
+| Trace error/loss counters | No nonzero warning/error statistics |
+
+A screenshot after recording showed 24 FPS and a comparable camera position. Reloading did not restore performance during this sample; the lower observed GPU ceiling is consistent with the slower cadence. This does not rule out other time-dependent engine problems or replace a cooled-device comparison. No settings or gameplay inputs were changed, and ADB remained online. Raw data is local in `build/performance/reloaded-20260906/`.
+
 ## Reproduce from PowerShell
 
 Start from the repository root. Load the same save and leave the character/camera still. Keep brightness, power mode, charging state and warm-up duration comparable. Do not take screenshots or stream logcat during the trace. Record both cold and sustained samples separately.
