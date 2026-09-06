@@ -715,3 +715,41 @@ Both checked traces reported no nonzero Perfetto quality errors.
 
 The app was then restarted at the same 1536 setting to reset the bounded GPU profiler, and loading the waterfall first was confirmed by screenshot.
 Subsequent 1536 GPU results use this retry, not the invalid Xardas capture.
+
+### Shadow-resolution comparison and warm repeat
+
+All runs below used the same installed APK, 1755x810 scene resolution, half-resolution SSAO and the 60 FPS cap.
+The waterfall save/camera was confirmed by screenshots for each valid run.
+Each GPU CSV contains 600 completed frames; each presentation-cadence trace covers 30 seconds after the screenshot check.
+GPU and cadence captures cover different time windows, and the clock logs include launch/loading as well as gameplay.
+
+| Observation | 1024, first run | 1536, valid retry | 2048 reference | 1024, warm repeat |
+| --- | --- | --- | --- | --- |
+| Presentation cadence | 59.99 FPS | 59.75 FPS | 46.71 FPS | 35.45 FPS |
+| Mean frame interval | 16.67 ms | 16.74 ms | 21.41 ms | 28.21 ms |
+| p95 / p99 interval | 18.90 / 20.21 ms | 18.76 / 19.97 ms | 25.80 / 27.32 ms | 31.13 / 32.44 ms |
+| Worst interval | 22.28 ms | 22.96 ms | 30.65 ms | 33.96 ms |
+| ShadowMap #0 | 0.41 ms | 0.75 ms | 2.25 ms | approximately 0.98 ms |
+| ShadowMap #1 | 0.99 ms | 1.30 ms | 3.07 ms | 2.29 ms |
+| Fog-LUTs | 1.36 ms | 1.67 ms | 3.40 ms | 3.10 ms |
+| SSAO calculation | 1.75 ms | 1.94 ms | 4.42 ms | 4.53 ms |
+| Tonemapping | 0.86 ms | 0.91 ms | 1.67 ms | 2.08 ms |
+| Total GPU marker span | 10.807 ms | 12.282 ms | 25.827 ms | 25.411 ms |
+| Live skin temperature before launch / after trace | 37.9 / 41.2 C | 44.3 / 44.6 C | 44.5 / 44.2 C | 44.4 / 43.6 C |
+| Late clock samples | 600-800 MHz | 600 MHz | 400-450 MHz | 252 MHz |
+
+The lower-resolution maps reduce depth allocation/raster target size and the valid lower-resolution runs had smaller shadow-pass intervals.
+However, the sequential runs experienced substantially different GPU clocks and power conditions.
+The much slower unrelated passes in the 2048 and warm-1024 captures confirm that their FPS differences cannot be attributed solely to shadow resolution.
+No fixed millisecond saving, percentage FPS improvement or battery-power reduction is established by this sequence.
+Temperature alone is not a reliable substitute for frequency/power-state matching.
+
+All three resolutions rendered without obvious gross corruption in the inspected waterfall screenshots.
+The 1024 option sacrifices fine shadow edges; these stationary images do not establish equivalent quality or rule out shimmer, acne or detached shadows in other scenes or while moving.
+All four checked traces contained no nonzero Perfetto quality errors, and their collected logcat files contained no fatal-signal, Vulkan-error or abort matches.
+The warm 1024 repeat still failed the sustained-60-FPS target at its severely reduced clock ceiling.
+
+The device's writable INI is left at `shadowMapResolution=1024` for the next mobile-performance tests; the packaged default remains 2048 and no other quality/input settings changed.
+The game was stopped after the final trace to cool, with saves and assets preserved.
+Source and results are committed locally; nothing was pushed.
+Next: investigate fog and the remaining GPU/CPU costs, and eventually repeat controlled, longer thermal tests rather than treating a short near-60-FPS sample as completion.
