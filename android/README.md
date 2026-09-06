@@ -2,6 +2,8 @@
 
 This project builds a sideloadable NativeActivity debug APK for 64-bit ARM Android devices with Vulkan 1.1. It does not package Gothic II game files. You must copy a legally owned Gothic II: Night of the Raven installation after installing the APK.
 
+For measured S24 performance and repeatable profiling commands, see [PERFORMANCE.md](PERFORMANCE.md).
+
 ## Requirements
 
 - Windows 10 or newer with PowerShell and Git.

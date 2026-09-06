@@ -4,7 +4,7 @@
 
 ### Tempest master update and history cleanup
 
-Tempest is now pinned to `b8c952ef1c723082a23c5e373e95f5ad65027419`, published on the user's fork. That merge contains all eight previously missing master commits through `02e1e053`; both local Tempest checkouts were fast-forwarded to it without conflicts. Android `assembleDebug lintDebug`, the Windows game target, and all three controller/save/camera regression tests passed. APK signature and 16 KB ZIP alignment checks passed, with only the ARM64 library and no game assets packaged. The rebuilt APK has not been installed on the phone.
+Tempest is now pinned to `b8c952ef1c723082a23c5e373e95f5ad65027419`, published on the user's fork. That merge contains all eight previously missing master commits through `02e1e053`; both local Tempest checkouts were fast-forwarded to it without conflicts. Android `assembleDebug lintDebug`, the Windows game target, and all three controller/save/camera regression tests passed. APK signature and 16 KB ZIP alignment checks passed, with only the ARM64 library and no game assets packaged. The rebuilt APK was subsequently installed successfully at the user's request and cold-launched with `Status: ok`. See [the S24 performance baseline](PERFORMANCE.md) for the subsequent in-game measurement.
 
 Current APK SHA-256: `F01D1F1523303AE1610E5FC9893209617EC9C547F7B096ED025791B39198E67D`.
 
