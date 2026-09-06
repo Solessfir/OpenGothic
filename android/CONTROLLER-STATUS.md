@@ -2,6 +2,14 @@
 
 ## Latest follow-up
 
+### Sidestep animation selection
+
+The user confirmed the animation problem persisted after the input-axis correction and identified excessive enemy distance as the separate lock-loss cause. Lock range/retention was not changed. OpenGothic `9c4747f5` disables automatic low-stick walk mode for locked ground sidesteps: crossing the low-speed range previously selected `WALKWSTRAFE` instead of `RUNSTRAFE`, and the animation layer can retain a sequence until its interruption window. Intentional LB+L3 walk mode, sneak, swimming/diving, and animation interruption rules are preserved. Locked forward/back movement and unlocked movement still support automatic walking.
+
+Android `assembleDebug lintDebug`, the Windows game build, and CTest (3/3) passed. Regression checks cover automatic-walk suppression throughout sideways reversals and walk-threshold crossings, plus retained forward/back and unlocked walking. APK signature, ARM64-only contents, and 16 KB ZIP alignment checks passed; no game assets are packaged. Device animation verification remains pending; the APK has not been installed yet because confirmation that the game is saved/closed is outstanding.
+
+Current APK SHA-256: `7C8965F193FAA5CF4249DC6BEE301DAC722820422196F4B7E37E65BB832BDDE1`.
+
 ### Locked strafe reversals
 
 After confirming the previous camera update works, the user reported temporary walking during rapid locked left/right reversals. OpenGothic `94accbd6` fixes a concrete input mismatch: sideways motion had an extra 0.2 component threshold after the radial dead zone/curve, while forward motion accepted any remaining vertical component. Locked ground input now chooses the dominant axis and accepts its effective sideways amount without a second threshold. Neutral input does not retain movement. Keyboard, touch, swimming/diving, and animation interruption rules are unchanged.
