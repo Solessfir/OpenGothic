@@ -577,3 +577,18 @@ This is a short stationary-scene result, not proof of sustained 60 FPS throughou
 The waterfall rendered without obvious gross corruption in the screenshot.
 Fine AO quality still needs a matched full/half screenshot comparison and moving-camera review, especially around thin geometry and contact shadows.
 The game was stopped after measurement while rebuilding the requested Android defaults; assets and saves were preserved.
+
+### Final Android-defaults build
+
+Commit `2f2398c4` selects 75% scene resolution when the writable Android render-scale key is missing, and half-resolution SSAO when no explicit AO preference exists.
+Desktop keeps native scene resolution and full-resolution SSAO by default.
+The existing original-game display-mode index is still deliberately not imported as an OpenGothic render scale.
+Existing writable render-scale choices and explicit AO preferences are not migrated or overwritten.
+
+Both the Windows Release executable and ARM64 APK rebuilt successfully after this change; Android lint passed again.
+The final APK at `android/app/build/outputs/apk/debug/app-debug.apk` has SHA-256 `406943DEBA370ECBCA5C5F279E7251D610D4BD25E88E1EA608507C41C07FF93F`.
+Signature, ARM64 metadata and 16 KiB ZIP alignment checks passed again.
+Upgrade installation succeeded, the on-device APK hash matched, and cold launch returned `Status: ok`.
+The user's explicit 75%/half-AO settings remained intact; the waterfall was visible in `build/performance/ssao-half/defaults-launch.png`.
+The game was left running for visual review.
+This final rebuild changes only platform defaults, not the measured SSAO algorithm; no second timing result is attributed to its screenshot FPS counter.
