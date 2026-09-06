@@ -37,6 +37,7 @@ static LONG WINAPI exceptionHandler(PEXCEPTION_POINTERS) {
   }
 #endif
 
+#if !defined(__ANDROID__)
 static void signalHandler(int sig) {
   std::signal(sig, SIG_DFL);
   const char* sname = nullptr;
@@ -57,6 +58,7 @@ static void signalHandler(int sig) {
   CrashLog::dumpStack(sname, nullptr);
   std::raise(sig);
   }
+#endif
 
 [[noreturn]]
 static void terminateHandler() {
@@ -68,7 +70,9 @@ static void terminateHandler() {
       std::rethrow_exception(p);
       }
     catch (GothicNotFoundException& ) {
+#if !defined(__ANDROID__)
       std::signal(SIGABRT, SIG_DFL); // avoid recursion
+#endif
       std::abort();
       }
     catch (Tempest::DeviceLostException& e) {
@@ -97,7 +101,9 @@ static void terminateHandler() {
       }
     }
   CrashLog::dumpStack(msg, extGpuLog.c_str());
+#if !defined(__ANDROID__)
   std::signal(SIGABRT, SIG_DFL); // avoid recursion
+#endif
   std::abort();
   }
 
@@ -106,10 +112,13 @@ void CrashLog::setup() {
   SetUnhandledExceptionFilter(exceptionHandler);
 #endif
 
+#if !defined(__ANDROID__)
+  // Android's existing handlers produce symbolizable logcat crash reports and tombstones.
   std::signal(SIGSEGV, &signalHandler);
   std::signal(SIGABRT, &signalHandler);
   std::signal(SIGFPE,  &signalHandler);
   std::signal(SIGABRT, &signalHandler);
+#endif
   std::set_terminate(terminateHandler);
   }
 
