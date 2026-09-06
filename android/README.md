@@ -105,7 +105,23 @@ OpenGothic also writes `log.txt` beside the `Gothic2` directory. Pull it with:
 
 ## Controls and current limitations
 
-A Bluetooth or USB gamepad is the supported control method for this first milestone.
+OpenGothic uses invisible touchscreen controls when no physical gamepad is connected. Connecting a Bluetooth or USB gamepad disables the touch controls and switches to the physical controller.
+
+The left half of the screen is a dynamic movement stick. Touch anywhere on that half to place its center, then drag relative to that point. The middle-right area, from 50% to 84% of the screen width, controls the camera. These areas support simultaneous touches, so the player can move and look at the same time. After 800 ms without manual camera input, moving forward gently recenters the camera behind the player. Gothic's existing focus system supplies interaction targeting and combat auto-rotation.
+
+The rightmost 16% of the screen contains five invisible virtual buttons:
+
+| Vertical area | Action | Menu behavior |
+| --- | --- | --- |
+| Top 20% | Back | Escape or close |
+| 20% to 40% | Inventory | Inventory |
+| 40% to 60% | Draw or sheathe weapon | Space |
+| 60% to 80% | Jump | Left Alt |
+| Bottom 20% | Interact or attack | Confirm |
+
+Dragging the dynamic movement stick also emits arrow-key navigation for menus and dialog choices. This avoids precision tapping on the original desktop-sized UI.
+
+The physical gamepad mapping is:
 
 | Control | Android mapping | OpenGothic input |
 | --- | --- | --- |
@@ -125,7 +141,7 @@ A Bluetooth or USB gamepad is the supported control method for this first milest
 | Start | Button Start | Escape |
 | Select | Button Select | B |
 
-Basic touch events are translated to pointer movement and clicks, but there is no usable on-screen control overlay yet. Controller layouts vary, so Android may report different axes for some third-party devices. Ray queries and mesh shaders are disabled by default, and the build uses conservative desktop-compatible rendering paths for sustained mobile operation.
+No touchscreen controls are drawn over the game. Controller layouts vary, so Android may report different axes for some third-party devices. Ray queries and mesh shaders are disabled by default, and the build uses conservative desktop-compatible rendering paths for sustained mobile operation.
 
 ## Inspect the APK
 
