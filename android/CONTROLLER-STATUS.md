@@ -1,5 +1,25 @@
 # Controller milestone verification — 2026-09-06
 
+## Latest follow-up
+
+OpenGothic `832a86a9` adds live save-name rendering after the controller fixes in `15e1ec0c` and the dropped-item crash fix in `2a29bc29`. Tempest remains pinned to `b8f8b053` on the user's fork. These OpenGothic commits have not been pushed.
+
+The user has now tested a physical controller and confirmed that target lock works; the subsequent missing-lock report was a test misunderstanding. No further targeting changes were made. The user also confirmed the previous fix worked, while reporting that save-name deletion only became visible after closing and reopening the menu.
+
+Controller polling now runs from a timer outside rendering. Previously, controller menu input could enter a modal save-name dialog inside a render callback, preventing Android from rendering again until the dialog closed. The input dialog also explicitly invalidates the underlying menu that paints the name. This follow-up is built but has not yet been installed or visually verified on the phone: installation is waiting for the user to save progress and leave the running game.
+
+Verification for this APK: Android `assembleDebug lintDebug` succeeded, the Windows `Gothic2Notr` target built, and the controller CTest passed (1/1). APK signature and 16 KB ZIP alignment checks passed. The APK contains only `lib/arm64-v8a/libopengothic.so` and no game assets.
+
+APK: `C:\Git\OpenGothic\android\app\build\outputs\apk\debug\app-debug.apk`.
+
+SHA-256: `AD73A37FD8E3AE32190F72B7278226F6E0BF8A1C7BFED372A60230FE0BFA42D7`.
+
+Next check: open an existing save-name editor using the controller, delete and replace text, and verify changes are visible before pressing Done. Cancel the edit to avoid overwriting a save during verification. User-assignable D-pad slots, weapon-slot draw behavior, and an explicit Fists slot remain proposals, not implemented controls.
+
+The original milestone record below is historical; its APK hash and no-controller test status are superseded by this follow-up.
+
+## Original milestone
+
 Implementation: OpenGothic `bde76d57`, Tempest `98449c95` (published on the user's Tempest fork, branch `android`). OpenGothic commits remain local. See [the controller guide](CONTROLLER.md) for the implemented controls and remapping.
 
 ## Build and automated checks
