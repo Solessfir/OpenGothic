@@ -592,3 +592,82 @@ Upgrade installation succeeded, the on-device APK hash matched, and cold launch 
 The user's explicit 75%/half-AO settings remained intact; the waterfall was visible in `build/performance/ssao-half/defaults-launch.png`.
 The game was left running for visual review.
 This final rebuild changes only platform defaults, not the measured SSAO algorithm; no second timing result is attributed to its screenshot FPS counter.
+
+### Fractional Android frame pacing, 2026-09-07
+
+OpenGothic commit `2414cef7` uses Tempest `31390de7` for application-side frame pacing on Android.
+The old millisecond interval used `1000/60 = 16`, nominally 62.5 FPS, and `Application::sleep` busy-polled its final five milliseconds.
+The new schedule distributes fractional nanoseconds across frames, sleeps with a monotonic deadline, and rebases after missed deadlines without catch-up bursts.
+Android's other `Application::sleep` callers now use blocking sleeps too; desktop sleep/limiter behavior is unchanged.
+Focus, resize and world-loading events reset the pacing schedule.
+Android initializes a missing writable `zMaxFPS` to 60 while preserving existing writable values and the positive SystemPack FPS override.
+The device's existing 75% scale, half-resolution SSAO and input preferences were preserved; startup added `zMaxFPS=60` automatically.
+See [frame-rate configuration](CONFIGURATION.md#frame-rate-limit-and-low-power-waits) for uncapped gameplay and lower limits.
+
+This is not Swappy integration or display-synchronized presentation.
+It caps application work without requesting a display refresh-rate change or overriding clocks/thermal controls.
+The FPS counter now uses the actual elapsed clock on Android rather than assuming a requested delay completed exactly on time.
+
+Verification:
+
+- Windows Release executable, ARM64 APK and Android lint passed.
+- All twelve local tests passed, including the new Tempest pacing test and the existing Vulkan rendering/controller/worker regressions.
+- The deterministic pacing test checked 104,649 exact deadlines at nine rates from 1 to 1,000 FPS, plus disabled pacing, changed/unchanged rates, lifecycle reset and a five-second stall.
+- On Windows, 120 paced intervals took 2.00127 s with zero thread CPU reported at the OS counter's resolution.
+- The same native ARM64 test ran on the S24: 2.00059 s wall time and 0.019968 s thread CPU for 120 intervals.
+- APK signature, ARM64-only metadata and 16 KiB ZIP alignment passed.
+- Upgrade installation and cold launch succeeded; the installed APK SHA-256 matched `7AD0A5A9094DB895216507D2CC7247D4F23663AFF0B64DAE169180B87B2A500E`.
+- Home/background and return to the activity completed successfully with the same process; lifecycle logs recorded pause/focus changes.
+- The waterfall rendered before and after the lifecycle test; collected logcat had no fatal signal, Vulkan error or abort matches.
+
+APK: `android/app/build/outputs/apk/debug/app-debug.apk`.
+Local evidence: `build/performance/frame-pacing/`.
+The `capture.perfetto-trace` and `capture-warm.perfetto-trace` files each cover 30 seconds; matching analysis, thermal snapshots, GPU clock samples and screenshots are alongside them.
+The initial device configuration is preserved in `Gothic.ini.backup`.
+
+| Observation | First capped run | Warmer repeat after pause/resume |
+| --- | --- | --- |
+| Presentation cadence | 59.72 FPS | 35.68 FPS |
+| Presentation intervals | 1,783 | 1,065 |
+| Mean / median interval | 16.74 / 16.73 ms | 28.03 / 27.96 ms |
+| p95 / p99 interval | 18.81 / 19.98 ms | 33.44 / 35.47 ms |
+| Worst interval | 23.09 ms | 41.22 ms |
+| Sampled GPU clock / ceiling | 600-650 MHz | 252-315 MHz |
+| Live HAL skin temperature | 42.5 to 43.2 C | 44.3 to 43.8 C |
+| Thermal status | 2 | 2 |
+| Pacing wait wall / scheduled CPU | 2,847.815 / 26.143 ms | No pacing-wait scopes |
+
+The first capture had 1,432 pacing waits, averaging 1.989 ms wall time each, without the old multi-millisecond spin.
+The warmer repeat had no pacing waits: work already exceeded the frame interval, so the limiter imposed no extra wait.
+Both traces reported no nonzero errors in the checked Perfetto quality statistics.
+GPU utilization samples were 95-100% in the first run and 100% in the warmer repeat.
+The clock ceiling drop is directly observed; these runs do not isolate temperature from other Samsung/device power-policy effects, especially across pause/resume.
+They do not establish a battery-power reduction, display-scanout cadence, or sustained 60 FPS.
+
+The early bounded GPU capture averaged a 16.441 ms marker span, including 3.58 ms for both shadow maps and 2.26 ms for fog LUTs.
+It precedes the heavily throttled repeat and must not be interpreted as that repeat's GPU timing.
+Next rendering candidate: configurable lower-resolution shadow maps with matched quality and timing comparisons.
+Proper Vulkan display pacing and a longer continuous thermal test remain outstanding; a 60 FPS cap alone did not meet the hot-device target.
+The game was force-stopped after the warmer measurement to cool; existing saves/assets remain intact.
+
+To build and run the standalone pacing test on Windows:
+
+```powershell
+cmake -S lib/Tempest/Tests/frame-pacing -B build/frame-pacing-tests
+cmake --build build/frame-pacing-tests --config Release
+ctest --test-dir build/frame-pacing-tests -C Release --output-on-failure
+```
+
+For the actual device wait test:
+
+```powershell
+$androidCmake = "$env:ANDROID_HOME/cmake/3.22.1/bin/cmake.exe"
+& $androidCmake -S lib/Tempest/Tests/frame-pacing -B build/android-frame-pacing-tests -G Ninja `
+  "-DCMAKE_MAKE_PROGRAM=$env:ANDROID_HOME/cmake/3.22.1/bin/ninja.exe" `
+  "-DCMAKE_TOOLCHAIN_FILE=$env:ANDROID_HOME/ndk/27.0.12077973/build/cmake/android.toolchain.cmake" `
+  -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-24 -DANDROID_STL=c++_static -DCMAKE_BUILD_TYPE=Release
+& $androidCmake --build build/android-frame-pacing-tests
+& "$env:ANDROID_HOME/platform-tools/adb.exe" push build/android-frame-pacing-tests/frame-pacing-tests /data/local/tmp/opengothic-frame-pacing-tests
+& "$env:ANDROID_HOME/platform-tools/adb.exe" shell chmod 700 /data/local/tmp/opengothic-frame-pacing-tests
+& "$env:ANDROID_HOME/platform-tools/adb.exe" shell /data/local/tmp/opengothic-frame-pacing-tests
+```
