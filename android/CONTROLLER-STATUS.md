@@ -2,6 +2,16 @@
 
 ## Latest follow-up
 
+### Locked camera and analog assistance
+
+OpenGothic `ebe4101b` allows right-stick vertical look while locked, retaining Mouse speed, inversion, and pitch limits. Horizontal flicks still switch targets. The shared camera now wraps yaw near the character before applying pitch limits; previously an unwrapped yaw could be clamped to the wrong side of the character at an angle boundary. Unlocked automatic recentering scales with effective movement-stick magnitude. Locked tracking remains active at rest. Following uses exponential smoothing to keep its response consistent across frame rates.
+
+Android `assembleDebug lintDebug` and the Windows game target built successfully. CTest passed 3/3, including new zero/±180-degree boundary tests, accumulated turns, gentle versus full-stick assistance, no-input behavior, overshoot, and 30 versus 120 Hz following. APK v2 signature and 16 KB ZIP alignment checks passed. The APK contains only the ARM64 native library and no game assets.
+
+Current APK SHA-256: `25894A6EF1E8356E9713AD9B692B2957588006EC71DE607F67BDD615DB2CD038`.
+
+After the user closed the game, this APK was installed successfully on `RFCX10M60QT`; cold launch returned `Status: ok`. It includes the save deletion change below. Gameplay verification of both changes is left to the user as requested; no controller inputs or save deletions were performed on the phone by the agent. The older pending-install notes below are historical.
+
 ### Save deletion
 
 OpenGothic `05ad0fcd` adds `[UI] DeleteSave=X`. Only occupied save/load slots open the named confirmation; A confirms permanent deletion and B cancels. Keyboard Delete/Enter/Escape are supported too. Inventory X still drops items. Empty slots, directories, and symbolic links cannot be deleted as save files. The original assets are unchanged.
