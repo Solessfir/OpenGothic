@@ -33,3 +33,19 @@ ctest --test-dir build/rendering-tests -C Release --output-on-failure
 
 The CPU test is portable; the optional GPU test requires a working Vulkan device and Tempest runtime dependencies.
 Neither test establishes phone FPS or replaces an on-device scene comparison.
+
+## SSAO convergence regression
+
+The same optional Vulkan configuration builds `ssao-vulkan-convergence`.
+It exercises the production convergence helper against the previous counter-based decision with defined shared-memory ordering.
+Across 1,048,576 lane cases it checks evaluated sample counts, sample signatures, the first convergence round and uniform workgroup exit.
+Inputs include zero/high differences, a single unconverged lane, exact threshold boundaries, NaN/infinity, signed zero, mixed lane sample limits and inactive lanes.
+The synthetic workload reduces synchronization rounds from 8,388,608 to 6,291,456; this is not a game-performance benchmark.
+
+The helper retains a barrier after reading the shared result, preventing the next iteration from resetting it before every lane has read it.
+Workgroup exit is uniform, as required by the [GLSL barrier rules](https://docs.vulkan.org/glsl/latest/chapters/builtinfunctions.html#shader-invocation-control-functions).
+This test verifies convergence control flow, not the complete SSAO image or blur filter.
+
+```powershell
+ctest --test-dir build/rendering-tests -C Release -R ssao --output-on-failure
+```

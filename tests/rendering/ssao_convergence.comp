@@ -1,0 +1,70 @@
+#version 450
+#extension GL_GOOGLE_include_directive : enable
+
+layout(local_size_x=8, local_size_y=8) in;
+layout(binding=0, std430) buffer Output { uvec4 results[]; };
+layout(push_constant) uniform Parameters { uint seed; };
+
+#ifdef REFERENCE
+shared uint maxDiff, count;
+bool ssaoIsSolved(float diff, int samples) {
+  // Model the old counter decision, with defined shared-memory ordering.
+  if(gl_LocalInvocationIndex==0) {
+    maxDiff = 0;
+    count = 0;
+    }
+  barrier();
+  atomicMax(maxDiff, floatBitsToUint(diff));
+  barrier();
+  if(uintBitsToFloat(maxDiff)>=0.1 + samples*0.005)
+    atomicAdd(count,1);
+  barrier();
+  bool solved = count<4;
+  barrier();
+  return solved;
+  }
+#else
+#include "ssao/convergence.glsl"
+#endif
+
+float difference(uint kind, uint lane, uint iteration) {
+  float threshold = 0.1 + float((iteration+1)*4)*0.005;
+  if(kind==0) return 0;
+  if(kind==1) return 1;
+  if(kind==2) return lane==63 ? 1 : 0;
+  if(kind==3) return iteration<3 ? 1 : 0;
+  if(kind==4) return lane==17 ? uintBitsToFloat(0x7fc00000u) : 1;
+  if(kind==5) return lane==31 ? uintBitsToFloat(0x7f800000u) : 0;
+  if(kind==6) return threshold;
+  if(kind==7) return uintBitsToFloat(floatBitsToUint(threshold)-1);
+  if(kind==8) return uintBitsToFloat(floatBitsToUint(threshold)+1);
+  if(kind==9) return uintBitsToFloat(0x80000000u);
+  return float((lane*97 + iteration*31 + seed*11 + gl_WorkGroupID.x*13)%257)/256.0;
+  }
+
+void main() {
+  uint lane = gl_LocalInvocationIndex;
+  uint kind = (gl_WorkGroupID.x+seed)%16;
+  uint maxSteps = kind<10 ? 8 : (lane+seed)%9;
+  bool valid = kind<10 || (lane+seed)%5!=0;
+  bool eval = valid;
+  uint evaluations = 0, signature = 0, rounds = 0, firstSolved = 8;
+  float diff = 0;
+  for(uint i=0; i<8; ++i) {
+    if(eval && i<maxSteps) {
+      ++evaluations;
+      signature = signature*17 + i+1;
+      diff = difference(kind,lane,i);
+      }
+    ++rounds;
+    if(ssaoIsSolved(diff,int((i+1)*4))) {
+      firstSolved = min(firstSolved,i);
+#ifdef REFERENCE
+      eval = false;
+#else
+      break;
+#endif
+      }
+    }
+  results[gl_WorkGroupID.x*64+lane] = uvec4(evaluations,signature,rounds,firstSolved);
+  }

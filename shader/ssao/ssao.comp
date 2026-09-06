@@ -8,6 +8,8 @@
 
 layout(local_size_x = 8, local_size_y = 8) in;
 
+#include "convergence.glsl"
+
 layout(push_constant, std140) uniform PushConstant {
   mat4 proj;
   mat4 projInv;
@@ -77,25 +79,6 @@ void addMis(vec3 dir) {
   }
 
 shared uint shMaxSteps;
-shared uint vDiff, vCnt;
-
-bool isSolved(float diff, int samples) {
-  vDiff = 0;
-  vCnt  = 0;
-  barrier();
-
-  uint v = floatBitsToUint(diff);
-  atomicMax(vDiff, v);
-  barrier();
-
-  float d = uintBitsToFloat(vDiff);
-  if(d>=0.1 + samples*0.005)
-    atomicAdd(vCnt, 1);
-  barrier();
-
-  return vCnt<4;
-  // return d < 0.1 + samples*0.005;
-  }
 
 float wangHashNoise(uvec2 uv, uint s) {
   uint seed = (uv.x*1664525u + uv.y) + s;
@@ -206,7 +189,8 @@ void main() {
   for(int i=0; i<gridQSize; ++i)
     hitV[i] = 0;
 
-  shMaxSteps = 0;
+  if(gl_LocalInvocationIndex==0)
+    shMaxSteps = 0;
   barrier();
 
   screenSize = ivec2(textureSize(depthBuf,0));
@@ -254,8 +238,9 @@ void main() {
       }
 
     int samples = (i+1)*int(samplesPerStep);
-    if(isSolved(abs(occlusion-prev), samples))
-      eval = false;
+    // Convergence is group-wide: no lane has further samples to evaluate.
+    if(ssaoIsSolved(abs(occlusion-prev), samples))
+      break;
     }
 
   if(valid) {

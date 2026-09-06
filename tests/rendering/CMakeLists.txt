@@ -26,4 +26,23 @@ if(RENDERING_TEST_TEMPEST_LIBRARY)
   target_link_libraries(lanczos-gpu-tests PRIVATE "${RENDERING_TEST_TEMPEST_LIBRARY}")
   add_test(NAME lanczos-vulkan-filter COMMAND lanczos-gpu-tests)
   set_tests_properties(lanczos-vulkan-filter PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+
+  foreach(VARIANT reference optimized)
+    set(DEFINES "")
+    if(VARIANT STREQUAL "reference")
+      set(DEFINES -DREFERENCE)
+    endif()
+    add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/ssao-${VARIANT}.spv"
+      COMMAND "${GLSLANG_VALIDATOR}" -V ${DEFINES} -I${CMAKE_CURRENT_SOURCE_DIR}/../../shader
+              "${CMAKE_CURRENT_SOURCE_DIR}/ssao_convergence.comp" -o "${CMAKE_CURRENT_BINARY_DIR}/ssao-${VARIANT}.spv"
+      DEPENDS ssao_convergence.comp ../../shader/ssao/convergence.glsl
+      VERBATIM)
+  endforeach()
+  add_executable(ssao-convergence-tests ssao_convergence_gpu.cpp
+    "${CMAKE_CURRENT_BINARY_DIR}/ssao-reference.spv" "${CMAKE_CURRENT_BINARY_DIR}/ssao-optimized.spv")
+  target_compile_features(ssao-convergence-tests PRIVATE cxx_std_20)
+  target_include_directories(ssao-convergence-tests PRIVATE ../../lib/Tempest/Engine/include)
+  target_link_libraries(ssao-convergence-tests PRIVATE "${RENDERING_TEST_TEMPEST_LIBRARY}")
+  add_test(NAME ssao-vulkan-convergence COMMAND ssao-convergence-tests)
+  set_tests_properties(ssao-vulkan-convergence PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}" TIMEOUT 60)
 endif()
