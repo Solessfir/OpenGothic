@@ -671,3 +671,33 @@ $androidCmake = "$env:ANDROID_HOME/cmake/3.22.1/bin/cmake.exe"
 & "$env:ANDROID_HOME/platform-tools/adb.exe" shell chmod 700 /data/local/tmp/opengothic-frame-pacing-tests
 & "$env:ANDROID_HOME/platform-tools/adb.exe" shell /data/local/tmp/opengothic-frame-pacing-tests
 ```
+
+### Configurable conventional shadow maps, 2026-09-07
+
+Commit `6811afc3` replaces the fixed 2048 shadow-map dimension with a validated `[ENGINE] shadowMapResolution` choice.
+Supported dimensions are 1024, 1536 and 2048; the default and unsupported-value fallback remain 2048 on Android and desktop.
+Both conventional sunlight shadow maps use the selected dimension, including their fog/indirect-lighting consumers.
+The original texture-size-aware sampling code and shadow projections are unchanged.
+Settings reload still retires old maps through the existing resource recycling path; no new backend or Tempest changes are required.
+The effective resolution is reported in `log.txt`.
+
+1024 maps contain 25% of the original depth texels, and 1536 maps contain 56.25%.
+These are allocation/raster-target size reductions, not measured pass-time or FPS improvements.
+Shadow geometry, draw counts and screen-space sampling remain; lower resolutions trade fine shadow detail for potential memory-bandwidth/raster savings.
+See [shadow configuration](CONFIGURATION.md#shadow-map-resolution) for enabling and reverting the setting.
+
+Windows Release and the Android ARM64 native library/APK built successfully; Android lint passed.
+All twelve existing rendering, GPU timing, controller, CPU trace, worker and frame-pacing regression tests passed.
+No new shadow-quality-specific automated test was added; visual and performance comparisons remain necessary.
+APK signing, ARM64-only manifest metadata and 16 KiB ZIP alignment checks passed.
+
+Candidate APK: `android/app/build/outputs/apk/debug/app-debug.apk`.
+SHA-256: `0621E2FB2E23053D550767B453E18742F999CE935CBA147C9DA4E72914D27CDB`.
+Local build logs and the unchanged device INI backup are in `build/performance/shadow-resolution/`.
+Separate local candidate INIs for 1024, 1536 and 2048 preserve 75% scene resolution, half-resolution SSAO, the 60 FPS cap and the user's input/FPS preferences.
+
+The S24 disappeared from ADB just before installation: `adb.exe: device 'RFCX10M60QT' not found`.
+`adb reconnect offline` still listed no devices.
+The candidate APK was not installed and no candidate INI was uploaded; device assets, saves and graphics settings were not altered by the failed attempt.
+No real-device shadow-quality or performance result is claimed yet.
+Next: reconnect, install the candidate with `adb install -r`, test each dimension using the same waterfall save/camera, and capture shadow-pass timings, images and clocks before selecting a mobile default.

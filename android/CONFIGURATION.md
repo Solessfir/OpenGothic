@@ -65,7 +65,8 @@ shadowMapResolution=1024
 ```
 
 Use `2048` for the original quality, `1536` for an intermediate setting, or `1024` for the lowest-cost option.
-The default remains `2048` on both Android and desktop; missing, malformed and unsupported values fall back to it.
+The default remains `2048` on both Android and desktop; missing or unsupported parsed values fall back to it.
+Values use the existing Gothic INI integer parser.
 In particular, `0` does not disable shadows or allocate an empty texture.
 The setting applies to both conventional sunlight shadow maps, including their fog consumers, not virtual shadow-map pages or ray-traced shadow quality.
 Restart after editing the INI; `log.txt` reports the effective value as `Shadow map resolution = ...`.
