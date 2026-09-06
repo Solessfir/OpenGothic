@@ -103,6 +103,10 @@ class InventoryMenu : public Tempest::Widget {
 
     Tempest::Size             slotSize() const;
     int                       infoHeight() const;
+    bool                      hasSideInfo() const;
+    int                       headerTop() const;
+    int                       gridTop() const;
+    Tempest::Rect             infoRect() const;
     size_t                    pagesCount() const;
 
     const Page&               activePage();

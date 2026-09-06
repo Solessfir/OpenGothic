@@ -400,8 +400,8 @@ void InventoryMenu::mouseWheelEvent(MouseEvent &e) {
   }
 
 size_t InventoryMenu::rowsCount() const {
-  int iy=30+34+70;
-  return size_t((h()-iy-infoHeight()-20)/slotSize().h);
+  const int reserved = hasSideInfo() ? 0 : infoHeight();
+  return size_t(std::max(1,(h()-gridTop()-reserved-20)/std::max(1,slotSize().h)));
   }
 
 void InventoryMenu::paintEvent(PaintEvent &e) {
@@ -430,6 +430,41 @@ Size InventoryMenu::slotSize() const {
 int InventoryMenu::infoHeight() const {
   const float scale = Gothic::interfaceScale(this);
   return (Item::MAX_UI_ROWS+2)*int(float(Resources::font(scale).pixelSize()))+int(scale*10)/*padding bottom*/;
+  }
+
+bool InventoryMenu::hasSideInfo() const {
+#if defined(__ANDROID__)
+  const float scale = Gothic::interfaceScale(this);
+  const int gap = int(24*scale);
+  const int centerWidth = w()-2*(43+int(columsCount)*slotSize().w+gap);
+  return centerWidth>=int(360*scale) && h()>=2*infoHeight()+60;
+#else
+  return false;
+#endif
+  }
+
+int InventoryMenu::headerTop() const {
+  if(hasSideInfo())
+    return int(16*Gothic::interfaceScale(this));
+  return 70;
+  }
+
+int InventoryMenu::gridTop() const {
+  if(hasSideInfo())
+    return headerTop()+int(42*Gothic::interfaceScale(this));
+  return 30+34+70;
+  }
+
+Rect InventoryMenu::infoRect() const {
+  const float scale = Gothic::interfaceScale(this);
+  const int dh = infoHeight();
+  if(hasSideInfo()) {
+    const int gap = int(24*scale);
+    const int x = 43+int(columsCount)*slotSize().w+gap;
+    return Rect(x,h()-dh-20,w()-2*x,dh);
+    }
+  const int dw = std::min(w(),int(720*scale));
+  return Rect((w()-dw)/2,h()-dh-20,dw,dh);
   }
 
 size_t InventoryMenu::pagesCount() const {
@@ -555,7 +590,7 @@ void InventoryMenu::adjustScroll() {
 void InventoryMenu::drawAll(Painter &p, Npc &player, DrawPass pass) {
   const int padd = 43;
 
-  int iy=30+34+70;
+  const int iy = gridTop();
 
   if(state==State::LockPicking)
     return;
@@ -565,19 +600,19 @@ void InventoryMenu::drawAll(Painter &p, Npc &player, DrawPass pass) {
 
   if(chest!=nullptr){
     if(pass==DrawPass::Back)
-      drawHeader(p,chest->displayName(),padd,70);
+      drawHeader(p,chest->displayName(),padd,headerTop());
     drawItems(p,pass,*pageOth,pageLocal[0],padd,iy,wcount,hcount);
     }
 
   if(trader!=nullptr) {
     if(pass==DrawPass::Back)
-      drawHeader(p,trader->displayName(),padd,70);
+      drawHeader(p,trader->displayName(),padd,headerTop());
     drawItems(p,pass,*pageOth,pageLocal[0],padd,iy,wcount,hcount);
     }
 
   if(state!=State::Ransack) {
     if(pass==DrawPass::Back)
-      drawGold (p,player,w()-padd-2*slotSize().w,70);
+      drawGold (p,player,w()-padd-2*slotSize().w,headerTop());
     drawItems(p,pass,*pagePl,pageLocal[1],w()-padd-wcount*slotSize().w,iy,wcount,hcount);
     }
 
@@ -704,10 +739,11 @@ void InventoryMenu::drawHeader(Painter &p, std::string_view title, int x, int y)
 
 void InventoryMenu::drawInfo(Painter &p) {
   const float scale = Gothic::interfaceScale(this);
-  const int   dw    = std::min(w(), int(720*scale));
-  const int   dh    = infoHeight();
-  const int   x     = (w()-dw)/2;
-  const int   y     = h()-dh-20;
+  const auto  rect  = infoRect();
+  const int   dw    = rect.w;
+  const int   dh    = rect.h;
+  const int   x     = rect.x;
+  const int   y     = rect.y;
 
   auto& pg  = activePage();
   auto& sel = activePageSel();
@@ -749,7 +785,9 @@ void InventoryMenu::drawInfo(Painter &p) {
     }
 
   const int sz = dh;
-  renderer.drawItem(x+dw-sz-sz/2,y,sz,sz,r);
+  if(hasSideInfo())
+    renderer.drawItem(x+(dw-sz)/2,y-sz-20,sz,sz,r); else
+    renderer.drawItem(x+dw-sz-sz/2,y,sz,sz,r);
   }
 
 void InventoryMenu::draw(Tempest::Encoder<CommandBuffer>& cmd) {
