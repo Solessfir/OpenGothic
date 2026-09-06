@@ -81,11 +81,33 @@ Local setup files and the verification screenshot are under ignored `build/devic
 & C:\Android\Sdk\platform-tools\adb.exe -s R5CX520FJDJ shell cat /sdcard/Android/data/org.opengothic.app/files/Gothic.ini
 ```
 
-## S24 75% scale experiment prepared
+## S24 75% scale experiment
 
 On reconnecting the S24 after a cooling break, OpenGothic was closed. Live skin temperature was 42.4 C, battery 39.8 C, and thermal status was still 2. This is not an unthrottled cold baseline.
 
-Backed up the complete writable INI to local `build/performance/s24-scale75-20260906-212213/Gothic.ini.backup`, then changed only `[INTERNAL] vidResIndex` from `0` to `1` and verified the uploaded file. This requests 1755x810 3D rendering instead of 2340x1080, while leaving UI scale, shortcuts, FPS display and sensitivity unchanged. Launched successfully to the main menu; loading the comparison save and collecting an in-game trace remain pending. No engine code or APK was changed.
+Backed up the complete writable INI to local `build/performance/s24-scale75-20260906-212213/Gothic.ini.backup`, then changed only `[INTERNAL] vidResIndex` from `0` to `1` and verified the uploaded file. This requests 1755x810 3D rendering instead of 2340x1080, while leaving UI scale, shortcuts, FPS display and sensitivity unchanged. Launched successfully to the main menu. No engine code or APK was changed.
+
+After the user loaded the comparison save, USB disconnected before capture could start. Restarting ADB did not recover it; reconnecting the cable restored the device. The subsequent trace completed successfully with `vidResIndex=1` confirmed. A screenshot after recording showed the same waterfall/path viewpoint and 44 FPS.
+
+| Observation | 75% width/height |
+| --- | --- |
+| Trace duration | 29.982 seconds |
+| Vulkan presentation cadence | 46.51 FPS over 1,388 intervals |
+| Mean / median interval | 21.50 / 21.64 ms |
+| 95th / 99th percentile interval | 24.14 / 25.26 ms |
+| Worst interval | 26.24 ms |
+| GPU utilization | 100 in all 16 samples |
+| GPU current clock and allowed maximum | Both ranged from 600 to 700 MHz |
+| Live skin temperature before / after | 44.1 / 44.4 C |
+| Live battery temperature before / after | 42.3 / 43.0 C |
+| Thermal status before / after | 2 / 2 |
+| Game/render thread CPU time | 18.710 CPU seconds, about 13.5 ms per presented frame |
+| Presentation-call duration | 7.861 ms average, including waits |
+| Trace error/loss counters | No nonzero warning/error statistics |
+
+Compared with the original 28.36 FPS native sample, cadence improved by about 64% while frame interval fell from 35.26 to 21.50 ms. Both runs sampled the same GPU clock range and similar skin temperature, though conditions were not perfectly controlled. This is strong evidence that resolution-dependent rendering cost is a major bottleneck, not proof of a specific expensive shader. The game is still GPU-saturated and has not reached the 16.67 ms / 60 FPS target. Raw data remains local in `build/performance/s24-scale75-20260906-212657/`.
+
+The 75% setting remains enabled for testing. A 50% comparison and per-pass GPU profiling remain pending; do not infer their results from this sample.
 
 To restore the native-scale configuration, first save and exit the game, then run from this workspace:
 
