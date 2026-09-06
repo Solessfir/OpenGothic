@@ -30,6 +30,8 @@ class GameMenu : public Tempest::Widget {
     void onKeyboard(KeyCodec::Action k);
     void onTick();
     void processMusicTheme();
+    void requestDeleteSave(std::string_view hint);
+    bool isDeletingSave() const { return pendingDelete!=nullptr; }
 
     KeyCodec::Action keyClose() const { return kClose; }
 
@@ -75,6 +77,10 @@ class GameMenu : public Tempest::Widget {
 
     Item                                  hItems[zenkit::IMenu::item_count];
     Item*                                 ctrlInput = nullptr;
+    Item*                                 pendingDelete = nullptr;
+    std::string                           deleteName;
+    std::string                           deleteHint;
+    std::string                           deleteError;
     uint32_t                              curItem=0;
     bool                                  exitFlag=false;
     bool                                  closeFlag=false;

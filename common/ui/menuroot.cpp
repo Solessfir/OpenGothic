@@ -107,6 +107,11 @@ bool MenuRoot::isActive() const {
   return current!=nullptr;
   }
 
+void MenuRoot::requestDeleteSave(std::string_view hint) {
+  if(current!=nullptr)
+    current->requestDeleteSave(hint);
+  }
+
 void MenuRoot::setPlayer(const Npc &pl) {
   if(current!=nullptr)
     current->setPlayer(pl);
@@ -129,9 +134,12 @@ bool MenuRoot::hasVersionLine() const {
 void MenuRoot::mouseDownEvent(MouseEvent& event) {
   if(current!=nullptr) {
     if(event.button==Event::ButtonRight) {
-      popMenu();
+      if(current->isDeletingSave()) current->onKeyboard(KeyCodec::Escape);
+      else popMenu();
       } else {
-      current->onKeyboard(KeyCodec::ActionGeneric);
+      // A stray screen tap must not confirm permanent deletion.
+      if(!current->isDeletingSave())
+        current->onKeyboard(KeyCodec::ActionGeneric);
       }
     } else {
     event.ignore();
@@ -205,7 +213,9 @@ void MenuRoot::keyDownEvent(KeyEvent &e) {
       current->onKeyboard(KeyCodec::ActionGeneric);
     else if(e.key==Event::K_Delete)
       current->onKeyboard(KeyCodec::K_Del);
-    else if(e.key==Event::K_ESCAPE || keyCodec.tr(e)==current->keyClose())
-      popMenu();
+    else if(e.key==Event::K_ESCAPE || keyCodec.tr(e)==current->keyClose()) {
+      if(current->isDeletingSave()) current->onKeyboard(KeyCodec::Escape);
+      else popMenu();
+      }
     }
   }

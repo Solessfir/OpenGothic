@@ -22,6 +22,7 @@ class MenuRoot : public Tempest::Widget {
     void popMenu();
     void closeAll();
     bool isActive() const;
+    void requestDeleteSave(std::string_view hint);
     void setPlayer(const Npc& pl);
     void processMusicTheme();
 

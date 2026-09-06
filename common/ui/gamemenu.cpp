@@ -14,6 +14,7 @@
 #include "ui/menuroot.h"
 #include "utils/gthfont.h"
 #include "utils/fileutil.h"
+#include "utils/saveslot.h"
 #include "utils/keycodec.h"
 #include "game/definitions/musicdefinitions.h"
 #include "game/serialize.h"
@@ -421,6 +422,18 @@ void GameMenu::paintEvent(PaintEvent &e) {
     auto&       fnt   = Resources::font(scale);
     fnt.drawText(p, w()-fnt.textSize(appBuild).w-int(25*scale), h()-int(25*scale), appBuild);
     }
+
+  if(pendingDelete!=nullptr) {
+    auto& font = Resources::font(scale);
+    const int padding = int(20*scale);
+    const int height = std::min(h(),int(180*scale));
+    const int top = (h()-height)/2;
+    p.setBrush(Color(0.f,0.f,0.f,0.95f));
+    p.drawRect(0,top,w(),height);
+    const auto message = string_frm("Delete save permanently?\n",deleteName,"\n",
+                                   deleteError.empty()?deleteHint:deleteError);
+    font.drawText(p,padding,top+padding,w()-2*padding,height-2*padding,message,AlignHCenter);
+    }
   }
 
 void GameMenu::drawItem(Painter& p, Item& hItem) {
@@ -603,6 +616,29 @@ void GameMenu::resizeEvent(SizeEvent &) {
   }
 
 void GameMenu::onKeyboard(KeyCodec::Action key) {
+  if(pendingDelete!=nullptr) {
+    if(key==KeyCodec::Escape) {
+      pendingDelete=nullptr;
+      update();
+      }
+    else if(key==KeyCodec::ActionGeneric && Gothic::inst().checkLoading()==Gothic::LoadState::Idle) {
+      std::error_code error;
+      if(SaveSlot::remove(".",saveSlotId(*pendingDelete),error)) {
+        Log::i("Deleted save slot ",saveSlotId(*pendingDelete));
+        pendingDelete->savHdr = SaveGameHeader();
+        pendingDelete->savPriview = Pixmap();
+        pendingDelete->handle->text[0] = "---";
+        pendingDelete=nullptr;
+        updateSavThumb(*selectedItem());
+        }
+      else {
+        Log::e("Cannot delete save: ",error.message());
+        deleteError="Could not delete save. Cancel and try again.";
+        }
+      update();
+      }
+    return;
+    }
   auto sel = selectedItem();
   if(sel!=nullptr && isHorSelectable(sel->handle)) {
     if(key==KeyCodec::Left)
@@ -630,9 +666,30 @@ void GameMenu::onKeyboard(KeyCodec::Action key) {
     exec(*sel,0,key);
     }
   if(key==KeyCodec::K_Del && sel!=nullptr) {
+    if(saveSlotId(*sel)!=size_t(-1)) {
+      requestDeleteSave("Enter: delete    Esc: cancel");
+      return;
+      }
     Gothic::inst().emitGlobalSound(Gothic::inst().loadSoundFx("MENU_SELECT"));
     exec(*sel,0,key);
     }
+  }
+
+void GameMenu::requestDeleteSave(std::string_view hint) {
+  if(pendingDelete!=nullptr || ctrlInput!=nullptr || Gothic::inst().checkLoading()!=Gothic::LoadState::Idle)
+    return;
+  auto sel=selectedItem();
+  if(sel==nullptr || saveSlotId(*sel)==size_t(-1))
+    return;
+  std::error_code error;
+  const auto status=std::filesystem::symlink_status(SaveSlot::path(".",saveSlotId(*sel)),error);
+  if(error || !std::filesystem::is_regular_file(status))
+    return;
+  pendingDelete=sel;
+  deleteName=sel->handle->text[0];
+  deleteHint=hint;
+  deleteError.clear();
+  update();
   }
 
 void GameMenu::onTick() {

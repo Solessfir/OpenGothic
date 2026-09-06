@@ -15,7 +15,7 @@ constexpr const char* actionNames[] = {
   "FirstPerson", "LookBehind", "QuickSave", "QuickLoad", "AttackForward", "AttackLeft",
   "AttackRight", "Block", "Finish", "Accept", "Up", "Down", "Left", "Right",
   "PreviousPage", "NextPage", "Cancel", "LeftPanel", "RightPanel", "TakeStack", "Drop",
-  "Spell3", "Spell4", "Spell5", "Spell6", "Spell7", "Spell8", "Spell9", "Spell10"
+  "Spell3", "Spell4", "Spell5", "Spell6", "Spell7", "Spell8", "Spell9", "Spell10", "DeleteSave"
   };
 static_assert(std::size(actionNames)==size_t(Action::Count));
 std::string trim(std::string s) {
@@ -81,6 +81,7 @@ AttackForward=RT
 [UI]
 Accept=A
 Back=B,View,Menu
+DeleteSave=X
 Up=DpadUp,LeftStickUp
 Down=DpadDown,LeftStickDown
 Left=DpadLeft,LeftStickLeft

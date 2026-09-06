@@ -62,6 +62,10 @@ Holding LT restores exploration face buttons during classic melee. LT+A requests
 
 Menus and dialogue use A to confirm, B to go back/skip, and the D-pad or left stick to navigate. View and Menu also close ordinary menus. Save-name entry still opens the Android keyboard; use its Done button. Unhandled UI input is not forwarded to gameplay.
 
+In the save/load menu, select an occupied slot and press X to request deletion. The confirmation shows the save name: A permanently deletes that one save file; B cancels without leaving the menu. Empty slots do nothing. The slot name and preview clear after deletion. This does not delete game assets or other slots, but there is no undo, so back up important saves first. Keyboard users can use Delete, Enter to confirm, and Escape to cancel. Screen taps cannot confirm deletion.
+
+Remap or disable this independently using `[UI] DeleteSave=X` or `DeleteSave=None` in `Gamepad.ini`. Existing INI files inherit X when the entry is absent. Inventory X retains its separate Drop action, and deletion is ignored outside save/load slots.
+
 In inventory, A uses/equips or transfers one item. Y transfers the full selected stack in trade, chests, and looting. X drops one player-owned item. LB selects the left trade/chest panel and RB selects the right, preserving each panel's selection. These buttons do nothing in a single-panel inventory.
 
 To assign a selected spell/rune in personal inventory:
