@@ -33,7 +33,7 @@
 #include "ui/videowidget.h"
 #include "ui/menuroot.h"
 #include "ui/consolewidget.h"
-#if defined(__IOS__)
+#if defined(__MOBILE_PLATFORM__)
 #include "ui/touchinput.h"
 #endif
 
@@ -93,6 +93,9 @@ class MainWindow : public Tempest::Window {
     void processMouse(Tempest::MouseEvent& event, bool enable);
     void tickMouse(uint64_t dt);
     void tickGamepad(uint64_t dt);
+#if defined(__MOBILE_PLATFORM__)
+    void onTouchCommand(TouchInput::Command command, bool pressed);
+#endif
     void onSettings();
 
     void setupUi();
@@ -153,14 +156,15 @@ class MainWindow : public Tempest::Window {
     DocumentMenu              document;
     ChapterScreen             chapter;
     ConsoleWidget             console;
-#if defined(__IOS__)
-    TouchInput                mobileUi;
-#endif
     RuntimeMode               runtimeMode = R_Normal;
 
     Tempest::Widget*          uiKeyUp=nullptr;
     Tempest::Point            dMouse;
     PlayerControl             player;
+#if defined(__MOBILE_PLATFORM__)
+    TouchInput                mobileUi;
+    uint64_t                  touchLookIdle=0;
+#endif
     uint64_t                  lastTick=0;
 
     Tempest::Shortcut         funcKey[11];

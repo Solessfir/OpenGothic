@@ -2,20 +2,62 @@
 
 #include <Tempest/Widget>
 
-class PlayerControl;
+#include <functional>
+#include <unordered_map>
 
 class TouchInput : public Tempest::Widget {
   public:
-    TouchInput(PlayerControl& ctrl);
+    enum class Command : uint8_t {
+      Up,
+      Down,
+      Left,
+      Right,
+      Accept,
+      Back,
+      Jump,
+      Weapon,
+      Inventory,
+      };
 
-    void paintEvent(Tempest::PaintEvent& e);
-    void mouseDownEvent(Tempest::MouseEvent& e);
-    void mouseDragEvent(Tempest::MouseEvent& e);
-    void mouseUpEvent(Tempest::MouseEvent& e);
+    using CommandHandler = std::function<void(Command,bool)>;
+
+    explicit TouchInput(CommandHandler command);
+
+    void            paintEvent(Tempest::PaintEvent& e) override;
+    void            mouseDownEvent(Tempest::MouseEvent& e) override;
+    void            mouseDragEvent(Tempest::MouseEvent& e) override;
+    void            mouseUpEvent(Tempest::MouseEvent& e) override;
+
+    void            setTouchEnabled(bool enabled);
+    Tempest::PointF movementAxis() const;
+    Tempest::Point  takeLookDelta();
+    bool            isLooking() const;
 
   private:
-    PlayerControl& ctrl;
+    enum class Role : uint8_t {
+      Move,
+      Look,
+      Button,
+      };
 
-    Tempest::Point mpos;
+    struct Touch {
+      Role           role = Role::Look;
+      Tempest::Point anchor;
+      Tempest::Point last;
+      Command        command = Command::Accept;
+      };
+
+    void updateMovement(const Tempest::Point& pos);
+    void setDirection(Command command, bool pressed);
+    void reset();
+
+    CommandHandler command;
+    std::unordered_map<int,Touch> touches;
+    Tempest::PointF moveAxis;
+    Tempest::Point  lookDelta;
+    int             movePointer = -1;
+    int             lookPointer = -1;
+    bool            touchEnabled = true;
+    bool            directions[4] = {};
   };
 

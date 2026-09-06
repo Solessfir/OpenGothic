@@ -33,10 +33,11 @@ MainWindow::MainWindow(Device& device)
     atlas(device),rootMenu(keycodec),inventory(keycodec),
     dialogs(inventory),document(keycodec),
     console(*this),
-#if defined(__IOS__)
-    mobileUi(player),
+    player(dialogs,inventory)
+#if defined(__MOBILE_PLATFORM__)
+    ,mobileUi([this](TouchInput::Command cmd, bool pressed){ onTouchCommand(cmd,pressed); })
 #endif
-    player(dialogs,inventory) {
+    {
   Gothic::inst().onSettingsChanged.bind(this,&MainWindow::onSettings);
   onSettings();
 
@@ -122,7 +123,7 @@ MainWindow::~MainWindow() {
   takeWidget(&document);
   takeWidget(&video);
   takeWidget(&rootMenu);
-#if defined(__IOS__)
+#if defined(__MOBILE_PLATFORM__)
   takeWidget(&mobileUi);
 #endif
   removeAllWidgets();
@@ -142,7 +143,7 @@ void MainWindow::setupUi() {
   addWidget(&chapter);
   addWidget(&video);
   addWidget(&rootMenu);
-#if defined(__IOS__)
+#if defined(__MOBILE_PLATFORM__)
   addWidget(&mobileUi);
 #endif
 
@@ -385,18 +386,34 @@ void MainWindow::tickMouse(uint64_t dt) {
 void MainWindow::tickGamepad(uint64_t dt) {
 #if defined(__ANDROID__)
   const auto gp = SystemApi::gamepadState();
-  player.setGamepadAxis(gp.connected ? gp.leftStickX : 0.f,
-                        gp.connected ? gp.leftStickY : 0.f);
-  if(!gp.connected)
-    return;
+  mobileUi.setTouchEnabled(!gp.connected);
+  const auto touchMove = mobileUi.movementAxis();
+  player.setGamepadAxis(gp.connected ? gp.leftStickX : touchMove.x,
+                        gp.connected ? gp.leftStickY : touchMove.y);
 
   auto camera = Gothic::inst().camera();
   if(dialogs.hasContent() || Gothic::inst().isPause() || camera==nullptr || camera->isCutscene())
     return;
 
   const float dtSec = float(dt)/1000.f;
-  const float yaw   = gp.rightStickX*180.f*dtSec;
-  const float pitch = gp.rightStickY*140.f*dtSec;
+  float       yaw   = gp.rightStickX*180.f*dtSec;
+  float       pitch = gp.rightStickY*140.f*dtSec;
+  if(!gp.connected) {
+    const auto look = mobileUi.takeLookDelta();
+    yaw   = float(look.x)*300.f/float(std::max(w(),1));
+    pitch = float(look.y)*220.f/float(std::max(h(),1));
+    if(mobileUi.isLooking() || look!=Point()) {
+      touchLookIdle = 0;
+      }
+    else {
+      touchLookIdle += dt;
+      if(touchLookIdle>800 && touchMove.y < -0.35f) {
+        const float maxStep = 90.f*dtSec;
+        const float assist  = std::clamp(-camera->azimuth()*2.f*dtSec,-maxStep,maxStep);
+        camera->onRotateMouse(PointF(0.f,assist));
+        }
+      }
+    }
   if(yaw==0.f && pitch==0.f)
     return;
   camera->onRotateMouse(PointF(pitch,-yaw));
@@ -406,6 +423,29 @@ void MainWindow::tickGamepad(uint64_t dt) {
   (void)dt;
 #endif
   }
+
+#if defined(__MOBILE_PLATFORM__)
+void MainWindow::onTouchCommand(TouchInput::Command command, bool pressed) {
+  Event::KeyType key = Event::K_NoKey;
+  const bool uiActive = video.isActive() || rootMenu.isActive() || chapter.isActive() ||
+                        document.isActive() || dialogs.isActive() || inventory.isActive();
+  switch(command) {
+    case TouchInput::Command::Up:        key = Event::K_Up;       break;
+    case TouchInput::Command::Down:      key = Event::K_Down;     break;
+    case TouchInput::Command::Left:      key = Event::K_Left;     break;
+    case TouchInput::Command::Right:     key = Event::K_Right;    break;
+    case TouchInput::Command::Accept:    key = uiActive ? Event::K_Return : Event::K_LControl; break;
+    case TouchInput::Command::Back:      key = Event::K_ESCAPE;   break;
+    case TouchInput::Command::Jump:      key = Event::K_LAlt;     break;
+    case TouchInput::Command::Weapon:    key = Event::K_Space;    break;
+    case TouchInput::Command::Inventory: key = Event::K_Tab;      break;
+    }
+  KeyEvent event(key,Event::M_NoModifier,pressed ? Event::KeyDown : Event::KeyUp);
+  if(pressed)
+    keyDownEvent(event); else
+    keyUpEvent(event);
+  }
+#endif
 
 void MainWindow::onSettings() {
   auto zMaxFps = Gothic::options().fpsLimit;
