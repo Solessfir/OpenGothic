@@ -115,7 +115,7 @@ void MainWindow::controllerAction(const GamepadBindings::Event& event) {
     case PadAction::FirstPerson: key(KeyCodec::FirstPerson); break;
     case PadAction::LookBehind: key(KeyCodec::LookBack); break;
     case PadAction::DrawSheathe: key(KeyCodec::Weapon); break;
-    case PadAction::LockTarget: player.toggleControllerTarget(); break;
+    case PadAction::LockTarget: key(KeyCodec::LockTarget); break;
     case PadAction::AttackForward: player.controllerCombat(0,true); break;
     case PadAction::AttackLeft: player.controllerCombat(2,true); break;
     case PadAction::AttackRight: player.controllerCombat(3,true); break;
@@ -261,10 +261,12 @@ void MainWindow::tickGamepad(uint64_t dt) {
       }
     controllerAxesBlocked=false;
     }
-  auto move=options.swapMovement?right:left;
+  const auto movement=options.swapMovement ? controllerBindings.movementAxis(gp.rightStickX,gp.rightStickY) :
+                                           controllerBindings.movementAxis(gp.leftStickX,gp.leftStickY);
+  const PointF move(movement.first,movement.second);
   auto look=options.swapCamera?left:right;
   const float magnitude=std::sqrt(move.x*move.x+move.y*move.y);
-  player.setControllerMovement(move.x,move.y,camera->spin().y,magnitude>0 && magnitude<options.walkThreshold);
+  player.setControllerMovement(move.x,move.y,camera->spin().y,magnitude>0 && magnitude<options.walkThreshold,options.movementTurnSpeed);
   const float dtSec=float(dt)/1000.f;
   if(player.lockedTarget()!=nullptr) {
     if(std::abs(look.x)<options.switchReset) controllerSwitchReady=true;

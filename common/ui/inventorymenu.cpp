@@ -836,6 +836,7 @@ void InventoryMenu::openWheel(Npc& pl) {
   pagePl.reset(new InvPage(pl.inventory())); pageOth.reset();
   wheelItems.clear();
   for(auto it=pl.inventory().iterator(Inventory::T_Inventory);it.isValid();++it) {
+    if(!it->checkCond(pl)) continue;
     if((it->mainFlag()&(ITM_CAT_NF|ITM_CAT_FF))!=0 || (it->isSpellOrRune() && it.slot()!=Item::NSLOT))
       wheelItems.push_back(it->clsId());
     }

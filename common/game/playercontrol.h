@@ -25,12 +25,12 @@ class PlayerControl final {
     void  onKeyReleased(KeyCodec::Action a, KeyCodec::Mapping mapping);
     bool  isPressed(KeyCodec::Action a) const;
     void  setGamepadAxis(float lx, float ly);
-    void  setControllerMovement(float x, float y, float cameraYaw, bool walk);
+    void  setControllerMovement(float x, float y, float cameraYaw, bool walk, float turnSpeed);
     void  controllerCombat(int direction, bool pressed, bool cancel=false);
     void  releaseControllerKey(KeyCodec::Action action, bool cancel=false);
     void  controllerInteract(bool sheath);
     void  controllerEquip(size_t item);
-    void  toggleControllerTarget();
+    void  toggleTargetLock();
     void  switchControllerTarget(bool right);
     Npc*  lockedTarget() const { return controllerTarget; }
     bool  isControllerMoving() const { return controllerDirectional && gamepadLY!=0.f; }
@@ -163,6 +163,7 @@ class PlayerControl final {
     bool           controllerReleaseAttack=false;
     bool           controllerWalkApplied=false;
     float          controllerYaw=0;
+    float          controllerTurnSpeed=180.f;
     Npc*           controllerTarget=nullptr;
     Focus          pendingInteraction;
     uint64_t       pendingInteractionUntil=0;

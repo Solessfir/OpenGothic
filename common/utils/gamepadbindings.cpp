@@ -118,6 +118,9 @@ Right=DpadRight,LeftStickRight
 MovementStick=LeftStick
 CameraStick=RightStick
 StickDeadZone=0.20
+MovementDeadZone=0.28
+MovementExponent=1.5
+MovementTurnSpeed=180
 WalkThreshold=0.65
 TriggerPressThreshold=0.55
 TriggerReleaseThreshold=0.40
@@ -250,6 +253,9 @@ std::vector<std::string> GamepadBindings::load(std::istream& input) {
   options.swapCamera=stick("Axes","CameraStick",options.swapCamera,"RightStick");
   options.swapWheel=stick("EquipmentWheel","SelectionStick",options.swapWheel,"RightStick");
   options.deadZone=number("Axes","StickDeadZone",options.deadZone,0,0.8f);
+  options.movementDeadZone=number("Axes","MovementDeadZone",options.movementDeadZone,0,0.8f);
+  options.movementExponent=number("Axes","MovementExponent",options.movementExponent,1,4);
+  options.movementTurnSpeed=number("Axes","MovementTurnSpeed",options.movementTurnSpeed,45,720);
   options.walkThreshold=number("Axes","WalkThreshold",options.walkThreshold,0.1f,1);
   options.triggerPress=number("Axes","TriggerPressThreshold",options.triggerPress,0.05f,1);
   options.triggerRelease=number("Axes","TriggerReleaseThreshold",options.triggerRelease,0,0.95f);
@@ -268,7 +274,7 @@ std::vector<std::string> GamepadBindings::load(std::istream& input) {
   for(auto& [sec,v]:values) {
     std::string_view allowed;
     if(sec=="Controller") allowed="|Version|Enabled|ExplorationModifier|HoldMs|RepeatDelayMs|RepeatMs|CameraAssist|";
-    if(sec=="Axes") allowed="|MovementStick|CameraStick|StickDeadZone|WalkThreshold|TriggerPressThreshold|TriggerReleaseThreshold|";
+    if(sec=="Axes") allowed="|MovementStick|CameraStick|StickDeadZone|MovementDeadZone|MovementExponent|MovementTurnSpeed|WalkThreshold|TriggerPressThreshold|TriggerReleaseThreshold|";
     if(sec=="TargetLock") allowed="|SwitchThreshold|SwitchResetThreshold|SwitchCooldownMs|CameraSmoothingSeconds|";
     if(!allowed.empty()) for(auto& [key,value]:v) {
       (void)value;
@@ -317,6 +323,14 @@ std::string GamepadBindings::hint(Action action,Context context) const {
 
 void GamepadBindings::reset(uint32_t held) {
   presses={}; previous=held; blocked=held; initialized=false;
+  }
+
+std::pair<float,float> GamepadBindings::movementAxis(float x,float y) const {
+  const float magnitude=std::sqrt(x*x+y*y);
+  if(magnitude<=options.movementDeadZone) return {0.f,0.f};
+  const float normalized=(std::min(magnitude,1.f)-options.movementDeadZone)/(1.f-options.movementDeadZone);
+  const float scale=std::pow(normalized,options.movementExponent)/magnitude;
+  return {x*scale,y*scale};
   }
 
 std::vector<GamepadBindings::Event> GamepadBindings::update(uint32_t buttons,Context context,uint64_t now) {

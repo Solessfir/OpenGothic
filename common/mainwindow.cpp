@@ -656,17 +656,15 @@ void MainWindow::paintFocus(Painter& p, const Focus& focus, const Matrix4x4& vp)
   int   iy  = int((0.5f*pos.y+0.5f)*float(h()));
   auto& fnt = Resources::font(scale);
 
-  auto tsize = fnt.textSize(focus.displayName());
+  const bool locked=focus.npc!=nullptr && player.lockedTarget()==focus.npc;
+  string_frm name(focus.displayName(),locked?" (locked)":"");
+  auto tsize = fnt.textSize(name);
   ix-=tsize.w/2;
   if(iy<tsize.h)
     iy = tsize.h;
   if(iy>h())
     iy = h();
-  fnt.drawText(p,ix,iy,focus.displayName());
-  if(focus.npc!=nullptr && player.lockedTarget()==focus.npc) {
-    fnt.drawText(p,ix-fnt.textSize("[ ").w,iy,"[ ");
-    fnt.drawText(p,ix+tsize.w,iy," ]");
-    }
+  fnt.drawText(p,ix,iy,name);
 
   if(focus.npc!=nullptr && !focus.npc->isDead()) {
     float hp = float(focus.npc->attribute(ATR_HITPOINTS))/float(focus.npc->attribute(ATR_HITPOINTSMAX));

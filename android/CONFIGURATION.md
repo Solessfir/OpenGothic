@@ -84,7 +84,7 @@ Do not tune Android using original Windows display modes, refresh-rate overrides
 ### Useful follow-up support, not included yet
 
 - Extend the new controller actions to the next touch layout, including wheel and shortcut gestures.
-- Add interaction-focus feedback beyond the existing name label and controller lock brackets, and audit separate ambient/player/NPC subtitle preferences for mobile readability.
+- Add interaction-focus feedback beyond the existing name label and lock suffix, and audit separate ambient/player/NPC subtitle preferences for mobile readability.
 - Fit inventory columns/rows to available UI space, preserving category selection when changing trade panels. Audit `invMaxRows`, `invShowArrows`, `invSplitScreen`, and `invSwitchToFirstCategory` rather than claiming their original semantics already work.
 - Audit video skipping and `disallowVideoInput` before adding new controller/touch skip actions. Keep Android system navigation and volume buttons available.
 

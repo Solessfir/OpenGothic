@@ -6,6 +6,7 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <utility>
 
 // Game-specific bindings are independent of the platform input backend.
 class GamepadBindings final {
@@ -26,6 +27,9 @@ class GamepadBindings final {
       bool enabled = true;
       uint32_t explorationModifier = 1u<<14;
       float deadZone = 0.20f;
+      float movementDeadZone = 0.28f;
+      float movementExponent = 1.5f;
+      float movementTurnSpeed = 180.f;
       float walkThreshold = 0.65f;
       float triggerPress = 0.55f;
       float triggerRelease = 0.40f;
@@ -49,6 +53,7 @@ class GamepadBindings final {
     std::string hint(Action action, Context context) const;
     std::vector<Event> update(uint32_t buttons, Context context, uint64_t now);
     void reset(uint32_t held = 0);
+    std::pair<float,float> movementAxis(float x, float y) const;
 
   private:
     struct Binding {

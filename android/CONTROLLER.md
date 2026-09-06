@@ -27,7 +27,19 @@ The native controller path uses semantic game actions, not simulated PC key bind
 | LB + Menu | Quicksave |
 | LB + View | Quickload immediately, without confirmation |
 
-Unlocked movement turns toward the chosen direction instead of strafing. Target lock retains an eligible NPC selected by Gothic's existing focus rules; it does not use a new enemy-scoring or distance system. While locked, horizontal movement strafes and the character/camera face the target. Brackets around the normal focus name identify the lock. Death, unconsciousness, sheathing, or loss of eligibility releases it. Swimming and diving retain Gothic's native movement constraints.
+Unlocked movement turns toward the chosen direction instead of strafing. Target lock retains an eligible NPC selected by Gothic's existing focus rules; it does not use a new enemy-scoring or distance system. While locked, horizontal movement strafes and the character/camera face the target. The name gains a ` (locked)` suffix. Retention uses the existing cached-focus rules instead of rechecking the acquisition angle every frame. Death, unconsciousness, sheathing, or loss of eligibility releases it. Swimming and diving retain Gothic's native movement constraints. The original `Gothic.ini` `keyLockTarget` now dispatches this same lock action for keyboard input.
+
+Left-stick responsiveness is separate from Mouse speed. These `Gamepad.ini` options soften movement without reducing full-stick running speed:
+
+```ini
+[Axes]
+MovementDeadZone=0.28
+MovementExponent=1.5
+MovementTurnSpeed=180
+WalkThreshold=0.65
+```
+
+`MovementDeadZone` ignores small deflections. An exponent above `1` makes partial tilts gentler and extends the walking region. `MovementTurnSpeed` limits unlocked character turning in degrees per second (the first prototype used 360). Mouse speed continues to control the camera only. Missing keys inherit these defaults, including in an existing Gamepad.ini; restart after editing.
 
 The existing Mouse speed setting (`[GAME] mouseSensitivity`) also scales the controller camera. `camLookaroundInverse` controls vertical inversion. Camera assistance waits 800 ms after manual input before recentering during movement; disable it with `[Controller] CameraAssist=0` in `Gamepad.ini`.
 
@@ -59,7 +71,7 @@ To assign a selected spell/rune in personal inventory:
 | LT + D-pad Up / Right / Down / Left | 3 / 4 / 5 / 6 |
 | RT + D-pad Up / Right / Down / Left | 7 / 8 / 9 / 10 |
 
-Hold D-pad Up for 400 ms to open the equipment wheel. Choose with the right stick and release Up while pointing to equip/draw. Center the stick or press B to cancel. LB/RB change pages; recenter before selecting on a new page. Each page contains up to eight owned weapons or already-assigned spells. Gothic still checks equipment requirements. The wheel uses the original inventory item renderer, slot artwork, and font; no original Gothic assets are modified. The world continues running while the wheel is open, but movement/camera input is suspended.
+Hold D-pad Up for 400 ms to open the equipment wheel. Choose with the right stick and release Up while pointing to equip/draw. Center the stick or press B to cancel. LB/RB change pages; recenter before selecting on a new page. Each page contains up to eight owned weapons or already-assigned spells that pass Gothic's existing attribute and magic-circle requirements. Requirements are checked again before equipping. The wheel uses the original inventory item renderer, slot artwork, and font; no original Gothic assets are modified. The world continues running while the wheel is open, but movement/camera input is suspended.
 
 Lockpicking, ladders, and other interactions use their own A/B and directional context. Release held controls and center both sticks after closing UI, returning from another app, or reconnecting the controller before continuing gameplay.
 

@@ -288,6 +288,8 @@ KeyCodec::ActionMapping KeyCodec::implTr(int32_t code) const {
     return { LookBack, *m };
   if(auto m = keyLookFP.mapping(code))
     return { FirstPerson, *m };
+  if(auto m = keyLockTarget.mapping(code))
+    return { LockTarget, *m };
 
   if(auto m = keyInventory.mapping(code))
     return { Inventory, *m };

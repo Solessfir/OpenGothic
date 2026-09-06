@@ -15,6 +15,12 @@ bool has(const std::vector<B::Event>& events,A action,P phase=P::Press) {
 int main() {
   try {
     B b;
+    check(b.movementAxis(0.2f,0.f)==std::pair<float,float>(0.f,0.f),"Movement dead zone suppresses small deflections");
+    check(b.movementAxis(0.6f,0.f).first<0.4f,"Movement curve softens medium deflections");
+    check(b.movementAxis(1.f,0.f)==std::pair<float,float>(1.f,0.f),"Full stick still reaches full movement");
+    check(b.movementAxis(-1.f,0.f).first==-1.f,"Movement curve preserves direction");
+    const auto diagonal=b.movementAxis(1.f,1.f);
+    check(diagonal.first*diagonal.first+diagonal.second*diagonal.second<1.001f,"Diagonal movement remains normalized");
     std::istringstream defaults(B::defaults());
     check(b.load(defaults).empty(),"Default bindings must validate");
     const auto lb=B::button("LB"), l3=B::button("L3"), up=B::button("DpadUp");

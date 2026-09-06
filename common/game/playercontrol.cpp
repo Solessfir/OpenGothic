@@ -56,6 +56,11 @@ void PlayerControl::onKeyPressed(KeyCodec::Action a, Tempest::KeyEvent::KeyType 
   if(w!=nullptr && w->isCutsceneLock())
     return;
 
+  if(a==KeyCodec::LockTarget) {
+    toggleTargetLock();
+    return;
+    }
+
   handleMovementAction(KeyCodec::ActionMapping{a,mapping}, true);
 
   if(pl!=nullptr && pl->interactive()!=nullptr && c!=nullptr && !c->isFree()) {
@@ -254,7 +259,7 @@ void PlayerControl::setGamepadAxis(float lx, float ly) {
   gamepadLY = ly;
   }
 
-void PlayerControl::setControllerMovement(float x,float y,float cameraYaw,bool walk) {
+void PlayerControl::setControllerMovement(float x,float y,float cameraYaw,bool walk,float turnSpeed) {
   auto pl=Gothic::inst().player();
   if(pl==nullptr) return;
   if(controllerWalkApplied) {
@@ -266,6 +271,7 @@ void PlayerControl::setControllerMovement(float x,float y,float cameraYaw,bool w
     controllerWalkApplied=true;
     }
   controllerDirectional=true;
+  controllerTurnSpeed=turnSpeed;
   if(controllerTarget!=nullptr || pl->isSwim() || pl->isDive()) {
     gamepadLX=x; gamepadLY=y;
     } else {
@@ -330,7 +336,7 @@ void PlayerControl::controllerEquip(size_t item) {
   pendingEquipment=item;
   }
 
-void PlayerControl::toggleControllerTarget() {
+void PlayerControl::toggleTargetLock() {
   if(controllerTarget!=nullptr) { controllerTarget=nullptr; return; }
   auto w=Gothic::inst().world();
   auto pl=Gothic::inst().player();
@@ -390,7 +396,9 @@ void PlayerControl::tickFocus() {
     Focus target;
     target.npc=controllerTarget;
     auto valid=w->validateFocus(target);
-    if(valid.npc==nullptr || valid.npc->isDown() || pl->isDown() || pl->weaponState()==WeaponState::NoWeapon || !w->testFocusNpc(valid.npc))
+    // Retain focus with Gothic's existing cached-target rules, not acquisition angle tests.
+    if(valid.npc==nullptr || valid.npc->isDown() || pl->isDown() || pl->weaponState()==WeaponState::NoWeapon ||
+       w->findFocus(target).npc!=controllerTarget)
       controllerTarget=nullptr;
     }
   currentFocus = findFocus(&currentFocus);
@@ -798,7 +806,7 @@ void PlayerControl::implMove(uint64_t dt) {
       const auto id=pendingEquipment;
       pendingEquipment=size_t(-1);
       auto item=pl.getItem(id);
-      if(item!=nullptr) {
+      if(item!=nullptr && item->checkCond(pl)) {
         if((item->mainFlag()&(ITM_CAT_NF|ITM_CAT_FF))!=0) {
           if(pl.currentMeleeWeapon()!=item && pl.currentRangedWeapon()!=item)
             pl.useItem(id,Item::NSLOT,false);
@@ -860,7 +868,8 @@ void PlayerControl::implMove(uint64_t dt) {
   int rotation = 0;
   if(controllerDirectional && controllerTarget==nullptr && gamepadLY!=0.f && allowRot && !pl.isAttackAnim()) {
     const float delta=std::remainder(controllerYaw-rot,360.f);
-    rot+=std::clamp(delta,-360.f*float(dt)/1000.f,360.f*float(dt)/1000.f);
+    const float step=controllerTurnSpeed*float(dt)/1000.f;
+    rot+=std::clamp(delta,-step,step);
     }
   if(allowRot) {
     if(this->wantsToTurnLeft()) {
