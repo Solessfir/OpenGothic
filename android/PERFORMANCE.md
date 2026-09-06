@@ -496,3 +496,50 @@ The game remained alive through both captures and was stopped afterward to avoid
 No assets, saves, graphics settings or clock controls were changed.
 Retain the worker-wait candidate for further testing; long gameplay runs and a clock/temperature-matched baseline comparison remain outstanding.
 These stationary, uncapped 50% render-scale samples are not a native-resolution or whole-game sustained-60-FPS guarantee.
+
+### Optional half-resolution SSAO, 2026-09-06
+
+The latest 75% render-scale capture contained 600 frames with a mean total marker span of 17.179 ms.
+SSAO calculation averaged 5.90 ms and its blur 1.01 ms, making their combined 6.91 ms the largest measured target.
+Local baseline CSV: `build/performance/s24-scale75-latest-20260906-232922/gpu-profile.csv`.
+These are GPU marker intervals, not isolated shader execution costs or proof of an overall FPS limit.
+
+The new optional `[ENGINE] ssaoHalfResolution=1` calculates AO at half the scene dimensions and resolves it to scene resolution with a depth-aware filter.
+At the user's preferred 75% scene scale, this means 878x405 AO calculation for a 1755x810 scene.
+The sampling radius and sample budget per evaluated pixel remain unchanged.
+Each 2x2 depth block contributes its nearest surface, with linear representative depth stored beside AO in RG32F.
+The nine-tap resolve combines spatial and depth weights; missing background representatives resolve to unoccluded rather than borrowing foreground shadows.
+The final lighting input remains an R8 image at scene resolution.
+This trades some fine AO detail for fewer evaluated pixels; it is not an identical-image optimization or a forced Android setting.
+Full-resolution SSAO remains the default and is also the fallback when RG32F storage is unsupported.
+See [configuration](CONFIGURATION.md#optional-half-resolution-ambient-occlusion) for enabling and reverting it.
+
+Verification completed locally:
+
+- Full Windows Release executable and Android ARM64 native library/APK builds passed; Android lint passed.
+- Both new production shader variants passed SPIR-V validation.
+- The original full-resolution SSAO shader compiled to byte-identical SPIR-V before and after the change: SHA-256 `5373072267E72ADCCF0935CFA0055FA7582DFE7684838E93E01622A1C0A216E8`.
+- The new Vulkan test exercised the production depth-selection/resolve helpers on 8,530,926 pixels, including 1x1, single-row/column, odd dimensions, and 1755x810.
+- Constant AO, full occlusion, steep depth edges, thin foreground geometry, alternating near/far surfaces and smooth depth gradients passed; maximum CPU-reference difference was 0.000000298023.
+- All eleven rendering, GPU timing, controller, CPU trace and worker tests passed; the GPU tests reported no Vulkan validation errors.
+- APK signing, ARM64-only manifest metadata and 16 KiB ZIP alignment checks passed.
+
+Test command after building the existing rendering-test project:
+
+```powershell
+ctest --test-dir build/rendering-tests -C Release --output-on-failure
+```
+
+The test executables require the built Tempest DLL directory on `PATH` and installed Vulkan validation layers, as in the earlier rendering comparisons.
+These helper tests do not establish complete AO image equivalence or real-device performance.
+
+Candidate APK: `android/app/build/outputs/apk/debug/app-debug.apk`.
+SHA-256: `B11847B1A7B7EBFC895202BF2B8B75E1146EB7F3DF6925D175C215976961D60F`.
+Local build logs, a pre-change screenshot and an unchanged device INI backup are in `build/performance/ssao-half/`.
+The screenshot taken immediately before stopping the game shows a downward-looking barrel/path scene, not the earlier waterfall camera; it must not be treated as a matched waterfall image comparison.
+
+The S24 disconnected from ADB during the build.
+Installation returned `adb.exe: device 'RFCX10M60QT' not found`; `adb reconnect offline` still listed no devices.
+The candidate APK and its enabled INI have not yet reached the phone.
+No on-device performance or image-quality improvement is claimed for this candidate yet.
+Next: reconnect, install with `adb install -r`, enable the option in the backed-up writable INI, load the same save/camera, and compare `SSAO` plus `SSAO upsample` with the full-resolution baseline under comparable clocks/thermal conditions.

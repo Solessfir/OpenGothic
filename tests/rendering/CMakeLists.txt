@@ -45,4 +45,16 @@ if(RENDERING_TEST_TEMPEST_LIBRARY)
   target_link_libraries(ssao-convergence-tests PRIVATE "${RENDERING_TEST_TEMPEST_LIBRARY}")
   add_test(NAME ssao-vulkan-convergence COMMAND ssao-convergence-tests)
   set_tests_properties(ssao-vulkan-convergence PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}" TIMEOUT 60)
+
+  add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/ssao-half.spv"
+    COMMAND "${GLSLANG_VALIDATOR}" -V -I${CMAKE_CURRENT_SOURCE_DIR}/../../shader
+            "${CMAKE_CURRENT_SOURCE_DIR}/ssao_half.comp" -o "${CMAKE_CURRENT_BINARY_DIR}/ssao-half.spv"
+    DEPENDS ssao_half.comp ../../shader/ssao/half_resolution.glsl
+    VERBATIM)
+  add_executable(ssao-half-tests ssao_half_gpu.cpp "${CMAKE_CURRENT_BINARY_DIR}/ssao-half.spv")
+  target_compile_features(ssao-half-tests PRIVATE cxx_std_20)
+  target_include_directories(ssao-half-tests PRIVATE ../../lib/Tempest/Engine/include)
+  target_link_libraries(ssao-half-tests PRIVATE "${RENDERING_TEST_TEMPEST_LIBRARY}")
+  add_test(NAME ssao-vulkan-half-resolution COMMAND ssao-half-tests)
+  set_tests_properties(ssao-vulkan-half-resolution PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}" TIMEOUT 60)
 endif()
