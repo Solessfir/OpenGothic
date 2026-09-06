@@ -21,9 +21,25 @@ file(GLOB_RECURSE GLSL_SOURCES
 
 # GLSL to SPIRV compiler
 find_program(GLSLANGVALIDATOR glslangValidator "/opt/homebrew/bin")
+if(NOT GLSLANGVALIDATOR AND ANDROID)
+  file(GLOB NDK_GLSLANGVALIDATOR
+    "${ANDROID_NDK}/shader-tools/*/glslangValidator"
+    "${ANDROID_NDK}/shader-tools/*/glslangValidator.exe")
+  list(LENGTH NDK_GLSLANGVALIDATOR NDK_GLSLANGVALIDATOR_COUNT)
+  if(NDK_GLSLANGVALIDATOR_COUNT GREATER 0)
+    list(GET NDK_GLSLANGVALIDATOR 0 GLSLANGVALIDATOR)
+  endif()
+endif()
+if(NOT GLSLANGVALIDATOR AND ANDROID)
+  find_program(GLSLANGVALIDATOR glslc
+    "${ANDROID_NDK}/shader-tools/windows-x86_64"
+    "${ANDROID_NDK}/shader-tools/linux-x86_64"
+    "${ANDROID_NDK}/shader-tools/darwin-x86_64")
+endif()
 if(NOT GLSLANGVALIDATOR)
   message(FATAL_ERROR "glslangValidator required")
 endif()
+get_filename_component(SHADER_COMPILER_NAME "${GLSLANGVALIDATOR}" NAME_WE)
 
 function(add_shader OUTPUT SOURCE)
   set(OUTPUT_FILE "${PROJECT_BINARY_DIR}/sprv/${OUTPUT}.sprv")
@@ -64,10 +80,20 @@ function(add_shader OUTPUT SOURCE)
   endif()
 
   set(GLSL_CMD ${GLSLANGVALIDATOR})
-  list(APPEND GLSL_CMD "-V")
-  list(APPEND GLSL_CMD ${VARS})
-  list(APPEND GLSL_CMD "--P")
-  list(APPEND GLSL_CMD "#extension GL_GOOGLE_include_directive:enable")
+  if(SHADER_COMPILER_NAME STREQUAL "glslc")
+    list(JOIN VARS ";" GLSLC_VARS)
+    foreach(STAGE vert frag comp task mesh tesc tese geom)
+      string(REPLACE "-S;${STAGE}" "-fshader-stage=${STAGE}" GLSLC_VARS "${GLSLC_VARS}")
+    endforeach()
+    string(REPLACE "--target-env;spirv1.3" "--target-env=vulkan1.1;--target-spv=spv1.3" GLSLC_VARS "${GLSLC_VARS}")
+    string(REPLACE "--target-env;spirv1.4" "--target-env=vulkan1.1;--target-spv=spv1.4" GLSLC_VARS "${GLSLC_VARS}")
+    list(APPEND GLSL_CMD ${GLSLC_VARS})
+  else()
+    list(APPEND GLSL_CMD "-V")
+    list(APPEND GLSL_CMD ${VARS})
+    list(APPEND GLSL_CMD "--P")
+    list(APPEND GLSL_CMD "#extension GL_GOOGLE_include_directive:enable")
+  endif()
   list(APPEND GLSL_CMD "-I${CMAKE_SOURCE_DIR}/shader")
   list(APPEND GLSL_CMD ${SOURCE_FILE})
   list(APPEND GLSL_CMD "-o")
