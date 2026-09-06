@@ -65,7 +65,7 @@ Install the APK, start it once to create its app-specific external directory, an
 ```powershell
 $adb = "$env:ANDROID_HOME\platform-tools\adb.exe"
 & $adb install -r 'android\app\build\outputs\apk\debug\app-debug.apk'
-& $adb shell am start -W -n 'org.opengothic.app/android.app.NativeActivity'
+& $adb shell am start -W -n 'org.opengothic.app/org.tempest.TempestNativeActivity'
 & $adb shell am force-stop 'org.opengothic.app'
 & $adb shell mkdir -p '/sdcard/Android/data/org.opengothic.app/files/Gothic2'
 ```
@@ -85,7 +85,7 @@ If direct ADB access to `Android/data` is restricted by a device build, use Andr
 Launch or stop the application from PowerShell:
 
 ```powershell
-& $adb shell am start -W -n 'org.opengothic.app/android.app.NativeActivity'
+& $adb shell am start -W -n 'org.opengothic.app/org.tempest.TempestNativeActivity'
 & $adb shell am force-stop 'org.opengothic.app'
 ```
 
@@ -93,7 +93,7 @@ Capture NativeActivity, Tempest, loader, and crash messages:
 
 ```powershell
 & $adb logcat -c
-& $adb shell am start -W -n 'org.opengothic.app/android.app.NativeActivity'
+& $adb shell am start -W -n 'org.opengothic.app/org.tempest.TempestNativeActivity'
 & $adb logcat -v threadtime 'Tempest:I' 'Vulkan:I' 'AndroidRuntime:E' 'libc:F' '*:S'
 ```
 
@@ -105,7 +105,9 @@ OpenGothic also writes `log.txt` beside the `Gothic2` directory. Pull it with:
 
 ## Controls and current limitations
 
-Android displays a text-only FPS counter in the top-left corner using Gothic's yellow font and screen-scaled padding. It measures rendered frame intervals and refreshes at least four times per second while rendering, including in menus. Video playback hides the counter.
+Android supports an optional text-only FPS counter in the top-left corner using Gothic's normal name-label font and its original warm text color, with screen-scaled padding. It is off by default; set `[GAME] showFps=1` in the writable `Gothic.ini` to enable it. It measures rendered frame intervals and requests a text refresh every 250 ms while rendering, including in menus. Video playback hides the counter.
+
+See [Android configuration](CONFIGURATION.md) for the writable INI location, enabling quicksave/load and potion shortcuts, and which original Gothic settings affect this port.
 
 Menus, dialogue text, and inventory cells scale automatically to fit Gothic's 640x480 reference interface into 85% of the Android viewport. At 2340x1080 this gives a base scale of 1.9125. The existing `[INTERFACE]` `Scale` setting in `Gothic2/System/SystemPack.ini` multiplies that value: `1` uses the automatic size, `0.85` makes it smaller, and `1.1` makes it larger. Restart the game after editing it; very large values can clip menus. Desktop scaling is unchanged.
 

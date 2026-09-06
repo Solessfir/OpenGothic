@@ -455,6 +455,13 @@ void MainWindow::onTouchCommand(TouchInput::Command command, bool pressed) {
 #endif
 
 void MainWindow::onSettings() {
+#if defined(__ANDROID__)
+  const bool enabled = Gothic::settingsGetI("GAME", "showFps")!=0;
+  if(showFps!=enabled) {
+    showFps = enabled;
+    update();
+    }
+#endif
   auto zMaxFps = Gothic::options().fpsLimit;
   if(zMaxFps<=0)
     zMaxFps = Gothic::inst().settingsGetI("ENGINE", "zMaxFps");
@@ -1331,7 +1338,7 @@ void MainWindow::render(){
 
     bool refreshFps = false;
 #if defined(__ANDROID__)
-    refreshFps = Application::tickCount()-fpsOverlayUpdated >= 250;
+    refreshFps = showFps && Application::tickCount()-fpsOverlayUpdated >= 250;
 #endif
     if(video.isActive()) {
       video.paint(device,cmdId);
@@ -1346,15 +1353,17 @@ void MainWindow::render(){
       PaintEvent p(numOverlay,atlas,this->w(),this->h());
       inventory.paintNumOverlay(p);
 #if defined(__ANDROID__)
-      // Draw above menus and scale the padding with the interface.
-      Painter painter(p);
-      const float density = std::max(uiScale(),1.f);
-      const int margin = int(16.f*density);
-      auto& font = Resources::font(Resources::FontType::Yellow,density);
-      char text[32] = {};
-      std::snprintf(text,sizeof(text),"%.1f FPS",fps.get());
-      font.drawText(painter,margin,margin+font.pixelSize(),text);
-      fpsOverlayUpdated = Application::tickCount();
+      if(showFps) {
+        // Draw above menus and scale the padding with the interface.
+        Painter painter(p);
+        const float density = std::max(uiScale(),1.f);
+        const int margin = int(16.f*density);
+        auto& font = Resources::font(density);
+        char text[32] = {};
+        std::snprintf(text,sizeof(text),"%.1f FPS",fps.get());
+        font.drawText(painter,margin,margin+font.pixelSize(),text);
+        fpsOverlayUpdated = Application::tickCount();
+        }
 #endif
       }
     uiMesh [cmdId].update(device,uiLayer);
