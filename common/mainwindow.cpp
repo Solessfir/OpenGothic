@@ -388,7 +388,7 @@ void MainWindow::tickGamepad(uint64_t dt) {
   const auto gp = SystemApi::gamepadState();
   mobileUi.setTouchEnabled(!gp.connected);
   const auto touchMove = mobileUi.movementAxis();
-  player.setGamepadAxis(gp.connected ? gp.leftStickX : touchMove.x,
+  player.setGamepadAxis(gp.connected ? gp.leftStickX : 0.f,
                         gp.connected ? gp.leftStickY : touchMove.y);
 
   auto camera = Gothic::inst().camera();
@@ -396,7 +396,7 @@ void MainWindow::tickGamepad(uint64_t dt) {
     return;
 
   const float dtSec = float(dt)/1000.f;
-  float       yaw   = gp.rightStickX*180.f*dtSec;
+  float       yaw   = -gp.rightStickX*180.f*dtSec;
   float       pitch = gp.rightStickY*140.f*dtSec;
   if(!gp.connected) {
     const auto look = mobileUi.takeLookDelta();
@@ -519,6 +519,10 @@ void MainWindow::keyDownEvent(KeyEvent &event) {
 
   auto act     = keycodec.tr(event);
   auto mapping = keycodec.mapping(event);
+#if defined(__ANDROID__)
+  if(event.key==Event::K_Return)
+    act = KeyCodec::ActionGeneric;
+#endif
   player.onKeyPressed(act,event.key,mapping);
 
   if(event.key==Event::K_F11) {
@@ -592,6 +596,10 @@ void MainWindow::keyUpEvent(KeyEvent &event) {
 
   auto act     = keycodec.tr(event);
   auto mapping = keycodec.mapping(event);
+#if defined(__ANDROID__)
+  if(event.key==Event::K_Return && uiKeyUp==nullptr)
+    act = KeyCodec::ActionGeneric;
+#endif
 
   std::string_view menuEv;
   if(act==KeyCodec::Escape)

@@ -130,15 +130,15 @@ The physical gamepad mapping is:
 | D-pad | Hat axes | Arrow keys |
 | Right trigger | R trigger | Left Ctrl / primary action |
 | Left trigger | L trigger | Left Shift / walk modifier |
-| A | Button A | Enter |
-| B | Button B | Escape |
-| X | Button X | Left Alt |
-| Y | Button Y | Space |
+| A | Button A | Interact, attack, or confirm |
+| B | Button B | Jump |
+| X | Button X | Draw or sheathe weapon |
+| Y | Button Y | Inventory |
 | L1 | Left shoulder | Tab |
 | R1 | Right shoulder | F |
 | Left stick click | Button thumb-left | Caps Lock |
 | Right stick click | Button thumb-right | R |
-| Start | Button Start | Escape |
+| Start | Button Start | Menu or Escape |
 | Select | Button Select | B |
 
 No touchscreen controls are drawn over the game. Controller layouts vary, so Android may report different axes for some third-party devices. Ray queries and mesh shaders are disabled by default, and the build uses conservative desktop-compatible rendering paths for sustained mobile operation.
