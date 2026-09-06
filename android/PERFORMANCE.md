@@ -791,3 +791,27 @@ The collected process logcat contained no fatal-signal, fatal-exception, Vulkan-
 Screenshots, traces, clock logs, CPU/GPU reports and the unchanged writable INI are retained locally in `build/performance/cooled-1024-sustained/`.
 No source, APK, device setting or asset was changed for this measurement; the game was left running afterward.
 Next candidates remain fog rendering and animation/worker costs, followed by longer thermal verification that reproduces the low-clock condition.
+
+### Later slowdown in the same uninterrupted session
+
+After the user reported 49-50 FPS, another 30-second trace was taken without restarting or changing settings.
+The process ID remained 25567 and the screenshot confirmed the same waterfall position, with normal time-of-day progression.
+This trace began approximately fourteen minutes after the early trace began, not fourteen minutes after the save loaded.
+It averaged 46.99 presentation FPS over 1,404 intervals: mean/median 21.28/20.98 ms, p95/p99 26.51/28.65 ms and worst 34.23 ms.
+The screenshot taken during tracing showed 43 FPS; its instantaneous counter is not the window average.
+
+Live skin temperature was 44.4 C before and 44.3 C after the trace, with reported thermal status 2.
+All fifteen two-second clock samples reported 350 or 400 MHz for both current and maximum GPU frequency, with 100% utilization.
+The clock sample window overlaps the trace and extends slightly beyond it.
+No frame-pacing waits appeared in the CPU trace.
+QueuePresentKHR averaged 5.059 ms, including a 4.541 ms main-thread wait; the driver's GPU-completion wait averaged 21.197 ms on its separate thread.
+These nested/overlapping driver waits are not isolated GPU execution timings.
+Together with the saturated reduced-clock GPU, they point to GPU throughput as the immediate bottleneck, rather than the 60 FPS limiter.
+CPU work also slowed: animation averaged 6.233 ms, recording 5.372 ms and simulation 3.804 ms of inclusive wall time.
+
+The earlier six-minute near-60-FPS observation did not hold for the longer session.
+No new per-pass GPU capture was obtained because the bounded profiler had already completed; the early pass timings remain early-only evidence.
+This trace reported no nonzero capture-quality errors, and the collected process logcat contained no fatal-signal, fatal-exception, Vulkan-error or abort-message matches.
+Artifacts are in `build/performance/cooled-1024-sustained/late/`.
+The game was force-stopped after capture so the device could cool; settings, saves and assets were preserved.
+Sustained 60 FPS remains unmet and needs reduced rendering workload and further hot-state verification, not repeated short cooled baselines.
