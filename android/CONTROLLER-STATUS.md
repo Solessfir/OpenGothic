@@ -60,7 +60,7 @@ Controller polling now runs from a timer outside rendering. Previously, controll
 
 Verification for this APK: Android `assembleDebug lintDebug` succeeded, the Windows `Gothic2Notr` target built, and the controller CTest passed (1/1). APK signature and 16 KB ZIP alignment checks passed. The APK contains only `lib/arm64-v8a/libopengothic.so` and no game assets.
 
-APK: `C:\Git\OpenGothic\android\app\build\outputs\apk\debug\app-debug.apk`.
+APK: `android/app/build/outputs/apk/debug/app-debug.apk` (relative to the repository root).
 
 SHA-256: `AD73A37FD8E3AE32190F72B7278226F6E0BF8A1C7BFED372A60230FE0BFA42D7`.
 
@@ -83,7 +83,7 @@ Implementation: OpenGothic `bde76d57`, Tempest `98449c95` (published on the user
 - `zipalign -c -P 16 4`: passed.
 - Windows game target: built with Visual Studio 2026 and the installed Vulkan SDK. This is a compile/link regression check, not a Windows controller test. The full unrelated Spacer target is not part of this check.
 
-APK: `C:\Git\OpenGothic\android\app\build\outputs\apk\debug\app-debug.apk` (18,136,329 bytes).
+APK: `android/app/build/outputs/apk/debug/app-debug.apk` (18,136,329 bytes).
 
 SHA-256: `DF75CF39A9FD9EB084EB540E7B17C4A085BF6E99CD218E93780A264429872276`.
 
@@ -119,7 +119,7 @@ Connect a Bluetooth/USB gamepad to the phone and start with menu A/B, directiona
 $adb = 'C:\Android\Sdk\platform-tools\adb.exe'
 $serial = 'RFCX10M60QT'
 & $adb devices -l
-& $adb -s $serial install -r 'C:\Git\OpenGothic\android\app\build\outputs\apk\debug\app-debug.apk'
+& $adb -s $serial install -r 'android/app/build/outputs/apk/debug/app-debug.apk'
 if ($LASTEXITCODE -ne 0) { throw 'Installation failed.' }
 & $adb -s $serial shell am start -W -n 'org.opengothic.app/org.tempest.TempestNativeActivity'
 & $adb -s $serial shell cat '/sdcard/Android/data/org.opengothic.app/files/Gamepad.ini'
