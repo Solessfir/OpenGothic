@@ -216,6 +216,7 @@ void MainWindow::tickGamepad() {
                                console.isActive() || dialogs.isActive() || inventory.isActive();
     if(touchUiActive || !controllerFocused || Gothic::inst().isPause() || camera==nullptr || camera->isCutscene() ||
        Gothic::inst().checkLoading()!=Gothic::LoadState::Idle) {
+      mobileUi.setAnalogMovement(false);
       if(!touchMovementBlocked)
         player.clearInput();
       touchMovementBlocked = true;
@@ -225,14 +226,27 @@ void MainWindow::tickGamepad() {
       }
     if(touchMove==PointF())
       touchMovementBlocked = false;
-    player.setGamepadAxis(0.f,touchMovementBlocked ? 0.f : touchMove.y);
+    const bool locked = player.lockedTarget()!=nullptr;
+    const bool classicAction = player.isClassicCombat() && player.isPressed(KeyCodec::ActionGeneric);
+    const bool targetMovement = locked && !classicAction;
+    mobileUi.setAnalogMovement(targetMovement);
+    if(targetMovement) {
+      // Remove keyboard-style turning without clearing target lock or held combat actions.
+      player.clearMovementInput();
+      const auto axis = touchMovementBlocked ? std::pair(0.f,0.f) : controllerBindings.movementAxis(touchMove.x,touchMove.y);
+      const bool ground = touchPlayer!=nullptr && !touchPlayer->isSwim() && !touchPlayer->isDive();
+      player.setControllerMovement(axis.first,axis.second,camera->spin().y,
+                                   controllerBindings.automaticWalk(axis.first,axis.second,ground),options.movementTurnSpeed);
+      }
+    else {
+      player.setGamepadAxis(0.f,touchMovementBlocked || (locked && classicAction) ? 0.f : touchMove.y);
+      }
     const float dtSec=float(dt)/1000.f;
     float yaw=float(look.x)*300.f/float(std::max(w(),1));
     float pitch=float(look.y)*220.f/float(std::max(h(),1));
     const float sensitivity=Gothic::settingsGetF("GAME","mouseSensitivity")/0.5f;
     yaw*=sensitivity; pitch*=sensitivity;
     if(Gothic::settingsGetI("GAME","camLookaroundInverse")) pitch=-pitch;
-    const bool locked = player.lockedTarget()!=nullptr;
     if(mobileUi.isLooking() || look!=Point()) touchLookIdle=0;
     else touchLookIdle+=dt;
     camera->onRotateMouse(PointF(pitch,locked ? 0.f : -yaw));

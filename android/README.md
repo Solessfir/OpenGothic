@@ -150,7 +150,7 @@ Choosing an empty save slot opens the Android keyboard. Enter a save name and pr
 
 Physical controllers now use camera-relative directional movement, A to accept/interact, B to go back, R3 target lock, and LB+L3 walk. Classic/modern combat, D-pad shortcuts, inventory panels, and the equipment wheel have context-specific mappings. See [controller controls and Gamepad.ini](CONTROLLER.md) for the complete layout, remapping commands, and device-test checklist.
 
-Most touch controls are normally invisible; the contextual G2 Block button is visible even without debugging.
+Touch controls, including the contextual G2 Block hit area, are invisible by default.
 For the temporary layout/debug overlay, enable `[DEBUG] touchControls=1` in the writable `Gothic.ini` and restart.
 It draws Gothic-colored zone boundaries, action labels, pressed-button highlights and live finger anchors/trails.
 The movement stick's outer square shows full axis travel; the inner square marks the arrow-key activation threshold.
@@ -159,16 +159,22 @@ With an active gamepad, the overlay marks the virtual zones inactive and explain
 
 With classic controls (`[GAME] useGothic1Controls=1`), draw a melee weapon, hold the bottom-right ACTION zone, then move the left stick from neutral: up attacks forward, down blocks, and left/right request side attacks.
 Return the stick to neutral between directional presses; holding ACTION alone is not a directional strike.
+To finish a knocked-out NPC with a one-handed or two-handed melee weapon, focus them and hold ACTION, then push forward from neutral.
+With G2 controls, press ACTION instead; fists cannot perform the finishing move.
 Without a weapon, ACTION is interaction; menus use the same zone to confirm.
 With Gothic 2 controls (`useGothic1Controls=0`), the bottom-right zone directly uses/attacks.
-With fists or a melee weapon drawn, a separate Block button appears immediately left of Use/Attack.
+With fists or a melee weapon drawn, a separate Block hit area is enabled immediately left of Use/Attack.
 Hold it to request Gothic's normal block/parry action and release to stop; this is not an unconditional damage shield.
-The button disappears in menus, with ranged weapons/magic, in classic controls, and when touch controls are inactive.
+The hit area is disabled in menus, with ranged weapons/magic, in classic controls, and when touch controls are inactive.
 Changing context also releases a held block, and a touch started on Block never becomes a camera drag.
-Its gold crossed-blade icon is original vector geometry drawn by OpenGothic, not a copied game texture or external icon dependency.
+Its gold crossed-blade debug icon is original vector geometry drawn by OpenGothic and is shown only with `touchControls=1`.
 This debug view exposes the existing keyboard-style touch combat, not a redesigned mobile combat layout.
 Right-side touch camera drag looks around without turning the character, respecting Mouse speed and vertical inversion.
 The left movement stick still turns the character in place when dragged sideways.
+While target-locked, it instead uses the gamepad's target-relative movement: sideways strafes, up approaches, and down retreats.
+The same movement dead zone, response curve and dominant-axis filtering apply, without switching walk animations during sidesteps.
+G1's held ACTION plus direction combat still takes priority over movement; release ACTION to resume locked strafing.
+The equipment wheel currently requires a gamepad (hold D-pad Up); holding touch ACTION or Inventory does not open it.
 
 With a weapon drawn, start in Use/Attack and quickly drag at least 1/18 of the short screen dimension (60 pixels on a 1080-pixel-high viewport) to toggle target lock.
 The same gesture unlocks an already locked target, and each gesture toggles only once.

@@ -48,6 +48,7 @@ class PlayerControl final {
     bool  interact(Item&        item);
 
     void  clearInput();
+    void  clearMovementInput();
 
     void  setTarget(Npc* other);
     void  actionFocus(Npc& other);

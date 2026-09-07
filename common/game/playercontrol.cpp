@@ -255,6 +255,11 @@ bool PlayerControl::isPressed(KeyCodec::Action a) const {
   }
 
 void PlayerControl::setGamepadAxis(float lx, float ly) {
+  if(controllerWalkApplied) {
+    if(auto pl=Gothic::inst().player())
+      pl->setWalkMode(WalkBit(uint8_t(pl->walkMode()) & ~uint8_t(WalkBit::WM_Walk)));
+    controllerWalkApplied=false;
+    }
   controllerGroundStrafe = false;
   controllerDirectional = false;
   gamepadLX = lx;
@@ -596,6 +601,14 @@ bool PlayerControl::canInteract() const {
   if(pl->weaponState()!=WeaponState::NoWeapon || pl->isAiBusy())
     return false;
   return true;
+  }
+
+void PlayerControl::clearMovementInput() {
+  movement.reset();
+  for(const auto action : {KeyCodec::Forward,KeyCodec::Back,KeyCodec::Left,KeyCodec::Right,KeyCodec::RotateL,KeyCodec::RotateR}) {
+    ctrl[action] = false;
+    controllerKeyReleases[action] = false;
+    }
   }
 
 void PlayerControl::clearInput() {

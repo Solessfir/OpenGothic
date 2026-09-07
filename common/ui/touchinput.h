@@ -34,6 +34,7 @@ class TouchInput : public Tempest::Widget {
     void            mouseUpEvent(Tempest::MouseEvent& e) override;
 
     void            setTouchEnabled(bool enabled);
+    void            setAnalogMovement(bool enabled);
     void            setDebugOverlay(bool enabled);
     void            setDebugContext(bool classicCombat, bool uiActive, bool canLock, bool locked, bool canBlock);
     void            tick();
@@ -79,6 +80,7 @@ class TouchInput : public Tempest::Widget {
     int             lookPointer = -1;
     int             blockPointer = -1;
     bool            touchEnabled = true;
+    bool            analogMovement = false;
     bool            debugOverlay = false;
     bool            classicCombat = true;
     bool            uiActive = false;

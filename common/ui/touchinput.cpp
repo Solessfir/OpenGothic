@@ -17,14 +17,12 @@ TouchInput::TouchInput(CommandHandler command)
   }
 
 void TouchInput::paintEvent(Tempest::PaintEvent& e) {
-  if(!debugOverlay && !blockVisible())
+  if(!debugOverlay)
     return;
 
   Painter p(e);
   if(blockVisible())
     drawBlock(p);
-  if(!debugOverlay)
-    return;
   const auto gold = Color(0.843f,0.761f,0.631f,0.75f);
   const auto active = Color(1.f,0.85f,0.4f,0.95f);
   const float scale = std::min(Gothic::interfaceScale(this),float(h())/480.f);
@@ -213,6 +211,16 @@ void TouchInput::setDebugOverlay(bool enabled) {
   update();
   }
 
+void TouchInput::setAnalogMovement(bool enabled) {
+  if(analogMovement==enabled)
+    return;
+  analogMovement = enabled;
+  for(size_t i=0;i<4;++i)
+    setDirection(Command(i),false);
+  if(!enabled && movePointer>=0)
+    updateMovement(touches.at(movePointer).last);
+  }
+
 void TouchInput::setDebugContext(bool classic, bool ui, bool lockAllowed, bool locked, bool blockAllowed) {
   if(classicCombat==classic && uiActive==ui && canLock==lockAllowed && targetLocked==locked && canBlock==blockAllowed)
     return;
@@ -323,6 +331,8 @@ void TouchInput::updateMovement(const Point& pos) {
   moveAxis.x = std::clamp(float(delta.x)/radius,-1.f,1.f);
   moveAxis.y = std::clamp(float(delta.y)/radius,-1.f,1.f);
 
+  if(analogMovement)
+    return;
   setDirection(Command::Up,   moveAxis.y < -DirectionThreshold);
   setDirection(Command::Down, moveAxis.y >  DirectionThreshold);
   setDirection(Command::Left, moveAxis.x < -DirectionThreshold);
@@ -353,4 +363,5 @@ void TouchInput::reset() {
   movePointer = -1;
   lookPointer = -1;
   blockPointer = -1;
+  analogMovement = false;
   }

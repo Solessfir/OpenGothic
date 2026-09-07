@@ -448,6 +448,10 @@ void MainWindow::onTouchCommand(TouchInput::Command command, bool pressed) {
     touchHeldAction.reset();
     return;
     }
+  // Locked movement uses the analog stick, except for classic ACTION + direction attacks.
+  if(!uiActive && command<=TouchInput::Command::Right && player.lockedTarget()!=nullptr &&
+     !(player.isClassicCombat() && player.isPressed(KeyCodec::ActionGeneric)))
+    return;
   // A direction held while closing a menu must return to neutral before moving the player.
   if(!uiActive && touchMovementBlocked && pressed && command<=TouchInput::Command::Right)
     return;
