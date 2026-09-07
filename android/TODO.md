@@ -29,7 +29,8 @@ Status: marker split implemented; comparison captures and quality checks remain 
 
 ## One-command private test APK with game files
 
-Status: planned, not implemented.
+Status: guided setup and private packaging implemented; real-device clean-install/update verification remains pending.
+See [PRIVATE-SETUP.md](PRIVATE-SETUP.md) for commands and safety details.
 
 - Provide a Windows `.bat` entry point and a Linux `.sh` entry point.
   Test the Linux workflow on Arch Linux under WSL as well as documenting native Linux usage.
@@ -52,4 +53,12 @@ Status: planned, not implemented.
   Document that asset bundling is for private testing on the owner's devices, not redistribution.
 - Verify the full workflow on the S24 and S23 Ultra: clean installation, first launch, asset availability, and an update that preserves existing data.
 
-This is a future convenience workflow; the current Gradle build and separate asset-copy workflow remain supported.
+Implemented: Windows `.bat`/PowerShell and Linux `.sh` entry points, optional portable dependencies, installation discovery,
+safe preference/save imports, signed private APK packaging, separate ZIP import through Android's document picker,
+and optional ADB installation/save backup. The normal Gradle build and separate asset-copy workflow remain supported.
+
+Verified locally: Windows native/APK build and lint, single-APK packaging of the real installation using internal 128 MiB chunks,
+full host extraction and checksums, an asset-free rebuild after private packaging, and setup/extractor checks on Windows and Arch WSL.
+A single >2 GiB asset failed with `Required array size too large`;
+chunking avoids that per-asset Gradle limit. Full clean Linux native builds and fresh-OS package-manager bootstrap remain to be exercised.
+Device installation, first launch and update preservation still require a connected phone.

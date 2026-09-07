@@ -15,6 +15,10 @@ import android.widget.TextView;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.SequenceInputStream;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Locale;
 
 /** Owns game-data setup; engine lifecycle and input remain in Tempest. */
 public final class SetupActivity extends Activity {
@@ -28,6 +32,25 @@ public final class SetupActivity extends Activity {
     private ProgressBar progress;
     private Button choose;
     private Button retry;
+
+    private InputStream bundledFiles() throws IOException {
+        String[] names = getAssets().list("");
+        int count = 0;
+        if (names != null) {
+            for (String name : names) if (name.matches("private-game-[0-9]{5}\\.ogpart")) ++count;
+        }
+        if (count == 0) throw new IOException("This APK has no bundled game files");
+        ArrayList<InputStream> parts = new ArrayList<>();
+        try {
+            for (int i = 0; i < count; ++i) {
+                parts.add(getAssets().open(String.format(Locale.ROOT, "private-game-%05d.ogpart", i)));
+            }
+            return new SequenceInputStream(Collections.enumeration(parts));
+        } catch (IOException error) {
+            for (InputStream part : parts) part.close();
+            throw error;
+        }
+    }
 
     @Override public void onCreate(Bundle saved) {
         super.onCreate(saved);
@@ -55,7 +78,14 @@ public final class SetupActivity extends Activity {
         retry.setOnClickListener(v -> begin(null));
         layout.addView(retry);
         setContentView(layout);
-        if (!running) begin(null);
+        if (!running) {
+            if ("org.opengothic.app.IMPORT_GAME_FILES".equals(getIntent().getAction())) {
+                ready = false;
+                message = "Select private-game.zip from Downloads. Existing saves and settings will be kept.\nQuit the game before importing a different installation.";
+            } else {
+                begin(null);
+            }
+        }
     }
 
     private void begin(Uri uri) {
@@ -70,7 +100,7 @@ public final class SetupActivity extends Activity {
         }
         InputStream source;
         try {
-            source = uri == null ? getAssets().open("private-game.zip") : getContentResolver().openInputStream(uri);
+            source = uri == null ? bundledFiles() : getContentResolver().openInputStream(uri);
             if (source == null) throw new IOException("Cannot open selected archive");
         } catch (IOException e) {
             File data = new File(root, "Gothic2/Data");

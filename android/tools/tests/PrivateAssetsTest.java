@@ -42,10 +42,22 @@ public class PrivateAssetsTest {
         Path base = Paths.get(args[0]);
         Files.createDirectories(base);
         Path root = base.resolve("files"), marker = base.resolve("index");
+        if (args.length == 2) {
+            long started = System.nanoTime();
+            PrivateAssets.extract(new FileInputStream(args[1]), root.toFile(), marker.toFile(), (done, total, path) -> {});
+            System.out.println("Real archive extracted and verified in " + ((System.nanoTime() - started) / 1000000000L) + " seconds");
+            return;
+        }
         byte[] data = "test game data".getBytes(StandardCharsets.UTF_8);
         String name = "Gothic2/Data/Worlds.vdf";
         byte[] zip = archive(name, data, false);
         extract(zip, root, marker);
+        java.util.List<InputStream> chunks = new java.util.ArrayList<>();
+        for (int offset = 0; offset < zip.length; offset += 13) {
+            chunks.add(new ByteArrayInputStream(java.util.Arrays.copyOfRange(zip, offset, Math.min(offset + 13, zip.length))));
+        }
+        PrivateAssets.extract(new SequenceInputStream(java.util.Collections.enumeration(chunks)),
+                base.resolve("chunked").toFile(), base.resolve("chunked-index").toFile(), (done, total, path) -> {});
         if (!java.util.Arrays.equals(Files.readAllBytes(root.resolve(name)), data)) throw new AssertionError("Wrong extracted data");
         extract(zip, root, marker);
         Files.delete(marker);

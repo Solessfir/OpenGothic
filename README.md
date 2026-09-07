@@ -72,6 +72,13 @@ Supported systems are:
 
    `exec "$DIR/Gothic2Notr" "$@" -g "~/PlayOnLinux's virtual drives/Gothic2_gog/drive_c/Gothic II"`
 
+### Android (experimental)
+
+On this Android branch, run `setup-android.bat` on Windows or `bash setup-android.sh` on Linux for guided setup and private APK installation.
+You need legally owned Gothic II: Night of the Raven files and an ARM64 Vulkan 1.1 Android device.
+See [the private build guide](android/PRIVATE-SETUP.md) or [manual Android instructions](android/README.md).
+Never redistribute APKs containing the game's copyrighted files.
+
 ---
 ### Modifications
 Mods can be installed as usual. Provide the `modfile.ini` to OpenGothic via the `-game:` parameter to play. Example:

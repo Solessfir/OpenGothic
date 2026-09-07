@@ -1,6 +1,10 @@
 # OpenGothic for Android
 
-This project builds a sideloadable NativeActivity debug APK for 64-bit ARM Android devices with Vulkan 1.1. It does not package Gothic II game files. You must copy a legally owned Gothic II: Night of the Raven installation after installing the APK.
+This project builds a sideloadable NativeActivity debug APK for 64-bit ARM Android devices with Vulkan 1.1. The normal Gradle build does not package Gothic II game files.
+
+For guided prerequisite installation, private game-file packaging and phone installation, run **`setup-android.bat`** (Windows) or **`bash setup-android.sh`** (Linux) from the repository root.
+See [the private setup guide](PRIVATE-SETUP.md), including the separate APK + ZIP fallback and optional OpenGothic save transfer.
+The manual asset-free workflow below remains supported.
 
 For measured S24 performance and repeatable profiling commands, see [PERFORMANCE.md](PERFORMANCE.md).
 
@@ -25,8 +29,8 @@ git submodule update --init --recursive
 Set the JDK and Android SDK paths for the current PowerShell session. Change these paths if your installations are elsewhere:
 
 ```powershell
-$env:JAVA_HOME = 'C:\Android\jdk17\jdk-17.0.20.1+1'
-$env:ANDROID_HOME = 'C:\Android\Sdk'
+$env:JAVA_HOME = 'C:\Path\To\jdk-17'
+$env:ANDROID_HOME = 'C:\Path\To\Android\Sdk'
 $env:ANDROID_SDK_ROOT = $env:ANDROID_HOME
 ```
 

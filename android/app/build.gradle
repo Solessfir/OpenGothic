@@ -5,6 +5,7 @@ plugins {
 android {
     namespace 'org.opengothic.app'
     compileSdk 35
+    buildToolsVersion '35.0.0'
     ndkVersion '27.0.12077973'
 
     defaultConfig {
@@ -69,7 +70,7 @@ android {
     }
 
     androidResources {
-        noCompress += 'zip'
+        noCompress += ['zip', 'ogpart']
     }
 
     lint {

@@ -1,2 +1,7 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Entrypoints must also work in a fresh Linux checkout or when invoked from WSL.
+*.sh text eol=lf
+*.bat text eol=crlf
+android/gradlew text eol=lf

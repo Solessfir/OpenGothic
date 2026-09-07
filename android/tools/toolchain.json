@@ -1,0 +1,26 @@
+{
+  "jdk": {
+    "windows": {
+      "url": "https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.20.1%2B1/OpenJDK17U-jdk_x64_windows_hotspot_17.0.20.1_1.zip",
+      "sha256": "e53a79c3c3d86865bd7e787903884331068e71321714ffd44f145785affc7cb0"
+    },
+    "linux": {
+      "url": "https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.20.1%2B1/OpenJDK17U-jdk_x64_linux_hotspot_17.0.20.1_1.tar.gz",
+      "sha256": "3808d1d15e3ec6bd5b84057fb5d84c33d8a1536a258146bcea2e603fc726e08e"
+    }
+  },
+  "command_line_tools": {
+    "windows": {
+      "url": "https://dl.google.com/android/repository/commandlinetools-win-11076708_latest.zip",
+      "sha256": "4d6931209eebb1bfb7c7e8b240a6a3cb3ab24479ea294f3539429574b1eec862"
+    },
+    "linux": {
+      "url": "https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip",
+      "sha256": "2d2d50857e4eb553af5a6dc3ad507a17adf43d115264b1afc116f95c92e5e258"
+    }
+  },
+  "packages": [
+    "platform-tools", "platforms;android-35", "build-tools;35.0.0",
+    "ndk;27.0.12077973", "cmake;3.22.1"
+  ]
+}
