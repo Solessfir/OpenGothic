@@ -79,7 +79,13 @@ int main() {
       check(b.automaticWalk(0.f,-value,false),"Walking does not chatter around the run threshold");
     check(!b.automaticWalk(0.f,0.f,false),"Neutral immediately releases automatic walking");
     check(b.automaticWalk(0.f,-0.20f,false,true),"Touch can walk before the old forward threshold");
-    check(!b.automaticWalk(0.f,-0.70f,false,true),"Touch and gamepad share the same physical run threshold");
+    check(!b.automaticWalk(0.f,-0.40f,false,true),"Touch runs with a short drag");
+    check(!b.automaticWalk(0.f,-0.34f,false,true),"Touch keeps running within the gait margin");
+    check(b.automaticWalk(0.f,-0.30f,false,true),"Shortening the touch drag deliberately returns to walking");
+    b.automaticWalk(0.f,0.f,false);
+    check(b.automaticWalk(0.f,-0.40f,false),"Gamepad retains its larger walking region");
+    std::istringstream touchWalk("[Axes]\nTouchWalkThreshold=0.5\n");
+    check(b.load(touchWalk).empty() && b.options.touchWalkThreshold==0.5f,"Touch walking threshold can be configured independently");
     std::istringstream response("[Axes]\nTouchMovementDeadZone=0.1\nTouchTurnSpeed=240\nMovementTurnBoost=0\nWalkHysteresis=0\n");
     check(b.load(response).empty(),"Responsiveness options validate");
     check(b.options.touchMovementDeadZone==0.1f && b.options.touchTurnSpeed==240.f &&

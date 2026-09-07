@@ -19,7 +19,7 @@ TouchInput::TouchInput(CommandHandler command, WheelHandler wheel)
   }
 
 void TouchInput::paintEvent(Tempest::PaintEvent& e) {
-  if(!debugOverlay || wheelPointer>=0)
+  if(!debugOverlay)
     return;
 
   Painter p(e);
@@ -472,6 +472,9 @@ void TouchInput::startWheel(int pointer) {
   touch.pendingWheel=false;
   touch.pendingAction=false;
   touch.actionSent=false;
+  // Start from the finger's position when the wheel opens, so hold-time drift stays neutral.
+  touch.anchor=touch.last;
+  touch.wheelMoved=false;
   touches[pointer]=touch;
   if(wheel(touch.command,WheelPhase::Begin,touch.anchor))
     wheelPointer=pointer;
@@ -485,6 +488,8 @@ void TouchInput::moveWheel(Touch& touch, Point pos) {
   // Ignore initial finger jitter, but always use the final release position after dragging.
   if(touch.wheelMoved)
     wheel(touch.command,WheelPhase::Move,pos);
+  if(debugOverlay)
+    update();
   }
 
 void TouchInput::cancelWheel() {

@@ -35,6 +35,7 @@ class GamepadBindings final {
       float movementTurnBoost = 1.f;
       float touchTurnSpeed = 180.f;
       float walkThreshold = 0.65f;
+      float touchWalkThreshold = 0.35f;
       float walkHysteresis = 0.04f;
       float triggerPress = 0.55f;
       float triggerRelease = 0.40f;

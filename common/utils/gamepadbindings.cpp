@@ -127,6 +127,7 @@ MovementTurnSpeed=180
 MovementTurnBoost=1
 TouchTurnSpeed=180
 WalkThreshold=0.65
+TouchWalkThreshold=0.35
 WalkHysteresis=0.04
 TriggerPressThreshold=0.55
 TriggerReleaseThreshold=0.40
@@ -276,6 +277,7 @@ std::vector<std::string> GamepadBindings::load(std::istream& input) {
   options.movementTurnBoost=number("Axes","MovementTurnBoost",options.movementTurnBoost,0,3);
   options.touchTurnSpeed=number("Axes","TouchTurnSpeed",options.touchTurnSpeed,45,720);
   options.walkThreshold=number("Axes","WalkThreshold",options.walkThreshold,0.1f,1);
+  options.touchWalkThreshold=number("Axes","TouchWalkThreshold",options.touchWalkThreshold,0.1f,1);
   options.walkHysteresis=number("Axes","WalkHysteresis",options.walkHysteresis,0,0.2f);
   options.triggerPress=number("Axes","TriggerPressThreshold",options.triggerPress,0.05f,1);
   options.triggerRelease=number("Axes","TriggerReleaseThreshold",options.triggerRelease,0,0.95f);
@@ -298,7 +300,7 @@ std::vector<std::string> GamepadBindings::load(std::istream& input) {
   for(auto& [sec,v]:values) {
     std::string_view allowed;
     if(sec=="Controller") allowed="|Version|Enabled|ExplorationModifier|HoldMs|RepeatDelayMs|RepeatMs|CameraAssist|";
-    if(sec=="Axes") allowed="|MovementStick|CameraStick|StickDeadZone|MovementDeadZone|TouchMovementDeadZone|MovementExponent|MovementTurnSpeed|MovementTurnBoost|TouchTurnSpeed|WalkThreshold|WalkHysteresis|TriggerPressThreshold|TriggerReleaseThreshold|";
+    if(sec=="Axes") allowed="|MovementStick|CameraStick|StickDeadZone|MovementDeadZone|TouchMovementDeadZone|MovementExponent|MovementTurnSpeed|MovementTurnBoost|TouchTurnSpeed|WalkThreshold|TouchWalkThreshold|WalkHysteresis|TriggerPressThreshold|TriggerReleaseThreshold|";
     if(sec=="TargetLock") allowed="|SwitchThreshold|SwitchResetThreshold|SwitchCooldownMs|CameraSmoothingSeconds|";
     if(sec=="Combat") allowed="|MeleeAssist|MeleeAssistMaxAngle|MeleeAssistMaxDistance|MeleeFocusRangeScale|";
     if(!allowed.empty()) for(auto& [key,value]:v) {
@@ -381,7 +383,8 @@ bool GamepadBindings::automaticWalk(float x,float y,bool targetRelative,bool tou
     automaticWalking=true;
     return false;
     }
-  automaticWalking=MovementResponse::walk(magnitude,deadZone,options.walkThreshold,options.walkHysteresis,automaticWalking);
+  const float threshold=touch ? options.touchWalkThreshold : options.walkThreshold;
+  automaticWalking=MovementResponse::walk(magnitude,deadZone,threshold,options.walkHysteresis,automaticWalking);
   return automaticWalking;
   }
 

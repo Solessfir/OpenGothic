@@ -309,28 +309,34 @@ The left movement stick still turns the character in place when dragged sideways
 Turning now scales with sideways deflection instead of switching to full speed at an arrow-key threshold.
 It uses `[Axes] TouchMovementDeadZone=0.15`, `MovementExponent=1.5` and `TouchTurnSpeed=180` from `Gamepad.ini`.
 Forward/back and turning have independent dead zones, so small finger wobble while turning does not start walking.
-Gentle forward/back input walks; deliberate input runs, using the same physical threshold and anti-flicker margin as gamepad.
-Defaults enter running at 69% travel and return to walking below 61%; see [movement settings](CONTROLLER.md) for tuning.
+Gentle forward/back input walks; a short deliberate drag runs.
+`[Axes] TouchWalkThreshold=0.35` enters running at 39% drag and returns to walking below 31%, using the shared anti-flicker margin.
+Gamepad retains its separate threshold; see [movement settings](CONTROLLER.md) for tuning.
 Forward speed still comes from Gothic's walk/run animations; combat and animation interruption timing are unchanged.
 Camera dragging remains proportional to finger travel and uses Gothic's Mouse speed setting.
 While target-locked, it instead uses the gamepad's target-relative movement: sideways strafes, up approaches, and down retreats.
 The touch dead zone, shared response curve and dominant-axis filtering apply, without switching walk animations during sidesteps.
 G1's held ACTION plus direction combat still takes priority over movement; release ACTION to resume locked strafing.
 Hold the touch Draw/Sheathe area for 400 ms to open the equipment wheel.
-Keep the same finger down, drag onto an item, then release to equip and draw it.
+Keep the same finger down, drag toward an item's direction, then release to equip and draw it.
 It uses the existing eligible equipment list: owned melee/ranged weapons and assigned spells that satisfy Gothic's requirements.
 Hold Menu/Back for 400 ms to open the character wheel: Character Stats at the top, Journal at the bottom.
-Drag the same finger onto either entry and release to open it.
+Drag the same finger up or down and release to open the corresponding entry.
 Short taps still draw/sheathe or open/close the menu; holding does not also trigger the tap action.
 
 Wheels appear in the center of the screen, away from the finger holding Draw or Menu/Back.
-Keep holding and drag the same finger onto a choice in the centered wheel, then release to apply it.
+The finger's position when the wheel opens becomes the input origin.
+Keep holding and move that finger a little toward a choice's direction, then release to apply it.
+For example, a short upward drag selects the top item in the centered wheel without reaching across the screen.
+Selection begins beyond 1/40 of the shorter screen dimension (27 pixels at 1080 pixels high, with a minimum of 16).
+The HUD and enabled touch debug visuals remain visible while selecting.
 Touch and gamepad wheels share a compact circular layout with evenly spaced choices, a highlighted selection and Gothic-colored borders.
 The title appears above the wheel; selected item names and page controls, when needed, appear below it.
 The two-entry character wheel is smaller than a full equipment wheel.
-Release without moving, in the wheel's center, outside its outer edge, or over an empty sector to cancel.
+Release without moving, return the held finger to its starting position, or select an empty sector to cancel.
+Longer drags retain their direction even beyond the wheel's drawn edge.
 For equipment with more than eight entries, each page has six items plus Previous/Next sectors.
-Hover the same finger over a page sector for 500 ms, move through the center to rearm selection, then choose an item without lifting.
+Hold the finger in a page sector's direction for 500 ms, return near its starting position to rearm selection, then choose an item without lifting.
 Releasing on a page sector cancels without equipping anything.
 Other touch controls stop while a wheel is open; release and touch again to resume movement.
 Focus loss, gamepad takeover, resizing, loading, and another modal UI cancel the gesture without applying it.

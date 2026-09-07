@@ -869,8 +869,9 @@ InventoryMenu::WheelLayout InventoryMenu::wheelLayout() const {
   return {Point(int(std::lround(layout.x)),int(std::lround(layout.y))),layout.cell,layout.radius,layout.outer,layout.footer};
   }
 
-void InventoryMenu::beginTouchWheel() {
+void InventoryMenu::beginTouchWheel(Point origin) {
   wheelTouch=true;
+  wheelTouchOrigin=origin;
   wheelHoverPage=0;
   wheelPageArmed=true;
   update();
@@ -878,13 +879,13 @@ void InventoryMenu::beginTouchWheel() {
 
 void InventoryMenu::touchWheelMove(Point pos, uint64_t now) {
   if(!wheelActive || !wheelTouch) return;
-  const auto layout=wheelLayout();
-  const auto delta=pos-layout.center;
-  const int selected=RadialInput::sector(float(delta.x),float(delta.y),layout.radius*0.52f,layout.outer,int(wheelSectorCount()));
+  const auto delta=pos-wheelTouchOrigin;
+  const int selected=RadialInput::touchSector(float(pos.x),float(pos.y),float(wheelTouchOrigin.x),float(wheelTouchOrigin.y),
+                                            w(),h(),int(wheelSectorCount()));
   if(selected<0) {
     wheelSelected=-1;
     wheelHoverPage=0;
-    if(std::hypot(float(delta.x),float(delta.y))<layout.radius*0.52f) {
+    if(std::hypot(float(delta.x),float(delta.y))<RadialInput::touchDeadZone(w(),h())) {
       wheelCentered=true;
       wheelPageArmed=true;
       }

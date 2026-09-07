@@ -51,6 +51,7 @@ MovementTurnSpeed=180
 MovementTurnBoost=1
 TouchTurnSpeed=180
 WalkThreshold=0.65
+TouchWalkThreshold=0.35
 WalkHysteresis=0.04
 ```
 
@@ -58,7 +59,8 @@ WalkHysteresis=0.04
 `MovementExponent` softens partial input without delaying the physical walk/run threshold.
 `WalkThreshold` now measures raw stick travel, not the softened output: defaults start running at 69% travel and return to walking below 61%.
 `WalkHysteresis` supplies this margin to prevent gait flicker; set it to `0` for a single threshold.
-Touch forward/back uses the same automatic walk/run rule, with independent forward and turning dead zones to reject finger wobble.
+Touch forward/back uses `TouchWalkThreshold`: defaults start running at 39% drag and return to walking below 31%.
+This leaves a smaller walking region for touch, with independent forward and turning dead zones to reject finger wobble.
 Movement still uses Gothic's walk/run animations, not continuously variable forward speed.
 
 `MovementTurnSpeed` is the base unlocked gamepad turn limit in degrees per second.

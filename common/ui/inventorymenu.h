@@ -59,7 +59,7 @@ class InventoryMenu : public Tempest::Widget {
     void  wheelPage(int direction);
     size_t wheelSelection() const;
     void  setWheelPageHint(std::string hint) { wheelPageHint=std::move(hint); }
-    void  beginTouchWheel();
+    void  beginTouchWheel(Tempest::Point origin);
     void  touchWheelMove(Tempest::Point pos, uint64_t now);
 
     void  keyDownEvent  (Tempest::KeyEvent&   e) override;
@@ -110,6 +110,7 @@ class InventoryMenu : public Tempest::Widget {
     bool                      wheelActive = false;
     bool                      wheelCharacter = false;
     bool                      wheelTouch = false;
+    Tempest::Point             wheelTouchOrigin;
     int                       wheelHoverPage = 0;
     uint64_t                  wheelHoverSince = 0;
     bool                      wheelPageArmed = true;

@@ -193,7 +193,7 @@ void MainWindow::tickGamepad() {
                              Gothic::inst().checkLoading()==Gothic::LoadState::Idle);
   mobileUi.setDebugContext(Gothic::inst().version().game!=2 || Gothic::settingsGetI("GAME","useGothic1Controls")!=0,
                            video.isActive() || rootMenu.isActive() || chapter.isActive() ||
-                           document.isActive() || dialogs.isActive() || inventory.isActive() || console.isActive(),
+                           document.isActive() || dialogs.isActive() || (inventory.isActive() && !inventory.isWheelOpen()) || console.isActive(),
                            touchPlayer!=nullptr && touchPlayer->weaponState()!=WeaponState::NoWeapon &&
                            !Gothic::inst().isPause() && Gothic::inst().checkLoading()==Gothic::LoadState::Idle,
                            player.lockedTarget()!=nullptr,

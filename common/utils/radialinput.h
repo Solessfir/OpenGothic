@@ -3,6 +3,7 @@
 #include <cmath>
 #include <algorithm>
 #include <numbers>
+#include <limits>
 
 namespace RadialInput {
 
@@ -19,6 +20,15 @@ struct Layout {
   float radius=0, outer=0;
   int cell=0, footer=0;
   };
+
+inline float touchDeadZone(int width, int height) {
+  return std::max(16.f,float(std::min(width,height))/40.f);
+  }
+
+inline int touchSector(float x, float y, float originX, float originY, int width, int height, int count) {
+  // The wheel stays centered on screen, but selection follows the held finger's displacement.
+  return sector(x-originX,y-originY,touchDeadZone(width,height),std::numeric_limits<float>::max(),count);
+  }
 
 inline Layout layout(int width, int height, float scale, int choices, int lineHeight) {
   if(width<=0 || height<=0) return {};

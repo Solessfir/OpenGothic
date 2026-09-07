@@ -10,6 +10,16 @@ void check(bool ok, const char* message) {
 int main() {
   try {
     using RadialInput::sector;
+    for(const auto origin : {std::pair{2200.f,160.f},std::pair{2200.f,720.f}}) {
+      const auto [x,y]=origin;
+      check(RadialInput::touchSector(x,y,x,y,2340,1080,8)==-1,"Holding the original position cancels");
+      check(RadialInput::touchSector(x,y-20,x,y,2340,1080,8)==-1,"Small finger jitter stays neutral");
+      check(RadialInput::touchSector(x,y-30,x,y,2340,1080,8)==0,"A short upward drag selects the center wheel's top item");
+      check(RadialInput::touchSector(x+30,y,x,y,2340,1080,8)==2,"A short rightward drag selects the right item");
+      check(RadialInput::touchSector(x,y+30,x,y,2340,1080,2)==1,"A short downward drag selects Journal");
+      check(RadialInput::touchSector(x-400,y,x,y,2340,1080,8)==6,"Longer drags retain directional selection beyond the visual wheel");
+      check(RadialInput::touchSector(x,y,x,y,2340,1080,2)==-1,"Returning the held finger to its origin cancels");
+      }
     check(sector(0,0,50,140)==-1,"Releasing in the center cancels");
     check(sector(0,-49,50,140)==-1,"The entire neutral area cancels");
     check(sector(0,-141,50,140)==-1,"Dragging outside the wheel cancels");
