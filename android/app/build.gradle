@@ -3,12 +3,11 @@ plugins {
 }
 
 // Incrementally rewriting a multi-gigabyte APK can overflow the packager's offsets.
-// Repackage private builds in full while preserving native compilation caches.
-if (providers.gradleProperty('privateGameAssets').isPresent()) {
-    tasks.configureEach {
-        if (name == 'packageDebug') {
-            outputs.upToDateWhen { false }
-        }
+// Repackage debug builds in full while preserving native compilation caches.
+// This also removes orphaned private bytes when returning to an asset-free APK.
+tasks.configureEach {
+    if (name == 'packageDebug') {
+        outputs.upToDateWhen { false }
     }
 }
 

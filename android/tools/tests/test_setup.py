@@ -103,6 +103,27 @@ class SetupTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "private-asset"):
             setup.inspect_apk(apk, True)
 
+    def test_apk_rejects_orphaned_private_bytes(self):
+        apk = self.base / "orphaned.apk"
+        with apk.open("wb") as out:
+            out.write(b"private bytes" * 100000)
+        with zipfile.ZipFile(apk, "a") as archive:
+            archive.writestr("AndroidManifest.xml", "test")
+            archive.writestr("lib/arm64-v8a/libopengothic.so", "test")
+        with self.assertRaisesRegex(RuntimeError, "unreferenced"):
+            setup.inspect_apk(apk, False)
+
+    def test_install_retries_same_device_without_uninstall(self):
+        apk = self.base / "test.apk"
+        apk.write_bytes(b"test")
+        failure = subprocess.CompletedProcess([], 1, "", "device offline")
+        success = subprocess.CompletedProcess([], 0, "Success", "")
+        with patch.object(setup, "run", side_effect=[failure, success, success]) as run, patch.object(setup, "ask", return_value=True):
+            setup.install_apk(["adb", "-s", "phone-one"], apk)
+        self.assertEqual(run.call_args_list[0].args[0], ["adb", "-s", "phone-one", "install", "--no-streaming", "-r", apk])
+        self.assertEqual(run.call_args_list[0], run.call_args_list[2])
+        self.assertNotIn("uninstall", str(run.call_args_list))
+
     @unittest.skipUnless(os.environ.get("JAVA_HOME"), "Set JAVA_HOME to run host extraction checks")
     def test_java_extractor(self):
         java = Path(os.environ["JAVA_HOME"]) / "bin"

@@ -84,7 +84,8 @@ This is an APK plus a data archive, not Android split APKs/APKS requiring a sepa
 The guide switches to separate files if the compressed payload approaches the APK's ZIP32 size limit.
 Within a bundled APK, the compressed payload is split into 128 MiB asset entries to avoid Gradle's per-asset Java array limit.
 The phone streams those internal chunks as one archive; users still transfer/install just one APK.
-Private APK packaging is deliberately non-incremental to avoid the packager's offset overflow when updating large ZIP entries.
+Debug APK packaging is deliberately non-incremental to avoid the packager's offset overflow when updating large ZIP entries.
+It also removes orphaned private data when returning to an asset-free build; the guide checks for excessive unreferenced APK bytes.
 Native compilation still uses its normal caches.
 If Gradle or the phone rejects a smaller large APK, rerun explicitly with `--split`.
 
@@ -162,6 +163,8 @@ For WSL compilation, a checkout in the Linux filesystem is faster than `/mnt/c`.
 Linux USB access may require your distribution's Android udev rules.
 WSL USB access requires Windows USB forwarding (usbipd-win); alternatively use `--no-install` and transfer files without USB.
 An offline/unauthorized device is never selected as a working device; the guide explains authorization and offers retry.
+ADB installation transfers the APK before invoking Package Manager (`--no-streaming`).
+If USB drops during installation, reconnect/authorize the same device and use the retry prompt; a failed transfer never triggers an uninstall.
 
 The source revision and pinned submodule commits must exist on the relevant Git remotes for a fresh clone to reproduce a build.
 The guide never pushes your local source commits automatically.
@@ -172,6 +175,13 @@ Technical references: [Google SDK manager](https://developer.android.com/tools/s
 [Temurin download API](https://api.adoptium.net/).
 
 ## Maintainer checks
+
+Verified on 2026-09-07: Windows ARM64 native/APK builds and lint; 356 real game files packaged into a 2.46 GB signed APK;
+full host extraction and hashes; 12 setup/extractor checks on Windows and Arch WSL; portable Linux JDK and SDK manager startup;
+and a compact 9.2 MB asset-free APK after returning from private packaging.
+The private APK was installed on an S24, completed its setup checks, and reached gameplay with existing assets.
+All four phone saves and both writable INIs matched their pre-install hashes.
+Fresh Windows/Linux package-manager bootstrap, a complete clean Linux native build, clean-phone extraction and an S23 install are not yet verified.
 
 ```sh
 python3 -m unittest discover -s android/tools/tests -v

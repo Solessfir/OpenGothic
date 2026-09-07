@@ -29,7 +29,7 @@ Status: marker split implemented; comparison captures and quality checks remain 
 
 ## One-command private test APK with game files
 
-Status: guided setup and private packaging implemented; real-device clean-install/update verification remains pending.
+Status: guided setup and private packaging implemented; S24 update/startup verified. Clean-install and S23 verification remain pending.
 See [PRIVATE-SETUP.md](PRIVATE-SETUP.md) for commands and safety details.
 
 - Provide a Windows `.bat` entry point and a Linux `.sh` entry point.
@@ -60,5 +60,7 @@ and optional ADB installation/save backup. The normal Gradle build and separate 
 Verified locally: Windows native/APK build and lint, single-APK packaging of the real installation using internal 128 MiB chunks,
 full host extraction and checksums, an asset-free rebuild after private packaging, and setup/extractor checks on Windows and Arch WSL.
 A single >2 GiB asset failed with `Required array size too large`;
-chunking avoids that per-asset Gradle limit. Full clean Linux native builds and fresh-OS package-manager bootstrap remain to be exercised.
-Device installation, first launch and update preservation still require a connected phone.
+chunking avoids that per-asset Gradle limit. Fresh debug APK packaging also avoids incremental offset overflow and removes orphaned private bytes.
+Verified on the S24: installed the 2.46 GB private APK using non-streaming ADB installation, completed asset verification,
+and observed gameplay. All four existing saves and both writable INIs retained their original SHA-256 hashes.
+Full clean Linux native builds, fresh-OS package-manager bootstrap, clean-device extraction and S23 installation remain to be exercised.

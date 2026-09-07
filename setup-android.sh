@@ -11,6 +11,8 @@ if ! command -v python3 >/dev/null || ! python3 -c 'import sys; sys.exit(sys.ver
         sudo dnf install python3
     elif command -v pacman >/dev/null; then
         # Do not refresh Arch databases without upgrading the system.
+        read -r -p 'Arch needs a full system upgrade with refreshed packages. Upgrade the system and install Python? [Y/n] ' answer
+        case "${answer,,}" in ''|y|yes) ;; *) echo 'Upgrade declined. Install Python yourself and rerun.'; exit 1 ;; esac
         sudo pacman -Syu python
     else
         echo 'Install Python 3.10 or newer with your distribution package manager, then rerun.'

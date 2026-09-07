@@ -343,6 +343,11 @@ def inspect_apk(apk, bundled):
             raise RuntimeError("APK private-asset contents do not match the selected packaging mode")
         if any(archive.getinfo(name).compress_type != zipfile.ZIP_STORED for name in parts):
             raise RuntimeError("APK compresses the already-compressed game archive")
+        # Incremental ZIP rewriting can hide old private bytes in unreferenced gaps.
+        # A fresh package needs only modest overhead for headers, alignment and signing.
+        overhead = apk.stat().st_size - sum(entry.compress_size for entry in archive.infolist())
+        if overhead > 1024 * 1024:
+            raise RuntimeError("APK has excessive unreferenced space; force a fresh package before sharing it")
     if apk.stat().st_size >= 0xFFFFFFFF:
         raise RuntimeError("APK exceeds the ZIP32 limit; rerun with --split")
 
@@ -425,6 +430,21 @@ def backup_saves(adb, serial):
     print(f"Backed up {len(slots)} saves to {backup}\nFor backport: close PC OpenGothic, then copy to its working directory using empty slots. Keep the backups.")
 
 
+def install_apk(prefix, apk):
+    print(f"Transferring {apk.stat().st_size / 1024**3:.2f} GiB, then installing. Keep the USB cable connected.")
+    while True:
+        # Separate transfer from Package Manager so large-file failures are easier to diagnose.
+        result = run([*prefix, "install", "--no-streaming", "-r", apk], capture=True, check=False)
+        print(result.stdout + result.stderr)
+        if result.returncode == 0:
+            return
+        print("Installation failed. Check USB debugging/authorization and free space. For large-APK failures, try --split or manual network transfer.")
+        print("For INSTALL_FAILED_UPDATE_INCOMPATIBLE, restore the previous debug.keystore. Do not uninstall without backing up assets, settings and saves.")
+        run([prefix[0], "devices", "-l"], check=False)
+        if not ask("Retry installation on the same phone after correcting the problem?"):
+            raise RuntimeError("Installation cancelled. Built files are still available for manual transfer; no app was uninstalled.")
+
+
 def install(sdk, apk, bundled, env):
     adb = sdk / "platform-tools" / ("adb.exe" if WINDOWS else "adb")
     print("\nInstalling requires USB debugging. Without USB, transfer the output APK and (for split mode) private-game.zip to Downloads.")
@@ -446,10 +466,7 @@ def install(sdk, apk, bundled, env):
     run([*prefix, "shell", "am", "force-stop", APP])
     run([*prefix, "shell", "df", "-h", "/data"])
     print("Allow room for the APK, extracted game files and installer overhead (about 8–10 GB free for a typical installation).")
-    result = run([*prefix, "install", "-r", apk], capture=True, check=False)
-    print(result.stdout + result.stderr)
-    if result.returncode:
-        raise RuntimeError("Installation failed. Do not uninstall to fix a signing-key mismatch: uninstalling deletes assets and saves. Restore your previous debug.keystore or back up all data first. For a size/storage failure, free space or rerun with --split.")
+    install_apk(prefix, apk)
     if not bundled:
         run([*prefix, "push", OUTPUT / "private-game.zip", "/sdcard/Download/private-game.zip"])
         print("On the phone, choose private-game.zip from Downloads. Matching game files will be reused and existing saves/settings kept.")
