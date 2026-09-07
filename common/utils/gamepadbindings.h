@@ -32,7 +32,6 @@ class GamepadBindings final {
       float touchMovementDeadZone = 0.15f;
       float movementExponent = 1.5f;
       float movementTurnSpeed = 180.f;
-      float movementTurnBoost = 0.f;
       float touchTurnSpeed = 180.f;
       float walkThreshold = 0.65f;
       float touchWalkThreshold = 0.35f;
@@ -65,6 +64,7 @@ class GamepadBindings final {
     void reset(uint32_t held = 0);
     std::pair<float,float> movementAxis(float x, float y, bool touch=false) const;
     std::pair<float,float> touchMovementAxis(float x, float y) const;
+    std::pair<float,float> turnMovementAxis(float x, float y, bool touch=false) const;
     static std::pair<float,float> targetMovementAxis(float x, float y);
     bool automaticWalk(float rawX, float rawY, bool targetRelative, bool touch=false);
 

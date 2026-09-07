@@ -77,6 +77,20 @@ int main() {
     check(b.touchMovementAxis(0.f,-0.16f).second<0.f,"Touch forward starts just beyond its own dead zone");
     check(b.touchMovementAxis(1.f,0.1f)==std::pair(1.f,0.f),"Full touch turning with vertical noise never walks");
     check(b.touchMovementAxis(0.1f,-1.f)==std::pair(0.f,-1.f),"Full touch movement with horizontal noise never turns");
+    check(b.turnMovementAxis(1.f,0.1f)==std::pair(1.f,0.f),"Sideways stick turns in place despite vertical noise");
+    check(b.turnMovementAxis(-1.f,0.1f)==std::pair(-1.f,0.f),"Turning left never requests forward movement");
+    check(b.turnMovementAxis(0.1f,1.f)==std::pair(0.f,1.f),"Pulling the stick back retreats without turning around");
+    check(b.turnMovementAxis(0.1f,-1.f)==std::pair(0.f,-1.f),"Forward input ignores horizontal noise");
+    check(b.turnMovementAxis(0.5f,1.f).second==1.f && b.turnMovementAxis(0.5f,1.f).first>0.f,
+          "Backward movement and partial turning can be combined independently");
+    check(b.turnMovementAxis(0.f,0.f)==std::pair(0.f,0.f),"Releasing the stick stops turning and movement");
+    B matchedMovement;
+    std::istringstream matchDeadZone("[Axes]\nMovementDeadZone=0.15\n");
+    check(matchedMovement.load(matchDeadZone).empty(),"Gamepad dead zone can be matched to touch");
+    for(float x:{-1.f,-0.5f,0.f,0.5f,1.f})
+      for(float y:{-1.f,-0.5f,0.f,0.5f,1.f})
+        check(matchedMovement.turnMovementAxis(x,y)==matchedMovement.touchMovementAxis(x,y),
+              "Touch and gamepad use identical turning and movement response with matching dead zones");
     check(!b.automaticWalk(0.f,-0.70f,false),"Gamepad runs by 70 percent physical stick travel");
     for(float value:{0.68f,0.64f,0.67f,0.62f})
       check(!b.automaticWalk(0.f,-value,false),"Running does not chatter around the walk threshold");
@@ -92,10 +106,10 @@ int main() {
     check(b.automaticWalk(0.f,-0.40f,false),"Gamepad retains its larger walking region");
     std::istringstream touchWalk("[Axes]\nTouchWalkThreshold=0.5\n");
     check(b.load(touchWalk).empty() && b.options.touchWalkThreshold==0.5f,"Touch walking threshold can be configured independently");
-    std::istringstream response("[Axes]\nTouchMovementDeadZone=0.1\nTouchTurnSpeed=240\nMovementTurnBoost=0\nWalkHysteresis=0\n");
+    std::istringstream response("[Axes]\nTouchMovementDeadZone=0.1\nTouchTurnSpeed=240\nWalkHysteresis=0\n");
     check(b.load(response).empty(),"Responsiveness options validate");
     check(b.options.touchMovementDeadZone==0.1f && b.options.touchTurnSpeed==240.f &&
-          b.options.movementTurnBoost==0.f && b.options.walkHysteresis==0.f,"Responsiveness options can be tuned or disabled");
+          b.options.walkHysteresis==0.f,"Responsiveness options can be tuned or disabled");
     std::istringstream restoreMovementDefaults(B::defaults());
     check(b.load(restoreMovementDefaults).empty(),"Restore defaults after responsiveness checks");
     const auto x=B::button("X");

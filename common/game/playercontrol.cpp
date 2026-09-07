@@ -277,7 +277,7 @@ void PlayerControl::setGamepadAxis(float lx, float ly) {
   gamepadLY = ly;
   }
 
-void PlayerControl::setTouchMovement(float turn,float forward,bool walk,float turnSpeed) {
+void PlayerControl::setTurnMovement(float turn,float forward,bool walk,float turnSpeed) {
   setGamepadAxis(0.f,forward);
   touchAnalogMovement=true;
   applyControllerWalk(walk);

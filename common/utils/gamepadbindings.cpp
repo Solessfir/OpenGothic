@@ -128,7 +128,6 @@ MovementDeadZone=0.28
 TouchMovementDeadZone=0.15
 MovementExponent=1.5
 MovementTurnSpeed=180
-MovementTurnBoost=0
 TouchTurnSpeed=180
 WalkThreshold=0.65
 TouchWalkThreshold=0.35
@@ -279,7 +278,6 @@ std::vector<std::string> GamepadBindings::load(std::istream& input) {
   options.touchMovementDeadZone=number("Axes","TouchMovementDeadZone",options.touchMovementDeadZone,0,0.8f);
   options.movementExponent=number("Axes","MovementExponent",options.movementExponent,1,4);
   options.movementTurnSpeed=number("Axes","MovementTurnSpeed",options.movementTurnSpeed,45,720);
-  options.movementTurnBoost=number("Axes","MovementTurnBoost",options.movementTurnBoost,0,3);
   options.touchTurnSpeed=number("Axes","TouchTurnSpeed",options.touchTurnSpeed,45,720);
   options.walkThreshold=number("Axes","WalkThreshold",options.walkThreshold,0.1f,1);
   options.touchWalkThreshold=number("Axes","TouchWalkThreshold",options.touchWalkThreshold,0.1f,1);
@@ -309,7 +307,7 @@ std::vector<std::string> GamepadBindings::load(std::istream& input) {
   for(auto& [sec,v]:values) {
     std::string_view allowed;
     if(sec=="Controller") allowed="|Version|Enabled|ExplorationModifier|HoldMs|RepeatDelayMs|RepeatMs|CameraAssist|";
-    if(sec=="Axes") allowed="|MovementStick|CameraStick|StickDeadZone|MovementDeadZone|TouchMovementDeadZone|MovementExponent|MovementTurnSpeed|MovementTurnBoost|TouchTurnSpeed|WalkThreshold|TouchWalkThreshold|WalkHysteresis|TriggerPressThreshold|TriggerReleaseThreshold|";
+    if(sec=="Axes") allowed="|MovementStick|CameraStick|StickDeadZone|MovementDeadZone|TouchMovementDeadZone|MovementExponent|MovementTurnSpeed|TouchTurnSpeed|WalkThreshold|TouchWalkThreshold|WalkHysteresis|TriggerPressThreshold|TriggerReleaseThreshold|";
     if(sec=="TargetLock") allowed="|SwitchThreshold|SwitchResetThreshold|SwitchCooldownMs|CameraSmoothingSeconds|";
     if(sec=="Combat") allowed="|MeleeAssist|MeleeAssistMaxAngle|MeleeAssistMaxDistance|MeleeFocusRangeScale|";
     if(!allowed.empty()) for(auto& [key,value]:v) {
@@ -372,8 +370,12 @@ std::pair<float,float> GamepadBindings::movementAxis(float x,float y,bool touch)
   }
 
 std::pair<float,float> GamepadBindings::touchMovementAxis(float x,float y) const {
-  // Turning in place must not amplify small vertical finger noise into forward movement.
-  return {movementAxis(x,0.f,true).first,movementAxis(0.f,y,true).second};
+  return turnMovementAxis(x,y,true);
+  }
+
+std::pair<float,float> GamepadBindings::turnMovementAxis(float x,float y,bool touch) const {
+  // Turning in place must not amplify small vertical input noise into forward movement.
+  return {movementAxis(x,0.f,touch).first,movementAxis(0.f,y,touch).second};
   }
 
 std::pair<float,float> GamepadBindings::targetMovementAxis(float x,float y) {

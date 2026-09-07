@@ -270,7 +270,7 @@ void MainWindow::tickGamepad() {
                                      controllerBindings.automaticWalk(raw.x,raw.y,true,true),options.movementTurnSpeed);
       else {
         const auto ground=controllerBindings.touchMovementAxis(raw.x,raw.y);
-        player.setTouchMovement(ground.first,ground.second,controllerBindings.automaticWalk(0.f,raw.y,false,true),options.touchTurnSpeed);
+        player.setTurnMovement(ground.first,ground.second,controllerBindings.automaticWalk(0.f,raw.y,false,true),options.touchTurnSpeed);
         }
       }
     else {
@@ -358,20 +358,23 @@ void MainWindow::tickGamepad() {
       }
     controllerAxesBlocked=false;
     }
-  const auto movement=options.swapMovement ? controllerBindings.movementAxis(gp.rightStickX,gp.rightStickY) :
-                                           controllerBindings.movementAxis(gp.leftStickX,gp.leftStickY);
+  const PointF raw=options.swapMovement ? PointF(gp.rightStickX,gp.rightStickY) : PointF(gp.leftStickX,gp.leftStickY);
+  const auto movement=controllerBindings.movementAxis(raw.x,raw.y);
   const PointF move(movement.first,movement.second);
   auto look=options.swapCamera?left:right;
-  const float magnitude=std::sqrt(move.x*move.x+move.y*move.y);
+  const float magnitude=std::max(std::abs(raw.x),std::abs(raw.y));
   auto pl=Gothic::inst().player();
   const bool swimming=pl!=nullptr && (pl->isSwim() || pl->isDive());
   const bool lockedGround=player.lockedTarget()!=nullptr && !swimming;
-  const bool automaticWalk=controllerBindings.automaticWalk(options.swapMovement ? gp.rightStickX : gp.leftStickX,
-                                                          options.swapMovement ? gp.rightStickY : gp.leftStickY,lockedGround);
+  const bool automaticWalk=controllerBindings.automaticWalk(lockedGround ? raw.x : 0.f,raw.y,lockedGround);
   if(swimming)
     player.setControllerSwim(move.x,move.y,camera->spin().y,camera->spin().x,options.movementTurnSpeed);
+  else if(!lockedGround) {
+    const auto ground=controllerBindings.turnMovementAxis(raw.x,raw.y);
+    player.setTurnMovement(ground.first,ground.second,automaticWalk,options.movementTurnSpeed);
+    }
   else
-    player.setControllerMovement(move.x,move.y,camera->spin().y,automaticWalk,options.movementTurnSpeed,options.movementTurnBoost);
+    player.setControllerMovement(move.x,move.y,camera->spin().y,automaticWalk,options.movementTurnSpeed);
   const float dtSec=float(dt)/1000.f;
   const float sensitivity=Gothic::settingsGetF("GAME","mouseSensitivity")/0.5f;
   const float inverse=Gothic::settingsGetI("GAME","camLookaroundInverse")?-1.f:1.f;
@@ -387,7 +390,8 @@ void MainWindow::tickGamepad() {
   if(look!=PointF()) controllerLookIdle=0; else controllerLookIdle+=dt;
   const float followSpeed=camera->followSpeed();
   if(pl && !swimming && !player.isPressed(KeyCodec::LookBack) && !camera->isFirstPerson() &&
-     (player.lockedTarget()!=nullptr || (options.cameraAssist && magnitude>0 && controllerLookIdle>uint64_t(800.f/followSpeed)))) {
+     (player.lockedTarget()!=nullptr || (options.cameraAssist && magnitude>0.35f &&
+                                       controllerLookIdle>uint64_t(800.f/followSpeed)))) {
     // Gentle movement should produce gentle camera assistance, without disabling stationary lock tracking.
     const float strength=player.lockedTarget()!=nullptr?1.f:magnitude;
     const float yaw=CameraMath::followYawDelta(camera->spin().y,pl->rotation(),dtSec*followSpeed,options.cameraSmoothing,strength);

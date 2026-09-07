@@ -8,7 +8,7 @@ Physical volume buttons remain Android media controls.
 
 | Control | Action |
 | --- | --- |
-| Left stick | Camera-relative movement; light tilt walks, firm tilt runs |
+| Left stick | Like touch: left/right turns in place, up/down moves forward/back; light tilt walks, firm tilt runs |
 | Right stick | Camera; while locked, vertical look and horizontal target switching |
 | R3 | Toggle target lock with a weapon drawn |
 | L3 / LB+L3 | Sneak / walk toggle |
@@ -112,7 +112,6 @@ These entries are in `Gamepad.ini`, not `Gothic.ini`:
 | `[Axes] WalkThreshold` / `TouchWalkThreshold` | `0.65` / `0.35` | Walk/run transition |
 | `[Axes] WalkHysteresis` | `0.04` | Margin preventing walk/run flicker |
 | `[Axes] MovementTurnSpeed` / `TouchTurnSpeed` | `180` / `180` | Base turning speed in degrees/second |
-| `[Axes] MovementTurnBoost` | `0` | Optional extra speed for sharp gamepad turns; `0` disables |
 | `[Controller] CameraAssist` | `1` | Gamepad movement recentering |
 | `[TargetLock] CameraSmoothingSeconds` | `0.20` | Recenter smoothing, divided by Gothic.ini `cameraFollowSpeed` |
 | `[Combat] MeleeAssist` | `1` | Face the focused NPC when beginning a melee attack |
@@ -120,7 +119,7 @@ These entries are in `Gamepad.ini`, not `Gothic.ini`:
 | `[Combat] MeleeFocusRangeScale` | `0` | Scripted monster warning range; `1`–`4` instead multiplies original focus distance |
 
 Mouse speed controls the camera, not movement. Forward movement still uses Gothic's walk/run animations.
-Left-stick turning scales with stick deflection, up to `MovementTurnSpeed` at full input with boost disabled.
+Left-stick turning scales with stick deflection, up to `MovementTurnSpeed` at full input.
 Locked sidesteps avoid automatic low-stick walking; explicit walk and sneak remain available.
 
 Automatic focus range uses `PERC_DIST_MONSTER_ACTIVE_MAX` (15 metres in standard Gothic II), falling back to doubled focus range if absent/invalid.
