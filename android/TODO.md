@@ -1,5 +1,20 @@
 # Android follow-up work
 
+## Touch and gamepad movement responsiveness
+
+Status: deferred for investigation; no tuning or animation changes approved yet.
+
+- Measure input-to-movement response on the phone, separating startup, stopping, direction reversal and locked strafing.
+  Record the installed build, actual INI settings and frame rate; source inspection alone does not establish device latency.
+- Evaluate movement dead zones, response curves, walk/run thresholds and turn-speed limits first.
+  Keep small inputs precise without making deliberate turns or movement feel sluggish.
+- Review the difference between touch's threshold-based forward/backward movement and gamepad's automatic walk/run selection.
+  Proportional touch turning does not currently imply continuously proportional forward movement speed.
+- If delays remain, inspect animation-driven displacement and interruption rules for locomotion transitions.
+  Preserve combat timing and avoid unrestricted animation cancellation, foot sliding or snapping.
+- Compare touch and gamepad in the same situations and preserve desktop keyboard/mouse behavior.
+  Do not change defaults or install a new APK solely for this TODO.
+
 ## Separate fog profiling measurements
 
 Status: planned, not implemented.
