@@ -9,7 +9,7 @@ Set `Gamepad.ini` `[Controller] Enabled=0` to use touch while it is connected.
 
 ## Layout
 
-![Touch controls with the debug layout and optional centered HUD enabled](images/touch-controls-debug.png)
+![Touch controls with the debug layout and default classic HUD](images/touch-controls-debug.png)
 
 - **Left half:** touch anywhere to place the movement stick. Forward/back moves; sideways turns the character. Small input walks/turns gently, a firmer drag runs.
 - **Middle-right:** drag to look around. Mouse speed controls camera sensitivity.
