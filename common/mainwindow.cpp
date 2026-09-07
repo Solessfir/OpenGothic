@@ -564,7 +564,12 @@ void MainWindow::onTouchCommand(TouchInput::Command command, bool pressed) {
     return;
     }
   if(command==TouchInput::Command::Accept && !pressed && touchHeldAction) {
-    player.onKeyReleased(touchHeldAction->action,touchHeldAction->mapping);
+    const auto pl=Gothic::inst().player();
+    // A short unarmed tap can press and release between ticks; let interaction consume it first.
+    if(!uiActive && pl!=nullptr && pl->weaponState()==WeaponState::NoWeapon)
+      touchTapRelease=touchHeldAction;
+    else
+      player.onKeyReleased(touchHeldAction->action,touchHeldAction->mapping);
     touchHeldAction.reset();
     return;
     }
