@@ -1,7 +1,7 @@
 # Guided Android setup
 
 Build and install using your legally owned **Gothic II: Night of the Raven** files.
-Packages containing game assets are for private use only—never upload them to releases or CI artifacts.
+Packages containing game assets are for private use only - never upload them to releases or CI artifacts.
 
 ## Run the guide
 

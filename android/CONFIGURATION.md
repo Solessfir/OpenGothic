@@ -6,8 +6,8 @@ Most play settings are in the game's menu. For additional options, edit the INI 
 
 `Gothic.ini` is read in this order, per setting:
 
-1. `/sdcard/Android/data/org.opengothic.app/files/Gothic.ini` — writable overrides.
-2. `Gothic2/System/Gothic.ini` below that directory — copied game settings.
+1. `/sdcard/Android/data/org.opengothic.app/files/Gothic.ini` - writable overrides.
+2. `Gothic2/System/Gothic.ini` below that directory - copied game settings.
 3. Built-in defaults.
 
 Keep overrides small; do not replace them with the whole PC INI.
