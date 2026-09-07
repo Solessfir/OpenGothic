@@ -61,6 +61,15 @@ android {
 
     sourceSets {
         main.java.srcDir file('../../lib/Tempest/Engine/system/android/java')
+        // Only the guided private build supplies this property.
+        // A normal build must never pick up a previous private package.
+        if (providers.gradleProperty('privateGameAssets').isPresent()) {
+            main.assets.srcDir file(providers.gradleProperty('privateGameAssets').get())
+        }
+    }
+
+    androidResources {
+        noCompress += 'zip'
     }
 
     lint {
