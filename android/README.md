@@ -82,6 +82,58 @@ OpenGothic automatically uses `/sdcard/Android/data/org.opengothic.app/files/Got
 
 If direct ADB access to `Android/data` is restricted by a device build, use Android Studio's Device Explorer to copy the files into the same app-specific directory while the debug APK is installed.
 
+## Transfer saves from PC
+
+These instructions apply to saves made by **OpenGothic on PC**, not the original Gothic II executable.
+Original Gothic saves (such as `Saves\savegame1`) use a different format; this port does not import or convert them.
+Use matching OpenGothic revisions and the same Gothic II installation/mod data on both devices where possible.
+Very old OpenGothic saves can contain platform-dependent data; load and resave them on PC with a compatible recent build before transferring.
+Keep the original files until you have successfully loaded the transferred save.
+
+On Windows, OpenGothic writes `save_slot_<number>.sav` into its working directory, usually the folder it was launched from.
+For a shortcut, check its **Start in** directory. Saves are beside OpenGothic's `log.txt`, not necessarily inside the Steam installation.
+Each `.sav` contains the complete save, including its preview; no separate screenshot or original Gothic save directory is needed.
+Slot `0` is the quicksave; use a numbered manual slot shown in the game's Load Game menu for normal transfers.
+
+On Android, saves go directly into `/sdcard/Android/data/org.opengothic.app/files/`, **not** into its `Gothic2` game-data subdirectory.
+Install and launch the APK once as described above before transferring.
+Close OpenGothic on PC, then run this in PowerShell after replacing the serial, source path and destination slot:
+
+```powershell
+$adb = "$env:ANDROID_HOME\platform-tools\adb.exe"
+& $adb devices -l
+$device = 'YOUR_DEVICE_SERIAL'
+$pcSave = 'C:\Path\To\OpenGothic\save_slot_1.sav'
+$slot = 1 # Choose an empty manual slot in the phone's Load Game menu.
+$phoneSave = "/sdcard/Android/data/org.opengothic.app/files/save_slot_$slot.sav"
+
+if (!(Test-Path -LiteralPath $pcSave -PathType Leaf)) { throw 'PC save not found' }
+& $adb -s $device shell am force-stop 'org.opengothic.app'
+if ($LASTEXITCODE -ne 0) { throw 'Could not stop the game; check the ADB connection' }
+& $adb -s $device shell test ! -e $phoneSave
+if ($LASTEXITCODE -ne 0) { throw 'Destination exists or ADB failed; choose an empty slot and check the connection' }
+& $adb -s $device push $pcSave $phoneSave
+if ($LASTEXITCODE -ne 0) { throw 'Save transfer failed' }
+& $adb -s $device shell am start -W -n 'org.opengothic.app/org.tempest.TempestNativeActivity'
+```
+
+Open **Load Game** and select the destination slot. The save keeps its original display name even if you change its slot number.
+If loading fails, verify the OpenGothic versions and game/mod data, and collect `log.txt` using the next section.
+Do not rename original Gothic save files to `.sav`; changing the extension does not convert them.
+
+To back up an Android save or take it back to PC, stop the game first and pull that slot to a new backup folder:
+
+```powershell
+& $adb -s $device shell am force-stop 'org.opengothic.app'
+if ($LASTEXITCODE -ne 0) { throw 'Could not stop the game' }
+$backup = New-Item -ItemType Directory -Path (Join-Path $PWD ('Android-save-backup-' + [guid]::NewGuid().ToString('N')))
+& $adb -s $device pull $phoneSave $backup.FullName
+if ($LASTEXITCODE -ne 0) { throw 'Save backup failed' }
+```
+
+With PC OpenGothic closed, copy the backed-up `.sav` into its working directory, choosing an empty slot and keeping any existing PC saves.
+Repeat for each slot you want to preserve. Uninstalling the Android app removes its saves along with its copied game assets; an in-place `adb install -r` update normally preserves both.
+
 ## Launch and collect logs
 
 Launch or stop the application from PowerShell:
