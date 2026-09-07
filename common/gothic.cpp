@@ -159,6 +159,7 @@ Gothic::Gothic() {
   defaults->set("ENGINE",       "zCloudShadowScale", gpu.type==Tempest::DeviceType::Discrete); // ssao
   defaults->set("INTERNAL",     "vidResIndex", defaultResolutionIndex);
   defaults->set("ENGINE",       "ssaoHalfResolution", defaultSsaoHalfResolution);
+  defaults->set("ENGINE",       "fogHalfResolution", 0);
 
   defaults->set("VIDEO", "zVidBrightness", 0.5f);
   defaults->set("VIDEO", "zVidContrast",   0.5f);

@@ -134,6 +134,7 @@ class Renderer final {
       bool           zEnvMappingEnabled = false;
       bool           zCloudShadowScale  = false;
       bool           ssaoHalfResolution = false;
+      bool           fogHalfResolution  = false;
       bool           zFogRadial         = false;
 
       bool           zWindEnabled       = false;
@@ -185,6 +186,7 @@ class Renderer final {
 
     struct Sky {
       Quality                quality       = Quality::None;
+      bool                   fogHalfResolution = false;
 
       Tempest::TextureFormat lutRGBFormat  = Tempest::TextureFormat::R11G11B10UF;
       Tempest::TextureFormat lutRGBAFormat = Tempest::TextureFormat::RGBA16F;

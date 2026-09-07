@@ -126,6 +126,7 @@ void Renderer::setupSettings() {
   settings.zEnvMappingEnabled = Gothic::settingsGetI("ENGINE","zEnvMappingEnabled")!=0;
   settings.zCloudShadowScale  = Gothic::settingsGetI("ENGINE","zCloudShadowScale") !=0;
   settings.ssaoHalfResolution = Gothic::settingsGetI("ENGINE","ssaoHalfResolution")!=0;
+  settings.fogHalfResolution  = Gothic::settingsGetI("ENGINE","fogHalfResolution")==1;
   settings.zFogRadial         = Gothic::settingsGetI("RENDERER_D3D","zFogRadial")!=0;
   {
     // wind
@@ -469,11 +470,13 @@ void Renderer::resetSkyFog() {
     if(skyPathTrace)
       q = PathTrace;
 
-    if(sky.quality==q) {
+    const bool halfResolution = settings.fogHalfResolution && q!=PathTrace;
+    if(sky.quality==q && sky.fogHalfResolution==halfResolution) {
       return;
       }
 
     sky.quality = q;
+    sky.fogHalfResolution = halfResolution;
   }
 
   Resources::recycle(std::move(sky.fogLut3D));
@@ -481,23 +484,28 @@ void Renderer::resetSkyFog() {
 
   sky.lutIsInitialized = false;
 
+  // Reduce only the angular sampling of the lighting volume.
+  // Keep all depth steps and the separate sunshaft occlusion calculation unchanged.
+  const uint32_t divisor = sky.fogHalfResolution ? 2 : 1;
   switch(sky.quality) {
     case None:
     case VolumetricLQ:
-      sky.fogLut3D   = device.image3d(sky.lutRGBAFormat, 160, 90, 64);
+      sky.fogLut3D   = device.image3d(sky.lutRGBAFormat, 160/divisor, 90/divisor, 64);
       break;
     case VolumetricHQ:
-      // fogLut and oclussion are decupled
-      sky.fogLut3D   = device.image3d(sky.lutRGBFormat,  128,64,32);
-      sky.fogLut3DMs = device.image3d(sky.lutRGBAFormat, 128,64,32);
+      // Fog lighting and occlusion are decoupled.
+      sky.fogLut3D   = device.image3d(sky.lutRGBFormat,  128/divisor, 64/divisor, 32);
+      sky.fogLut3DMs = device.image3d(sky.lutRGBAFormat, 128/divisor, 64/divisor, 32);
       break;
     case Epipolar:
-      sky.fogLut3D   = device.image3d(sky.lutRGBFormat,  128,64,32);
-      sky.fogLut3DMs = device.image3d(sky.lutRGBAFormat, 128,64,32);
+      sky.fogLut3D   = device.image3d(sky.lutRGBFormat,  128/divisor, 64/divisor, 32);
+      sky.fogLut3DMs = device.image3d(sky.lutRGBAFormat, 128/divisor, 64/divisor, 32);
       break;
     case PathTrace:
       break;
     }
+  if(sky.quality!=PathTrace)
+    Log::i("Fog lighting volume = ", sky.fogLut3D.w(), "x", sky.fogLut3D.h(), "x", sky.fogLut3D.d());
   }
 
 void Renderer::prepareSky(Tempest::Encoder<Tempest::CommandBuffer>& cmd, WorldView& wview) {

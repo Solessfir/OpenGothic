@@ -55,6 +55,31 @@ Use the safe INI-edit commands below with the game stopped, and restart after ed
 Set `ssaoHalfResolution=0` to restore full-resolution AO without changing the scene render scale or rebuilding the APK.
 GPU profiling labels the new resolve as `SSAO upsample`; compare its combined cost with `SSAO` against the old `SSAO` plus `SSAO blur`.
 
+## Optional lower-resolution fog lighting
+
+Fog lighting can be calculated in a smaller volume, independently of the scene and SSAO resolutions:
+
+```ini
+[ENGINE]
+fogHalfResolution=1
+```
+
+The default is `0` on Android and desktop, preserving the original fog quality.
+Only the parsed integer `1` enables the smaller volume; other parsed values retain original quality.
+This halves the lighting volume's width and height while preserving every depth step and the original scattering calculation.
+With sunshafts enabled, both lighting volumes change from 128x64x32 to 64x32x32.
+Without sunshafts, the single volume changes from 160x90x64 to 80x45x64.
+The existing linear sampling reconstructs the lighting; sunshaft shadow sampling and its occlusion texture remain unchanged.
+Fog density, visibility distance, geometry, textures, UI and scene resolution do not change.
+Path-traced fog does not use this setting.
+
+The smaller volumes contain 25% as many texels, but this does not imply a 75% reduction in total fog or frame time.
+Fine angular lighting gradients may become softer, especially near the sun or horizon; this is an optional quality tradeoff, not an identical-image optimization.
+The setting needs visual and timing comparisons in several scenes before choosing a new default.
+Edit the writable INI with the game stopped, then restart; `log.txt` reports `Fog lighting volume = ...`.
+Set `fogHalfResolution=0` to restore original quality without changing any other graphics options or rebuilding the APK.
+The `Fog-LUTs` profiler marker includes the separate sunshaft occlusion work when enabled, so it does not measure only lighting-volume generation.
+
 ## Shadow-map resolution
 
 The conventional sunlight shadow maps support three resolutions through writable `Gothic.ini`:
