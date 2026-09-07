@@ -800,6 +800,13 @@ void Camera::tickThirdPerson(float dtF) {
   auto  rotOffsetDef = Vec3(def.rot_offset_x,
                             def.rot_offset_y,
                             def.rot_offset_z);
+#if defined(__ANDROID__)
+  if(camMod==Normal || camMod==Inventory || camMod==Melee || camMod==Ranged || camMod==Magic) {
+    // Raise the view above the followed character without changing the orbit or manual look input.
+    const float tilt=Gothic::settingsGetF("GAME","cameraUpTilt");
+    if(std::isfinite(tilt)) rotOffsetDef.x+=std::clamp(tilt,0.f,20.f);
+    }
+#endif
   auto  range        = (camMod==Dialog) ? dlgRange : state.range*100.f;
 
   if(camMod==Dialog) {

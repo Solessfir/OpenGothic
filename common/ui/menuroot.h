@@ -24,6 +24,7 @@ class MenuRoot : public Tempest::Widget {
     bool isActive() const;
     void requestDeleteSave(std::string_view hint);
     bool canRequestDeleteSave() const;
+    void directionalInput(bool right, bool repeat=false);
     void setPlayer(const Npc& pl);
     void processMusicTheme();
 

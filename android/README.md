@@ -266,7 +266,9 @@ This lower-right extension takes priority over camera input; the remaining middl
 | 55% to 70% | Draw or sheathe weapon | Space |
 | Bottom 30% (rightmost 24%) | Interact or attack | Confirm |
 
-Dragging the dynamic movement stick also emits arrow-key navigation for menus and dialog choices. This avoids precision tapping on the original desktop-sized UI.
+In menus, drag on either the movement or camera area: up/down selects, right accepts and left goes back one level.
+Gamepad menu navigation uses the same behavior. Sliders and choice settings retain left/right adjustment; inventory grids retain directional cell selection.
+Returning the stick to neutral before another left/right action prevents a held direction from repeatedly entering or closing menu levels.
 While inventory or another UI is open, touch navigation does not feed movement or camera input into gameplay.
 Release or center the movement stick after closing a UI before moving again; a held selection direction does not become character movement.
 In the journal, Accept opens a category or quest, and Back returns one level: description, quest list, categories, then gameplay.
@@ -284,6 +286,7 @@ This range setting is separate from the shorter melee facing-assist distance and
 Touch controls, including the contextual G2 Block hit area, are invisible by default.
 For the temporary layout/debug overlay, enable `[DEBUG] touchControls=1` in the writable `Gothic.ini` and restart.
 It draws Gothic-colored zone boundaries, action labels, pressed-button highlights and live finger anchors/trails.
+The debug status and gesture hints are grouped into aligned columns at the top of the movement and camera areas.
 The movement stick's outer square shows full axis travel; the inner square marks the menu/classic attack direction threshold.
 With a melee weapon drawn in G1 controls, a narrow lower cone also shows the deliberate block-entry region.
 Disable it with `touchControls=0`; it is off by default.
@@ -348,29 +351,35 @@ Two-finger swipes work during gameplay in the movement and camera areas:
 
 | Starting area | Swipe | Action |
 | --- | --- | --- |
-| Left movement area | Up | Toggle first-person view |
-| Left movement area | Down, then keep both fingers held | Look behind until either finger lifts |
-| Right camera area | Down | Enable sneak, if Gothic allows it |
-| Right camera area | Up | Leave sneak mode |
+| Left half | Down | Enable sneak, if Gothic allows it |
+| Left half | Up | Leave sneak mode |
+| Right half | Up | Toggle first-person view |
+| Right half | Down, then keep both fingers held | Look behind until either finger lifts |
+| Anywhere, including across both halves | Left | Use Gothic's health-potion shortcut |
+| Anywhere, including across both halves | Right | Use Gothic's mana-potion shortcut |
 
-Put both fingers down on the same side within 180 ms, before moving the first finger significantly.
-Move both in the same vertical direction by at least 1/18 of the shorter screen dimension (60 pixels on a 1080-pixel-high viewport) within 700 ms.
-Both fingers must start outside the action buttons and Block hit area; a movement finger plus a camera finger remains ordinary move/look input.
+Put both fingers down within 350 ms, before moving the first finger significantly.
+Move both in the same direction by at least 1/18 of the shorter screen dimension (60 pixels on a 1080-pixel-high viewport) within 700 ms.
+Vertical swipes require both fingers to start on the same half. Horizontal potion swipes can start anywhere, including buttons or opposite halves.
+Potions use Gothic's existing selection and consumption logic and respect `[GAME] usePotionKeys`; `0` disables them.
 Once paired, the fingers stop driving movement/camera input and trigger at most one gesture; lift both before starting another.
-Pinches, mostly horizontal swipes, late second fingers and one-finger drags do not trigger these actions.
+Pinches, diagonal swipes without a clear axis, late second fingers and one-finger drags do not trigger these actions.
 Menus, radial wheels and gamepad mode do not recognize these swipes.
 Focus loss, resizing or leaving gameplay cancels the gesture and releases look-behind.
 Sneak uses Gothic's existing skill/state restrictions; up/down explicitly disables/enables it instead of toggling.
 
 Three-finger tap quicksaves; four-finger tap quickloads immediately without a confirmation dialog.
 Both respect `[GAME] useQuickSaveKeys=1`; setting it to `0` disables these gestures as well as controller quicksave/load.
-Use the clear movement/camera areas, not the action buttons. Fingers may span both halves of the screen.
-Place all three or four fingers within 180 ms, keep them nearly stationary, then lift all within 400 ms of the first touch.
+Fingers can start anywhere, including action buttons, and may span both halves of the screen.
+Place all three or four fingers within 350 ms, keep them nearly stationary, then lift all within 800 ms of the first touch.
+Small finger drift is allowed up to 1/30 of the shorter screen dimension (36 pixels at 1080 pixels high, with a minimum of 24).
 Nothing fires until every finger is up, so a four-finger tap cannot first overwrite the quicksave.
-Extra fingers, appreciable movement, long holds, fingers added after release starts, or touching a button cancel the tap.
+Extra fingers, appreciable movement, long holds, or fingers added after release starts cancel the tap.
+Single button taps fire on release. Held buttons wait through the 350 ms joining window while a tap candidate remains valid,
+so fingers placed over Inventory, Jump or Use do not also trigger those buttons before a multi-finger gesture is recognized.
 Menus, radial wheels, loading, focus loss, and gamepad takeover cannot apply a pending tap.
 
-In the save/load menu, select a slot and use a three-finger tap in the clear movement/camera areas to request deletion.
+In the save/load menu, select a slot and use a three-finger tap anywhere to request deletion.
 The confirmation names the selected save: tap the bottom-right Accept/Use area to permanently delete it, or the top-right Back area to cancel.
 The three-finger tap itself never deletes a file, and all fingers must lift before the confirmation appears.
 Empty slots do nothing; four-finger taps do nothing in this menu, and neither gameplay quicksave nor quickload runs there.
@@ -389,10 +398,15 @@ Gothic's collision, oxygen and swim animations remain in use; keyboard swimming 
 With a weapon drawn, start in Use/Attack and quickly drag at least 1/18 of the short screen dimension (60 pixels on a 1080-pixel-high viewport) to toggle target lock.
 The same gesture unlocks an already locked target, and each gesture toggles only once.
 This uses Gothic's existing eligible-NPC focus/lock rules and the existing ` (locked)` name suffix; it does not select arbitrary scenery or require a new targeting system.
-The gesture must cross the threshold within 180 ms: releasing sooner without a drag sends a normal action tap, while holding for 180 ms commits the normal held action.
+The lock gesture must cross the threshold within 180 ms; releasing without a drag sends a normal action tap.
+An ordinary held action starts after the multi-finger joining window if the finger remains stationary.
 Once the hold has committed, further dragging does not toggle lock; lift and start a new gesture to lock or unlock.
-This short recognition delay applies only with a drawn weapon in gameplay, not menu confirmation or unarmed interaction, and prevents a lock gesture from also attacking.
+This distinguishes an early lock drag from a held action and a multi-finger gesture.
 While locked, the camera follows the character toward the target and vertical camera drag still adjusts elevation; horizontal free look resumes after unlocking.
+Android's ordinary third-person camera tilts upward by 6 degrees to place the character lower in the screen and show more ahead.
+Set `[GAME] cameraUpTilt` in the writable `Gothic.ini` to tune it from `0` to `20` degrees; `0` restores the original framing.
+It also applies in combat and inventory, blends through the existing camera offsets, and works with existing saves without accumulating on reload.
+Manual look remains available. First-person, dialogue, swimming, diving, cutscenes and desktop camera defaults are unchanged.
 The debug overlay labels the gesture as `DRAG: LOCK` or `DRAG: UNLOCK`.
 
 Controller layouts vary, so Android may report different axes for some third-party devices. Ray queries and mesh shaders are disabled by default, and the build uses conservative desktop-compatible rendering paths for sustained mobile operation.

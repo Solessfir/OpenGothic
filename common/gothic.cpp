@@ -169,6 +169,7 @@ Gothic::Gothic() {
   defaults->set("VIDEO", "zVidGamma",      0.5f);
 #if defined(__ANDROID__)
   defaults->set("VIDEO", "displayMode", "auto");
+  defaults->set("GAME", "cameraUpTilt", 6.f);
 #else
   defaults->set("VIDEO", "displayMode", "sdr");
 #endif

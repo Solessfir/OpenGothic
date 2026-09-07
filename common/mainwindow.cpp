@@ -509,6 +509,17 @@ void MainWindow::onTouchCommand(TouchInput::Command command, bool pressed) {
     else player.setSneaking(command==TouchInput::Command::SneakOn);
     return;
     }
+  if(command==TouchInput::Command::HealthPotion || command==TouchInput::Command::ManaPotion) {
+    auto& gothic=Gothic::inst();
+    auto pl=gothic.player();
+    auto camera=gothic.camera();
+    if(!pressed || uiActive || console.isActive() || gothic.isPause() || pl==nullptr || pl->isDown() ||
+       camera==nullptr || camera->isCutscene() || gothic.checkLoading()!=Gothic::LoadState::Idle ||
+       gothic.world()->isCutsceneLock()) return;
+    if(command==TouchInput::Command::HealthPotion) gothic.world()->script().playerHotLameHeal(*pl);
+    else gothic.world()->script().playerHotLamePotion(*pl);
+    return;
+    }
   if(command==TouchInput::Command::Block) {
     if(!pressed)
       player.controllerCombat(1,false,true);
@@ -545,6 +556,10 @@ void MainWindow::onTouchCommand(TouchInput::Command command, bool pressed) {
   // A direction held while closing a menu must return to neutral before moving the player.
   if(!uiActive && touchMovementBlocked && pressed && command<=TouchInput::Command::Right)
     return;
+  if(uiActive && !inventory.isActive() && (command==TouchInput::Command::Left || command==TouchInput::Command::Right)) {
+    if(pressed) controllerUiKey(command==TouchInput::Command::Right ? Event::K_Right : Event::K_Left,false);
+    return;
+    }
   switch(command) {
     case TouchInput::Command::Up:        key = Event::K_Up;       break;
     case TouchInput::Command::Down:      key = Event::K_Down;     break;
@@ -563,6 +578,8 @@ void MainWindow::onTouchCommand(TouchInput::Command command, bool pressed) {
     case TouchInput::Command::QuickSave:
     case TouchInput::Command::QuickLoad:
     case TouchInput::Command::DeleteSave:
+    case TouchInput::Command::HealthPotion:
+    case TouchInput::Command::ManaPotion:
     case TouchInput::Command::Block:
     case TouchInput::Command::TapAccept: return;
     }

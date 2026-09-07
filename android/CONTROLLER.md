@@ -40,6 +40,9 @@ Locked ground movement chooses the left stick's dominant axis for Gothic's movem
 
 Automatic low-stick walking applies to unlocked movement and locked forward/back movement, not locked sidesteps. This keeps a reversal from switching between Gothic's run-strafe and walk-strafe animations as the stick passes through the low-speed range. Combat sidesteps use their normal animation speed even at a small sideways deflection. Explicit walk mode (LB+L3), sneak, water movement, and the original animation interruption rules remain intact.
 
+In menus, right accepts and left goes back one level; sliders and choice settings still adjust left/right.
+Inventory grids keep directional item navigation. Hold repeats adjust values but do not repeatedly accept or back out of menus.
+
 Left-stick responsiveness is separate from Mouse speed. These `Gamepad.ini` options soften movement without reducing full-stick running speed:
 
 ```ini

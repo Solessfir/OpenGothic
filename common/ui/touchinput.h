@@ -30,6 +30,8 @@ class TouchInput : public Tempest::Widget {
       QuickSave,
       QuickLoad,
       DeleteSave,
+      HealthPotion,
+      ManaPotion,
       };
 
     using CommandHandler = std::function<void(Command,bool)>;
@@ -73,6 +75,7 @@ class TouchInput : public Tempest::Widget {
       Command        command = Command::Accept;
       uint64_t       pressedAt = 0;
       bool           pendingAction = false;
+      bool           pendingButton = false;
       bool           actionSent = false;
       bool           pendingWheel = false;
       bool           wheelMoved = false;

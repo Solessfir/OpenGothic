@@ -163,6 +163,18 @@ void MenuRoot::mouseWheelEvent(MouseEvent &event) {
     }
   }
 
+void MenuRoot::directionalInput(bool right, bool repeat) {
+  if(current==nullptr) return;
+  if(current->adjustsHorizontally()) {
+    current->onKeyboard(right ? KeyCodec::Right : KeyCodec::Left);
+    return;
+    }
+  // A held direction must not repeatedly enter or close several menu levels.
+  if(repeat) return;
+  if(right) current->onKeyboard(KeyCodec::ActionGeneric);
+  else if(!current->closeNestedView()) popMenu();
+  }
+
 void MenuRoot::keyRepeatEvent(Tempest::KeyEvent &e) {
   if(current==nullptr) {
     e.ignore();

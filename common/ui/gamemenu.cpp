@@ -532,6 +532,14 @@ void GameMenu::journalInput(KeyCodec::Action key) {
   update();
   }
 
+bool GameMenu::adjustsHorizontally() {
+  if(journalList!=nullptr || pendingDelete!=nullptr) return false;
+  auto sel=selectedItem();
+  if(sel==nullptr) return false;
+  const auto& item=sel->handle;
+  return isHorSelectable(item) || item->type==zenkit::MenuItemType::SLIDER || item->type==zenkit::MenuItemType::CHOICEBOX;
+  }
+
 void GameMenu::onKeyboard(KeyCodec::Action key) {
   if(journalList!=nullptr) {
     journalInput(key);

@@ -8,6 +8,20 @@ OpenGothic reads individual `Gothic.ini` settings in this order:
 
 Keep the writable file small. Do not replace it with the entire PC INI: some original settings have different meanings in OpenGothic. Preserve existing sections and keys, and edit an existing key instead of adding duplicates. Android paths are case-sensitive; use the actual `System` or `system` spelling in your copied installation.
 
+## Third-person camera framing
+
+Android tilts the ordinary third-person view upward by 6 degrees, placing the character lower on the screen.
+This applies to exploration, combat and inventory, including existing saves; manual camera adjustment remains available.
+The offset blends through the normal camera system and does not accumulate on save/load.
+First-person, dialogue, swimming, diving, cutscenes and desktop defaults are unaffected.
+
+```ini
+[GAME]
+cameraUpTilt=6
+```
+
+Values from `0` to `20` are supported. Use `0` for the original framing.
+
 ## Optional render scale
 
 Reduced-resolution rendering is configurable, not an Android requirement or a forced optimization.

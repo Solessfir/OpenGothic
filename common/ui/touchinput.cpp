@@ -44,23 +44,35 @@ void TouchInput::paintEvent(Tempest::PaintEvent& e) {
   auto label = [&](int x,int y,int width,std::string_view text) {
     font.drawText(p,x,y,width,3*line,text,AlignHCenter);
     };
-  label(pad,2*line,moveEnd-2*pad,uiActive ? "MENU DIRECTIONS" : "MOVE / TURN");
-  label(moveEnd+pad,2*line,lookEnd-moveEnd-2*pad,"CAMERA DRAG");
-  label(pad,4*line,lookEnd-2*pad,!touchEnabled ? "Gamepad active: virtual touch zones inactive" :
-        (uiActive ? "Touch debug: menu" : (classicCombat ? "Touch debug: Gothic 1 controls" : "Touch debug: Gothic 2 controls")));
+  auto legend = [&](int x,int y,int width,std::string_view text) {
+    font.drawText(p,x,y,width,2*line,text,AlignLeft);
+    };
+  const int leftWidth=moveEnd-2*pad, rightX=moveEnd+pad, rightWidth=lookEnd-moveEnd-2*pad;
+  legend(pad,2*line,leftWidth,uiActive ? "MENU NAVIGATION" : "MOVE / TURN");
+  legend(rightX,2*line,rightWidth,uiActive ? "MENU NAVIGATION" : "CAMERA DRAG");
+  legend(pad,4*line,leftWidth,!touchEnabled ? "Touch debug: gamepad active" :
+         (uiActive ? "Touch debug: menu" : (classicCombat ? "Touch debug: Gothic 1" : "Touch debug: Gothic 2")));
   if(!touchEnabled)
-    label(pad,6*line,lookEnd-2*pad,"Gameplay touches ignored; Android keyboard still available");
-  else if(!uiActive && classicCombat) {
-    label(pad,6*line,lookEnd-2*pad,"Hold ACTION: up = attack; pull mostly straight down past 65% = block");
-    label(pad,7*line,lookEnd-2*pad,"Left / right = side attacks with melee weapon drawn");
+    legend(pad,6*line,leftWidth,"Gameplay touch off; keyboard available");
+  else if(uiActive) {
+    legend(pad,6*line,leftWidth,"Up / down: select    Left: back");
+    legend(rightX,4*line,rightWidth,"Right: accept    Settings: left / right");
+    if(saveDeleteEnabled)
+      legend(pad,8*line,leftWidth,"3-finger tap anywhere: delete save");
     }
-  if(touchEnabled && !uiActive && gesturesEnabled) {
-    label(pad,h()-3*line,moveEnd-2*pad,"2 fingers: up = first person; down + hold = look behind");
-    label(moveEnd+pad,h()/2,lookEnd-moveEnd-2*pad,"2 fingers: up = stand; down = sneak");
-    label(pad,h()-5*line,moveEnd-2*pad,"3-finger tap: quicksave; 4-finger tap: quickload");
+  else if(gesturesEnabled) {
+    legend(pad,6*line,leftWidth,"2 fingers: down = sneak; up = stand");
+    legend(pad,8*line,leftWidth,"Anywhere: 3-finger save; 4-finger load");
+    legend(rightX,4*line,rightWidth,"2 fingers up: first person");
+    legend(rightX,6*line,rightWidth,"2 fingers down + hold: look behind");
+    legend(rightX,8*line,rightWidth,"2 fingers left: health potion");
+    legend(rightX,10*line,rightWidth,"2 fingers right: mana potion");
+    legend(rightX,12*line,rightWidth,"Potion swipes work anywhere");
+    if(classicCombat) {
+      legend(pad,10*line,leftWidth,"Hold ACTION: up / sides = attack");
+      legend(pad,12*line,leftWidth,"Block: pull straight down past 65%");
+      }
     }
-  if(touchEnabled && saveDeleteEnabled)
-    label(pad,h()-5*line,lookEnd-2*pad,"3-finger tap: request deletion of selected save");
 
   const char* names[] = {"BACK / MENU","INVENTORY","JUMP","DRAW / SHEATHE",
                         uiActive ? "ACCEPT" : (classicCombat ? "HOLD ACTION" : "USE / ATTACK")};
@@ -141,14 +153,14 @@ void TouchInput::mouseDownEvent(Tempest::MouseEvent& e) {
 
   const bool onBlock=blockVisible() && blockRect().contains(e.pos());
   multiTap.down(e.mouseID,float(e.x),float(e.y),touch.pressedAt,
-                (saveDeleteEnabled || (gesturesEnabled && !uiActive)) && wheelPointer<0 && button<0 && !onBlock);
+                (saveDeleteEnabled || (gesturesEnabled && !uiActive)) && wheelPointer<0);
   if(tapCaptured || multiTap.ready()) {
     captureTap(e.mouseID,touch);
     return;
     }
   if(wheelPointer>=0 || gestureActive())
     return;
-  if(button<0 && !onBlock && tryGesture(e.mouseID,touch))
+  if(tryGesture(e.mouseID,touch))
     return;
 
   if(onBlock) {
@@ -157,8 +169,11 @@ void TouchInput::mouseDownEvent(Tempest::MouseEvent& e) {
     blockPointer = e.mouseID;
     touch.role = Role::Button;
     touch.command = Command::Block;
-    touch.actionSent = true;
-    command(Command::Block,true);
+    touch.pendingButton = multiTap.joining(touch.pressedAt);
+    if(!touch.pendingButton) {
+      touch.actionSent = true;
+      command(Command::Block,true);
+      }
     }
   else if(button>=0) {
     touch.role = Role::Button;
@@ -166,11 +181,14 @@ void TouchInput::mouseDownEvent(Tempest::MouseEvent& e) {
     touch.pendingAction = touch.command==Command::Accept && canLock && !uiActive;
     touch.pendingWheel = !uiActive && (touch.command==Command::Weapon || touch.command==Command::Back);
     if(!touch.pendingAction && !touch.pendingWheel) {
-      touch.actionSent = true;
-      command(touch.command,true);
+      touch.pendingButton = multiTap.joining(touch.pressedAt);
+      if(!touch.pendingButton) {
+        touch.actionSent = true;
+        command(touch.command,true);
+        }
       }
     }
-  else if(e.x<w()/2) {
+  else if(e.x<w()/2 || uiActive) {
     if(movePointer>=0)
       return;
     touch.role = Role::Move;
@@ -214,7 +232,7 @@ void TouchInput::mouseDragEvent(Tempest::MouseEvent& e) {
     const auto delta = e.pos()-touch.anchor;
     const float distance = std::hypot(float(delta.x),float(delta.y));
     const float threshold = float(std::max(32,std::min(w(),h())/18));
-    if(Application::tickCount()-touch.pressedAt>=ActionHoldMs) {
+    if(Application::tickCount()-touch.pressedAt>=ActionHoldMs && !multiTap.joining(Application::tickCount())) {
       touch.pendingAction = false;
       touch.actionSent = true;
       command(Command::Accept,true);
@@ -291,7 +309,7 @@ void TouchInput::mouseUpEvent(Tempest::MouseEvent& e) {
   else {
     if(it->second.command==Command::Block)
       blockPointer = -1;
-    if(it->second.pendingWheel) {
+    if(it->second.pendingWheel || it->second.pendingButton) {
       const auto action=it->second.command;
       touches.erase(it);
       command(action,true);
@@ -360,6 +378,8 @@ void TouchInput::setDebugContext(bool classic, bool ui, bool lockAllowed, bool l
   if(classicCombat==classic && uiActive==ui && canLock==lockAllowed && targetLocked==locked && canBlock==blockAllowed)
     return;
   classicCombat = classic;
+  if(uiActive!=ui)
+    for(auto& [id,touch]:touches) touch.pendingButton=false;
   uiActive = ui;
   canLock = lockAllowed;
   targetLocked = locked;
@@ -447,12 +467,15 @@ void TouchInput::drawBlock(Painter& p) const {
 
 void TouchInput::tick() {
   const auto now = Application::tickCount();
+  if(tapCaptured) return;
   if(wheelPointer>=0) {
     auto& touch=touches.at(wheelPointer);
     moveWheel(touch,touch.last);
     return;
     }
   for(auto& [id,touch]:touches) {
+    // Short button taps fire on release; reserve the joining window for a multi-finger gesture.
+    if(multiTap.joining(now)) continue;
     if(touch.pendingWheel && now-touch.pressedAt>=WheelHoldMs) {
       startWheel(id);
       return;
@@ -461,6 +484,12 @@ void TouchInput::tick() {
       touch.pendingAction = false;
       touch.actionSent = true;
       command(Command::Accept,true);
+      }
+    if(touch.pendingButton) {
+      touch.pendingButton=false;
+      touch.actionSent=true;
+      command(touch.command,true);
+      return;
       }
     }
   }
@@ -522,6 +551,14 @@ void TouchInput::updateMovement(const Point& pos) {
 
   if(analogMovement)
     return;
+  if(uiActive) {
+    const bool vertical=std::abs(moveAxis.y)>=std::abs(moveAxis.x);
+    const bool requested[]={vertical && moveAxis.y < -DirectionThreshold,vertical && moveAxis.y > DirectionThreshold,
+                            !vertical && moveAxis.x < -DirectionThreshold,!vertical && moveAxis.x > DirectionThreshold};
+    for(size_t i=0;i<4;++i) if(!requested[i]) setDirection(Command(i),false);
+    for(size_t i=0;i<4;++i) if(requested[i]) setDirection(Command(i),true);
+    return;
+    }
   if(classicCombat && classicAction && canBlock && !uiActive) {
     using Direction=TouchMovement::Direction;
     const auto direction=TouchMovement::classicDirection(moveAxis.x,moveAxis.y,directions[size_t(Command::Down)]);
@@ -580,16 +617,22 @@ void TouchInput::reset() {
 bool TouchInput::tryGesture(int pointer, const Touch& second) {
   if(!gesturesEnabled || uiActive || touches.size()!=1) return false;
   auto& [firstId,first]=*touches.begin();
-  if(first.role!=Role::Move && first.role!=Role::Look) return false;
-  if((first.anchor.x<w()/2)!=(second.anchor.x<w()/2)) return false;
+  if(first.role!=Role::Move && first.role!=Role::Look && first.role!=Role::Button) return false;
   const auto travel=first.last-first.anchor;
-  const float slop=float(std::max(12,std::min(w(),h())/90));
+  const float slop=tapSlop();
   if(!TwoFingerSwipe::canPair(second.pressedAt-first.pressedAt,std::hypot(float(travel.x),float(travel.y)),slop))
     return false;
   gestureFirst=firstId;
   gestureSecond=pointer;
   gestureStarted=second.pressedAt;
   gestureFired=false;
+  if(first.role==Role::Button && first.actionSent)
+    command(first.command,false);
+  first.actionSent=false;
+  first.pendingAction=false;
+  first.pendingButton=false;
+  first.pendingWheel=false;
+  blockPointer=-1;
   first.role=Role::Gesture;
   auto touch=second;
   touch.role=Role::Gesture;
@@ -609,11 +652,20 @@ void TouchInput::updateGesture() {
   const auto& second=touches.at(gestureSecond);
   const auto a=first.last-first.anchor, b=second.last-second.anchor;
   const float threshold=float(std::max(48,std::min(w(),h())/18));
+  const auto elapsed=Application::tickCount()-gestureStarted;
+  const int horizontal=TwoFingerSwipe::horizontalDirection(float(a.x),float(a.y),float(b.x),float(b.y),threshold,elapsed);
+  if(horizontal!=0) {
+    gestureFired=true;
+    command(horizontal<0 ? Command::HealthPotion : Command::ManaPotion,true);
+    return;
+    }
+  // Vertical gestures use one side's movement/view meaning; potion swipes may span both sides.
+  if((first.anchor.x<w()/2)!=(second.anchor.x<w()/2)) return;
   const int direction=TwoFingerSwipe::direction(float(a.x),float(a.y),float(b.x),float(b.y),threshold,
-                                               Application::tickCount()-gestureStarted);
+                                               elapsed);
   if(direction==0) return;
   gestureFired=true;
-  if(first.anchor.x<w()/2) {
+  if(first.anchor.x>=w()/2) {
     if(direction<0) command(Command::FirstPerson,true);
     else {
       gestureLookBehind=true;
@@ -631,7 +683,7 @@ void TouchInput::releaseGesture() {
   }
 
 float TouchInput::tapSlop() const {
-  return float(std::max(16,std::min(w(),h())/60));
+  return float(std::max(24,std::min(w(),h())/30));
   }
 
 void TouchInput::captureTap(int pointer, const Touch& touch) {
@@ -641,7 +693,16 @@ void TouchInput::captureTap(int pointer, const Touch& touch) {
   gestureFired=false;
   tapCaptured=true;
   touches[pointer]=touch;
-  for(auto& [id,held]:touches) held.role=Role::MultiTap;
+  for(auto& [id,held]:touches) {
+    if(held.role==Role::Button && held.actionSent)
+      command(held.command,false);
+    held.actionSent=false;
+    held.pendingAction=false;
+    held.pendingButton=false;
+    held.pendingWheel=false;
+    held.role=Role::MultiTap;
+    }
+  blockPointer=-1;
   movePointer=-1;
   lookPointer=-1;
   moveAxis=PointF();

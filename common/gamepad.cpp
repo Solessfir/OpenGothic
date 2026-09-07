@@ -39,10 +39,15 @@ void MainWindow::controllerUiKey(Event::KeyType key,bool repeat) {
   else if(console.isActive()) target=&console;
   else if(dialogs.isActive()) target=&dialogs;
   if(target==nullptr) return;
+  if(target!=&rootMenu && (key==Event::K_Left || key==Event::K_Right)) {
+    if(repeat) return;
+    key=key==Event::K_Left ? Event::K_ESCAPE : Event::K_Return;
+    }
   KeyEvent event(key,Event::M_NoModifier,repeat?Event::KeyRepeat:Event::KeyDown);
   // Dispatch only to the active layer. Ignored UI input must never reach gameplay.
   if(target==&rootMenu) {
-    if(repeat) rootMenu.keyRepeatEvent(event); else rootMenu.keyDownEvent(event);
+    if(key==Event::K_Left || key==Event::K_Right) rootMenu.directionalInput(key==Event::K_Right,repeat);
+    else if(repeat) rootMenu.keyRepeatEvent(event); else rootMenu.keyDownEvent(event);
     }
   else if(target==&video) { if(!repeat) video.keyDownEvent(event); }
   else if(target==&chapter) { if(!repeat) chapter.keyDownEvent(event); }

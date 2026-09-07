@@ -8,6 +8,8 @@
 class MultiFingerTap {
   public:
     enum class Action { None, QuickSave, QuickLoad, DeleteSave };
+    static constexpr uint64_t JoinMs = 350;
+    static constexpr uint64_t ReleaseMs = 800;
 
     static Action action(int fingers, bool saveMenu) {
       if(saveMenu) return fingers==3 ? Action::DeleteSave : Action::None;
@@ -26,7 +28,7 @@ class MultiFingerTap {
       if(contacts.contains(pointer)) { valid=false; return; }
       contacts.emplace(pointer,Contact{x,y});
       peak=std::max(peak,int(contacts.size()));
-      valid &= eligible && !releasing && now-started<=180 && peak<=4;
+      valid &= eligible && !releasing && now-started<=JoinMs && peak<=4;
       }
 
     void move(int pointer, float x, float y, float slop) {
@@ -38,11 +40,12 @@ class MultiFingerTap {
     int up(int pointer, uint64_t now) {
       if(contacts.erase(pointer)==0) return 0;
       releasing=true;
-      if(!contacts.empty() || !valid || now-started>400) return 0;
+      if(!contacts.empty() || !valid || now-started>ReleaseMs) return 0;
       return peak==3 || peak==4 ? peak : 0;
       }
 
     bool ready() const { return valid && !releasing && contacts.size()>=3; }
+    bool joining(uint64_t now) const { return valid && !releasing && !contacts.empty() && now-started<=JoinMs; }
     bool empty() const { return contacts.empty(); }
     void reset() { contacts.clear(); valid=false; }
 
