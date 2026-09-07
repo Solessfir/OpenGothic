@@ -70,7 +70,7 @@ public final class PrivateAssets {
         try (ZipInputStream zip = new ZipInputStream(new BufferedInputStream(source, BUFFER))) {
             ZipEntry entry = zip.getNextEntry();
             if (entry == null || !INDEX.equals(entry.getName())) {
-                throw new IOException("Choose the private-game.zip produced by the OpenGothic guide");
+                throw new IOException("Choose the game-data.zip produced by the OpenGothic setup scripts");
             }
             ByteArrayOutputStream index = new ByteArrayOutputStream();
             byte[] buffer = new byte[BUFFER];

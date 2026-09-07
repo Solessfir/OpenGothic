@@ -63,7 +63,7 @@ public final class SetupActivity extends Activity {
         if (!running) {
             if ("org.opengothic.app.IMPORT_GAME_FILES".equals(getIntent().getAction())) {
                 ready = false;
-                message = "Select private-game.zip from Downloads. Existing saves and settings will be kept.\nQuit the game before importing a different installation.";
+                message = "Select game-data.zip from Downloads. Existing saves and settings will be kept.\nQuit the game before importing a different installation.";
             } else {
                 begin(null);
             }
@@ -81,7 +81,7 @@ public final class SetupActivity extends Activity {
         progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         layout.addView(progress);
         choose = new Button(this);
-        choose.setText("Choose private-game.zip");
+        choose.setText("Choose game-data.zip");
         choose.setOnClickListener(v -> {
             Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
             intent.addCategory(Intent.CATEGORY_OPENABLE);
@@ -116,7 +116,7 @@ public final class SetupActivity extends Activity {
                     launchGame();
                     return;
                 }
-                message = "Copy private-game.zip to Downloads and select it here. No storage permission is needed.\n\n" +
+                message = "Copy game-data.zip to Downloads and select it here. No storage permission is needed.\n\n" +
                         "Alternatively copy your game installation into:\n" + new File(root, "Gothic2");
                 return;
             }

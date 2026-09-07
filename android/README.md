@@ -1,15 +1,16 @@
 # OpenGothic for Android
 
-Play Gothic II: Night of the Raven on an ARM64 Android device with Vulkan 1.1.
-You need a legally owned installation; the normal APK contains no game files.
-The app is named **Gothic II** (`org.opengothic.app`).
+Native Android port of OpenGothic for Gothic II: Night of the Raven.
+Requires an ARM64 device with Vulkan 1.1 and a legally owned game installation.
+The normal APK contains no game files.
 
-## Start here
+## Don't care - let me play
 
-Run `setup-android.bat` on Windows or `bash setup-android.sh` on Linux.
-The guide can install missing tools, find your game files, build the APK and install it.
+Clone this branch, run `setup-android.bat` on Windows or `bash setup-android.sh` on Linux, and follow the prompts.
+The scripts install missing tools, find your game files, build the APK and help install it on your phone.
+Press Enter for the default choices. Keep your Gothic II installation available on the computer.
 
-- [Guided setup and installation without USB](PRIVATE-SETUP.md)
+- [Setup options and installation without USB](SETUP.md)
 - [Touch controls](TOUCH.md)
 - [Gamepad controls and remapping](CONTROLLER.md)
 - [Graphics, camera, UI size and other settings](CONFIGURATION.md)
@@ -25,7 +26,7 @@ Back up saves first. Never redistribute packages containing Gothic assets.
 
 Requires JDK 17, Android SDK 35, Build Tools 35.0.0, NDK 27.0.12077973 and CMake 3.22.1.
 The wrapper downloads Gradle 8.9; CMake downloads pinned Khronos Vulkan headers.
-For automatic dependency installation, use the guided setup above.
+The setup scripts can install these dependencies automatically.
 
 From the repository root in PowerShell:
 
@@ -44,7 +45,7 @@ On Linux, set `JAVA_HOME`/`ANDROID_HOME` and use `bash android/gradlew -p androi
 
 Release uses native `-O3` and ThinLTO, Java/resource shrinking, and disables debugger support.
 For native debugging, use `assembleDebug lintDebug`; output is `android/app/build/outputs/apk/debug/app-debug.apk`.
-Both use the same local signing key by default. See [custom signing](PRIVATE-SETUP.md#signing) for distribution.
+Both use the same local signing key by default. See [custom signing](SETUP.md#signing) for distribution.
 
 ## Connect and install with ADB
 
@@ -86,8 +87,8 @@ Use it only with trusted computers; remove old pairings from the phone when no l
 
 ## Import game files
 
-The easiest option is the [guided APK + ZIP installation](PRIVATE-SETUP.md#install-without-usb):
-install the APK, launch it, choose `private-game.zip`, and wait for extraction.
+For [APK + ZIP installation](SETUP.md#install-without-usb),
+install the APK, launch it, choose `game-data.zip`, and wait for extraction.
 Existing installations can reopen import through the launcher icon's **Import files** shortcut.
 No ZArchiver or manual access to `Android/data` is needed.
 
@@ -128,7 +129,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Save transfer failed' }
 
 For phone-to-PC backups, use `setup-android.bat --backup-saves` (or the `.sh` equivalent).
 Copy the backed-up files into PC OpenGothic's working directory without overwriting existing slots.
-The guided setup can also include PC OpenGothic saves in an archive for transfer without USB.
+The setup scripts can also include PC OpenGothic saves in an archive for transfer without USB.
 
 ## Troubleshooting
 

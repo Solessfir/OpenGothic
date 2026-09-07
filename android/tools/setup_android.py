@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interactive private Android build/install guide. Uses Python's standard library only."""
+"""Interactive Android build and installation. Uses Python's standard library only."""
 
 import argparse
 from datetime import datetime
@@ -17,10 +17,10 @@ import time
 import urllib.request
 import zipfile
 
-from private_package import child_ci, package, safe_preferences, sha256, validate_game, validate_save
+from game_package import child_ci, package, safe_preferences, sha256, validate_game, validate_save
 
 ROOT = Path(__file__).resolve().parents[2]
-OUTPUT = ROOT / "build/private-android"
+OUTPUT = ROOT / "build/android-setup"
 WINDOWS = os.name == "nt"
 HOST = "windows" if WINDOWS else "linux"
 APP = "org.opengothic.app"
@@ -74,7 +74,7 @@ def download(spec, cache):
         os.replace(partial, path)
         return path
     start = partial.stat().st_size if partial.exists() else 0
-    request = urllib.request.Request(spec["url"], headers={"User-Agent": "OpenGothic-private-setup"})
+    request = urllib.request.Request(spec["url"], headers={"User-Agent": "OpenGothic-Android-setup"})
     if start:
         request.add_header("Range", f"bytes={start}-")
     print(f"Downloading {spec['url']}")
@@ -184,7 +184,7 @@ def toolchain(args):
         manager = command_tools / "bin" / ("sdkmanager.bat" if WINDOWS else "sdkmanager")
         if not manager.is_file():
             print("Android SDK license: https://developer.android.com/studio/terms")
-            if not ask("Have you read and accepted the Android SDK license so the guide may download command-line tools 12.0?"):
+            if not ask("Have you read and accepted the Android SDK license so this script may download command-line tools 12.0?"):
                 raise RuntimeError("SDK download cancelled; license was not accepted.")
             archive = download(LOCK["command_line_tools"][HOST], cache / "downloads")
             with tempfile.TemporaryDirectory(prefix="sdk-tools-", dir=cache) as temporary:
@@ -339,8 +339,8 @@ def inspect_apk(apk, bundled):
         if any(name.startswith("lib/") and not name.startswith("lib/arm64-v8a/") for name in names):
             raise RuntimeError("Unexpected non-ARM64 library in APK")
         parts = [name for name in names if re.fullmatch(r"assets/private-game-[0-9]{5}\.ogpart", name)]
-        if bool(parts) != bundled or "assets/private-game.zip" in names:
-            raise RuntimeError("APK private-asset contents do not match the selected packaging mode")
+        if bool(parts) != bundled or any(name in names for name in ("assets/private-game.zip", "assets/game-data.zip")):
+            raise RuntimeError("APK game-data contents do not match the selected packaging mode")
         if any(archive.getinfo(name).compress_type != zipfile.ZIP_STORED for name in parts):
             raise RuntimeError("APK compresses the already-compressed game archive")
         # Incremental ZIP rewriting can hide old private bytes in unreferenced gaps.
@@ -360,8 +360,8 @@ def stage_chunks():
         if old.is_file() and re.fullmatch(r"private-game-[0-9]{5}\.ogpart", old.name):
             old.unlink()
         else:
-            raise RuntimeError(f"Unexpected file in private asset staging directory: {old}. Move it aside before packaging.")
-    with (OUTPUT / "private-game.zip").open("rb") as source:
+            raise RuntimeError(f"Unexpected file in game-data staging directory: {old}. Move it aside before packaging.")
+    with (OUTPUT / "game-data.zip").open("rb") as source:
         index = 0
         while block := source.read(128 * 1024 * 1024):
             (assets / f"private-game-{index:05d}.ogpart").write_bytes(block)
@@ -391,7 +391,7 @@ def build(sdk, env, bundled, build_type="release"):
     debuggable = "application-debuggable" in manifest
     if debuggable != (build_type == "debug"):
         raise RuntimeError("APK debuggable flag does not match the selected build type")
-    stem = "OpenGothic" + ("-PRIVATE" if bundled else "") + ("-debug" if build_type == "debug" else "") + "-arm64"
+    stem = "OpenGothic" + ("-with-data" if bundled else "") + ("-debug" if build_type == "debug" else "") + "-arm64"
     destination = OUTPUT / f"{stem}.apk"
     symbols = []
     if build_type == "release":
@@ -408,7 +408,7 @@ def build(sdk, env, bundled, build_type="release"):
               "signing": "custom" if build_type == "release" and env.get("OPENGOTHIC_KEYSTORE") else "local_debug_key",
               "source_modified": bool(run(["git", "status", "--porcelain"], capture=True).stdout.strip()),
               "submodules": run(["git", "submodule", "status", "--recursive"], capture=True).stdout.splitlines(),
-              "warning": "Private testing only. Never upload game files, saves or private APKs."}
+              "warning": "Do not redistribute Gothic game files or APKs containing them."}
     (OUTPUT / "build-report.json").write_text(json.dumps(report, indent=2) + "\n")
     print(f"\nVerified signed ARM64 APK: {destination}\nSHA-256: {report['sha256']}")
     print("Keep your signing key private and backed up (default: ~/.android/debug.keystore). A different key cannot update the same app in place.")
@@ -468,7 +468,7 @@ def install_apk(prefix, apk):
 
 def install(sdk, apk, bundled, env):
     adb = sdk / "platform-tools" / ("adb.exe" if WINDOWS else "adb")
-    print("\nInstalling requires USB debugging. Without USB, transfer the output APK and (for split mode) private-game.zip to Downloads.")
+    print("\nInstalling over ADB requires USB or wireless debugging. Otherwise, transfer the APK and (for split mode) game-data.zip to Downloads.")
     if not ask("Install on a connected phone now?"):
         return
     serial = device(adb)
@@ -489,13 +489,13 @@ def install(sdk, apk, bundled, env):
     print("Allow room for the APK, extracted game files and installer overhead (about 8–10 GB free for a typical installation).")
     install_apk(prefix, apk)
     if not bundled:
-        run([*prefix, "push", OUTPUT / "private-game.zip", "/sdcard/Download/private-game.zip"])
-        print("On the phone, choose private-game.zip from Downloads. Matching game files will be reused and existing saves/settings kept.")
+        run([*prefix, "push", OUTPUT / "game-data.zip", "/sdcard/Download/game-data.zip"])
+        print("On the phone, choose game-data.zip from Downloads. Matching game files will be reused and existing saves/settings kept.")
     launch = [*prefix, "shell", "am", "start", "-W", "-n", f"{APP}/.SetupActivity"]
     if not bundled:
         launch += ["-a", f"{APP}.IMPORT_GAME_FILES"]
     run(launch)
-    print("APK installed. Keep the phone unlocked while extraction runs, then verify the game reaches its menu. The guide does not claim playability from installation alone.")
+    print("APK installed. Keep the phone unlocked while extraction runs, then check that the game reaches its menu.")
     print(f"Logs: {adb} -s {serial} logcat -v threadtime Tempest:I AndroidRuntime:E libc:F '*:S'")
 
 
@@ -509,13 +509,13 @@ def main(argv=None):
     parser.add_argument("--build-type", choices=("release", "debug"), default="release", help="Optimized release (default), or debug with debugger support")
     parser.add_argument("--no-install", action="store_true", help="Build for manual/network transfer without ADB installation")
     parser.add_argument("--prepare-only", action="store_true", help="Discover/install tools, but do not package, build or install")
-    parser.add_argument("--package-only", action="store_true", help="Create the private archive without installing tools or building")
+    parser.add_argument("--package-only", action="store_true", help="Package game data without installing tools or building")
     parser.add_argument("--backup-saves", action="store_true", help="Only back up phone saves; do not build or install")
     args = parser.parse_args(argv)
     if platform.machine().lower() not in ("amd64", "x86_64") or sys.platform not in ("win32", "linux"):
-        raise RuntimeError("This guide currently supports x86-64 Windows and glibc Linux (including Arch WSL).")
+        raise RuntimeError("These scripts support x86-64 Windows and glibc Linux (including Arch WSL).")
     OUTPUT.mkdir(parents=True, exist_ok=True)
-    print("OpenGothic private Android setup\nEnter accepts [Y/n]; optional data imports default to [y/N].\nNever publish bundled Gothic files or private APKs. Keep the original PC installation and saves.")
+    print("OpenGothic Android setup\nEnter accepts [Y/n]; optional data imports default to [y/N].\nDo not redistribute Gothic game files or APKs containing them. Keep the original PC installation and saves.")
     if args.backup_saves:
         sdk = Path(args.sdk or os.environ.get("ANDROID_HOME", ""))
         adb = str(sdk / "platform-tools" / ("adb.exe" if WINDOWS else "adb"))
@@ -535,8 +535,8 @@ def main(argv=None):
             return
     game = select_game(args.game)
     print(f"Selected installation (read only): {game}")
-    if not ask("Package this legally owned installation for private testing on your own devices?"):
-        raise RuntimeError("Private packaging cancelled")
+    if not ask("Package this legally owned installation for your own devices?"):
+        raise RuntimeError("Game-data packaging cancelled")
     preferences = optional_preferences(game)
     saves = optional_saves()
     # Shader/native intermediates plus compressed archives need considerably more room than the game itself.
@@ -547,13 +547,13 @@ def main(argv=None):
         if time.monotonic() - last[0] > 2:
             print(message, flush=True)
             last[0] = time.monotonic()
-    metadata = package(game, OUTPUT / "private-game.zip", preferences, saves, progress)
+    metadata = package(game, OUTPUT / "game-data.zip", preferences, saves, progress)
     (OUTPUT / "asset-report.json").write_text(json.dumps(metadata, indent=2) + "\n")
-    print(f"Private archive: {OUTPUT / 'private-game.zip'}\nExtracted size: {metadata['bytes'] / 1024**3:.2f} GiB")
+    print(f"Game archive: {OUTPUT / 'game-data.zip'}\nExtracted size: {metadata['bytes'] / 1024**3:.2f} GiB")
     if args.package_only:
         return
     bundled = not args.split
-    if (OUTPUT / "private-game.zip").stat().st_size > 3800 * 1024**2:
+    if (OUTPUT / "game-data.zip").stat().st_size > 3800 * 1024**2:
         print("Archive approaches the APK's ZIP32 limit. Switching to separate APK + ZIP.")
         bundled = False
     apk = build(sdk, env, bundled, args.build_type)

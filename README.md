@@ -74,7 +74,8 @@ Supported systems are:
 
 ### Android (experimental)
 
-On this Android branch, run `setup-android.bat` on Windows or `bash setup-android.sh` on Linux for guided setup and private APK installation.
+On this Android branch, run `setup-android.bat` on Windows or `bash setup-android.sh` on Linux and follow the prompts.
+The scripts install missing tools, find your game files, build the APK and help install it on your phone.
 You need legally owned Gothic II: Night of the Raven files and an ARM64 Vulkan 1.1 Android device.
 See [the Android guide](android/README.md) for installation, touch/gamepad controls, settings and save transfer.
 Never redistribute APKs containing the game's copyrighted files.

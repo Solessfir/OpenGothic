@@ -10,7 +10,7 @@ from unittest.mock import patch
 import zipfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-import private_package as assets
+import game_package as assets
 import setup_android as setup
 
 
@@ -65,7 +65,7 @@ class SetupTests(unittest.TestCase):
                     self.assertIn(f"lint{variant}", calls.call_args_list[0].args[0])
                     self.assertEqual(stage.call_count, int(bundled))
                     self.assertEqual("-debug-" in destination.name, build_type == "debug")
-                    self.assertEqual("-PRIVATE-" in destination.name, bundled)
+                    self.assertEqual("-with-data-" in destination.name, bundled)
                     report = json.loads((output / "build-report.json").read_text())
                     self.assertEqual(report["build_type"], build_type)
                     self.assertEqual(report["debuggable"], build_type == "debug")
@@ -85,7 +85,7 @@ class SetupTests(unittest.TestCase):
 
     def test_assets_exclude_executables_settings_saves(self):
         (self.game / "Data/evil.dll").write_bytes(b"dll")
-        output = self.base / "private-game.zip"
+        output = self.base / "game-data.zip"
         metadata = assets.package(self.game, output, progress=lambda _: None)
         with zipfile.ZipFile(output) as archive:
             self.assertEqual(archive.namelist(), [assets.INDEX, "Gothic2/Data/Worlds.vdf", "Gothic2/Data/Worlds_Addon.vdf"])
@@ -100,7 +100,7 @@ class SetupTests(unittest.TestCase):
         save = self.base / "save_slot_2.sav"
         with zipfile.ZipFile(save, "w") as archive:
             archive.writestr("header", b"OpenGothic/Save\x00" + b"\x37\x00")
-        output = self.base / "private-game.zip"
+        output = self.base / "game-data.zip"
         assets.package(self.game, output, b"[GAME]\nusePotionKeys=1\n", [save], lambda _: None)
         with zipfile.ZipFile(output) as archive:
             self.assertIn("save_slot_2.sav", archive.namelist())
@@ -113,6 +113,13 @@ class SetupTests(unittest.TestCase):
         (self.game / "Data/Worlds_Addon.vdf").unlink()
         with self.assertRaisesRegex(ValueError, "Night of the Raven"):
             assets.validate_game(self.game)
+
+    def test_bundled_chunks_use_game_data_archive(self):
+        content = b"game archive"
+        (self.base / "game-data.zip").write_bytes(content)
+        with patch.object(setup, "OUTPUT", self.base):
+            setup.stage_chunks()
+        self.assertEqual((self.base / "assets/private-game-00000.ogpart").read_bytes(), content)
 
     def test_custom_steam_library(self):
         (self.base / "steamapps").mkdir()
@@ -141,7 +148,7 @@ class SetupTests(unittest.TestCase):
             archive.writestr("AndroidManifest.xml", "test")
             archive.writestr("lib/arm64-v8a/libopengothic.so", "test")
         setup.inspect_apk(apk, False)
-        with self.assertRaisesRegex(RuntimeError, "private-asset"):
+        with self.assertRaisesRegex(RuntimeError, "game-data"):
             setup.inspect_apk(apk, True)
 
     def test_apk_rejects_orphaned_private_bytes(self):

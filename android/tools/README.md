@@ -1,7 +1,7 @@
 # Android contributor checks
 
 Player instructions are in the [Android guide](../README.md).
-Keep captures, device-specific reports and private packages under ignored `build/`, not in tracked documentation.
+Keep captures, device-specific reports and game-data packages under ignored `build/`, not in tracked documentation.
 Review logs/traces before sharing: they may contain personal paths, device identifiers and unrelated app activity.
 
 ## Build and tests
@@ -32,13 +32,13 @@ $apk = 'android/app/build/outputs/apk/release/app-release.apk'
 ```
 
 Expect only `arm64-v8a` native libraries. A normal asset-free build must not contain `assets/private-game-*`,
-including after a private bundled build. Never upload game assets, signing keys or private test artifacts.
+including after a bundled build. Never upload game assets, signing keys or personal test data.
 
 Release must not report `application-debuggable`. Native compile/link commands under
 `android/app/.cxx/Release/` should use `-O3`, `-DNDEBUG` and `-flto=thin`.
 Keep `android/app/build/outputs/native-debug-symbols/release/native-debug-symbols.zip` and
 `android/app/build/outputs/mapping/release/mapping.txt` with each release for crash analysis.
-The guided setup copies them beside its APK. Debug symbols are stripped from the packaged native library.
+The setup scripts copy them beside the APK. Debug symbols are stripped from the packaged native library.
 
 ## GPU timings
 

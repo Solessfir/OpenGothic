@@ -1,4 +1,4 @@
-"""Build an indexed private archive without modifying the owner's installation."""
+"""Package game data without modifying the owner's installation."""
 
 import configparser
 import hashlib
@@ -40,7 +40,7 @@ def validate_game(root):
         raise ValueError("Select the installation root containing Data and _work, not its System folder.")
     names = {p.name.casefold() for p in data.iterdir()}
     if not {"worlds.vdf", "worlds_addon.vdf"} <= names:
-        raise ValueError("Expected Data/Worlds.vdf and Worlds_Addon.vdf (Gothic II: Night of the Raven). Classic-only installs are not supported by this guide.")
+        raise ValueError("Expected Data/Worlds.vdf and Worlds_Addon.vdf (Gothic II: Night of the Raven). Classic-only installs are not supported by these scripts.")
     return root
 
 

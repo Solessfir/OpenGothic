@@ -1,9 +1,9 @@
-# Guided Android setup
+# Android setup
 
 Build and install using your legally owned **Gothic II: Night of the Raven** files.
-Packages containing game assets are for private use only - never upload them to releases or CI artifacts.
+Do not redistribute game assets or APKs containing them.
 
-## Run the guide
+## Run the scripts
 
 Clone this Android branch with Git, then run from the repository root:
 
@@ -20,11 +20,11 @@ bash setup-android.sh
 Windows requires Windows 10/11 on x86-64. Linux builds need a separate Linux checkout and SDK.
 Allow roughly 20 GiB on the build drive and 8–10 GB on the phone; larger installations need more.
 
-The guide asks before installing missing prerequisites, packaging personal files or accessing a phone.
+The scripts ask before installing missing prerequisites, packaging game files or accessing a phone.
 **Enter means yes at [Y/n]**; optional preferences and saves default to no at [y/N].
 
-It finds Steam/GOG/common Games folders, lets you choose another path, installs missing build tools,
-builds and checks an ARM64 APK, and offers phone installation.
+They search Steam/GOG/common Games folders, let you choose another path, install missing build tools,
+build and check an ARM64 APK, and offer phone installation.
 Android SDK licenses remain interactive. Downloads and completed build work are reused on reruns.
 If a required dependency is declined, install it yourself and rerun.
 
@@ -41,22 +41,22 @@ setup-android.bat --split --no-install
 
 Linux accepts the same options: `bash setup-android.sh --split --no-install`.
 
-Outputs are in `build/private-android/`:
+Outputs are in `build/android-setup/`:
 
 | Output | Use |
 | --- | --- |
-| `OpenGothic-arm64.apk` + `private-game.zip` | Install APK, then import ZIP |
-| `OpenGothic-PRIVATE-arm64.apk` | Single-file package with game assets, when it fits |
+| `OpenGothic-arm64.apk` + `game-data.zip` | Install APK, then import ZIP |
+| `OpenGothic-with-data-arm64.apk` | Single-file package with game assets, when it fits |
 | `*-report.json` | Build/package details and checksums |
 | `*-native-symbols.zip`, `*-mapping.txt` | Release crash symbols; keep with the matching APK |
 | `phone-saves-*` | Optional save backups |
 
-1. Transfer the APK and, in split mode, ZIP to the phone's Downloads folder privately.
+1. Transfer the APK and, in split mode, ZIP to the phone's Downloads folder.
 2. Open the APK in the file manager and allow that source to install unknown apps.
-3. Launch **Gothic II**. For split mode, tap **Choose private-game.zip** and select the ZIP.
+3. Launch **Gothic II**. For split mode, tap **Choose game-data.zip** and select the ZIP.
 4. Keep setup open until extraction completes. Gameplay starts in landscape afterward.
 
-Use the ZIP produced by this guide, not an arbitrary zipped installation.
+Use the ZIP produced by the setup scripts, not an arbitrary zipped installation.
 ZArchiver is unnecessary; the app imports through Android's document picker.
 If a bundled APK is rejected or too large, rerun with `--split`.
 After successful import, delete the transferred files from Downloads to reclaim space.
@@ -91,7 +91,7 @@ Only asset-free APKs may be shared publicly.
 
 ## PC preferences and saves
 
-Do not copy a complete PC `Gothic.ini`. The guide can import only these supported preferences:
+Do not copy a complete PC `Gothic.ini`. The scripts can import these supported preferences:
 
 - Combat mode, quicksave/potion shortcuts, dialogue subtitles and mouse/camera sensitivity.
 - Music enabled, music volume and sound volume.
