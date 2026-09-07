@@ -56,6 +56,7 @@ void TouchInput::paintEvent(Tempest::PaintEvent& e) {
   if(touchEnabled && !uiActive && gesturesEnabled) {
     label(pad,h()-3*line,moveEnd-2*pad,"2 fingers: up = first person; down + hold = look behind");
     label(moveEnd+pad,h()/2,lookEnd-moveEnd-2*pad,"2 fingers: up = stand; down = sneak");
+    label(pad,h()-5*line,moveEnd-2*pad,"3-finger tap: quicksave; 4-finger tap: quickload");
     }
 
   const char* names[] = {"BACK / MENU","INVENTORY","JUMP","DRAW / SHEATHE",
@@ -110,8 +111,6 @@ void TouchInput::resizeEvent(Tempest::SizeEvent&) {
   }
 
 void TouchInput::mouseDownEvent(Tempest::MouseEvent& e) {
-  if(wheelPointer>=0 || gestureActive())
-    return;
   if(!touchEnabled) {
     // Consume gameplay touches instead of forwarding them as desktop mouse input.
     // Android's text editor receives its own input outside this widget.
@@ -130,6 +129,14 @@ void TouchInput::mouseDownEvent(Tempest::MouseEvent& e) {
       button = int(i);
 
   const bool onBlock=blockVisible() && blockRect().contains(e.pos());
+  multiTap.down(e.mouseID,float(e.x),float(e.y),touch.pressedAt,
+                gesturesEnabled && !uiActive && wheelPointer<0 && button<0 && !onBlock);
+  if(tapCaptured || multiTap.ready()) {
+    captureTap(e.mouseID,touch);
+    return;
+    }
+  if(wheelPointer>=0 || gestureActive())
+    return;
   if(button<0 && !onBlock && tryGesture(e.mouseID,touch))
     return;
 
@@ -170,10 +177,16 @@ void TouchInput::mouseDownEvent(Tempest::MouseEvent& e) {
   }
 
 void TouchInput::mouseDragEvent(Tempest::MouseEvent& e) {
+  multiTap.move(e.mouseID,float(e.x),float(e.y),tapSlop());
   auto it = touches.find(e.mouseID);
   if(it==touches.end())
     return;
   auto& touch = it->second;
+  if(touch.role==Role::MultiTap) {
+    touch.last=e.pos();
+    update();
+    return;
+    }
   if(touch.role==Role::Gesture) {
     touch.last=e.pos();
     updateGesture();
@@ -212,6 +225,19 @@ void TouchInput::mouseDragEvent(Tempest::MouseEvent& e) {
   }
 
 void TouchInput::mouseUpEvent(Tempest::MouseEvent& e) {
+  multiTap.move(e.mouseID,float(e.x),float(e.y),tapSlop());
+  const int tap=multiTap.up(e.mouseID,Application::tickCount());
+  if(tapCaptured) {
+    touches.erase(e.mouseID);
+    if(multiTap.empty()) {
+      tapCaptured=false;
+      // Decide only after every finger is lifted: four fingers must never save first.
+      if(tap==3) command(Command::QuickSave,true);
+      if(tap==4) command(Command::QuickLoad,true);
+      }
+    update();
+    return;
+    }
   // Recognize long holds even when Android batches the last move and release.
   tick();
   auto it = touches.find(e.mouseID);
@@ -280,7 +306,7 @@ void TouchInput::setTouchEnabled(bool enabled) {
 void TouchInput::setGesturesEnabled(bool enabled) {
   if(gesturesEnabled==enabled) return;
   gesturesEnabled=enabled;
-  if(!enabled && gestureActive()) reset();
+  if(!enabled && (gestureActive() || tapCaptured)) reset();
   update();
   }
 
@@ -309,7 +335,7 @@ void TouchInput::setDebugContext(bool classic, bool ui, bool lockAllowed, bool l
   canLock = lockAllowed;
   targetLocked = locked;
   canBlock = blockAllowed;
-  if(uiActive && gestureActive()) reset();
+  if(uiActive && (gestureActive() || tapCaptured)) reset();
   if(uiActive || !canLock) {
     for(auto& [id,touch]:touches)
       touch.pendingAction = false;
@@ -480,6 +506,8 @@ void TouchInput::setDirection(Command value, bool pressed) {
   }
 
 void TouchInput::reset() {
+  multiTap.reset();
+  tapCaptured=false;
   releaseGesture();
   gestureFirst=-1;
   gestureSecond=-1;
@@ -554,4 +582,24 @@ void TouchInput::releaseGesture() {
     gestureLookBehind=false;
     command(Command::LookBehind,false);
     }
+  }
+
+float TouchInput::tapSlop() const {
+  return float(std::max(16,std::min(w(),h())/60));
+  }
+
+void TouchInput::captureTap(int pointer, const Touch& touch) {
+  releaseGesture();
+  gestureFirst=-1;
+  gestureSecond=-1;
+  gestureFired=false;
+  tapCaptured=true;
+  touches[pointer]=touch;
+  for(auto& [id,held]:touches) held.role=Role::MultiTap;
+  movePointer=-1;
+  lookPointer=-1;
+  moveAxis=PointF();
+  lookDelta=Point();
+  for(size_t i=0;i<4;++i) setDirection(Command(i),false);
+  update();
   }

@@ -4,6 +4,7 @@
 
 #include <functional>
 #include <unordered_map>
+#include "utils/multifingertap.h"
 
 namespace Tempest { class Painter; }
 
@@ -26,6 +27,8 @@ class TouchInput : public Tempest::Widget {
       SneakOff,
       FirstPerson,
       LookBehind,
+      QuickSave,
+      QuickLoad,
       };
 
     using CommandHandler = std::function<void(Command,bool)>;
@@ -57,6 +60,7 @@ class TouchInput : public Tempest::Widget {
       Look,
       Button,
       Gesture,
+      MultiTap,
       };
 
     struct Touch {
@@ -80,6 +84,8 @@ class TouchInput : public Tempest::Widget {
     void updateGesture();
     bool gestureActive() const { return gestureFirst>=0 || gestureSecond>=0; }
     void releaseGesture();
+    void captureTap(int pointer, const Touch& touch);
+    float tapSlop() const;
     int  movementRadius() const;
     Tempest::Rect buttonRect(size_t index) const;
     bool blockVisible() const;
@@ -109,6 +115,8 @@ class TouchInput : public Tempest::Widget {
     bool            gestureFired = false;
     bool            gestureLookBehind = false;
     bool            gesturesEnabled = false;
+    MultiFingerTap  multiTap;
+    bool            tapCaptured = false;
     bool            touchEnabled = true;
     bool            analogMovement = false;
     bool            debugOverlay = false;

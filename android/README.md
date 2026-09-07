@@ -212,6 +212,14 @@ Menus, radial wheels and gamepad mode do not recognize these swipes.
 Focus loss, resizing or leaving gameplay cancels the gesture and releases look-behind.
 Sneak uses Gothic's existing skill/state restrictions; up/down explicitly disables/enables it instead of toggling.
 
+Three-finger tap quicksaves; four-finger tap quickloads immediately without a confirmation dialog.
+Both respect `[GAME] useQuickSaveKeys=1`; setting it to `0` disables these gestures as well as controller quicksave/load.
+Use the clear movement/camera areas, not the action buttons. Fingers may span both halves of the screen.
+Place all three or four fingers within 180 ms, keep them nearly stationary, then lift all within 400 ms of the first touch.
+Nothing fires until every finger is up, so a four-finger tap cannot first overwrite the quicksave.
+Extra fingers, appreciable movement, long holds, fingers added after release starts, or touching a button cancel the tap.
+Menus, radial wheels, loading, focus loss, and gamepad takeover cannot apply a pending tap.
+
 Swimming uses camera-relative movement on both touch and gamepad.
 Underwater, forward swims where the camera looks, backward reverses that direction, and sideways movement stays level.
 Hold Jump at the surface to dive downward; release it, then hold again underwater to rise, even with movement centered.
