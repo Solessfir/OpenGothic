@@ -423,6 +423,9 @@ void MainWindow::onTouchCommand(TouchInput::Command command, bool pressed) {
   Event::KeyType key = Event::K_NoKey;
   const bool uiActive = video.isActive() || rootMenu.isActive() || chapter.isActive() ||
                         document.isActive() || dialogs.isActive() || inventory.isActive();
+  // A direction held while closing a menu must return to neutral before moving the player.
+  if(!uiActive && touchMovementBlocked && pressed && command<=TouchInput::Command::Right)
+    return;
   switch(command) {
     case TouchInput::Command::Up:        key = Event::K_Up;       break;
     case TouchInput::Command::Down:      key = Event::K_Down;     break;

@@ -203,9 +203,21 @@ void MainWindow::tickGamepad() {
   auto camera=Gothic::inst().camera();
   if(!connected) {
     const auto touchMove=mobileUi.movementAxis();
-    player.setGamepadAxis(0.f,touchMove.y);
     const auto look=mobileUi.takeLookDelta();
-    if(!controllerFocused || dialogs.hasContent() || Gothic::inst().isPause() || camera==nullptr || camera->isCutscene()) return;
+    const bool touchUiActive = video.isActive() || rootMenu.isActive() || chapter.isActive() || document.isActive() ||
+                               console.isActive() || dialogs.isActive() || inventory.isActive();
+    if(touchUiActive || !controllerFocused || Gothic::inst().isPause() || camera==nullptr || camera->isCutscene() ||
+       Gothic::inst().checkLoading()!=Gothic::LoadState::Idle) {
+      if(!touchMovementBlocked)
+        player.clearInput();
+      touchMovementBlocked = true;
+      player.setGamepadAxis(0.f,0.f);
+      touchLookIdle = 0;
+      return;
+      }
+    if(touchMove==PointF())
+      touchMovementBlocked = false;
+    player.setGamepadAxis(0.f,touchMovementBlocked ? 0.f : touchMove.y);
     const float dtSec=float(dt)/1000.f;
     float yaw=float(look.x)*300.f/float(std::max(w(),1));
     float pitch=float(look.y)*220.f/float(std::max(h(),1));
@@ -215,12 +227,10 @@ void MainWindow::tickGamepad() {
     if(mobileUi.isLooking() || look!=Point()) touchLookIdle=0;
     else {
       touchLookIdle+=dt;
-      if(touchLookIdle>800 && touchMove.y < -0.35f)
+      if(!touchMovementBlocked && touchLookIdle>800 && touchMove.y < -0.35f)
         camera->onRotateMouse(PointF(0.f,std::clamp(-camera->azimuth()*2.f*dtSec,-90.f*dtSec,90.f*dtSec)));
       }
     camera->onRotateMouse(PointF(pitch,-yaw));
-    // Match desktop mouse signs so character rotation does not fight the camera drag.
-    if(!inventory.isActive()) player.onRotateMouse(-yaw,-pitch);
     return;
     }
   auto trigger=[&](float value,uint32_t bit) {

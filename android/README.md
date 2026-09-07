@@ -143,6 +143,8 @@ The rightmost 16% of the screen contains five invisible virtual buttons:
 | Bottom 20% | Interact or attack | Confirm |
 
 Dragging the dynamic movement stick also emits arrow-key navigation for menus and dialog choices. This avoids precision tapping on the original desktop-sized UI.
+While inventory or another UI is open, touch navigation does not feed movement or camera input into gameplay.
+Release or center the movement stick after closing a UI before moving again; a held selection direction does not become character movement.
 
 Choosing an empty save slot opens the Android keyboard. Enter a save name and press the keyboard's Done button to accept it and write the save. The keyboard stays hidden during normal gameplay and menu navigation.
 
@@ -159,7 +161,8 @@ Return the stick to neutral between directional presses; holding ACTION alone is
 Without a weapon, ACTION is interaction; menus use the same zone to confirm.
 With Gothic 2 controls (`useGothic1Controls=0`), the bottom-right zone directly uses/attacks.
 This debug view exposes the existing keyboard-style touch combat, not a redesigned mobile combat layout.
-Touch camera drag uses the same character/camera rotation signs as desktop mouse input and respects Mouse speed and vertical inversion.
+Right-side touch camera drag looks around without turning the character, respecting Mouse speed and vertical inversion.
+The left movement stick still turns the character in place when dragged sideways.
 
 Controller layouts vary, so Android may report different axes for some third-party devices. Ray queries and mesh shaders are disabled by default, and the build uses conservative desktop-compatible rendering paths for sustained mobile operation.
 

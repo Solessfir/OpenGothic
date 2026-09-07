@@ -190,6 +190,7 @@ class MainWindow : public Tempest::Window {
 #if defined(__MOBILE_PLATFORM__)
     TouchInput                mobileUi;
     uint64_t                  touchLookIdle=0;
+    bool                      touchMovementBlocked=false;
 #endif
     uint64_t                  lastTick=0;
 
