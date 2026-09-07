@@ -2,18 +2,20 @@
 
 ## Touch and gamepad movement responsiveness
 
-Status: deferred for investigation; no tuning or animation changes approved yet.
+Status: input-side responsiveness implemented; device comparison and animation-transition investigation remain pending.
+
+- Implemented: physical walk/run thresholds shared by touch and gamepad, a gait-switch margin, separate touch dead zones,
+  proportional touch turning with a configurable full speed, and input-dependent gamepad turn boost for deliberate direction changes.
+  Existing locked sidestep filtering, manual walk, keyboard/mouse behavior and combat animation interruption rules are retained.
 
 - Measure input-to-movement response on the phone, separating startup, stopping, direction reversal and locked strafing.
   Record the installed build, actual INI settings and frame rate; source inspection alone does not establish device latency.
-- Evaluate movement dead zones, response curves, walk/run thresholds and turn-speed limits first.
-  Keep small inputs precise without making deliberate turns or movement feel sluggish.
-- Review the difference between touch's threshold-based forward/backward movement and gamepad's automatic walk/run selection.
-  Proportional touch turning does not currently imply continuously proportional forward movement speed.
+- Compare the new defaults in the same scenes, including gentle walking, firm turns, stopping, menu transitions and locked direction reversals.
+  Proportional touch turning does not imply continuously proportional forward movement speed.
 - If delays remain, inspect animation-driven displacement and interruption rules for locomotion transitions.
   Preserve combat timing and avoid unrestricted animation cancellation, foot sliding or snapping.
 - Compare touch and gamepad in the same situations and preserve desktop keyboard/mouse behavior.
-  Do not change defaults or install a new APK solely for this TODO.
+  Device installation and hands-on validation are deferred until requested.
 
 ## Separate fog profiling measurements
 

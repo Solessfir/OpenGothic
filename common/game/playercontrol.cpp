@@ -12,6 +12,7 @@
 #include "utils/gamepadbindings.h"
 #include "utils/swiminput.h"
 #include "utils/meleeassist.h"
+#include "utils/movementresponse.h"
 
 PlayerControl::PlayerControl(DialogMenu& dlg, InventoryMenu &inv)
   :dlg(dlg),inv(inv) {
@@ -257,6 +258,7 @@ bool PlayerControl::isPressed(KeyCodec::Action a) const {
   }
 
 void PlayerControl::setGamepadAxis(float lx, float ly) {
+  touchAnalogMovement=false;
   touchTurn=0;
   controllerSwimming=false;
   swimJumpHeld=false;
@@ -272,19 +274,18 @@ void PlayerControl::setGamepadAxis(float lx, float ly) {
   gamepadLY = ly;
   }
 
-void PlayerControl::setTouchMovement(float turn,float forward) {
+void PlayerControl::setTouchMovement(float turn,float forward,bool walk,float turnSpeed) {
   setGamepadAxis(0.f,forward);
+  touchAnalogMovement=true;
+  applyControllerWalk(walk);
+  controllerTurnSpeed=turnSpeed;
   touchTurn=std::clamp(turn,-1.f,1.f);
   }
 
-void PlayerControl::setControllerMovement(float x,float y,float cameraYaw,bool walk,float turnSpeed) {
-  touchTurn=0;
-  controllerSwimming=false;
-  swimJumpHeld=false;
-  swimDiveStroke=false;
+void PlayerControl::applyControllerWalk(bool walk) {
   auto pl=Gothic::inst().player();
   if(pl==nullptr) return;
-  if(controllerWalkApplied) {
+  if(controllerWalkApplied && !walk) {
     pl->setWalkMode(WalkBit(uint8_t(pl->walkMode()) & ~uint8_t(WalkBit::WM_Walk)));
     controllerWalkApplied=false;
     }
@@ -292,9 +293,21 @@ void PlayerControl::setControllerMovement(float x,float y,float cameraYaw,bool w
     pl->setWalkMode(pl->walkMode()|WalkBit::WM_Walk);
     controllerWalkApplied=true;
     }
+  }
+
+void PlayerControl::setControllerMovement(float x,float y,float cameraYaw,bool walk,float turnSpeed,float turnBoost) {
+  touchTurn=0;
+  touchAnalogMovement=false;
+  controllerSwimming=false;
+  swimJumpHeld=false;
+  swimDiveStroke=false;
+  auto pl=Gothic::inst().player();
+  if(pl==nullptr) return;
+  applyControllerWalk(walk);
   controllerDirectional=true;
   controllerGroundStrafe=false;
   controllerTurnSpeed=turnSpeed;
+  controllerTurnBoost=turnBoost;
   if(pl->isSwim() || pl->isDive()) {
     gamepadLX=x; gamepadLY=y;
     } else if(controllerTarget!=nullptr) {
@@ -318,6 +331,7 @@ void PlayerControl::releaseControllerKey(KeyCodec::Action action,bool cancel) {
   }
 
 void PlayerControl::setControllerSwim(float x,float y,float cameraYaw,float cameraPitch,float turnSpeed) {
+  touchAnalogMovement=false;
   touchTurn=0;
   // Use the same movement curve as walking, but let camera pitch steer underwater.
   if(controllerWalkApplied) {
@@ -694,6 +708,7 @@ void PlayerControl::clearMovementInput() {
   }
 
 void PlayerControl::clearInput() {
+  touchAnalogMovement=false;
   touchTurn=0;
   controllerFinisher=nullptr;
   controllerFinishTime=0;
@@ -994,12 +1009,11 @@ void PlayerControl::implMove(uint64_t dt) {
   int rotation = 0;
   if(controllerDirectional && controllerTarget==nullptr && gamepadLY!=0.f && allowRot && !pl.isAttackAnim()) {
     const float delta=std::remainder(controllerYaw-rot,360.f);
-    const float step=controllerTurnSpeed*float(dt)/1000.f;
-    rot+=std::clamp(delta,-step,step);
+    rot+=MovementResponse::turn(delta,std::abs(gamepadLY),controllerTurnSpeed,controllerTurnBoost,float(dt)/1000.f);
     }
   if(allowRot) {
     if(touchTurn!=0.f) {
-      rot-=rspeed*touchTurn;
+      rot-=controllerTurnSpeed*float(dt)/1000.f*touchTurn;
       rotation=touchTurn>0.f ? 1 : -1;
       rotMouse=0;
       }

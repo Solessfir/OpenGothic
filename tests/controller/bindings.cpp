@@ -34,8 +34,8 @@ int main() {
     check(b.movementAxis(0.2f,0.f)==std::pair<float,float>(0.f,0.f),"Movement dead zone suppresses small deflections");
     check(b.movementAxis(0.6f,0.f).first<0.4f,"Movement curve softens medium deflections");
     check(b.movementAxis(1.f,0.f)==std::pair<float,float>(1.f,0.f),"Full stick still reaches full movement");
-    const auto gentleTouch=b.movementAxis(0.4f,0.f).first;
-    const auto firmTouch=b.movementAxis(0.8f,0.f).first;
+    const auto gentleTouch=b.touchMovementAxis(0.4f,0.f).first;
+    const auto firmTouch=b.touchMovementAxis(0.8f,0.f).first;
     check(gentleTouch>0 && gentleTouch<firmTouch && firmTouch<1,"Touch turn speed increases continuously with stick deflection");
     check(b.movementAxis(-1.f,0.f).first==-1.f,"Movement curve preserves direction");
     const auto diagonal=b.movementAxis(1.f,1.f);
@@ -46,7 +46,7 @@ int main() {
       const auto locked=B::targetMovementAxis(curved.first,curved.second);
       check(locked.second==0.f,"Left-right reversal with vertical noise never requests forward movement");
       check(locked.first==curved.first,"Reversal preserves sideways input immediately without a second dead zone");
-      check(!b.automaticWalk(curved.first,curved.second,true),"Locked sidestep reversal never enables automatic walk animations");
+      check(!b.automaticWalk(rawX,-0.04f,true),"Locked sidestep reversal never enables automatic walk animations");
       }
     for(float rawY:{-1.f,-0.4f,0.f,0.4f,1.f}) {
       const auto curved=b.movementAxis(0.04f,rawY);
@@ -57,9 +57,9 @@ int main() {
     check(B::targetMovementAxis(0.f,0.f)==std::pair<float,float>(0.f,0.f),"Neutral locked stick does not retain movement");
     check(B::targetMovementAxis(0.6f,-0.5f)==std::pair<float,float>(0.6f,0.f),"Side-dominant diagonal strafes");
     check(B::targetMovementAxis(0.5f,-0.6f)==std::pair<float,float>(0.f,-0.6f),"Forward-dominant diagonal advances");
-    check(b.automaticWalk(0.2f,0.f,false),"Gentle unlocked movement still walks");
-    check(b.automaticWalk(0.f,-0.2f,true),"Gentle locked forward movement still walks");
-    check(b.automaticWalk(0.f,0.2f,true),"Gentle locked backward movement retains automatic walk mode");
+    check(b.automaticWalk(0.4f,0.f,false),"Gentle unlocked movement still walks");
+    check(b.automaticWalk(0.f,-0.4f,true),"Gentle locked forward movement still walks");
+    check(b.automaticWalk(0.f,0.4f,true),"Gentle locked backward movement retains automatic walk mode");
     check(!b.automaticWalk(0.f,0.f,true),"Neutral locked input does not switch to walk idle");
     check(!b.automaticWalk(0.f,-1.f,true),"Full locked forward input does not walk");
     check(!b.automaticWalk(0.3f,0.2f,true),"Side-dominant diagonal keeps combat sidestep animation");
@@ -67,6 +67,25 @@ int main() {
       check(!b.automaticWalk(x,0.f,true),"Crossing the walk threshold sideways never changes gait");
     std::istringstream defaults(B::defaults());
     check(b.load(defaults).empty(),"Default bindings must validate");
+    check(b.touchMovementAxis(0.14f,-0.14f)==std::pair(0.f,0.f),"Touch resting noise remains neutral");
+    check(b.touchMovementAxis(0.f,-0.16f).second<0.f,"Touch forward starts just beyond its own dead zone");
+    check(b.touchMovementAxis(1.f,0.1f)==std::pair(1.f,0.f),"Full touch turning with vertical noise never walks");
+    check(b.touchMovementAxis(0.1f,-1.f)==std::pair(0.f,-1.f),"Full touch movement with horizontal noise never turns");
+    check(!b.automaticWalk(0.f,-0.70f,false),"Gamepad runs by 70 percent physical stick travel");
+    for(float value:{0.68f,0.64f,0.67f,0.62f})
+      check(!b.automaticWalk(0.f,-value,false),"Running does not chatter around the walk threshold");
+    check(b.automaticWalk(0.f,-0.60f,false),"Backing off deliberately returns to walking");
+    for(float value:{0.62f,0.67f,0.64f,0.68f})
+      check(b.automaticWalk(0.f,-value,false),"Walking does not chatter around the run threshold");
+    check(!b.automaticWalk(0.f,0.f,false),"Neutral immediately releases automatic walking");
+    check(b.automaticWalk(0.f,-0.20f,false,true),"Touch can walk before the old forward threshold");
+    check(!b.automaticWalk(0.f,-0.70f,false,true),"Touch and gamepad share the same physical run threshold");
+    std::istringstream response("[Axes]\nTouchMovementDeadZone=0.1\nTouchTurnSpeed=240\nMovementTurnBoost=0\nWalkHysteresis=0\n");
+    check(b.load(response).empty(),"Responsiveness options validate");
+    check(b.options.touchMovementDeadZone==0.1f && b.options.touchTurnSpeed==240.f &&
+          b.options.movementTurnBoost==0.f && b.options.walkHysteresis==0.f,"Responsiveness options can be tuned or disabled");
+    std::istringstream restoreMovementDefaults(B::defaults());
+    check(b.load(restoreMovementDefaults).empty(),"Restore defaults after responsiveness checks");
     const auto x=B::button("X");
     check(has(b.update(x,C::UI,0),A::DeleteSave),"UI X requests save deletion");
     check(!has(b.update(x,C::UI,1000),A::DeleteSave),"Holding X does not repeat deletion");

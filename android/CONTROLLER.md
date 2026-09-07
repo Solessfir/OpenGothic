@@ -45,12 +45,28 @@ Left-stick responsiveness is separate from Mouse speed. These `Gamepad.ini` opti
 ```ini
 [Axes]
 MovementDeadZone=0.28
+TouchMovementDeadZone=0.15
 MovementExponent=1.5
 MovementTurnSpeed=180
+MovementTurnBoost=1
+TouchTurnSpeed=180
 WalkThreshold=0.65
+WalkHysteresis=0.04
 ```
 
-`MovementDeadZone` ignores small deflections. An exponent above `1` makes partial tilts gentler and extends the walking region. `MovementTurnSpeed` limits unlocked character turning in degrees per second (the first prototype used 360). Mouse speed continues to control the camera only. Missing keys inherit these defaults, including in an existing Gamepad.ini; restart after editing.
+`MovementDeadZone` ignores gamepad stick drift; touch uses its own smaller `TouchMovementDeadZone`.
+`MovementExponent` softens partial input without delaying the physical walk/run threshold.
+`WalkThreshold` now measures raw stick travel, not the softened output: defaults start running at 69% travel and return to walking below 61%.
+`WalkHysteresis` supplies this margin to prevent gait flicker; set it to `0` for a single threshold.
+Touch forward/back uses the same automatic walk/run rule, with independent forward and turning dead zones to reject finger wobble.
+Movement still uses Gothic's walk/run animations, not continuously variable forward speed.
+
+`MovementTurnSpeed` is the base unlocked gamepad turn limit in degrees per second.
+`MovementTurnBoost` increases it for firm input and large direction changes: the default reaches 360 degrees/second at full stick for a 90-degree or larger turn, tapering as the character faces the requested direction.
+Set the boost to `0` to restore the fixed base limit. Small inputs retain gentle turning.
+`TouchTurnSpeed` independently sets full-deflection touch turning to 180 degrees/second, with or without a drawn weapon; sideways touch still turns in place when unlocked.
+Mouse speed continues to control the camera only. Missing keys inherit these defaults, including in an existing Gamepad.ini; restart after editing.
+Desktop keyboard/mouse movement and combat animation interruption rules are unchanged.
 
 The existing Mouse speed setting (`[GAME] mouseSensitivity`) also scales the controller camera. `camLookaroundInverse` controls vertical inversion. Camera assistance waits 800 ms after manual input before recentering during movement; disable it with `[Controller] CameraAssist=0` in `Gamepad.ini`.
 

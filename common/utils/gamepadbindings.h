@@ -29,9 +29,13 @@ class GamepadBindings final {
       uint32_t explorationModifier = 1u<<14;
       float deadZone = 0.20f;
       float movementDeadZone = 0.28f;
+      float touchMovementDeadZone = 0.15f;
       float movementExponent = 1.5f;
       float movementTurnSpeed = 180.f;
+      float movementTurnBoost = 1.f;
+      float touchTurnSpeed = 180.f;
       float walkThreshold = 0.65f;
+      float walkHysteresis = 0.04f;
       float triggerPress = 0.55f;
       float triggerRelease = 0.40f;
       bool swapMovement = false;
@@ -58,9 +62,10 @@ class GamepadBindings final {
     std::string hint(Action action, Context context) const;
     std::vector<Event> update(uint32_t buttons, Context context, uint64_t now);
     void reset(uint32_t held = 0);
-    std::pair<float,float> movementAxis(float x, float y) const;
+    std::pair<float,float> movementAxis(float x, float y, bool touch=false) const;
+    std::pair<float,float> touchMovementAxis(float x, float y) const;
     static std::pair<float,float> targetMovementAxis(float x, float y);
-    bool automaticWalk(float x, float y, bool targetRelative) const;
+    bool automaticWalk(float rawX, float rawY, bool targetRelative, bool touch=false);
 
   private:
     struct Binding {
@@ -86,4 +91,5 @@ class GamepadBindings final {
     uint32_t blocked = 0;
     Context lastContext = Context::Gameplay;
     bool initialized = false;
+    bool automaticWalking = true;
   };

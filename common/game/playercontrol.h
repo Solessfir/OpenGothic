@@ -25,8 +25,8 @@ class PlayerControl final {
     void  onKeyReleased(KeyCodec::Action a, KeyCodec::Mapping mapping);
     bool  isPressed(KeyCodec::Action a) const;
     void  setGamepadAxis(float lx, float ly);
-    void  setTouchMovement(float turn, float forward);
-    void  setControllerMovement(float x, float y, float cameraYaw, bool walk, float turnSpeed);
+    void  setTouchMovement(float turn, float forward, bool walk, float turnSpeed);
+    void  setControllerMovement(float x, float y, float cameraYaw, bool walk, float turnSpeed, float turnBoost=0.f);
     void  setControllerSwim(float x, float y, float cameraYaw, float cameraPitch, float turnSpeed);
     void  controllerCombat(int direction, bool pressed, bool cancel=false, uint64_t holdMs=400);
     void  setMeleeAssist(bool enabled, float maxAngle, float maxDistance);
@@ -165,6 +165,7 @@ class PlayerControl final {
     float          gamepadLX=0;
     float          gamepadLY=0;
     float          touchTurn=0;
+    bool           touchAnalogMovement=false;
     bool           controllerGroundStrafe=false;
     bool           controllerDirectional=false;
     bool           controllerReleaseAttack=false;
@@ -177,6 +178,7 @@ class PlayerControl final {
     uint64_t       controllerFinishTime=0;
     float          controllerYaw=0;
     float          controllerTurnSpeed=180.f;
+    float          controllerTurnBoost=0.f;
     Npc*           controllerTarget=nullptr;
     bool           meleeAssist=false;
     float          meleeAssistMaxAngle=90.f;
@@ -196,6 +198,7 @@ class PlayerControl final {
     InventoryMenu& inv;
 
     void           setupSettings();
+    void           applyControllerWalk(bool walk);
     bool           canInteract() const;
     void           marvinF8(uint64_t dt);
     void           marvinK(uint64_t dt);
@@ -224,10 +227,10 @@ class PlayerControl final {
     //////////////////////////////////
 
     auto wantsToMoveForward() const -> bool {
-      return movement.forwardBackward.value() > 0.f || gamepadLY < -(controllerDirectional ? 0.f : 0.2f);
+      return movement.forwardBackward.value() > 0.f || gamepadLY < -((controllerDirectional || touchAnalogMovement) ? 0.f : 0.2f);
       }
     auto wantsToMoveBackward() const -> bool {
-      return movement.forwardBackward.value() < 0.f || gamepadLY > (controllerDirectional ? 0.f : 0.2f);
+      return movement.forwardBackward.value() < 0.f || gamepadLY > ((controllerDirectional || touchAnalogMovement) ? 0.f : 0.2f);
       }
 
     auto wantsToStrafeRight() const -> bool {

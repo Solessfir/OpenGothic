@@ -1,4 +1,5 @@
 #include "gamepadbindings.h"
+#include "movementresponse.h"
 
 #include <algorithm>
 #include <bit>
@@ -120,9 +121,13 @@ MovementStick=LeftStick
 CameraStick=RightStick
 StickDeadZone=0.20
 MovementDeadZone=0.28
+TouchMovementDeadZone=0.15
 MovementExponent=1.5
 MovementTurnSpeed=180
+MovementTurnBoost=1
+TouchTurnSpeed=180
 WalkThreshold=0.65
+WalkHysteresis=0.04
 TriggerPressThreshold=0.55
 TriggerReleaseThreshold=0.40
 
@@ -265,9 +270,13 @@ std::vector<std::string> GamepadBindings::load(std::istream& input) {
   options.swapWheel=stick("EquipmentWheel","SelectionStick",options.swapWheel,"RightStick");
   options.deadZone=number("Axes","StickDeadZone",options.deadZone,0,0.8f);
   options.movementDeadZone=number("Axes","MovementDeadZone",options.movementDeadZone,0,0.8f);
+  options.touchMovementDeadZone=number("Axes","TouchMovementDeadZone",options.touchMovementDeadZone,0,0.8f);
   options.movementExponent=number("Axes","MovementExponent",options.movementExponent,1,4);
   options.movementTurnSpeed=number("Axes","MovementTurnSpeed",options.movementTurnSpeed,45,720);
+  options.movementTurnBoost=number("Axes","MovementTurnBoost",options.movementTurnBoost,0,3);
+  options.touchTurnSpeed=number("Axes","TouchTurnSpeed",options.touchTurnSpeed,45,720);
   options.walkThreshold=number("Axes","WalkThreshold",options.walkThreshold,0.1f,1);
+  options.walkHysteresis=number("Axes","WalkHysteresis",options.walkHysteresis,0,0.2f);
   options.triggerPress=number("Axes","TriggerPressThreshold",options.triggerPress,0.05f,1);
   options.triggerRelease=number("Axes","TriggerReleaseThreshold",options.triggerRelease,0,0.95f);
   if(options.triggerRelease>=options.triggerPress) {
@@ -289,7 +298,7 @@ std::vector<std::string> GamepadBindings::load(std::istream& input) {
   for(auto& [sec,v]:values) {
     std::string_view allowed;
     if(sec=="Controller") allowed="|Version|Enabled|ExplorationModifier|HoldMs|RepeatDelayMs|RepeatMs|CameraAssist|";
-    if(sec=="Axes") allowed="|MovementStick|CameraStick|StickDeadZone|MovementDeadZone|MovementExponent|MovementTurnSpeed|WalkThreshold|TriggerPressThreshold|TriggerReleaseThreshold|";
+    if(sec=="Axes") allowed="|MovementStick|CameraStick|StickDeadZone|MovementDeadZone|TouchMovementDeadZone|MovementExponent|MovementTurnSpeed|MovementTurnBoost|TouchTurnSpeed|WalkThreshold|WalkHysteresis|TriggerPressThreshold|TriggerReleaseThreshold|";
     if(sec=="TargetLock") allowed="|SwitchThreshold|SwitchResetThreshold|SwitchCooldownMs|CameraSmoothingSeconds|";
     if(sec=="Combat") allowed="|MeleeAssist|MeleeAssistMaxAngle|MeleeAssistMaxDistance|MeleeFocusRangeScale|";
     if(!allowed.empty()) for(auto& [key,value]:v) {
@@ -339,14 +348,21 @@ std::string GamepadBindings::hint(Action action,Context context) const {
 
 void GamepadBindings::reset(uint32_t held) {
   presses={}; previous=held; blocked=held; initialized=false;
+  automaticWalking=true;
   }
 
-std::pair<float,float> GamepadBindings::movementAxis(float x,float y) const {
+std::pair<float,float> GamepadBindings::movementAxis(float x,float y,bool touch) const {
+  const float deadZone=touch ? options.touchMovementDeadZone : options.movementDeadZone;
   const float magnitude=std::sqrt(x*x+y*y);
-  if(magnitude<=options.movementDeadZone) return {0.f,0.f};
-  const float normalized=(std::min(magnitude,1.f)-options.movementDeadZone)/(1.f-options.movementDeadZone);
+  if(magnitude<=deadZone) return {0.f,0.f};
+  const float normalized=(std::min(magnitude,1.f)-deadZone)/(1.f-deadZone);
   const float scale=std::pow(normalized,options.movementExponent)/magnitude;
   return {x*scale,y*scale};
+  }
+
+std::pair<float,float> GamepadBindings::touchMovementAxis(float x,float y) const {
+  // Turning in place must not amplify small vertical finger noise into forward movement.
+  return {movementAxis(x,0.f,true).first,movementAxis(0.f,y,true).second};
   }
 
 std::pair<float,float> GamepadBindings::targetMovementAxis(float x,float y) {
@@ -357,12 +373,16 @@ std::pair<float,float> GamepadBindings::targetMovementAxis(float x,float y) {
   return {0.f,y};
   }
 
-bool GamepadBindings::automaticWalk(float x,float y,bool targetRelative) const {
+bool GamepadBindings::automaticWalk(float x,float y,bool targetRelative,bool touch) {
+  const float deadZone=touch ? options.touchMovementDeadZone : options.movementDeadZone;
+  const float magnitude=std::min(1.f,std::hypot(x,y));
   // Switching walk modes during a sidestep selects a different, potentially uninterruptible animation.
-  if(targetRelative && targetMovementAxis(x,y).second==0.f)
+  if(magnitude<=deadZone || (targetRelative && targetMovementAxis(x,y).second==0.f)) {
+    automaticWalking=true;
     return false;
-  const float magnitude=std::sqrt(x*x+y*y);
-  return magnitude>0.f && magnitude<options.walkThreshold;
+    }
+  automaticWalking=MovementResponse::walk(magnitude,deadZone,options.walkThreshold,options.walkHysteresis,automaticWalking);
+  return automaticWalking;
   }
 
 std::vector<GamepadBindings::Event> GamepadBindings::update(uint32_t buttons,Context context,uint64_t now) {

@@ -249,14 +249,17 @@ void MainWindow::tickGamepad() {
       // Remove keyboard-style turning without clearing target lock or held combat actions.
       if(targetMovement || swimming)
         player.clearMovementInput();
-      const auto axis = touchMovementBlocked ? std::pair(0.f,0.f) : controllerBindings.movementAxis(touchMove.x,touchMove.y);
+      const auto raw = touchMovementBlocked ? PointF() : touchMove;
+      const auto axis = controllerBindings.movementAxis(raw.x,raw.y,true);
       if(swimming)
         player.setControllerSwim(axis.first,axis.second,camera->spin().y,camera->spin().x,options.movementTurnSpeed);
       else if(targetMovement)
         player.setControllerMovement(axis.first,axis.second,camera->spin().y,
-                                     controllerBindings.automaticWalk(axis.first,axis.second,true),options.movementTurnSpeed);
-      else
-        player.setTouchMovement(axis.first,touchMovementBlocked ? 0.f : touchMove.y);
+                                     controllerBindings.automaticWalk(raw.x,raw.y,true,true),options.movementTurnSpeed);
+      else {
+        const auto ground=controllerBindings.touchMovementAxis(raw.x,raw.y);
+        player.setTouchMovement(ground.first,ground.second,controllerBindings.automaticWalk(0.f,raw.y,false,true),options.touchTurnSpeed);
+        }
       }
     else {
       player.setGamepadAxis(0.f,0.f);
@@ -350,11 +353,12 @@ void MainWindow::tickGamepad() {
   auto pl=Gothic::inst().player();
   const bool swimming=pl!=nullptr && (pl->isSwim() || pl->isDive());
   const bool lockedGround=player.lockedTarget()!=nullptr && !swimming;
-  const bool automaticWalk=controllerBindings.automaticWalk(move.x,move.y,lockedGround);
+  const bool automaticWalk=controllerBindings.automaticWalk(options.swapMovement ? gp.rightStickX : gp.leftStickX,
+                                                          options.swapMovement ? gp.rightStickY : gp.leftStickY,lockedGround);
   if(swimming)
     player.setControllerSwim(move.x,move.y,camera->spin().y,camera->spin().x,options.movementTurnSpeed);
   else
-    player.setControllerMovement(move.x,move.y,camera->spin().y,automaticWalk,options.movementTurnSpeed);
+    player.setControllerMovement(move.x,move.y,camera->spin().y,automaticWalk,options.movementTurnSpeed,options.movementTurnBoost);
   const float dtSec=float(dt)/1000.f;
   const float sensitivity=Gothic::settingsGetF("GAME","mouseSensitivity")/0.5f;
   const float inverse=Gothic::settingsGetI("GAME","camLookaroundInverse")?-1.f:1.f;
