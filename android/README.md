@@ -252,7 +252,7 @@ notepad '.\SystemPack-android.ini'
 
 OpenGothic uses invisible virtual touchscreen controls when no physical gamepad is active. Connecting a Bluetooth or USB gamepad disables these virtual zones and switches movement to the physical controller. Gameplay touches are consumed instead of becoming mouse clicks or full-screen camera movement; the Android keyboard remains available for text entry.
 
-The left half of the screen is a dynamic movement stick. Touch anywhere on that half to place its center, then drag relative to that point. The middle-right area, from 50% to 84% of the screen width, controls the camera. These areas support simultaneous touches, so the player can move and look at the same time. After 800 ms without manual camera input, moving forward gently recenters the camera behind the player. Gothic's existing focus system supplies interaction targeting and combat auto-rotation.
+The left half of the screen is a dynamic movement stick. Touch anywhere on that half to place its center, then drag relative to that point. The middle-right area, from 50% to 84% of the screen width, controls the camera. These areas support simultaneous touches, so the player can move and look at the same time. After 400 ms without manual camera input at the default follow speed, moving forward gently recenters the camera behind the player. Gothic's existing focus system supplies interaction targeting and combat auto-rotation.
 
 Back, Inventory, Jump and Draw occupy the rightmost 16% of the screen.
 The frequently used Attack/Use area is wider and taller: the rightmost 24% across the bottom 30%, including menu confirmation.
@@ -406,6 +406,9 @@ While locked, the camera follows the character toward the target and vertical ca
 Android's ordinary third-person camera sits higher along its orbit and pitches downward toward the character and ground ahead.
 Set `[GAME] cameraElevationOffset` in the writable `Gothic.ini` to tune the extra elevation from `0` to `30` degrees; the default is `10`, and `0` restores the original framing.
 It also applies in combat and inventory, uses the existing camera following and collision handling, and works with existing saves without accumulating on reload.
+Drawing or sheathing a weapon preserves the current pitch between exploration, combat and inventory.
+`[GAME] cameraFollowSpeed=2` doubles the camera's following response, approximately halving its smoothing lag for touch and gamepad.
+It also halves the automatic recentering delay to 400 ms; use `1` to restore the prior response. Manual look sensitivity is unchanged.
 Manual look remains available. First-person, dialogue, swimming, diving, cutscenes and desktop camera defaults are unchanged.
 The debug overlay labels the gesture as `DRAG: LOCK` or `DRAG: UNLOCK`.
 

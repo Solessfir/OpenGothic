@@ -186,6 +186,9 @@ void Camera::setMode(const Camera::Mode m) {
     };
 
   const bool reset = !(isRegular(camMod) && isRegular(m));
+#if defined(__ANDROID__)
+  const float previousPitch=state.spin.x;
+#endif
   if(camMod==Mode::Cutscene) {
     state.spin   = angles;
     state.target = origin;
@@ -222,6 +225,9 @@ void Camera::setMode(const Camera::Mode m) {
                       def.best_azimuth,
                       def.best_rot_z);
   state.spin += rotBest;
+#if defined(__ANDROID__)
+  if(!reset) state.spin.x=previousPitch;
+#endif
   }
 
 void Camera::setMarvinMode(Camera::MarvinMode nextMod) {
@@ -785,8 +791,19 @@ void Camera::tickFirstPerson(float /*dtF*/) {
   angles = state.spin;
   }
 
+float Camera::followSpeed() const {
+#if defined(__ANDROID__)
+  if(camMarvinMod==M_Normal && (camMod==Normal || camMod==Inventory || camMod==Melee || camMod==Ranged || camMod==Magic)) {
+    const float speed=Gothic::settingsGetF("GAME","cameraFollowSpeed");
+    return std::isfinite(speed) ? std::clamp(speed,0.25f,4.f) : 2.f;
+    }
+#endif
+  return 1.f;
+  }
+
 void Camera::tickThirdPerson(float dtF) {
   const auto& def = cameraDef();
+  const float followDt=dtF*followSpeed();
 
   auto mkRotMatrix = [this](Vec3 spin){
     auto view = Camera::mkRotation(spin);
@@ -810,7 +827,7 @@ void Camera::tickThirdPerson(float dtF) {
 
   if(camMod!=Dialog) {
     state.spin      = clampRotation(state.spin);
-    inter.rotOffset = followRot(inter.rotOffset, rotOffsetDef, dtF, def.velo_rot);
+    inter.rotOffset = followRot(inter.rotOffset, rotOffsetDef, followDt, def.velo_rot);
     }
 
   auto orbitSpin=state.spin;
@@ -832,7 +849,7 @@ void Camera::tickThirdPerson(float dtF) {
       }
     // and has leash-like follow for target+offset
     // ignores def.translate
-    inter.target = followTarget(inter.target, state.target+targetOffset, dtF);
+    inter.target = followTarget(inter.target, state.target+targetOffset, followDt);
     }
 
   auto dir = Vec3{0,0,1};
@@ -854,7 +871,7 @@ void Camera::tickThirdPerson(float dtF) {
     }
 
   if(def.translate!=0) {
-    origin = followTrans(origin, inter.target + dir*range, (camMod!=Dialog ? dtF : -1.f), def.velo_trans);
+    origin = followTrans(origin, inter.target + dir*range, (camMod!=Dialog ? followDt : -1.f), def.velo_trans);
     }
 
   angles = calcLookAtAngles(origin, inter.target, inter.rotOffset, state.spin);

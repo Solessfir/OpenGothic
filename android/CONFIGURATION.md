@@ -19,9 +19,16 @@ First-person, dialogue, swimming, diving, cutscenes and desktop defaults are una
 ```ini
 [GAME]
 cameraElevationOffset=10
+cameraFollowSpeed=2
 ```
 
 Values from `0` to `30` degrees are supported, subject to the camera's existing pitch limits. Use `0` for the original framing.
+Drawing or sheathing a weapon keeps the current pitch when switching between exploration, combat and inventory.
+
+`cameraFollowSpeed` scales ordinary third-person position/rotation following and touch/gamepad camera assistance.
+The default `2` doubles the follow response, approximately halving smoothing lag; automatic recentering waits 400 ms instead of 800 ms after manual input.
+Values from `0.25` to `4` are supported; `1` restores the previous response.
+Manual camera sensitivity, character movement, animation speed and scripted cameras are unaffected.
 
 ## Optional render scale
 

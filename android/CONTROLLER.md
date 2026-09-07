@@ -73,7 +73,7 @@ Set the boost to `0` to restore the fixed base limit. Small inputs retain gentle
 Mouse speed continues to control the camera only. Missing keys inherit these defaults, including in an existing Gamepad.ini; restart after editing.
 Desktop keyboard/mouse movement and combat animation interruption rules are unchanged.
 
-The existing Mouse speed setting (`[GAME] mouseSensitivity`) also scales the controller camera. `camLookaroundInverse` controls vertical inversion. Camera assistance waits 800 ms after manual input before recentering during movement; disable it with `[Controller] CameraAssist=0` in `Gamepad.ini`.
+The existing Mouse speed setting (`[GAME] mouseSensitivity`) also scales the controller camera. `camLookaroundInverse` controls vertical inversion. Camera assistance waits 400 ms at the default `[GAME] cameraFollowSpeed=2` after manual input before recentering during movement; disable it with `[Controller] CameraAssist=0` in `Gamepad.ini`.
 
 Android touch and gamepad share an optional unlocked melee facing assist for both Gothic control modes.
 At the start of a punch or sword attack, the character faces the currently focused living NPC if Gothic still considers it eligible.
@@ -100,7 +100,7 @@ This applies to Android touch and gamepad, not desktop input, enemy AI, unarmed 
 It does not change weapon reach or the independent `MeleeAssistMaxDistance` limit.
 Restart after editing. This assist is separate from camera assistance and mouse sensitivity.
 
-Unlocked camera assistance scales with the left stick's effective movement amount after its dead zone and response curve: small deflections recenter gently, full deflection gives full assistance, and releasing the stick stops assistance. Locked tracking remains active while stationary. Both use frame-rate-independent smoothing controlled by `[TargetLock] CameraSmoothingSeconds`; mouse sensitivity still controls manual camera input, not movement-stick assistance.
+Unlocked camera assistance scales with the left stick's effective movement amount after its dead zone and response curve: small deflections recenter gently, full deflection gives full assistance, and releasing the stick stops assistance. Locked tracking remains active while stationary. Both use frame-rate-independent smoothing controlled by `[TargetLock] CameraSmoothingSeconds`, divided by the writable `Gothic.ini` `[GAME] cameraFollowSpeed` (default `2`). Thus the default `0.20`-second smoothing behaves as `0.10` seconds. Mouse sensitivity still controls manual camera input, not movement-stick assistance.
 
 Quicksave/load require `[GAME] useQuickSaveKeys=1` in `Gothic.ini`. Potion shortcuts require `usePotionKeys=1`. Disabled shortcuts remain consumed: LB+View never falls through to opening inventory. Potion selection and restrictions come from the installed Gothic scripts, exactly as with the keyboard hotkeys. No separate potion-selection policy is added. See [configuration](CONFIGURATION.md) for safely editing these flags.
 

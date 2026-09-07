@@ -279,9 +279,10 @@ void MainWindow::tickGamepad() {
     else touchLookIdle+=dt;
     camera->onRotateMouse(PointF(pitch,locked ? 0.f : -yaw));
     const float movement = touchMovementBlocked ? 0.f : std::max(std::abs(touchMove.x),std::abs(touchMove.y));
+    const float followSpeed=camera->followSpeed();
     if(auto pl = Gothic::inst().player(); pl!=nullptr && !swimming && !player.isPressed(KeyCodec::LookBack) &&
-       !camera->isFirstPerson() && (locked || (touchLookIdle>800 && movement>0.35f))) {
-      const float follow = CameraMath::followYawDelta(camera->spin().y,pl->rotation(),dtSec,options.cameraSmoothing,
+       !camera->isFirstPerson() && (locked || (touchLookIdle>uint64_t(800.f/followSpeed) && movement>0.35f))) {
+      const float follow = CameraMath::followYawDelta(camera->spin().y,pl->rotation(),dtSec*followSpeed,options.cameraSmoothing,
                                                     locked ? 1.f : movement);
       camera->onRotateMouse(PointF(0.f,follow));
       }
@@ -377,11 +378,12 @@ void MainWindow::tickGamepad() {
       }
     }
   if(look!=PointF()) controllerLookIdle=0; else controllerLookIdle+=dt;
+  const float followSpeed=camera->followSpeed();
   if(pl && !swimming && !player.isPressed(KeyCodec::LookBack) && !camera->isFirstPerson() &&
-     (player.lockedTarget()!=nullptr || (options.cameraAssist && magnitude>0 && controllerLookIdle>800))) {
+     (player.lockedTarget()!=nullptr || (options.cameraAssist && magnitude>0 && controllerLookIdle>uint64_t(800.f/followSpeed)))) {
     // Gentle movement should produce gentle camera assistance, without disabling stationary lock tracking.
     const float strength=player.lockedTarget()!=nullptr?1.f:magnitude;
-    const float yaw=CameraMath::followYawDelta(camera->spin().y,pl->rotation(),dtSec,options.cameraSmoothing,strength);
+    const float yaw=CameraMath::followYawDelta(camera->spin().y,pl->rotation(),dtSec*followSpeed,options.cameraSmoothing,strength);
     camera->onRotateMouse(PointF(0,yaw));
     }
 #endif

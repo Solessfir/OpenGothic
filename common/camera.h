@@ -87,6 +87,7 @@ class Camera final {
     void debugDraw(DbgPainter& p);
 
     Tempest::PointF    spin() const;
+    float             followSpeed() const;
     Tempest::Vec3      destTarget() const;
     float              azimuth() const;
 
