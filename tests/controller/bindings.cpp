@@ -77,15 +77,15 @@ int main() {
     check(b.touchMovementAxis(0.f,-0.16f).second<0.f,"Touch forward starts just beyond its own dead zone");
     check(b.touchMovementAxis(1.f,0.1f)==std::pair(1.f,0.f),"Full touch turning with vertical noise never walks");
     check(b.touchMovementAxis(0.1f,-1.f)==std::pair(0.f,-1.f),"Full touch movement with horizontal noise never turns");
-    check(b.turnMovementAxis(1.f,0.f).first==1.f && b.turnMovementAxis(1.f,0.f).second<0.f,
-          "Three o'clock steers right while advancing");
-    check(b.turnMovementAxis(-1.f,0.f).first==-1.f && b.turnMovementAxis(-1.f,0.f).second<0.f,
-          "Nine o'clock steers left while advancing");
+    check(b.turnMovementAxis(0.9659258f,-0.258819f).first>0.f && b.turnMovementAxis(0.9659258f,-0.258819f).second<0.f,
+          "Two thirty steers right while advancing");
+    check(b.turnMovementAxis(-0.9659258f,-0.258819f).first<0.f && b.turnMovementAxis(-0.9659258f,-0.258819f).second<0.f,
+          "Nine thirty steers left while advancing");
     for(float sign:{-1.f,1.f}) {
-      const auto lower=b.turnMovementAxis(sign*0.8660254f,0.5f);
-      check(lower.first*sign>0.f && lower.second==0.f,"Eight and four o'clock turn in place");
+      const auto lower=b.turnMovementAxis(sign*0.9659258f,0.258819f);
+      check(lower.first*sign>0.f && lower.second==0.f,"Eight thirty and three thirty turn in place");
       const auto upper=b.turnMovementAxis(sign*0.8660254f,-0.5f);
-      check(upper.first*sign>0.f && upper.second==-1.f,"Upper diagonals have full forward movement while steering");
+      check(upper.first*sign>0.f && upper.second<0.f,"Upper diagonals move forward while steering");
       }
     check(b.turnMovementAxis(0.f,1.f)==std::pair(0.f,1.f),"Straight down retreats without turning around");
     check(b.turnMovementAxis(0.1f,1.f).first==0.f && b.turnMovementAxis(0.1f,1.f).second>0.f,
@@ -96,11 +96,11 @@ int main() {
     check(b.turnMovementAxis(0.f,0.f)==std::pair(0.f,0.f),"Releasing the stick stops turning and movement");
     check(b.touchMovementAxis(1.f,0.f)==std::pair(1.f,0.f),"Touch keeps its horizontal turn-in-place direction");
     check(b.touchMovementAxis(0.8660254f,0.5f).second>0.f,"The gamepad steering shift does not change touch diagonals");
-    check(!b.automaticWalk(0.f,-0.60f,false),"Gamepad runs by 60 percent physical stick travel");
-    for(float value:{0.58f,0.54f,0.57f,0.52f})
+    check(!b.automaticWalk(0.f,-0.65f,false),"Gamepad runs by 65 percent physical stick travel");
+    for(float value:{0.63f,0.59f,0.62f,0.57f})
       check(!b.automaticWalk(0.f,-value,false),"Running does not chatter around the walk threshold");
-    check(b.automaticWalk(0.f,-0.50f,false),"Backing off deliberately returns to walking");
-    for(float value:{0.52f,0.57f,0.54f,0.58f})
+    check(b.automaticWalk(0.f,-0.55f,false),"Backing off deliberately returns to walking");
+    for(float value:{0.57f,0.62f,0.59f,0.63f})
       check(b.automaticWalk(0.f,-value,false),"Walking does not chatter around the run threshold");
     check(!b.automaticWalk(0.f,0.f,false),"Neutral immediately releases automatic walking");
     check(b.automaticWalk(0.f,-0.20f,false,true),"Touch can walk before the old forward threshold");

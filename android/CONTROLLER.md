@@ -8,7 +8,7 @@ Physical volume buttons remain Android media controls.
 
 | Control | Action |
 | --- | --- |
-| Left stick | Up moves forward, down steps backward; 8/4 o'clock turns in place, 9/3 moves forward while steering; light tilt walks, firm tilt runs |
+| Left stick | Up moves forward, down steps backward; 8:30/3:30 turns in place, upper diagonals move forward while steering; light tilt walks, firm tilt runs |
 | Right stick | Camera; while locked, vertical look and horizontal target switching |
 | R3 | Toggle target lock with a weapon drawn |
 | L3 / LB+L3 | Sneak / walk toggle |
@@ -109,7 +109,7 @@ These entries are in `Gamepad.ini`, not `Gothic.ini`:
 | `[Axes] MovementDeadZone` | `0.28` | Gamepad movement dead zone |
 | `[Axes] TouchMovementDeadZone` | `0.15` | Touch movement dead zone |
 | `[Axes] MovementExponent` | `1.5` | Soften small movement/turning input |
-| `[Axes] WalkThreshold` / `TouchWalkThreshold` | `0.55` / `0.35` | Walk/run transition |
+| `[Axes] WalkThreshold` / `TouchWalkThreshold` | `0.60` / `0.35` | Walk/run transition |
 | `[Axes] WalkHysteresis` | `0.04` | Margin preventing walk/run flicker |
 | `[Axes] MovementTurnSpeed` / `TouchTurnSpeed` | `180` / `180` | Base turning speed in degrees/second |
 | `[Controller] CameraAssist` | `1` | Gamepad movement recentering |
