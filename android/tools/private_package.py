@@ -54,6 +54,8 @@ def game_files(root):
                 raise ValueError(f"Resolve symlinks before packaging: {path}")
             if not path.is_file() or path.suffix.lower() in BLOCKED_SUFFIXES:
                 continue
+            if path.name.endswith(".og-extract-part"):
+                raise ValueError(f"Reserved extraction temporary filename: {path}")
             if not path.resolve().is_relative_to(root):
                 raise ValueError(f"File leaves game directory: {path}")
             relative = path.relative_to(folder).as_posix()

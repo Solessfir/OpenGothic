@@ -48,7 +48,7 @@ public final class PrivateAssets {
     }
 
     private static File destination(File root, String path) throws IOException {
-        if (path.contains("\\") || path.contains(":") || path.startsWith("/") ||
+        if (path.contains("\\") || path.contains(":") || path.startsWith("/") || path.endsWith(".og-extract-part") ||
                 Arrays.asList(path.split("/", -1)).contains("..") ||
                 Arrays.asList(path.split("/", -1)).contains(".") ||
                 Arrays.asList(path.split("/", -1)).contains("")) {

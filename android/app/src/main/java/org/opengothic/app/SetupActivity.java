@@ -39,7 +39,7 @@ public final class SetupActivity extends Activity {
         if (names != null) {
             for (String name : names) if (name.matches("private-game-[0-9]{5}\\.ogpart")) ++count;
         }
-        if (count == 0) throw new IOException("This APK has no bundled game files");
+        if (count == 0) return null;
         ArrayList<InputStream> parts = new ArrayList<>();
         try {
             for (int i = 0; i < count; ++i) {
@@ -101,15 +101,18 @@ public final class SetupActivity extends Activity {
         InputStream source;
         try {
             source = uri == null ? bundledFiles() : getContentResolver().openInputStream(uri);
-            if (source == null) throw new IOException("Cannot open selected archive");
-        } catch (IOException e) {
-            File data = new File(root, "Gothic2/Data");
-            if (uri == null && !pending.exists() && data.isDirectory() && data.list() != null && data.list().length > 0) {
-                launchGame();
+            if (source == null) {
+                File data = new File(root, "Gothic2/Data");
+                if (uri == null && !pending.exists() && data.isDirectory() && data.list() != null && data.list().length > 0) {
+                    launchGame();
+                    return;
+                }
+                message = "Copy private-game.zip to Downloads and select it here. No storage permission is needed.\n\n" +
+                        "Alternatively copy your game installation into:\n" + new File(root, "Gothic2");
                 return;
             }
-            message = "Copy private-game.zip to Downloads and select it here. No storage permission is needed.\n\n" +
-                    "Alternatively copy your game installation into:\n" + new File(root, "Gothic2") + "\n\n" + e.getMessage();
+        } catch (IOException | SecurityException e) {
+            message = "Cannot open the game archive: " + e.getMessage() + "\nSelect the ZIP again or reinstall a verified APK.";
             return;
         }
         running = true;

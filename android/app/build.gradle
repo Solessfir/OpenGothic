@@ -2,6 +2,16 @@ plugins {
     id 'com.android.application'
 }
 
+// Incrementally rewriting a multi-gigabyte APK can overflow the packager's offsets.
+// Repackage private builds in full while preserving native compilation caches.
+if (providers.gradleProperty('privateGameAssets').isPresent()) {
+    tasks.configureEach {
+        if (name == 'packageDebug') {
+            outputs.upToDateWhen { false }
+        }
+    }
+}
+
 android {
     namespace 'org.opengothic.app'
     compileSdk 35

@@ -84,6 +84,8 @@ This is an APK plus a data archive, not Android split APKs/APKS requiring a sepa
 The guide switches to separate files if the compressed payload approaches the APK's ZIP32 size limit.
 Within a bundled APK, the compressed payload is split into 128 MiB asset entries to avoid Gradle's per-asset Java array limit.
 The phone streams those internal chunks as one archive; users still transfer/install just one APK.
+Private APK packaging is deliberately non-incremental to avoid the packager's offset overflow when updating large ZIP entries.
+Native compilation still uses its normal caches.
 If Gradle or the phone rejects a smaller large APK, rerun explicitly with `--split`.
 
 With USB debugging, split mode also copies the ZIP to Downloads and opens the import screen; select it on the phone.
