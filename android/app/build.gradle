@@ -2,6 +2,10 @@ plugins {
     id 'com.android.application'
 }
 
+dependencies {
+    implementation 'com.google.android.material:material:1.13.0'
+}
+
 // Incrementally rewriting a multi-gigabyte APK can overflow the packager's offsets.
 // Repackage APKs in full while preserving native compilation caches.
 // This also removes orphaned private bytes when returning to an asset-free APK.

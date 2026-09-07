@@ -1,7 +1,7 @@
 package org.opengothic.app;
 
-import android.app.Activity;
 import android.content.Intent;
+import android.content.res.Configuration;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -10,9 +10,17 @@ import android.os.SystemClock;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
-import android.widget.LinearLayout;
-import android.widget.ProgressBar;
 import android.widget.TextView;
+
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
+
+import com.google.android.material.color.DynamicColors;
+import com.google.android.material.color.MaterialColors;
+import com.google.android.material.progressindicator.LinearProgressIndicator;
 
 import java.io.File;
 import java.io.IOException;
@@ -23,15 +31,19 @@ import java.util.Collections;
 import java.util.Locale;
 
 /** Owns game-data setup; engine lifecycle and input remain in Tempest. */
-public final class SetupActivity extends Activity {
+public final class SetupActivity extends AppCompatActivity {
     private static final int PICK_ARCHIVE = 1;
     private static volatile boolean running;
     private static volatile boolean ready;
+    private static volatile boolean failed;
     private static volatile String message = "";
     private static volatile int percent;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private TextView status;
-    private ProgressBar progress;
+    private TextView title;
+    private TextView description;
+    private TextView percentage;
+    private LinearProgressIndicator progress;
     private Button choose;
     private Button retry;
     private long checksStarted;
@@ -57,13 +69,19 @@ public final class SetupActivity extends Activity {
     }
 
     @Override public void onCreate(Bundle saved) {
+        DynamicColors.applyToActivityIfAvailable(this);
         super.onCreate(saved);
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+        boolean light = (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) != Configuration.UI_MODE_NIGHT_YES;
+        WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView()).setAppearanceLightStatusBars(light);
+        WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView()).setAppearanceLightNavigationBars(light);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         checksStarted = SystemClock.uptimeMillis();
         if (!running) {
             if ("org.opengothic.app.IMPORT_GAME_FILES".equals(getIntent().getAction())) {
                 ready = false;
-                message = "Select game-data.zip from Downloads. Existing saves and settings will be kept.\nQuit the game before importing a different installation.";
+                failed = false;
+                message = getString(R.string.setup_import_existing);
             } else {
                 begin(null);
             }
@@ -71,40 +89,63 @@ public final class SetupActivity extends Activity {
     }
 
     private void showSetup() {
-        LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        int padding = (int) (24 * getResources().getDisplayMetrics().density);
-        layout.setPadding(padding, padding, padding, padding);
-        status = new TextView(this);
-        status.setTextSize(18);
-        layout.addView(status);
-        progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
-        layout.addView(progress);
-        choose = new Button(this);
-        choose.setText("Choose game-data.zip");
+        setContentView(R.layout.activity_setup);
+        View scroll = findViewById(R.id.setup_scroll);
+        View content = findViewById(R.id.setup_content);
+        ViewCompat.setOnApplyWindowInsetsListener(scroll, (view, windowInsets) -> {
+            Insets insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
+            view.setPadding(insets.left, insets.top, insets.right, insets.bottom);
+            return windowInsets;
+        });
+        // Keep the form readable on tablets and after rotating during setup.
+        scroll.addOnLayoutChangeListener((view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+            float density = getResources().getDisplayMetrics().density;
+            int available = right - left - scroll.getPaddingLeft() - scroll.getPaddingRight() - Math.round(48 * density);
+            int width = Math.min(Math.round(560 * density), Math.max(0, available));
+            if (content.getLayoutParams().width != width) {
+                content.getLayoutParams().width = width;
+                content.requestLayout();
+            }
+        });
+        ViewCompat.requestApplyInsets(scroll);
+        title = findViewById(R.id.setup_title);
+        ViewCompat.setAccessibilityHeading(title, true);
+        description = findViewById(R.id.setup_description);
+        status = findViewById(R.id.setup_status);
+        percentage = findViewById(R.id.setup_percent);
+        progress = findViewById(R.id.setup_progress);
+        choose = findViewById(R.id.setup_choose);
         choose.setOnClickListener(v -> {
             Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
             intent.addCategory(Intent.CATEGORY_OPENABLE);
             intent.setType("*/*");
             startActivityForResult(intent, PICK_ARCHIVE);
         });
-        layout.addView(choose);
-        retry = new Button(this);
-        retry.setText("Retry bundled files / check copied files");
+        retry = findViewById(R.id.setup_retry);
         retry.setOnClickListener(v -> begin(null));
-        layout.addView(retry);
-        setContentView(layout);
+        TextView location = findViewById(R.id.setup_location_details);
+        File root = getExternalFilesDir(null);
+        location.setText(root == null ? getString(R.string.setup_storage_unavailable) :
+                getString(R.string.setup_location_description, new File(root, "Gothic2")));
+        findViewById(R.id.setup_location).setOnClickListener(v ->
+                location.setVisibility(location.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE));
+    }
+
+    private static void updateText(TextView view, String text) {
+        if (!text.contentEquals(view.getText())) view.setText(text);
     }
 
     private void begin(Uri uri) {
         if (running) return;
         ready = false;
-        percent = 0;
+        failed = false;
+        percent = -1;
         checksStarted = SystemClock.uptimeMillis();
         File root = getExternalFilesDir(null);
         File pending = new File(getFilesDir(), "private-assets-pending");
         if (root == null) {
-            message = "App storage is unavailable. Unlock the phone and retry.";
+            message = getString(R.string.setup_storage_unavailable);
+            failed = true;
             return;
         }
         InputStream source;
@@ -116,16 +157,16 @@ public final class SetupActivity extends Activity {
                     launchGame();
                     return;
                 }
-                message = "Copy game-data.zip to Downloads and select it here. No storage permission is needed.\n\n" +
-                        "Alternatively copy your game installation into:\n" + new File(root, "Gothic2");
+                message = getString(R.string.setup_waiting);
                 return;
             }
         } catch (IOException | SecurityException e) {
             message = "Cannot open the game archive: " + e.getMessage() + "\nSelect the ZIP again or reinstall a verified APK.";
+            failed = true;
             return;
         }
         running = true;
-        message = "Checking game files. First launch can take several minutes; keep this screen open.";
+        message = getString(R.string.setup_checking);
         File marker = new File(getFilesDir(), "private-assets-index.tsv");
         // The worker holds no Activity reference. A recreated Activity observes its state.
         new Thread(() -> {
@@ -133,12 +174,13 @@ public final class SetupActivity extends Activity {
                 if (!pending.exists() && !pending.createNewFile()) throw new IOException("Cannot record pending setup");
                 PrivateAssets.extract(input, root, marker, (done, total, path) -> {
                     percent = (int) (done * 100 / Math.max(1, total));
-                    message = "Preparing game files: " + percent + "%\n" + path;
+                    message = path;
                 });
                 if (!pending.delete()) throw new IOException("Cannot finish pending setup");
                 ready = true;
             } catch (IOException | RuntimeException e) {
-                message = "Setup stopped: " + e.getMessage() + "\n\nFree space or correct the problem, then retry. Completed files, saves and settings are preserved.";
+                message = String.valueOf(e.getMessage());
+                failed = true;
             } finally {
                 running = false;
             }
@@ -158,10 +200,20 @@ public final class SetupActivity extends Activity {
             // Longer checks show progress, but import controls only appear when user input is required.
             if (!working || status != null || SystemClock.uptimeMillis() - checksStarted >= 300) {
                 if (status == null) showSetup();
-                status.setText(message);
-                progress.setProgress(percent);
+                updateText(title, getString(working ? R.string.setup_working_title : failed ? R.string.setup_error_title : R.string.setup_title));
+                updateText(description, getString(working ? R.string.setup_working_description : failed ? R.string.setup_error_description : R.string.setup_description));
+                updateText(status, failed ? getString(R.string.setup_error, message) : message);
+                status.setTextColor(MaterialColors.getColor(status, failed ? androidx.appcompat.R.attr.colorError :
+                        com.google.android.material.R.attr.colorOnSurfaceVariant));
+                int value = percent;
+                boolean indeterminate = working && value < 0;
+                if (progress.isIndeterminate() != indeterminate) progress.setIndeterminate(indeterminate);
+                if (!indeterminate) progress.setProgressCompat(Math.max(0, value), true);
+                updateText(percentage, getString(R.string.setup_progress, Math.max(0, value)));
+                percentage.setVisibility(working && value >= 0 ? View.VISIBLE : View.GONE);
                 progress.setVisibility(working ? View.VISIBLE : View.GONE);
                 choose.setVisibility(working ? View.GONE : View.VISIBLE);
+                updateText(retry, getString(failed ? R.string.setup_retry_error : R.string.setup_retry));
                 retry.setVisibility(working ? View.GONE : View.VISIBLE);
             }
             handler.postDelayed(this, 50);

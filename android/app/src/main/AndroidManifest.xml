@@ -21,6 +21,7 @@
         android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen">
         <activity
             android:name=".SetupActivity"
+            android:theme="@style/Theme.OpenGothic.Setup"
             android:exported="true"
             android:configChanges="orientation|screenSize|keyboardHidden"
             android:screenOrientation="user">
