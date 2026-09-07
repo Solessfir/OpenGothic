@@ -116,6 +116,9 @@ void Camera::load(Serialize &s, Npc* pl) {
   s.read(inter.target, inter.rotOffset);
   s.read(origin,angles,veloTrans);
   s.read(userRange);
+#if defined(__ANDROID__)
+  inter.range=state.range;
+#endif
   }
 
 void Camera::changeZoom(int delta) {
@@ -793,7 +796,7 @@ void Camera::tickFirstPerson(float /*dtF*/) {
 
 float Camera::followSpeed() const {
 #if defined(__ANDROID__)
-  if(camMarvinMod==M_Normal && (camMod==Normal || camMod==Inventory || camMod==Melee || camMod==Ranged || camMod==Magic)) {
+  if(camMarvinMod==M_Normal && (camMod==Normal || camMod==Melee || camMod==Ranged || camMod==Magic)) {
     const float speed=Gothic::settingsGetF("GAME","cameraFollowSpeed");
     return std::isfinite(speed) ? std::clamp(speed,0.25f,4.f) : 2.f;
     }
@@ -832,14 +835,28 @@ void Camera::tickThirdPerson(float dtF) {
 
   auto orbitSpin=state.spin;
 #if defined(__ANDROID__)
-  if(camMod==Normal || camMod==Inventory || camMod==Melee || camMod==Ranged || camMod==Magic) {
+  const bool gameplay=camMod==Normal || camMod==Melee || camMod==Ranged || camMod==Magic;
+  if(gameplay) {
     // Raise the camera along its orbit so the normal look-at points downward toward the player.
     // Keep the offset out of saved input angles to avoid accumulating it on reload.
     const bool combat=camMod==Melee || camMod==Ranged || camMod==Magic;
     const float elevation=Gothic::settingsGetF("GAME",combat ? "cameraCombatElevationOffset" : "cameraElevationOffset");
-    if(std::isfinite(elevation)) orbitSpin.x+=std::clamp(elevation,0.f,30.f);
+    const float desiredElevation=std::isfinite(elevation) ? std::clamp(elevation,0.f,30.f) : 0.f;
+    // Blend framing changes separately from the faster movement follow and manual camera input.
+    const float blend=dtF<=0.f ? 1.f : -std::expm1(-dtF/0.15f);
+    inter.elevation+=(desiredElevation-inter.elevation)*blend;
+    inter.range+=(state.range-inter.range)*blend;
+    orbitSpin.x+=inter.elevation;
+    range=inter.range*100.f;
     orbitSpin=clampRotation(orbitSpin);
     }
+  else {
+    inter.range=state.range;
+    inter.elevation=0.f;
+    }
+  // Inventory has its own composed view; gameplay pitch must not tilt that preset.
+  // Keep the input pitch untouched so closing inventory restores the player's view.
+  if(camMod==Inventory) orbitSpin.x=def.best_elevation;
 #endif
   const auto rotOffsetMat = mkRotMatrix(orbitSpin);
   if(camMod!=Dialog) {

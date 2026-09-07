@@ -1279,8 +1279,12 @@ Camera::Mode MainWindow::solveCameraMode() const {
   if(camera!=nullptr && camera->isFirstPerson())
     return Camera::FirstPerson;
 
-  if(inventory.isOpen()==InventoryMenu::State::Equip ||
-     inventory.isOpen()==InventoryMenu::State::Ransack)
+  if((inventory.isOpen()==InventoryMenu::State::Equip ||
+      inventory.isOpen()==InventoryMenu::State::Ransack)
+#if defined(__ANDROID__)
+     && !inventory.isWheelOpen()
+#endif
+     )
     return Camera::Inventory;
 
   if(auto pl=Gothic::inst().player()) {

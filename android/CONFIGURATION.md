@@ -13,8 +13,11 @@ Keep the writable file small. Do not replace it with the entire PC INI: some ori
 Android raises the ordinary third-person camera along its orbit by 10 degrees and looks down toward the character and ground ahead.
 Combat uses 20 degrees of added elevation to improve nearby enemy visibility with its closer camera.
 At a three-meter follow distance this adds roughly half a meter of height when starting from a level orbit.
-This applies to exploration, combat and inventory, including existing saves; manual camera adjustment remains available.
-The offset blends through the normal camera system and does not accumulate on save/load.
+This applies to exploration and combat, including existing saves; manual camera adjustment remains available.
+Inventory keeps its original framing and smoothing, without inheriting the gameplay pitch or added elevation.
+Radial wheels leave the gameplay camera active instead of switching to the inventory view.
+Combat elevation and zoom changes blend with a 0.15-second time constant, independently of movement follow speed.
+The offset does not accumulate on save/load, and closing inventory restores your manual pitch adjustment.
 First-person, dialogue, swimming, diving, cutscenes and desktop defaults are unaffected.
 
 ```ini
@@ -25,7 +28,7 @@ cameraFollowSpeed=2
 ```
 
 Both elevation settings support `0` to `30` degrees, subject to the camera's existing pitch limits. Use `0` for the original framing.
-`cameraCombatElevationOffset` applies to melee, ranged and magic combat; `cameraElevationOffset` applies to exploration and inventory.
+`cameraCombatElevationOffset` applies to melee, ranged and magic combat; `cameraElevationOffset` applies to exploration.
 Drawing or sheathing a weapon preserves your manual pitch adjustment while switching between these offsets.
 
 `cameraFollowSpeed` scales ordinary third-person position/rotation following and touch/gamepad camera assistance.

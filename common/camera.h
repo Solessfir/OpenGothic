@@ -133,6 +133,10 @@ class Camera final {
     struct Interpolated {
       Tempest::Vec3       target    = {};
       Tempest::Vec3       rotOffset = {};
+#if defined(__ANDROID__)
+      float              range     = 3.f;
+      float              elevation = 0.f;
+#endif
       };
 
     State                 state;
