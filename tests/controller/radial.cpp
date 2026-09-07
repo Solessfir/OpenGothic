@@ -40,26 +40,24 @@ int main() {
       for(float scale : {1.f,2.f,4.f}) {
         for(int count : {0,1,2,3,8}) {
           const auto [width,height]=dimensions;
-          for(float x : {0.f,float(width)/2.f,float(width)}) {
-            for(float y : {0.f,float(height)/2.f,float(height)}) {
-              const auto layout=RadialInput::touchLayout(width,height,scale,x,y,count,24);
-              check(layout.x-layout.outer>=0 && layout.x+layout.outer<=width,
-                    "The full wheel fits horizontally, even when opened at an edge");
-              check(layout.y-layout.outer>=0 && layout.y+layout.outer+layout.footer<=height,
-                    "The wheel and its labels fit vertically, even when opened at an edge");
-              check(layout.cell>0 && layout.radius>0,"Visible viewports have usable item dimensions");
-              if(count==8)
-                check(2*layout.radius*std::sin(std::numbers::pi_v<float>/8.f)>=layout.cell,
-                      "Adjacent equipment item viewports do not overlap");
-              }
-            }
+          const auto layout=RadialInput::touchLayout(width,height,scale,count,24);
+          check(layout.x==float(width)*0.5f && layout.y==float(height)*0.5f,
+                "Touch wheels always appear at the screen center");
+          check(layout.x-layout.outer>=0 && layout.x+layout.outer<=width,
+                "The full wheel fits horizontally");
+          check(layout.y-layout.outer>=0 && layout.y+layout.outer+layout.footer<=height,
+                "The centered wheel leaves room for its labels underneath");
+          check(layout.cell>0 && layout.radius>0,"Visible viewports have usable item dimensions");
+          if(count==8)
+            check(2*layout.radius*std::sin(std::numbers::pi_v<float>/8.f)>=layout.cell,
+                  "Adjacent equipment item viewports do not overlap");
           }
         }
       }
-    const auto small=RadialInput::touchLayout(2340,1080,3.f,2200,900,2,24);
-    const auto full=RadialInput::touchLayout(2340,1080,3.f,2200,900,8,24);
+    const auto small=RadialInput::touchLayout(2340,1080,3.f,2,24);
+    const auto full=RadialInput::touchLayout(2340,1080,3.f,8,24);
     check(small.outer<full.outer,"Two choices use a smaller wheel than eight choices");
-    check(RadialInput::touchLayout(0,0,1,0,0,2,24).cell==0,"Hidden viewports have no wheel");
+    check(RadialInput::touchLayout(0,0,1,2,24).cell==0,"Hidden viewports have no wheel");
     std::cout << "Touch radial selection tests passed\n";
     }
   catch(const std::exception& error) {

@@ -20,7 +20,7 @@ struct TouchLayout {
   int cell=0, footer=0;
   };
 
-inline TouchLayout touchLayout(int width, int height, float scale, float anchorX, float anchorY, int choices, int lineHeight) {
+inline TouchLayout touchLayout(int width, int height, float scale, int choices, int lineHeight) {
   if(width<=0 || height<=0) return {};
   const float side=float(std::min(width,height));
   const float margin=std::min(std::max(8.f,side*0.025f),side*0.1f);
@@ -28,11 +28,11 @@ inline TouchLayout touchLayout(int width, int height, float scale, float anchorX
   float cell=std::min(64.f*std::max(0.1f,scale),side*0.115f);
   float radius=choices<=2 ? cell*1.05f : std::max(cell*1.6f,side*0.17f);
   float outer=radius+cell*0.6f;
-  const float available=std::min(float(width)-2*margin,float(height-footer)-3*margin)*0.5f;
+  // Keep the wheel centered while leaving room for its labels underneath.
+  const float available=std::min(float(width)*0.5f-margin,float(height)*0.5f-float(footer)-2*margin);
   const float fit=std::min(1.f,available/outer);
   cell*=fit; radius*=fit; outer*=fit;
-  return {std::clamp(anchorX,outer+margin,float(width)-outer-margin),
-          std::clamp(anchorY,outer+margin,float(height-footer)-outer-2*margin),
+  return {float(width)*0.5f,float(height)*0.5f,
           radius,outer,std::max(1,int(cell)),footer};
   }
 

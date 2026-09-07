@@ -864,16 +864,15 @@ InventoryMenu::WheelLayout InventoryMenu::wheelLayout() const {
   Point center(w()/2,h()/2);
   if(wheelTouch) {
     const float fontScale=std::min(scale,float(std::min(w(),h()))/720.f);
-    const auto layout=RadialInput::touchLayout(w(),h(),scale,float(wheelAnchor.x),float(wheelAnchor.y),
+    const auto layout=RadialInput::touchLayout(w(),h(),scale,
                                               int(wheelSectorCount()),Resources::font(fontScale).pixelSize());
     return {Point(int(std::lround(layout.x)),int(std::lround(layout.y))),layout.cell,layout.radius,layout.outer,layout.footer};
     }
   return {center,cell,radius,radius+float(cell),0};
   }
 
-void InventoryMenu::beginTouchWheel(Point anchor) {
+void InventoryMenu::beginTouchWheel() {
   wheelTouch=true;
-  wheelAnchor=anchor;
   wheelHoverPage=0;
   wheelPageArmed=true;
   update();

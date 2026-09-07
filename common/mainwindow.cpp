@@ -444,7 +444,7 @@ bool MainWindow::onTouchWheel(TouchInput::Command command, TouchInput::WheelPhas
     inventory.openWheel(*pl,command==TouchInput::Command::Back);
     if(!inventory.isWheelOpen()) return false;
     touchWheelOwned=true;
-    inventory.beginTouchWheel(pos);
+    inventory.beginTouchWheel();
     return true;
     }
   if(!touchWheelOwned) return false;

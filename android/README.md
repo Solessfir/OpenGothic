@@ -274,7 +274,8 @@ Hold Menu/Back for 400 ms to open the character wheel: Character Stats at the to
 Drag the same finger onto either entry and release to open it.
 Short taps still draw/sheathe or open/close the menu; holding does not also trigger the tap action.
 
-Wheels appear near the starting finger position, shifted inward to fit on screen.
+Wheels appear in the center of the screen, away from the finger holding Draw or Menu/Back.
+Keep holding and drag the same finger onto a choice in the centered wheel, then release to apply it.
 Touch wheels use a compact circular layout with evenly spaced choices, a highlighted selection and Gothic-colored borders.
 Item names and short prompts stay below the wheel instead of spanning the screen.
 The two-entry character wheel is smaller than a full equipment wheel.
