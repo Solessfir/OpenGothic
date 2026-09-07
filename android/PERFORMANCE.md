@@ -840,6 +840,11 @@ One stationary screenshot does not establish equivalent gradients, acceptable mo
 
 The early 600-frame GPU capture averaged a 10.652 ms total marker span, with `Fog-LUTs` at 1.26 ms and the final `Fog` pass at 0.52 ms.
 The old combined `Fog-LUTs` marker includes sunshaft occlusion as well as lighting-volume generation; no isolated lighting-volume saving is established.
+
+New captures split that marker into `Fog-lighting-volume` and `Fog-sunshaft-occlusion`.
+For the standard volumetric HQ path, their sum corresponds to the old `Fog-LUTs` region; the final `Fog` compositing pass remains separate.
+The lighting marker is emitted only when lighting-volume generation runs, and the occlusion marker only in the volumetric HQ path.
+Existing experimental VSM/epipolar markers are unchanged. This is a profiling-only change; no new comparison measurements were taken.
 A subsequent 30-second trace recorded 59.99 presentation FPS over 1,793 intervals, mean/median 16.67/16.68 ms, p95/p99 19.11/20.27 ms and worst 24.79 ms.
 Live skin temperature rose from 33.5 to 35.7 C during that trace, at thermal status 0; late clock samples were 800 MHz.
 These conditions differ from the earlier references, and the short capped capture proves neither an FPS gain nor sustained performance.

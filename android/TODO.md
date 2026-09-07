@@ -17,12 +17,12 @@ Status: deferred for investigation; no tuning or animation changes approved yet.
 
 ## Separate fog profiling measurements
 
-Status: planned, not implemented.
+Status: marker split implemented; comparison captures and quality checks remain deferred.
 
-- Split the combined `Fog-LUTs` GPU marker into lighting-volume generation and sunshaft occlusion measurements.
-  Keep the final fog-compositing measurement separate.
+- Implemented: replaced the combined `Fog-LUTs` GPU marker with `Fog-lighting-volume` and `Fog-sunshaft-occlusion`.
+  The final fog-compositing marker remains `Fog`; existing experimental VSM/epipolar markers are unchanged.
+  For the standard volumetric HQ path, add the two new measurements to compare with older `Fog-LUTs` captures.
 - Compare `fogHalfResolution=0` and `1` in the same saved scene and camera position, recording GPU clocks and power/charging state.
-  Preserve the combined total for comparisons with older captures.
 - Check stationary and moving image quality near the sun, horizon and shadowed vegetation before changing defaults.
   Include both sunshaft settings and the second wooded-path/shrine test location.
 - Distinguish short instrumented captures from longer normal unplugged play when assessing sustained FPS.

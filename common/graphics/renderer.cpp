@@ -1975,8 +1975,8 @@ void Renderer::prepareFog(Encoder<Tempest::CommandBuffer>& cmd, WorldView& wview
   auto& scene  = wview.sceneGlobals();
   auto& device = Resources::device();
 
-  cmd.setDebugMarker("Fog-LUTs");
   if(sky.quality!=PathTrace) {
+    cmd.setDebugMarker("Fog-lighting-volume");
     auto& shader = sky.quality==VolumetricLQ ? shaders.fogViewLut3d : shaders.fogViewLutSep;
     cmd.setFramebuffer({});
     cmd.setBinding(0, scene.uboGlobal[SceneGlobals::V_Main]);
@@ -2007,6 +2007,7 @@ void Renderer::prepareFog(Encoder<Tempest::CommandBuffer>& cmd, WorldView& wview
     case VolumetricLQ:
       break;
     case VolumetricHQ: {
+      cmd.setDebugMarker("Fog-sunshaft-occlusion");
       auto& occlusionLut = usesImage2d(sky.occlusionLut, TextureFormat::R32U, zbuffer.size());
       if(settings.vsmEnabled && !settings.rtsmEnabled && !settings.pathTraceEnabled) {
         cmd.setFramebuffer({});
