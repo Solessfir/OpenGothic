@@ -4,6 +4,8 @@
 #include <Tempest/Painter>
 #include <Tempest/SoundEffect>
 
+#include <limits>
+
 #include "utils/string_frm.h"
 #include "world/objects/npc.h"
 #include "world/objects/interactive.h"
@@ -844,6 +846,8 @@ void InventoryMenu::openWheel(Npc& pl, bool characterMenu) {
     }
   wheelActive=true; wheelPageId=0; wheelSelected=-1; wheelCentered=true;
   wheelCharacter=characterMenu; wheelTouch=false;
+  wheelHoverPage=0;
+  wheelPageHint.clear();
   update();
   }
 
@@ -853,22 +857,16 @@ size_t InventoryMenu::wheelPageSize() const {
 
 size_t InventoryMenu::wheelSectorCount() const {
   // Paged wheels keep their navigation arrows in the same two sectors.
-  if(!wheelTouch || wheelPageSize()==6) return 8;
-  return wheelCharacter ? 2 : std::min<size_t>(8,wheelItems.size());
+  if(wheelPageSize()==6) return 8;
+  if(wheelCharacter) return 2;
+  return std::min(wheelPageSize(),wheelItems.size()-std::min(wheelItems.size(),wheelPageId*wheelPageSize()));
   }
 
 InventoryMenu::WheelLayout InventoryMenu::wheelLayout() const {
   const float scale=Gothic::interfaceScale(this);
-  const int cell=int(64*scale);
-  const float radius=std::min(float(h())*0.30f,float(w())*0.20f);
-  Point center(w()/2,h()/2);
-  if(wheelTouch) {
-    const float fontScale=std::min(scale,float(std::min(w(),h()))/720.f);
-    const auto layout=RadialInput::touchLayout(w(),h(),scale,
-                                              int(wheelSectorCount()),Resources::font(fontScale).pixelSize());
-    return {Point(int(std::lround(layout.x)),int(std::lround(layout.y))),layout.cell,layout.radius,layout.outer,layout.footer};
-    }
-  return {center,cell,radius,radius+float(cell),0};
+  const float fontScale=std::min(scale,float(std::min(w(),h()))/720.f);
+  const auto layout=RadialInput::layout(w(),h(),scale,int(wheelSectorCount()),Resources::font(fontScale).pixelSize());
+  return {Point(int(std::lround(layout.x)),int(std::lround(layout.y))),layout.cell,layout.radius,layout.outer,layout.footer};
   }
 
 void InventoryMenu::beginTouchWheel() {
@@ -922,10 +920,7 @@ void InventoryMenu::touchWheelMove(Point pos, uint64_t now) {
 void InventoryMenu::wheelMove(float x,float y) {
   if(x*x+y*y<0.25f) { wheelSelected=-1; wheelCentered=true; update(); return; }
   if(!wheelCentered) return;
-  float angle=std::atan2(x,-y);
-  if(angle<0) angle+=2.f*float(M_PI);
-  wheelSelected=int(std::floor(angle/(float(M_PI)/4.f)+0.5f))%8;
-  if(wheelPageId*wheelPageSize()+size_t(wheelSelected)>=wheelItems.size()) wheelSelected=-1;
+  wheelSelected=RadialInput::sector(x,y,0.5f,std::numeric_limits<float>::max(),int(wheelSectorCount()));
   update();
   }
 
@@ -938,56 +933,11 @@ void InventoryMenu::wheelPage(int direction) {
   }
 
 size_t InventoryMenu::wheelSelection() const {
-  if(wheelCharacter) return wheelSelected==0 ? 0 : (wheelSelected==(wheelTouch ? 1 : 4) ? 1 : size_t(-1));
+  if(wheelCharacter) return wheelSelected==0 ? 0 : (wheelSelected==1 ? 1 : size_t(-1));
   if(wheelSelected<0 || wheelPageId*wheelPageSize()+size_t(wheelSelected)>=wheelItems.size()) return size_t(-1);
   return wheelItems[wheelPageId*wheelPageSize()+size_t(wheelSelected)];
   }
-
 void InventoryMenu::drawWheel(Painter& p,DrawPass pass) {
-  if(wheelTouch) { drawTouchWheel(p,pass); return; }
-  const float scale=Gothic::interfaceScale(this);
-  const auto layout=wheelLayout();
-  const auto cell=layout.cell;
-  const auto radius=layout.radius;
-  const int cx=layout.center.x, cy=layout.center.y;
-  auto& font=Resources::font(scale);
-  if(pass==DrawPass::Back) {
-    p.setBrush(Color(0.04f,0.03f,0.02f,0.85f));
-    p.drawRect(cx-int(radius)-cell,cy-int(radius)-cell,2*(int(radius)+cell),2*(int(radius)+cell));
-    }
-  for(size_t i=0;i<8;++i) {
-    const bool pageButton=!wheelCharacter && wheelPageSize()==6 && i>=6;
-    if(wheelCharacter && i!=0 && i!=4) continue;
-    const auto itemId=wheelPageId*wheelPageSize()+i;
-    auto item=!wheelCharacter && !pageButton && itemId<wheelItems.size() ? player->getItem(wheelItems[itemId]) : nullptr;
-    if(!wheelCharacter && !pageButton && item==nullptr) continue;
-    const float angle=float(i)*float(M_PI)/4.f;
-    const int x=cx+int(std::sin(angle)*radius)-cell/2;
-    const int y=cy-int(std::cos(angle)*radius)-cell/2;
-    if(pass==DrawPass::Back) {
-      const bool hovered=pageButton && wheelHoverPage==(i==6 ? -1 : 1);
-      const auto texture=int(i)==wheelSelected || hovered ? selT : slot;
-      if(texture) { p.setBrush(*texture); p.drawRect(x,y,cell,cell,0,0,texture->w(),texture->h()); }
-      if(item) renderer.drawItem(x,y,cell,cell,*item);
-      }
-    else if(wheelCharacter || pageButton) {
-      const auto text=wheelCharacter ? (i==0 ? "Character stats" : "Journal") : (i==6 ? "Previous" : "Next");
-      font.drawText(p,x-cell/2,y+cell/2-font.pixelSize()/2,2*cell,2*font.pixelSize(),text,AlignHCenter);
-      }
-    }
-  if(pass==DrawPass::Front) {
-    const auto count=wheelPageSize();
-    string_frm pageLabel("Equipment ",wheelPageId+1," / ",std::max<size_t>(1,(wheelItems.size()+count-1)/count));
-    const int textWidth=int(radius*1.7f);
-    font.drawText(p,cx-textWidth/2,cy-font.pixelSize(),textWidth,4*font.pixelSize(),wheelCharacter ? "Character" : pageLabel.c_str(),AlignHCenter);
-    auto item=wheelCharacter ? nullptr : player->getItem(wheelSelection());
-    const auto name=wheelCharacter ? std::string_view("Center: cancel") : (item ? item->description() : std::string_view("Select equipment"));
-    font.drawText(p,cx-textWidth/2,cy+font.pixelSize(),textWidth,3*font.pixelSize(),name,AlignHCenter);
-    font.drawText(p,20,h()-3*font.pixelSize(),w()-40,2*font.pixelSize(),wheelHint,AlignHCenter);
-    }
-  }
-
-void InventoryMenu::drawTouchWheel(Painter& p,DrawPass pass) {
   const auto layout=wheelLayout();
   const float cx=float(layout.center.x), cy=float(layout.center.y);
   const float inner=layout.radius*0.52f;
@@ -1036,8 +986,6 @@ void InventoryMenu::drawTouchWheel(Painter& p,DrawPass pass) {
         p.drawLine(point(inner,angle),point(layout.outer,angle));
         }
       }
-    p.setBrush(Color(0.035f,0.026f,0.015f,0.8f));
-    p.drawRect(footerLeft,footerTop,footerWidth,layout.footer-pad);
     }
 
   for(size_t i=0;i<count;++i) {
@@ -1057,15 +1005,16 @@ void InventoryMenu::drawTouchWheel(Painter& p,DrawPass pass) {
     const int centerWidth=int(inner*1.8f);
     font.drawText(p,int(cx)-centerWidth/2,int(cy)+line/2,centerWidth,line,"Cancel",AlignHCenter);
     auto item=wheelCharacter ? nullptr : player->getItem(wheelSelection());
-    std::string_view title=wheelCharacter ? "Character" : (wheelItems.empty() ? "No equipment" : "Equipment");
-    if(item) title=item->description();
-    if(wheelCharacter && wheelSelected>=0) title=wheelSelected==0 ? "Character stats" : "Journal";
-    font.drawText(p,footerLeft+pad,footerTop+pad+line,footerWidth-2*pad,2*line,title,AlignHCenter);
     const auto pages=std::max<size_t>(1,(wheelItems.size()+wheelPageSize()-1)/wheelPageSize());
-    string_frm paging("Page ",wheelPageId+1," / ",pages," - hold < / >");
-    const auto hint=wheelHoverPage!=0 ? "Hold to change page" :
-                    (wheelSelected>=0 ? "Release to select" : (pages>1 ? paging.c_str() : "Drag to select"));
-    font.drawText(p,footerLeft+pad,footerTop+layout.footer-pad,footerWidth-2*pad,line,hint,AlignHCenter);
+    string_frm pagedTitle("Equipment ",wheelPageId+1," / ",pages);
+    const std::string_view title=wheelCharacter ? "Character" : (pages>1 ? pagedTitle.c_str() : "Equipment");
+    font.drawText(p,footerLeft,int(cy-layout.outer)-pad,footerWidth,line,title,AlignHCenter);
+    const std::string_view name=item ? item->description() : (wheelItems.empty() && !wheelCharacter ? "No equipment" : "");
+    font.drawText(p,footerLeft+pad,footerTop+line,footerWidth-2*pad,2*line,name,AlignHCenter);
+    if(pages>1) {
+      const std::string_view hint=wheelTouch ? "Hold < / > to change page" : std::string_view(wheelPageHint);
+      font.drawText(p,footerLeft+pad,footerTop+layout.footer-pad,footerWidth-2*pad,line,hint,AlignHCenter);
+      }
     }
   p.popState();
   }

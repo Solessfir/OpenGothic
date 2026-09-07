@@ -276,8 +276,8 @@ Short taps still draw/sheathe or open/close the menu; holding does not also trig
 
 Wheels appear in the center of the screen, away from the finger holding Draw or Menu/Back.
 Keep holding and drag the same finger onto a choice in the centered wheel, then release to apply it.
-Touch wheels use a compact circular layout with evenly spaced choices, a highlighted selection and Gothic-colored borders.
-Item names and short prompts stay below the wheel instead of spanning the screen.
+Touch and gamepad wheels share a compact circular layout with evenly spaced choices, a highlighted selection and Gothic-colored borders.
+The title appears above the wheel; selected item names and page controls, when needed, appear below it.
 The two-entry character wheel is smaller than a full equipment wheel.
 Release without moving, in the wheel's center, outside its outer edge, or over an empty sector to cancel.
 For equipment with more than eight entries, each page has six items plus Previous/Next sectors.

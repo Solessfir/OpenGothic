@@ -58,7 +58,7 @@ class InventoryMenu : public Tempest::Widget {
     void  wheelMove(float x, float y);
     void  wheelPage(int direction);
     size_t wheelSelection() const;
-    void  setWheelHint(std::string hint) { wheelHint=std::move(hint); }
+    void  setWheelPageHint(std::string hint) { wheelPageHint=std::move(hint); }
     void  beginTouchWheel();
     void  touchWheelMove(Tempest::Point pos, uint64_t now);
 
@@ -117,9 +117,8 @@ class InventoryMenu : public Tempest::Widget {
     size_t                    wheelPageId = 0;
     int                       wheelSelected = -1;
     std::vector<size_t>        wheelItems;
-    std::string               wheelHint;
+    std::string               wheelPageHint;
     void                      drawWheel(Tempest::Painter& p, DrawPass pass);
-    void                      drawTouchWheel(Tempest::Painter& p, DrawPass pass);
     size_t                    wheelPageSize() const;
     size_t                    wheelSectorCount() const;
     struct WheelLayout {

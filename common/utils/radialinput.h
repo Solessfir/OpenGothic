@@ -14,13 +14,13 @@ inline int sector(float x, float y, float inner, float outer, int count=8) {
   return int(std::floor(angle/(2.f*std::numbers::pi_v<float>/float(count))+0.5f))%count;
   }
 
-struct TouchLayout {
+struct Layout {
   float x=0, y=0;
   float radius=0, outer=0;
   int cell=0, footer=0;
   };
 
-inline TouchLayout touchLayout(int width, int height, float scale, int choices, int lineHeight) {
+inline Layout layout(int width, int height, float scale, int choices, int lineHeight) {
   if(width<=0 || height<=0) return {};
   const float side=float(std::min(width,height));
   const float margin=std::min(std::max(8.f,side*0.025f),side*0.1f);
@@ -28,7 +28,7 @@ inline TouchLayout touchLayout(int width, int height, float scale, int choices, 
   float cell=std::min(64.f*std::max(0.1f,scale),side*0.115f);
   float radius=choices<=2 ? cell*1.05f : std::max(cell*1.6f,side*0.17f);
   float outer=radius+cell*0.6f;
-  // Keep the wheel centered while leaving room for its labels underneath.
+  // Keep the wheel centered while leaving room for its title above and item labels below.
   const float available=std::min(float(width)*0.5f-margin,float(height)*0.5f-float(footer)-2*margin);
   const float fit=std::min(1.f,available/outer);
   cell*=fit; radius*=fit; outer*=fit;

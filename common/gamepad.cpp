@@ -144,9 +144,8 @@ void MainWindow::controllerAction(const GamepadBindings::Event& event) {
       if(inventory.isWheelOpen()) {
         wheelHeldMask=event.mask;
         const auto& b=controllerBindings;
-        inventory.setWheelHint(b.hint(PadAction::EquipmentWheel,context)+": release to equip   "+
-          b.hint(PadAction::PreviousPage,Context::EquipmentWheel)+" / "+b.hint(PadAction::NextPage,Context::EquipmentWheel)+
-          ": pages   "+b.hint(PadAction::Cancel,Context::EquipmentWheel)+": cancel");
+        inventory.setWheelPageHint(b.hint(PadAction::PreviousPage,Context::EquipmentWheel)+" / "+
+                                  b.hint(PadAction::NextPage,Context::EquipmentWheel)+": pages");
         }
       break;
       }
