@@ -112,6 +112,10 @@ void MenuRoot::requestDeleteSave(std::string_view hint) {
     current->requestDeleteSave(hint);
   }
 
+bool MenuRoot::canRequestDeleteSave() const {
+  return current!=nullptr && current->canRequestDeleteSave();
+  }
+
 void MenuRoot::setPlayer(const Npc &pl) {
   if(current!=nullptr)
     current->setPlayer(pl);

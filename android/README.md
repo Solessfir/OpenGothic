@@ -220,6 +220,14 @@ Nothing fires until every finger is up, so a four-finger tap cannot first overwr
 Extra fingers, appreciable movement, long holds, fingers added after release starts, or touching a button cancel the tap.
 Menus, radial wheels, loading, focus loss, and gamepad takeover cannot apply a pending tap.
 
+In the save/load menu, select a slot and use a three-finger tap in the clear movement/camera areas to request deletion.
+The confirmation names the selected save: tap the bottom-right Accept/Use area to permanently delete it, or the top-right Back area to cancel.
+The three-finger tap itself never deletes a file, and all fingers must lift before the confirmation appears.
+Empty slots do nothing; four-finger taps do nothing in this menu, and neither gameplay quicksave nor quickload runs there.
+Save-name editing and an already-open deletion confirmation do not accept deletion gestures.
+This action is independent of `useQuickSaveKeys`, which controls gameplay quicksave/load only.
+Back up important saves: confirmed deletion has no undo.
+
 Swimming uses camera-relative movement on both touch and gamepad.
 Underwater, forward swims where the camera looks, backward reverses that direction, and sideways movement stays level.
 Hold Jump at the surface to dive downward; release it, then hold again underwater to rise, even with movement centered.

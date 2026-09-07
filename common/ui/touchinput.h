@@ -29,6 +29,7 @@ class TouchInput : public Tempest::Widget {
       LookBehind,
       QuickSave,
       QuickLoad,
+      DeleteSave,
       };
 
     using CommandHandler = std::function<void(Command,bool)>;
@@ -45,6 +46,7 @@ class TouchInput : public Tempest::Widget {
 
     void            setTouchEnabled(bool enabled);
     void            setGesturesEnabled(bool enabled);
+    void            setSaveDeleteEnabled(bool enabled);
     void            setAnalogMovement(bool enabled);
     void            setDebugOverlay(bool enabled);
     void            setDebugContext(bool classicCombat, bool uiActive, bool canLock, bool locked, bool canBlock);
@@ -117,6 +119,7 @@ class TouchInput : public Tempest::Widget {
     bool            gesturesEnabled = false;
     MultiFingerTap  multiTap;
     bool            tapCaptured = false;
+    bool            saveDeleteEnabled = false;
     bool            touchEnabled = true;
     bool            analogMovement = false;
     bool            debugOverlay = false;

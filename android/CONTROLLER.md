@@ -97,7 +97,10 @@ See [touch controls](README.md#controls-and-current-limitations) for cancellatio
 
 Menus and dialogue use A to confirm, B to go back/skip, and the D-pad or left stick to navigate. View and Menu also close ordinary menus. Save-name entry still opens the Android keyboard; use its Done button. Unhandled UI input is not forwarded to gameplay.
 
-In the save/load menu, select an occupied slot and press X to request deletion. The confirmation shows the save name: A permanently deletes that one save file; B cancels without leaving the menu. Empty slots do nothing. The slot name and preview clear after deletion. This does not delete game assets or other slots, but there is no undo, so back up important saves first. Keyboard users can use Delete, Enter to confirm, and Escape to cancel. Screen taps cannot confirm deletion.
+In the save/load menu, select an occupied slot and press X to request deletion. The confirmation shows the save name: A permanently deletes that one save file; B cancels without leaving the menu. Empty slots do nothing. The slot name and preview clear after deletion. This does not delete game assets or other slots, but there is no undo, so back up important saves first. Keyboard users can use Delete, Enter to confirm, and Escape to cancel.
+
+Touch users can request deletion with a three-finger tap outside the action buttons, then tap the bottom-right Accept/Use area to confirm or top-right Back to cancel.
+Ordinary screen clicks outside the virtual Accept area still cannot confirm deletion. Four-finger quickload is disabled in menus.
 
 Remap or disable this independently using `[UI] DeleteSave=X` or `DeleteSave=None` in `Gamepad.ini`. Existing INI files inherit X when the entry is absent. Inventory X retains its separate Drop action, and deletion is ignored outside save/load slots.
 

@@ -476,6 +476,12 @@ void MainWindow::onTouchCommand(TouchInput::Command command, bool pressed) {
   Event::KeyType key = Event::K_NoKey;
   const bool uiActive = video.isActive() || rootMenu.isActive() || chapter.isActive() ||
                         document.isActive() || dialogs.isActive() || inventory.isActive();
+  if(command==TouchInput::Command::DeleteSave) {
+    if(pressed && rootMenu.canRequestDeleteSave() && !video.isActive() && !chapter.isActive() &&
+       !document.isActive() && !dialogs.isActive() && !inventory.isActive() && !console.isActive())
+      rootMenu.requestDeleteSave("Accept (bottom-right): delete    Back (top-right): cancel");
+    return;
+    }
   if(command==TouchInput::Command::QuickSave || command==TouchInput::Command::QuickLoad) {
     auto& gothic=Gothic::inst();
     const auto camera=gothic.camera();
@@ -557,6 +563,7 @@ void MainWindow::onTouchCommand(TouchInput::Command command, bool pressed) {
     case TouchInput::Command::LookBehind:
     case TouchInput::Command::QuickSave:
     case TouchInput::Command::QuickLoad:
+    case TouchInput::Command::DeleteSave:
     case TouchInput::Command::Block:
     case TouchInput::Command::TapAccept: return;
     }

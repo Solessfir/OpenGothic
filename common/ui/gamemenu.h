@@ -31,6 +31,7 @@ class GameMenu : public Tempest::Widget {
     void onTick();
     void processMusicTheme();
     void requestDeleteSave(std::string_view hint);
+    bool canRequestDeleteSave() const;
     bool isDeletingSave() const { return pendingDelete!=nullptr; }
 
     KeyCodec::Action keyClose() const { return kClose; }
@@ -113,7 +114,7 @@ class GameMenu : public Tempest::Widget {
     void                                  execCommands (std::string str, bool isClick, KeyCodec::Action hint);
 
     bool                                  implUpdateSavThumb(Item& sel);
-    size_t                                saveSlotId(const Item& sel);
+    static size_t                         saveSlotId(const Item& sel);
 
     std::string_view                      strEnum(std::string_view en, int id, std::vector<char> &out);
     size_t                                strEnumSize(std::string_view en);

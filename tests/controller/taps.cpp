@@ -20,6 +20,12 @@ int release(MultiFingerTap& tap, int count, uint64_t now=200) {
 int main() {
   try {
     MultiFingerTap tap;
+    using Action=MultiFingerTap::Action;
+    check(MultiFingerTap::action(3,true)==Action::DeleteSave,"Three fingers in a save menu only request deletion");
+    check(MultiFingerTap::action(4,true)==Action::None,"Four fingers in a save menu never quickload");
+    check(MultiFingerTap::action(3,false)==Action::QuickSave,"Gameplay retains three-finger quicksave");
+    check(MultiFingerTap::action(4,false)==Action::QuickLoad,"Gameplay retains four-finger quickload");
+    check(MultiFingerTap::action(0,true)==Action::None,"Canceled taps cannot request deletion");
     fingers(tap,3);
     check(tap.ready(),"The third stationary finger captures a tap candidate");
     check(release(tap,3)==3,"Exactly three fingers quicksave after all releases");

@@ -675,12 +675,15 @@ void GameMenu::onKeyboard(KeyCodec::Action key) {
     }
   }
 
+bool GameMenu::canRequestDeleteSave() const {
+  // This is queried by touch input every frame; check the file only when deletion is requested.
+  return pendingDelete==nullptr && ctrlInput==nullptr && curItem<zenkit::IMenu::item_count &&
+         saveSlotId(hItems[curItem])!=size_t(-1) && Gothic::inst().checkLoading()==Gothic::LoadState::Idle;
+  }
+
 void GameMenu::requestDeleteSave(std::string_view hint) {
-  if(pendingDelete!=nullptr || ctrlInput!=nullptr || Gothic::inst().checkLoading()!=Gothic::LoadState::Idle)
-    return;
+  if(!canRequestDeleteSave()) return;
   auto sel=selectedItem();
-  if(sel==nullptr || saveSlotId(*sel)==size_t(-1))
-    return;
   std::error_code error;
   const auto status=std::filesystem::symlink_status(SaveSlot::path(".",saveSlotId(*sel)),error);
   if(error || !std::filesystem::is_regular_file(status))

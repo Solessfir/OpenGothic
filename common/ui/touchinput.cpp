@@ -58,6 +58,8 @@ void TouchInput::paintEvent(Tempest::PaintEvent& e) {
     label(moveEnd+pad,h()/2,lookEnd-moveEnd-2*pad,"2 fingers: up = stand; down = sneak");
     label(pad,h()-5*line,moveEnd-2*pad,"3-finger tap: quicksave; 4-finger tap: quickload");
     }
+  if(touchEnabled && saveDeleteEnabled)
+    label(pad,h()-5*line,lookEnd-2*pad,"3-finger tap: request deletion of selected save");
 
   const char* names[] = {"BACK / MENU","INVENTORY","JUMP","DRAW / SHEATHE",
                         uiActive ? "ACCEPT" : (classicCombat ? "HOLD ACTION" : "USE / ATTACK")};
@@ -130,7 +132,7 @@ void TouchInput::mouseDownEvent(Tempest::MouseEvent& e) {
 
   const bool onBlock=blockVisible() && blockRect().contains(e.pos());
   multiTap.down(e.mouseID,float(e.x),float(e.y),touch.pressedAt,
-                gesturesEnabled && !uiActive && wheelPointer<0 && button<0 && !onBlock);
+                (saveDeleteEnabled || (gesturesEnabled && !uiActive)) && wheelPointer<0 && button<0 && !onBlock);
   if(tapCaptured || multiTap.ready()) {
     captureTap(e.mouseID,touch);
     return;
@@ -232,8 +234,12 @@ void TouchInput::mouseUpEvent(Tempest::MouseEvent& e) {
     if(multiTap.empty()) {
       tapCaptured=false;
       // Decide only after every finger is lifted: four fingers must never save first.
-      if(tap==3) command(Command::QuickSave,true);
-      if(tap==4) command(Command::QuickLoad,true);
+      switch(MultiFingerTap::action(tap,saveDeleteEnabled)) {
+        case MultiFingerTap::Action::QuickSave:  command(Command::QuickSave,true); break;
+        case MultiFingerTap::Action::QuickLoad:  command(Command::QuickLoad,true); break;
+        case MultiFingerTap::Action::DeleteSave: command(Command::DeleteSave,true); break;
+        case MultiFingerTap::Action::None: break;
+        }
       }
     update();
     return;
@@ -307,6 +313,14 @@ void TouchInput::setGesturesEnabled(bool enabled) {
   if(gesturesEnabled==enabled) return;
   gesturesEnabled=enabled;
   if(!enabled && (gestureActive() || tapCaptured)) reset();
+  update();
+  }
+
+void TouchInput::setSaveDeleteEnabled(bool enabled) {
+  if(saveDeleteEnabled==enabled) return;
+  // Never reinterpret a tap that started in another menu or in gameplay.
+  reset();
+  saveDeleteEnabled=enabled;
   update();
   }
 

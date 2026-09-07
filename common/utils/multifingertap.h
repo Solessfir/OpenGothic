@@ -7,6 +7,15 @@
 
 class MultiFingerTap {
   public:
+    enum class Action { None, QuickSave, QuickLoad, DeleteSave };
+
+    static Action action(int fingers, bool saveMenu) {
+      if(saveMenu) return fingers==3 ? Action::DeleteSave : Action::None;
+      if(fingers==3) return Action::QuickSave;
+      if(fingers==4) return Action::QuickLoad;
+      return Action::None;
+      }
+
     void down(int pointer, float x, float y, uint64_t now, bool eligible) {
       if(contacts.empty()) {
         started=now;
