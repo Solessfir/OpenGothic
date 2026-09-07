@@ -129,7 +129,7 @@ TouchMovementDeadZone=0.15
 MovementExponent=1.5
 MovementTurnSpeed=180
 TouchTurnSpeed=180
-WalkThreshold=0.65
+WalkThreshold=0.55
 TouchWalkThreshold=0.35
 WalkHysteresis=0.04
 TriggerPressThreshold=0.55
@@ -374,7 +374,10 @@ std::pair<float,float> GamepadBindings::touchMovementAxis(float x,float y) const
   }
 
 std::pair<float,float> GamepadBindings::turnMovementAxis(float x,float y,bool touch) const {
-  // Turning in place must not amplify small vertical input noise into forward movement.
+  // Shift gamepad's neutral forward/back line down by 30 degrees, to 8 and 4 o'clock.
+  if(!touch)
+    y=std::clamp(y-std::abs(x)*0.577350269f,-1.f,1.f);
+  // Filter each axis independently so a strong turn cannot amplify vertical input noise.
   return {movementAxis(x,0.f,touch).first,movementAxis(0.f,y,touch).second};
   }
 

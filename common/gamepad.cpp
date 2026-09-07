@@ -366,15 +366,17 @@ void MainWindow::tickGamepad() {
   auto pl=Gothic::inst().player();
   const bool swimming=pl!=nullptr && (pl->isSwim() || pl->isDive());
   const bool lockedGround=player.lockedTarget()!=nullptr && !swimming;
-  const bool automaticWalk=controllerBindings.automaticWalk(lockedGround ? raw.x : 0.f,raw.y,lockedGround);
   if(swimming)
     player.setControllerSwim(move.x,move.y,camera->spin().y,camera->spin().x,options.movementTurnSpeed);
   else if(!lockedGround) {
     const auto ground=controllerBindings.turnMovementAxis(raw.x,raw.y);
+    const float travel=ground.second!=0.f ? std::hypot(raw.x,raw.y) : 0.f;
+    const bool automaticWalk=controllerBindings.automaticWalk(0.f,travel,false);
     player.setTurnMovement(ground.first,ground.second,automaticWalk,options.movementTurnSpeed);
     }
   else
-    player.setControllerMovement(move.x,move.y,camera->spin().y,automaticWalk,options.movementTurnSpeed);
+    player.setControllerMovement(move.x,move.y,camera->spin().y,
+                                 controllerBindings.automaticWalk(raw.x,raw.y,true),options.movementTurnSpeed);
   const float dtSec=float(dt)/1000.f;
   const float sensitivity=Gothic::settingsGetF("GAME","mouseSensitivity")/0.5f;
   const float inverse=Gothic::settingsGetI("GAME","camLookaroundInverse")?-1.f:1.f;
