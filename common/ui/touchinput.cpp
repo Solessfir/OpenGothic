@@ -29,6 +29,7 @@ void TouchInput::paintEvent(Tempest::PaintEvent& e) {
   const int moveEnd = w()/2;
   const int lookEnd = (w()*LookBoundaryPercent)/100;
   p.setPen(Pen(gold,Painter::Alpha,2.f));
+  p.setBrush(gold);
   p.drawLine(moveEnd,0,moveEnd,h());
   p.drawLine(lookEnd,0,lookEnd,h());
 
@@ -57,6 +58,7 @@ void TouchInput::paintEvent(Tempest::PaintEvent& e) {
       pressed |= touch.role==Role::Button && touch.command==buttons[i];
     p.setBrush(pressed ? Color(0.8f,0.6f,0.2f,0.32f) : Color(0.04f,0.03f,0.02f,0.18f));
     p.drawRect(lookEnd,top,w()-lookEnd,bottom-top);
+    p.setBrush(gold);
     p.drawLine(lookEnd,top,w(),top);
     label(lookEnd+pad,top+(bottom-top)/2-line,w()-lookEnd-2*pad,names[i]);
     }
@@ -73,12 +75,14 @@ void TouchInput::paintEvent(Tempest::PaintEvent& e) {
     };
   for(const auto& [id,touch]:touches) {
     p.setPen(Pen(active,Painter::Alpha,2.f));
+    p.setBrush(active);
     cross(touch.anchor,pad);
     p.drawLine(touch.anchor,touch.last);
     box(touch.last,pad);
     if(touch.role==Role::Move) {
       const int radius = movementRadius();
       p.setPen(Pen(gold,Painter::Alpha,2.f));
+      p.setBrush(gold);
       box(touch.anchor,radius);
       box(touch.anchor,int(float(radius)*DirectionThreshold));
       label(touch.anchor.x-radius,touch.anchor.y+radius+pad,2*radius,
