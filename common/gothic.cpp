@@ -138,6 +138,11 @@ Gothic::Gothic() {
   defaults->set("GAME", "useQuickSaveKeys",    1);
 #if defined(__ANDROID__)
   defaults->set("GAME", "showFps",             0);
+  defaults->set("GAME", "centerPlayerBars",    1);
+  defaults->set("GAME", "useGothic1Controls",  0);
+  defaults->set("GAME", "usePotionKeys",      1);
+  defaults->set("GAME", "mouseSensitivity",   0.53f);
+  defaults->set("ENGINE", "shadowMapResolution", 1024);
 #endif
 
   defaults->set("GAME", "animatedWindows",     1);

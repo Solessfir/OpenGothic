@@ -21,10 +21,10 @@ Controller bindings and movement options use a separate [Gamepad.ini](CONTROLLER
 | `[INTERNAL] vidResIndex` | `1` | `0`: native, `1`: 75%, `2`: 50% scene resolution; UI stays full-resolution |
 | `[ENGINE] ssaoHalfResolution` | `1` | `0`: full-resolution ambient occlusion |
 | `[ENGINE] fogHalfResolution` | `1` | `0`: original fog-lighting quality |
-| `[ENGINE] shadowMapResolution` | `2048` | `1536` or `1024` reduces shadow cost and detail |
+| `[ENGINE] shadowMapResolution` | `1024` | `1536` or `2048` increases shadow detail and cost |
 | `[ENGINE] zMaxFPS` | `60` | `30` reduces power/heat; `0` uncaps gameplay |
 | `[VIDEO] displayMode` | `auto` | Lowercase `sdr` forces SDR; `hdr` requests HDR with SDR fallback |
-| `[GAME] showFps` | `0` | `1` shows the text-only FPS counter |
+| `[GAME] showFps` | `0` | `1` shows the text-only FPS counter; also toggle it in the touch Character wheel |
 
 Lower render quality can improve performance, but a cap cannot guarantee sustained FPS.
 A positive `[PARAMETERS] FPS_Limit` in `Gothic2/System/SystemPack.ini` overrides `zMaxFPS`.
@@ -40,7 +40,8 @@ HDR expands highlight range without brightening dark shadows. Screenshots may no
 | `cameraElevationOffset` | `10` | Exploration camera elevation, 0–30 degrees |
 | `cameraCombatElevationOffset` | `20` | Melee/ranged/magic camera elevation, 0–30 degrees |
 | `cameraFollowSpeed` | `2` | Follow response, 0.25–4; `1` restores slower following |
-| `mouseSensitivity` | Game preference | Also controls touch/gamepad camera sensitivity |
+| `centerPlayerBars` | `1` | Stack health, mana and air at bottom-center; `0` restores corner health/mana bars |
+| `mouseSensitivity` | `0.53` | Also controls touch/gamepad camera sensitivity |
 | `camLookaroundInverse` | Game preference | Vertical camera inversion |
 
 Inventory keeps its own framing; radial wheels leave the gameplay camera active.
@@ -59,12 +60,12 @@ useQuickSaveKeys=1
 usePotionKeys=1
 ```
 
-These enable quicksave/load and potion shortcuts for both touch and gamepad.
-The copied game's values are respected unless overridden. Potions use Gothic's existing selection logic.
+Both default to `1` on Android, enabling quicksave/load and potion shortcuts for touch and gamepad.
+Explicit INI preferences, including copied values of `0`, are respected. Potions use Gothic's existing selection logic.
 
 Other supported preferences include:
 
-- `[GAME] useGothic1Controls`: `1` classic combat, `0` Gothic II combat.
+- `[GAME] useGothic1Controls`: `0` Gothic II combat (Android default), `1` classic combat.
 - `[GAME] subTitles`, `subTitlesPlayer`: dialogue subtitles.
 - `[SOUND] soundEnabled`, `musicEnabled`, `soundVolume`, `musicVolume`: enable flags and volumes (0–1).
 - `[VIDEO] zVidBrightness`, `zVidContrast`, `zVidGamma`: image adjustments.

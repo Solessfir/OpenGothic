@@ -254,16 +254,29 @@ void MainWindow::paintEvent(PaintEvent& event) {
           bool showManaBar   = (opt.showManaBar==2) || (opt.showManaBar==1 && (pl->weaponState()==WeaponState::Mage || inventory.isActive()));
           bool showSwimBar   = (opt.showSwimBar==2) || (opt.showSwimBar==1 && pl->isDive());
 
-          if(showHealthBar)
-            drawBar(p,barHp, 10, h()-10, hp, AlignLeft | AlignBottom);
-          if(showManaBar)
-            drawBar(p,barMana, w()-10, h()-10, mp, AlignRight | AlignBottom);
+          bool centered = false;
+#if defined(__ANDROID__)
+          centered = Gothic::settingsGetI("GAME","centerPlayerBars")!=0;
+#endif
+          const int pad = centered ? std::max(10,int(8*Gothic::interfaceScale(this))) : 10;
+          const int row = playerBarSize().h+pad;
+          int barY = h()-pad;
+          if(showHealthBar) {
+            drawBar(p,barHp, centered ? w()/2 : 10, barY, hp,
+                    (centered ? AlignHCenter : AlignLeft) | AlignBottom);
+            if(centered) barY-=row;
+            }
+          if(showManaBar) {
+            drawBar(p,barMana, centered ? w()/2 : w()-10, barY, mp,
+                    (centered ? AlignHCenter : AlignRight) | AlignBottom);
+            if(centered) barY-=row;
+            }
           if(showSwimBar) {
             uint32_t gl = pl->guild();
             auto     v  = float(pl->world().script().guildVal().dive_time[gl]);
             if(v>0) {
               auto t = float(pl->diveTime())/1000.f;
-              drawBar(p,barMisc,w()/2,h()-10, (v-t)/(v), AlignHCenter | AlignBottom);
+              drawBar(p,barMisc,w()/2,barY, (v-t)/(v), AlignHCenter | AlignBottom);
               }
             }
           }
@@ -462,6 +475,10 @@ bool MainWindow::onTouchWheel(TouchInput::Command command, TouchInput::WheelPhas
      chapter.isActive() || document.isActive() || dialogs.isActive() || console.isActive()) return true;
   if(command==TouchInput::Command::Weapon) {
     player.controllerEquip(selected);
+    }
+  else if(selected==2) {
+    Gothic::settingsSetI("GAME","showFps",!Gothic::settingsGetI("GAME","showFps"));
+    Gothic::flushSettings();
     }
   else {
     const auto action=selected==0 ? KeyCodec::Status : KeyCodec::Log;
@@ -951,6 +968,15 @@ void MainWindow::paintFocus(Painter& p, Rect rect) {
   p.drawRect(rect.x+rect.w-w,rect.y,         w,h, w,0, w2,h);
   p.drawRect(rect.x,         rect.y+rect.h-h,w,h, 0,h, w, h2);
   p.drawRect(rect.x+rect.w-w,rect.y+rect.h-h,w,h, w,h, w2,h2);
+  }
+
+Size MainWindow::playerBarSize() const {
+  if(barBack==nullptr)
+    return Size();
+  const float scale = Gothic::interfaceScale(this);
+  const float width = 200.f*scale*float(std::min(w(),800))/800.f;
+  const float height = float(barBack->h())*width/float(std::max(barBack->w(),1));
+  return Size(int(width),int(height));
   }
 
 void MainWindow::drawBar(Painter &p, const Tempest::Texture2d* bar, int x, int y, float v, AlignFlag flg) {

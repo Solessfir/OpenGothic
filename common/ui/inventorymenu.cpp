@@ -858,7 +858,7 @@ size_t InventoryMenu::wheelPageSize() const {
 size_t InventoryMenu::wheelSectorCount() const {
   // Paged wheels keep their navigation arrows in the same two sectors.
   if(wheelPageSize()==6) return 8;
-  if(wheelCharacter) return 2;
+  if(wheelCharacter) return 3;
   return std::min(wheelPageSize(),wheelItems.size()-std::min(wheelItems.size(),wheelPageId*wheelPageSize()));
   }
 
@@ -910,7 +910,7 @@ void InventoryMenu::touchWheelMove(Point pos, uint64_t now) {
   if(!wheelCentered) return;
   wheelSelected=selected;
   if(wheelCharacter) {
-    if(selected!=0 && selected!=1) wheelSelected=-1;
+    if(selected<0 || size_t(selected)>=wheelSectorCount()) wheelSelected=-1;
     }
   else if(wheelPageId*wheelPageSize()+size_t(selected)>=wheelItems.size()) {
     wheelSelected=-1;
@@ -934,7 +934,7 @@ void InventoryMenu::wheelPage(int direction) {
   }
 
 size_t InventoryMenu::wheelSelection() const {
-  if(wheelCharacter) return wheelSelected==0 ? 0 : (wheelSelected==1 ? 1 : size_t(-1));
+  if(wheelCharacter) return wheelSelected>=0 && size_t(wheelSelected)<wheelSectorCount() ? size_t(wheelSelected) : size_t(-1);
   if(wheelSelected<0 || wheelPageId*wheelPageSize()+size_t(wheelSelected)>=wheelItems.size()) return size_t(-1);
   return wheelItems[wheelPageId*wheelPageSize()+size_t(wheelSelected)];
   }
@@ -997,7 +997,8 @@ void InventoryMenu::drawWheel(Painter& p,DrawPass pass) {
     if(pass==DrawPass::Back && item)
       renderer.drawItem(at.x-cell/2,at.y-cell/2,cell,cell,*item);
     if(pass==DrawPass::Front && (wheelCharacter || pageButton)) {
-      const auto label=wheelCharacter ? (i==0 ? "Stats" : "Journal") : (i==6 ? "<" : ">");
+      const auto fpsLabel=Gothic::settingsGetI("GAME","showFps")!=0 ? "FPS: On" : "FPS: Off";
+      const auto label=wheelCharacter ? (i==0 ? "Stats" : (i==1 ? "Journal" : fpsLabel)) : (i==6 ? "<" : ">");
       font.drawText(p,at.x-cell,at.y+line/2,2*cell,line,label,AlignHCenter);
       }
     }

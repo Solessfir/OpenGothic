@@ -46,7 +46,7 @@ Focus range is not attack reach or guaranteed safety; see [targeting settings](C
 ## Radial menus
 
 - Hold **Draw** to open equipment selection.
-- Hold **Back/menu** to open Character Stats (up) / Journal (down).
+- Hold **Back/menu** for Stats (up), Journal (lower-right), or the FPS toggle (lower-left).
 - Keep the same finger down, drag a little toward a choice, then release to apply.
 - Release without selecting, or return to the finger's starting point, to cancel.
 
