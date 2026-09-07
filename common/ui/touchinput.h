@@ -29,6 +29,8 @@ class TouchInput : public Tempest::Widget {
     void            mouseUpEvent(Tempest::MouseEvent& e) override;
 
     void            setTouchEnabled(bool enabled);
+    void            setDebugOverlay(bool enabled);
+    void            setDebugContext(bool classicCombat, bool uiActive);
     Tempest::PointF movementAxis() const;
     Tempest::Point  takeLookDelta();
     bool            isLooking() const;
@@ -50,6 +52,10 @@ class TouchInput : public Tempest::Widget {
     void updateMovement(const Tempest::Point& pos);
     void setDirection(Command command, bool pressed);
     void reset();
+    int  movementRadius() const;
+
+    static constexpr int LookBoundaryPercent = 84;
+    static constexpr float DirectionThreshold = 0.35f;
 
     CommandHandler command;
     std::unordered_map<int,Touch> touches;
@@ -58,6 +64,9 @@ class TouchInput : public Tempest::Widget {
     int             movePointer = -1;
     int             lookPointer = -1;
     bool            touchEnabled = true;
+    bool            debugOverlay = false;
+    bool            classicCombat = true;
+    bool            uiActive = false;
     bool            directions[4] = {};
   };
 

@@ -128,7 +128,7 @@ notepad '.\SystemPack-android.ini'
 & $adb push '.\SystemPack-android.ini' '/sdcard/Android/data/org.opengothic.app/files/Gothic2/System/SystemPack.ini'
 ```
 
-OpenGothic uses invisible touchscreen controls when no physical gamepad is connected. Connecting a Bluetooth or USB gamepad disables the touch controls and switches to the physical controller.
+OpenGothic uses invisible virtual touchscreen controls when no physical gamepad is active. Connecting a Bluetooth or USB gamepad disables these virtual zones and switches movement to the physical controller, but ordinary touch-as-mouse/UI input can still work.
 
 The left half of the screen is a dynamic movement stick. Touch anywhere on that half to place its center, then drag relative to that point. The middle-right area, from 50% to 84% of the screen width, controls the camera. These areas support simultaneous touches, so the player can move and look at the same time. After 800 ms without manual camera input, moving forward gently recenters the camera behind the player. Gothic's existing focus system supplies interaction targeting and combat auto-rotation.
 
@@ -148,7 +148,20 @@ Choosing an empty save slot opens the Android keyboard. Enter a save name and pr
 
 Physical controllers now use camera-relative directional movement, A to accept/interact, B to go back, R3 target lock, and LB+L3 walk. Classic/modern combat, D-pad shortcuts, inventory panels, and the equipment wheel have context-specific mappings. See [controller controls and Gamepad.ini](CONTROLLER.md) for the complete layout, remapping commands, and device-test checklist.
 
-No touchscreen controls are drawn over the game. Controller layouts vary, so Android may report different axes for some third-party devices. Ray queries and mesh shaders are disabled by default, and the build uses conservative desktop-compatible rendering paths for sustained mobile operation.
+Touch controls are normally invisible. For the temporary layout/debug overlay, enable `[DEBUG] touchControls=1` in the writable `Gothic.ini` and restart.
+It draws Gothic-colored zone boundaries, action labels, pressed-button highlights and live finger anchors/trails.
+The movement stick's outer square shows full axis travel; the inner square marks the arrow-key activation threshold.
+Disable it with `touchControls=0`; it is off by default.
+With an active gamepad, the overlay marks the virtual zones inactive and explains that touches pass through to normal mouse/UI handling.
+
+With classic controls (`[GAME] useGothic1Controls=1`), draw a melee weapon, hold the bottom-right ACTION zone, then move the left stick from neutral: up attacks forward, down blocks, and left/right request side attacks.
+Return the stick to neutral between directional presses; holding ACTION alone is not a directional strike.
+Without a weapon, ACTION is interaction; menus use the same zone to confirm.
+With Gothic 2 controls (`useGothic1Controls=0`), the bottom-right zone directly uses/attacks.
+This debug view exposes the existing keyboard-style touch combat, not a redesigned mobile combat layout.
+Touch camera drag uses the same character/camera rotation signs as desktop mouse input and respects Mouse speed and vertical inversion.
+
+Controller layouts vary, so Android may report different axes for some third-party devices. Ray queries and mesh shaders are disabled by default, and the build uses conservative desktop-compatible rendering paths for sustained mobile operation.
 
 ## Inspect the APK
 

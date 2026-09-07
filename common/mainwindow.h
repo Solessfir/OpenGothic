@@ -184,6 +184,8 @@ class MainWindow : public Tempest::Window {
     uint64_t                  controllerLookIdle=0;
     uint64_t                  controllerLastSwitch=0;
     bool                      controllerSwitchReady=true;
+    bool                      controllerWasPresent=false;
+    bool                      controllerDisconnectPending=false;
 #endif
 #if defined(__MOBILE_PLATFORM__)
     TouchInput                mobileUi;

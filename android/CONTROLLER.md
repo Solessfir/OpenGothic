@@ -2,6 +2,11 @@
 
 The native controller path uses semantic game actions, not simulated PC key bindings. Windows keyboard/mouse controls remain unchanged; this does not add a Windows controller backend. Xbox button names are used below. L3 and R3 mean clicking the left and right sticks.
 
+Disconnecting the active gamepad clears held input and opens the pause menu during a game.
+An existing menu stays open; reconnecting never resumes automatically.
+If disconnection happens while the app is unfocused or loading, the pause menu is deferred until the app is focused and loading finishes.
+You can explicitly resume with touch or a reconnected controller.
+
 ## Movement and shared shortcuts
 
 | Control | Action |

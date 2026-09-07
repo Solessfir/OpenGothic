@@ -173,8 +173,15 @@ void MainWindow::tickGamepad() {
   controllerLastPoll=now;
   const auto gp=SystemApi::gamepadState();
   auto& options=controllerBindings.options;
+  // Track physical presence separately from focus so background disconnections are not lost.
+  if(controllerWasPresent && !gp.connected)
+    controllerDisconnectPending = Gothic::inst().isInGame() || Gothic::inst().checkLoading()!=Gothic::LoadState::Idle;
+  controllerWasPresent = gp.connected && options.enabled;
   const bool connected=gp.connected && options.enabled && controllerFocused;
   mobileUi.setTouchEnabled(!connected);
+  mobileUi.setDebugContext(Gothic::inst().version().game!=2 || Gothic::settingsGetI("GAME","useGothic1Controls")!=0,
+                           video.isActive() || rootMenu.isActive() || chapter.isActive() ||
+                           document.isActive() || dialogs.isActive() || inventory.isActive());
   if(!connected && controllerConnected) {
     controllerAxesBlocked=true;
     player.clearInput(); controllerBindings.reset(); controllerButtons=0; controllerTriggers=0;
@@ -182,6 +189,17 @@ void MainWindow::tickGamepad() {
     wheelHeldMask=0;
     }
   controllerConnected=connected;
+  if(controllerDisconnectPending && controllerFocused && Gothic::inst().checkLoading()==Gothic::LoadState::Idle) {
+    controllerDisconnectPending = false;
+    if(auto pl = Gothic::inst().player(); pl!=nullptr && !rootMenu.isActive()) {
+      rootMenu.setMenu(Gothic::inst().menuMain(),KeyCodec::Escape);
+      rootMenu.showVersion(true);
+      rootMenu.setPlayer(*pl);
+      player.clearInput();
+      controllerBindings.reset(controllerButtons);
+      controllerAxesBlocked = true;
+      }
+    }
   auto camera=Gothic::inst().camera();
   if(!connected) {
     const auto touchMove=mobileUi.movementAxis();
@@ -201,7 +219,8 @@ void MainWindow::tickGamepad() {
         camera->onRotateMouse(PointF(0.f,std::clamp(-camera->azimuth()*2.f*dtSec,-90.f*dtSec,90.f*dtSec)));
       }
     camera->onRotateMouse(PointF(pitch,-yaw));
-    if(!inventory.isActive()) player.onRotateMouse(yaw,pitch);
+    // Match desktop mouse signs so character rotation does not fight the camera drag.
+    if(!inventory.isActive()) player.onRotateMouse(-yaw,-pitch);
     return;
     }
   auto trigger=[&](float value,uint32_t bit) {

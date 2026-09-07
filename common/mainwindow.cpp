@@ -442,6 +442,9 @@ void MainWindow::onTouchCommand(TouchInput::Command command, bool pressed) {
 #endif
 
 void MainWindow::onSettings() {
+#if defined(__MOBILE_PLATFORM__)
+  mobileUi.setDebugOverlay(Gothic::settingsGetI("DEBUG", "touchControls")!=0);
+#endif
 #if defined(__ANDROID__)
   const auto displayMode = Gothic::settingsGetS("VIDEO", "displayMode");
   const bool requestHdr = displayMode!="sdr" &&
