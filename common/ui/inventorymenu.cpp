@@ -931,7 +931,6 @@ void InventoryMenu::selectWheelSector(int selected, uint64_t now) {
 void InventoryMenu::wheelMove(float x,float y,uint64_t now) {
   if(!wheelActive || wheelTouch) return;
   if(x*x+y*y<0.25f) {
-    wheelSelected=-1;
     wheelCentered=true;
     wheelHoverPage=0;
     wheelPageArmed=true;
@@ -1035,7 +1034,8 @@ void InventoryMenu::drawWheel(Painter& p,DrawPass pass) {
   if(pass==DrawPass::Front) {
     // Gothic fonts position text by its baseline, not by the top of its box.
     const int centerWidth=int(inner*1.8f);
-    font.drawText(p,int(cx)-centerWidth/2,int(cy)+line/2,centerWidth,line,"Cancel",AlignHCenter);
+    const char* centerLabel=!wheelTouch && wheelSelected>=0 ? "Selected" : "Cancel";
+    font.drawText(p,int(cx)-centerWidth/2,int(cy)+line/2,centerWidth,line,centerLabel,AlignHCenter);
     auto item=utilityMenu ? nullptr : player->getItem(wheelSelection());
     const auto pages=std::max<size_t>(1,(wheelItems.size()+wheelPageSize()-1)/wheelPageSize());
     string_frm pagedTitle("Equipment ",wheelPageId+1," / ",pages);

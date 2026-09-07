@@ -32,7 +32,7 @@ class GamepadBindings final {
       float touchMovementDeadZone = 0.15f;
       float movementExponent = 1.5f;
       float movementTurnSpeed = 180.f;
-      float movementTurnBoost = 1.f;
+      float movementTurnBoost = 0.f;
       float touchTurnSpeed = 180.f;
       float walkThreshold = 0.65f;
       float touchWalkThreshold = 0.35f;

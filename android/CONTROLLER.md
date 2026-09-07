@@ -53,7 +53,7 @@ Ordinary A cannot pick up items with a weapon drawn.
 - Inventory: A uses/equips/transfers one item; X drops; Y transfers a stack; LB/RB selects trade or chest panels.
 - Save/load menu: X requests deletion, A confirms, B cancels. Deletion has no undo.
 - Save-name entry uses the Android keyboard; press **Done**.
-- Equipment wheel: hold D-pad Up, select with the right stick, release Up to equip/draw. Center the stick or press B to cancel; LB/RB changes pages.
+- Equipment wheel: hold D-pad Up, select with the right stick, release Up to equip/draw. Releasing the stick keeps your choice; press B to cancel. Opening and releasing without choosing also cancels. LB/RB changes pages.
 - Up to eight items fit on one page. Larger collections use six items plus two page arrows, matching touch. Hold the stick over an arrow to turn a page; center it before selecting again.
 - Only owned, usable weapons and assigned spells appear in the wheel. The world keeps running while it is open.
 - Equipped items have a gold rim. Selecting a sheathed weapon draws it; selecting the weapon already in hand leaves it drawn.
@@ -112,7 +112,7 @@ These entries are in `Gamepad.ini`, not `Gothic.ini`:
 | `[Axes] WalkThreshold` / `TouchWalkThreshold` | `0.65` / `0.35` | Walk/run transition |
 | `[Axes] WalkHysteresis` | `0.04` | Margin preventing walk/run flicker |
 | `[Axes] MovementTurnSpeed` / `TouchTurnSpeed` | `180` / `180` | Base turning speed in degrees/second |
-| `[Axes] MovementTurnBoost` | `1` | Faster gamepad direction changes; `0` disables |
+| `[Axes] MovementTurnBoost` | `0` | Optional extra speed for sharp gamepad turns; `0` disables |
 | `[Controller] CameraAssist` | `1` | Gamepad movement recentering |
 | `[TargetLock] CameraSmoothingSeconds` | `0.20` | Recenter smoothing, divided by Gothic.ini `cameraFollowSpeed` |
 | `[Combat] MeleeAssist` | `1` | Face the focused NPC when beginning a melee attack |
@@ -120,6 +120,7 @@ These entries are in `Gamepad.ini`, not `Gothic.ini`:
 | `[Combat] MeleeFocusRangeScale` | `0` | Scripted monster warning range; `1`–`4` instead multiplies original focus distance |
 
 Mouse speed controls the camera, not movement. Forward movement still uses Gothic's walk/run animations.
+Left-stick turning scales with stick deflection, up to `MovementTurnSpeed` at full input with boost disabled.
 Locked sidesteps avoid automatic low-stick walking; explicit walk and sneak remain available.
 
 Automatic focus range uses `PERC_DIST_MONSTER_ACTIVE_MAX` (15 metres in standard Gothic II), falling back to doubled focus range if absent/invalid.

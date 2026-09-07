@@ -10,6 +10,9 @@ int main() {
     check(turn(90.f,1.f,180.f,1.f,0.1f)==36.f,"Firm cornering doubles the base turn rate");
     check(turn(90.f,0.1f,180.f,1.f,0.1f)<turn(90.f,1.f,180.f,1.f,0.1f),"Gentle input remains gentler");
     check(turn(90.f,1.f,180.f,0.f,0.1f)==18.f,"Disabling boost restores the base turn limit");
+    check(std::abs(turn(90.f,0.1f,180.f,0.f,0.1f)-1.8f)<0.001f,
+          "A slight stick deflection uses one tenth of the base turn speed");
+    check(turn(90.f,0.f,180.f,1.f,0.1f)==0.f,"Neutral input cannot turn even with boost enabled");
     check(turn(-90.f,1.f,180.f,1.f,0.1f)==-36.f,"Left and right turns are symmetric");
     check(turn(350.f,1.f,180.f,1.f,0.1f)==-10.f,"Wraparound takes the shortest path");
     check(turn(-350.f,1.f,180.f,1.f,0.1f)==10.f,"Opposite wraparound takes the shortest path");

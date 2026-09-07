@@ -18,7 +18,7 @@ inline float turn(float delta, float magnitude, float speed, float boost, float 
   delta=std::remainder(delta,360.f);
   const float strength=std::clamp(magnitude,0.f,1.f);
   const float corner=std::min(std::abs(delta)/90.f,1.f);
-  const float step=std::max(speed,0.f)*(1.f+std::max(boost,0.f)*strength*corner)*std::max(dt,0.f);
+  const float step=std::max(speed,0.f)*strength*(1.f+std::max(boost,0.f)*strength*corner)*std::max(dt,0.f);
   return std::clamp(delta,-step,step);
   }
 
