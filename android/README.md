@@ -58,7 +58,26 @@ Set-Location ..
 
 The resulting APK is `android\app\build\outputs\apk\debug\app-debug.apk`.
 
-## Install and copy Gothic II
+## Install without USB
+
+For an APK and separate archive:
+
+1. Transfer `OpenGothic-arm64.apk` and `private-game.zip` to the phone's **Downloads** folder using Wi-Fi, cloud storage or another private file-transfer method.
+2. Open the APK in the phone's file manager (for example, Samsung **My Files**) and install it.
+   Allow that source to install unknown apps if Android asks.
+3. Launch **OpenGothic**, tap **Choose private-game.zip**, and select the archive from Downloads.
+4. Keep the setup screen open while the files are verified and extracted. The game starts automatically afterward.
+
+Use the `private-game.zip` produced by the [setup guide](PRIVATE-SETUP.md), not an arbitrary zipped game installation.
+You do not need ZArchiver or manual access to `Android/data`.
+If the game is already installed and opens directly, quit it and long-press its launcher icon → **Import files** to select an archive.
+
+With `OpenGothic-PRIVATE-arm64.apk`, the game files are already bundled: install the APK and launch it; no separate ZIP is needed.
+After successful extraction, you can delete the transferred ZIP and APK from Downloads.
+Do not uninstall the app to reclaim that space: uninstalling also deletes its extracted game files, settings and saves.
+Keep bundled game files private; do not redistribute them.
+
+## Install and copy Gothic II using USB
 
 Enable Developer options and USB debugging on the phone, connect it, approve the debugging prompt, and confirm that ADB sees it:
 

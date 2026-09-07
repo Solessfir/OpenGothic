@@ -6,6 +6,8 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
+import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.LinearLayout;
@@ -32,6 +34,8 @@ public final class SetupActivity extends Activity {
     private ProgressBar progress;
     private Button choose;
     private Button retry;
+    private long checksStarted;
+    private boolean launching;
 
     private InputStream bundledFiles() throws IOException {
         String[] names = getAssets().list("");
@@ -55,6 +59,18 @@ public final class SetupActivity extends Activity {
     @Override public void onCreate(Bundle saved) {
         super.onCreate(saved);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        checksStarted = SystemClock.uptimeMillis();
+        if (!running) {
+            if ("org.opengothic.app.IMPORT_GAME_FILES".equals(getIntent().getAction())) {
+                ready = false;
+                message = "Select private-game.zip from Downloads. Existing saves and settings will be kept.\nQuit the game before importing a different installation.";
+            } else {
+                begin(null);
+            }
+        }
+    }
+
+    private void showSetup() {
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
         int padding = (int) (24 * getResources().getDisplayMetrics().density);
@@ -78,20 +94,13 @@ public final class SetupActivity extends Activity {
         retry.setOnClickListener(v -> begin(null));
         layout.addView(retry);
         setContentView(layout);
-        if (!running) {
-            if ("org.opengothic.app.IMPORT_GAME_FILES".equals(getIntent().getAction())) {
-                ready = false;
-                message = "Select private-game.zip from Downloads. Existing saves and settings will be kept.\nQuit the game before importing a different installation.";
-            } else {
-                begin(null);
-            }
-        }
     }
 
     private void begin(Uri uri) {
         if (running) return;
         ready = false;
         percent = 0;
+        checksStarted = SystemClock.uptimeMillis();
         File root = getExternalFilesDir(null);
         File pending = new File(getFilesDir(), "private-assets-pending");
         if (root == null) {
@@ -138,20 +147,31 @@ public final class SetupActivity extends Activity {
 
     private final Runnable refresh = new Runnable() {
         @Override public void run() {
-            status.setText(message);
-            progress.setProgress(percent);
-            choose.setEnabled(!running);
-            retry.setEnabled(!running);
-            if (ready && !running) {
+            if (launching || isFinishing() || isDestroyed()) return;
+            boolean working = running;
+            if (ready && !working) {
                 ready = false;
                 launchGame();
-            } else {
-                handler.postDelayed(this, 250);
+                return;
             }
+            // Completed installations normally pass their checks before any setup UI is needed.
+            // Longer checks show progress, but import controls only appear when user input is required.
+            if (!working || status != null || SystemClock.uptimeMillis() - checksStarted >= 300) {
+                if (status == null) showSetup();
+                status.setText(message);
+                progress.setProgress(percent);
+                progress.setVisibility(working ? View.VISIBLE : View.GONE);
+                choose.setVisibility(working ? View.GONE : View.VISIBLE);
+                retry.setVisibility(working ? View.GONE : View.VISIBLE);
+            }
+            handler.postDelayed(this, 50);
         }
     };
 
     private void launchGame() {
+        if (launching) return;
+        launching = true;
+        handler.removeCallbacks(refresh);
         startActivity(new Intent(this, org.tempest.TempestNativeActivity.class));
         finish();
     }

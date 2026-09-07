@@ -176,13 +176,6 @@ Technical references: [Google SDK manager](https://developer.android.com/tools/s
 
 ## Maintainer checks
 
-Verified on 2026-09-07: Windows ARM64 native/APK builds and lint; 356 real game files packaged into a 2.46 GB signed APK;
-full host extraction and hashes; 12 setup/extractor checks on Windows and Arch WSL; portable Linux JDK and SDK manager startup;
-and a compact 9.2 MB asset-free APK after returning from private packaging.
-The private APK was installed on an S24, completed its setup checks, and reached gameplay with existing assets.
-All four phone saves and both writable INIs matched their pre-install hashes.
-Fresh Windows/Linux package-manager bootstrap, a complete clean Linux native build, clean-phone extraction and an S23 install are not yet verified.
-
 ```sh
 python3 -m unittest discover -s android/tools/tests -v
 ```
