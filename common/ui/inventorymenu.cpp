@@ -1004,7 +1004,8 @@ void InventoryMenu::drawWheel(Painter& p,DrawPass pass) {
       renderer.drawItem(at.x-cell/2,at.y-cell/2,cell,cell,*item);
     if(pass==DrawPass::Front && item && item->isEquipped()) {
       const float angle=float(i)*step;
-      band(layout.outer-std::max(4.f,3.f*scale),layout.outer,angle-step*0.4f,angle+step*0.4f,
+      const float halfArc=step*0.4f/3.f;
+      band(layout.outer-std::max(4.f,3.f*scale),layout.outer,angle-halfArc,angle+halfArc,
            Color(0.95f,0.78f,0.42f,1.f));
       }
     if(pass==DrawPass::Front && (utilityMenu || pageButton)) {
