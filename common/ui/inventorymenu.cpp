@@ -1002,6 +1002,11 @@ void InventoryMenu::drawWheel(Painter& p,DrawPass pass) {
     const auto at=point(layout.radius,float(i)*step);
     if(pass==DrawPass::Back && item)
       renderer.drawItem(at.x-cell/2,at.y-cell/2,cell,cell,*item);
+    if(pass==DrawPass::Front && item && item->isEquipped()) {
+      const float angle=float(i)*step;
+      band(layout.outer-std::max(4.f,3.f*scale),layout.outer,angle-step*0.4f,angle+step*0.4f,
+           Color(0.95f,0.78f,0.42f,1.f));
+      }
     if(pass==DrawPass::Front && (utilityMenu || pageButton)) {
       const auto fpsLabel=Gothic::settingsGetI("GAME","showFps")!=0 ? "FPS: On" : "FPS: Off";
       const auto debugLabel=Gothic::settingsGetI("DEBUG","touchControls")!=0 ? "Touch debug\nOn" : "Touch debug\nOff";
@@ -1023,7 +1028,8 @@ void InventoryMenu::drawWheel(Painter& p,DrawPass pass) {
                                  (wheelKind==WheelKind::Character ? "Character" : (pages>1 ? pagedTitle.c_str() : "Equipment"));
     font.drawText(p,footerLeft,int(cy-layout.outer)-pad,footerWidth,line,title,AlignHCenter);
     const std::string_view name=item ? item->description() : (wheelItems.empty() && !utilityMenu ? "No equipment" : "");
-    font.drawText(p,footerLeft+pad,footerTop+line,footerWidth-2*pad,2*line,name,AlignHCenter);
+    string_frm itemLabel(name,item && item->isEquipped() ? " (Equipped)" : "");
+    font.drawText(p,footerLeft+pad,footerTop+line,footerWidth-2*pad,2*line,itemLabel.c_str(),AlignHCenter);
     if(pages>1) {
       const std::string_view hint=wheelTouch ? "Hold < / > to change page" : std::string_view(wheelPageHint);
       font.drawText(p,footerLeft+pad,footerTop+layout.footer-pad,footerWidth-2*pad,line,hint,AlignHCenter);

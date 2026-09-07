@@ -1000,6 +1000,9 @@ void PlayerControl::implMove(uint64_t dt) {
     }
 
   if(pl.canSwitchWeapon()) {
+    // Selecting the weapon already in hand must not start a sheathe/draw cycle.
+    if(auto active=pl.activeWeapon(); active!=nullptr && active->clsId()==pendingEquipment)
+      pendingEquipment=size_t(-1);
     if(pendingEquipment!=size_t(-1)) {
       if(pl.weaponState()!=WeaponState::NoWeapon) {
         pl.closeWeapon(false);
