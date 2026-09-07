@@ -398,9 +398,10 @@ bool TouchInput::blockVisible() const {
 
 Rect TouchInput::blockRect() const {
   const float scale = std::min(Gothic::interfaceScale(this),float(h())/480.f);
-  const int size = std::max(56,int(72*scale));
+  const auto draw = buttonRect(3);
+  const int size = std::min(draw.h,std::max(56,int(72*scale)));
   const int pad = std::max(8,int(12*scale));
-  return Rect(buttonRect(4).x-pad-size,h()-pad-size,size,size);
+  return Rect(draw.x-pad-size,draw.y+(draw.h-size)/2,size,size);
   }
 
 void TouchInput::drawBlock(Painter& p) const {

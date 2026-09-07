@@ -32,7 +32,7 @@ You can explicitly resume with touch or a reconnected controller.
 | LB + Menu | Quicksave |
 | LB + View | Quickload immediately, without confirmation |
 
-Unlocked movement turns toward the chosen direction instead of strafing. Target lock retains an eligible NPC selected by Gothic's existing focus rules; it does not use a new enemy-scoring or distance system. While locked, horizontal movement strafes and the character/camera face the target. The name gains a ` (locked)` suffix. Retention uses the existing cached-focus rules instead of rechecking the acquisition angle every frame. Death, unconsciousness, sheathing, or loss of eligibility releases it. Swimming and diving retain Gothic's native movement constraints. The original `Gothic.ini` `keyLockTarget` now dispatches this same lock action for keyboard input.
+Unlocked movement turns toward the chosen direction instead of strafing. Target lock retains an eligible NPC selected by Gothic's existing focus rules, without a new enemy-scoring system. Android doubles the player's melee NPC focus range by default, consistently for name/health display, acquisition, and retention. While locked, horizontal movement strafes and the character/camera face the target. The name gains a ` (locked)` suffix. Retention uses the existing cached-focus rules instead of rechecking the acquisition angle every frame. Death, unconsciousness, sheathing, or loss of eligibility releases it. Swimming and diving retain Gothic's native movement constraints. The original `Gothic.ini` `keyLockTarget` now dispatches this same lock action for keyboard input.
 
 While locked, right-stick up/down still adjusts camera elevation, respecting Mouse speed, vertical inversion, and Gothic's pitch limits. Horizontal stick flicks still switch targets. Camera yaw wraps across zero and ±180 degrees before following, so an equivalent angle does not force a long rotation.
 
@@ -67,11 +67,16 @@ These `Gamepad.ini` defaults also apply to existing files that omit the section:
 MeleeAssist=1
 MeleeAssistMaxAngle=90
 MeleeAssistMaxDistance=300
+MeleeFocusRangeScale=2
 ```
 
 `MeleeAssist=0` disables it. The angle is the maximum turn from the character's facing in degrees (0–180).
 Distance is in Gothic world units: 300 is approximately three meters, not a new attack reach.
 Gothic's focus and visibility checks must still pass; these limits can restrict eligibility, not expand it.
+`MeleeFocusRangeScale` separately multiplies Gothic's maximum NPC focus distance with fists or melee weapons drawn.
+The default `2` doubles the range where NPC names/health appear and targets can be locked; `1` restores the original range (allowed range: 1–4).
+This applies to Android touch and gamepad, not desktop input, enemy AI, unarmed interaction, item pickup, bows, or spells.
+It does not change weapon reach or the independent `MeleeAssistMaxDistance` limit.
 Restart after editing. This assist is separate from camera assistance and mouse sensitivity.
 
 Unlocked camera assistance scales with the left stick's effective movement amount after its dead zone and response curve: small deflections recenter gently, full deflection gives full assistance, and releasing the stick stops assistance. Locked tracking remains active while stationary. Both use frame-rate-independent smoothing controlled by `[TargetLock] CameraSmoothingSeconds`; mouse sensitivity still controls manual camera input, not movement-stick assistance.
@@ -186,7 +191,7 @@ Binding syntax and precedence:
 - `[Controller] ExplorationModifier` remaps LT's exploration override. `Finish` remains available as an optional independently remappable shortcut; hold-to-finish follows `AttackForward`.
 - `[Axes]` configures dead zone, analog walk threshold, trigger hysteresis, and movement/camera stick assignment. Wheel stick assignment is `[EquipmentWheel] SelectionStick`.
 - `[TargetLock]` configures switch threshold/reset, cooldown, and camera smoothing, not Gothic's target eligibility rules.
-- `[Combat]` configures unlocked melee facing assistance for Android touch and gamepad.
+- `[Combat]` configures melee NPC focus distance and unlocked melee facing assistance for Android touch and gamepad.
 
 Only the first connected controller is active. Physical volume buttons remain Android media-volume controls. Touch retains its existing invisible prototype mapping; the new touch layout is a separate milestone.
 

@@ -48,6 +48,7 @@ class GamepadBindings final {
       bool meleeAssist = true;
       float meleeAssistMaxAngle = 90.f;
       float meleeAssistMaxDistance = 300.f;
+      float meleeFocusRangeScale = 2.f;
       } options;
 
     GamepadBindings();

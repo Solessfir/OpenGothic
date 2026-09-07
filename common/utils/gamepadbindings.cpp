@@ -132,6 +132,9 @@ TriggerReleaseThreshold=0.40
 MeleeAssist=1
 MeleeAssistMaxAngle=90
 MeleeAssistMaxDistance=300
+; Scale NPC name/health and target-lock range with fists or melee weapons drawn.
+; This does not change weapon reach, item pickup, or ranged/spell targeting.
+MeleeFocusRangeScale=2
 
 [TargetLock]
 ; Target eligibility and acquisition ranges come from Gothic's focus rules.
@@ -282,12 +285,13 @@ std::vector<std::string> GamepadBindings::load(std::istream& input) {
   options.meleeAssist=number("Combat","MeleeAssist",options.meleeAssist?1.f:0.f,0,1)!=0;
   options.meleeAssistMaxAngle=number("Combat","MeleeAssistMaxAngle",options.meleeAssistMaxAngle,0,180);
   options.meleeAssistMaxDistance=number("Combat","MeleeAssistMaxDistance",options.meleeAssistMaxDistance,0,1000);
+  options.meleeFocusRangeScale=number("Combat","MeleeFocusRangeScale",options.meleeFocusRangeScale,1,4);
   for(auto& [sec,v]:values) {
     std::string_view allowed;
     if(sec=="Controller") allowed="|Version|Enabled|ExplorationModifier|HoldMs|RepeatDelayMs|RepeatMs|CameraAssist|";
     if(sec=="Axes") allowed="|MovementStick|CameraStick|StickDeadZone|MovementDeadZone|MovementExponent|MovementTurnSpeed|WalkThreshold|TriggerPressThreshold|TriggerReleaseThreshold|";
     if(sec=="TargetLock") allowed="|SwitchThreshold|SwitchResetThreshold|SwitchCooldownMs|CameraSmoothingSeconds|";
-    if(sec=="Combat") allowed="|MeleeAssist|MeleeAssistMaxAngle|MeleeAssistMaxDistance|";
+    if(sec=="Combat") allowed="|MeleeAssist|MeleeAssistMaxAngle|MeleeAssistMaxDistance|MeleeFocusRangeScale|";
     if(!allowed.empty()) for(auto& [key,value]:v) {
       (void)value;
       if(allowed.find("|"+key+"|")==std::string_view::npos)

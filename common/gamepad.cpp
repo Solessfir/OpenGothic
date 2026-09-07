@@ -174,6 +174,7 @@ void MainWindow::tickGamepad() {
   const auto gp=SystemApi::gamepadState();
   auto& options=controllerBindings.options;
   player.setMeleeAssist(options.meleeAssist,options.meleeAssistMaxAngle,options.meleeAssistMaxDistance);
+  if(auto world=Gothic::inst().world()) world->setMeleeFocusRangeScale(options.meleeFocusRangeScale);
   // Track physical presence separately from focus so background disconnections are not lost.
   if(controllerWasPresent && !gp.connected)
     controllerDisconnectPending = Gothic::inst().isInGame() || Gothic::inst().checkLoading()!=Gothic::LoadState::Idle;

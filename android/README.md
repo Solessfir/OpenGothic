@@ -239,6 +239,9 @@ Choosing an empty save slot opens the Android keyboard. Enter a save name and pr
 Physical controllers now use camera-relative directional movement, A to accept/interact, B to go back, R3 target lock, and LB+L3 walk. Classic/modern combat, D-pad shortcuts, inventory panels, and the equipment wheel have context-specific mappings. See [controller controls and Gamepad.ini](CONTROLLER.md) for the complete layout, remapping commands, and device-test checklist.
 Android touch and gamepad also face the focused NPC when starting an unlocked melee attack, within a 90-degree turn and 300-world-unit distance by default.
 This does not lunge, extend attack reach, or activate target lock. Disable or tune it with the `[Combat]` settings documented in [Gamepad.ini controls](CONTROLLER.md).
+With fists or a melee weapon drawn, NPC name/health display and target-lock range are doubled on Android.
+`[Combat] MeleeFocusRangeScale=1` in `Gamepad.ini` restores Gothic's original range; the default is `2`.
+This range setting is separate from the shorter melee facing-assist distance and does not affect weapon reach or item pickup.
 
 Touch controls, including the contextual G2 Block hit area, are invisible by default.
 For the temporary layout/debug overlay, enable `[DEBUG] touchControls=1` in the writable `Gothic.ini` and restart.
@@ -257,7 +260,7 @@ To finish a knocked-out NPC with a one-handed or two-handed melee weapon, focus 
 With G2 controls, press ACTION instead; fists cannot perform the finishing move.
 Without a weapon, ACTION is interaction; menus use the same zone to confirm.
 With Gothic 2 controls (`useGothic1Controls=0`), the bottom-right zone directly uses/attacks.
-With fists or a melee weapon drawn, a separate Block hit area is enabled immediately left of Use/Attack.
+With fists or a melee weapon drawn, a separate Block hit area is enabled to the left of Draw/Sheathe, above Use/Attack.
 Hold it to request Gothic's normal block/parry action and release to stop; this is not an unconditional damage shield.
 The hit area is disabled in menus, with ranged weapons/magic, in classic controls, and when touch controls are inactive.
 Changing context also releases a held block, and a touch started on Block never becomes a camera drag.

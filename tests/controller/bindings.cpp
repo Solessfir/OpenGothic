@@ -17,11 +17,18 @@ int main() {
     B b;
     check(b.options.meleeAssist && b.options.meleeAssistMaxAngle==90.f && b.options.meleeAssistMaxDistance==300.f,
           "Missing combat settings use conservative melee assistance defaults");
+    check(b.options.meleeFocusRangeScale==2.f,"Mobile melee focus range defaults to twice Gothic's range");
     B combat;
-    std::istringstream assist("[Combat]\nMeleeAssist=0\nMeleeAssistMaxAngle=45\nMeleeAssistMaxDistance=200\n");
+    std::istringstream assist("[Combat]\nMeleeAssist=0\nMeleeAssistMaxAngle=45\nMeleeAssistMaxDistance=200\nMeleeFocusRangeScale=3\n");
     check(combat.load(assist).empty(),"Combat assistance settings validate");
     check(!combat.options.meleeAssist && combat.options.meleeAssistMaxAngle==45.f && combat.options.meleeAssistMaxDistance==200.f,
           "Combat assistance can be disabled and tuned independently of camera settings");
+    check(combat.options.meleeFocusRangeScale==3.f,"Melee focus range is independent of facing assistance");
+    std::istringstream originalFocus("[Combat]\nMeleeFocusRangeScale=1\n");
+    check(combat.load(originalFocus).empty() && combat.options.meleeFocusRangeScale==1.f,
+          "Original Gothic focus range can be restored");
+    std::istringstream invalidFocus("[Combat]\nMeleeFocusRangeScale=99\n");
+    check(combat.load(invalidFocus).size()==1,"Excessive focus scaling is reported");
     std::istringstream invalidAssist("[Combat]\nMeleeAssistMaxAngle=999\nMeleeAssistMaxDistance=-1\n");
     check(combat.load(invalidAssist).size()==2,"Out-of-range combat assistance settings are reported");
     check(b.movementAxis(0.2f,0.f)==std::pair<float,float>(0.f,0.f),"Movement dead zone suppresses small deflections");

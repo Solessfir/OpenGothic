@@ -123,6 +123,7 @@ class World final {
     Focus                findFocus(const Npc& pl, const Focus &def, bool unarmed = false);
     Focus                findFocus(const Focus& def);
     bool                 testFocusNpc(Npc *def);
+    void                 setMeleeFocusRangeScale(float scale) { meleeFocusRangeScale=scale; }
 
     void                 triggerOnStart(bool firstTime);
     void                 triggerEvent(const TriggerEvent& e);
@@ -194,6 +195,8 @@ class World final {
 
   private:
     const zenkit::IFocus& searchPolicy(const Npc& pl, TargetCollect& collAlgo, TargetType& collType, WorldObjects::SearchFlg& opt, bool unarmed = false) const;
+    float                npcFocusRange(const Npc& pl, float range, bool unarmed = false) const;
+    float                meleeFocusRangeScale=1.f;
     std::string                           wname;
     GameSession&                          game;
 

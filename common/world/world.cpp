@@ -420,7 +420,7 @@ Focus World::findFocus(const Npc &pl, const Focus& def, bool unarmed) {
   auto  collType = TARGET_TYPE_ALL;
   auto& policy   = searchPolicy(pl,collAlgo,collType,opt,unarmed);
 
-  WorldObjects::SearchOpt optNpc {policy.npc_range1,  policy.npc_range2,  policy.npc_azi,  collAlgo, collType, opt};
+  WorldObjects::SearchOpt optNpc {policy.npc_range1, npcFocusRange(pl,policy.npc_range2,unarmed), policy.npc_azi, collAlgo, collType, opt};
   WorldObjects::SearchOpt optMob {policy.mob_range1,  policy.mob_range2,  policy.mob_azi,  collAlgo};
   WorldObjects::SearchOpt optItm {policy.item_range1, policy.item_range2, policy.item_azi, collAlgo, collType};
 
@@ -480,7 +480,7 @@ bool World::testFocusNpc(Npc* def) {
   auto  collType = TARGET_TYPE_ALL;
   auto& policy   = searchPolicy(*npcPlayer,collAlgo,collType,opt);
 
-  WorldObjects::SearchOpt optNpc{policy.npc_range1, policy.npc_range2, policy.npc_azi, collAlgo, collType, opt};
+  WorldObjects::SearchOpt optNpc{policy.npc_range1, npcFocusRange(*npcPlayer,policy.npc_range2), policy.npc_azi, collAlgo, collType, opt};
   return wobj.testFocusNpc(*npcPlayer,def,optNpc);
   }
 
@@ -841,6 +841,15 @@ void World::addSound(const zenkit::VirtualObject& vob) {
 
 void World::invalidateVobIndex() {
   wobj.invalidateVobIndex();
+  }
+
+float World::npcFocusRange(const Npc& pl,float range,bool unarmed) const {
+  // Scale only the player's melee NPC focus, consistently for acquisition and retention.
+  if(&pl!=npcPlayer || unarmed) return range;
+  const auto ws=pl.weaponState();
+  if(ws==WeaponState::Fist || ws==WeaponState::W1H || ws==WeaponState::W2H)
+    return range*meleeFocusRangeScale;
+  return range;
   }
 
 const zenkit::IFocus& World::searchPolicy(const Npc& pl, TargetCollect& collAlgo, TargetType& collType, WorldObjects::SearchFlg& opt, bool unarmed) const {
