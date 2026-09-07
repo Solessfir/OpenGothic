@@ -40,6 +40,12 @@ class InventoryMenu : public Tempest::Widget {
       Front
       };
 
+    enum class WheelKind:uint8_t {
+      Equipment,
+      Character,
+      System
+      };
+
     void  close();
     void  open(Npc& pl);
     void  trade(Npc& pl,Npc& tr);
@@ -53,7 +59,7 @@ class InventoryMenu : public Tempest::Widget {
     void  draw(Tempest::Encoder<Tempest::CommandBuffer>& cmd);
     void  paintNumOverlay(Tempest::PaintEvent& e);
     void  controllerAction(int action);
-    void  openWheel(Npc& pl, bool characterMenu=false);
+    void  openWheel(Npc& pl, WheelKind kind=WheelKind::Equipment);
     bool  isWheelOpen() const { return wheelActive; }
     void  wheelMove(float x, float y);
     void  wheelPage(int direction);
@@ -108,7 +114,7 @@ class InventoryMenu : public Tempest::Widget {
     size_t                    columsCount = 5;
     int32_t                   scrollDelta = 0;
     bool                      wheelActive = false;
-    bool                      wheelCharacter = false;
+    WheelKind                 wheelKind = WheelKind::Equipment;
     bool                      wheelTouch = false;
     Tempest::Point             wheelTouchOrigin;
     int                       wheelHoverPage = 0;

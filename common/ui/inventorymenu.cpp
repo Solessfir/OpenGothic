@@ -833,19 +833,20 @@ void InventoryMenu::controllerAction(int action) {
   adjustScroll(); update();
   }
 
-void InventoryMenu::openWheel(Npc& pl, bool characterMenu) {
+void InventoryMenu::openWheel(Npc& pl, WheelKind kind) {
+  const bool utilityMenu=kind!=WheelKind::Equipment;
   if(pl.isDown() || pl.isMonster() || pl.interactive()!=nullptr) return;
-  if(!characterMenu && (!pl.canSwitchWeapon() || !pl.isAiQueueEmpty())) return;
+  if(!utilityMenu && (!pl.canSwitchWeapon() || !pl.isAiQueueEmpty())) return;
   state=State::Equip; player=&pl; trader=nullptr; chest=nullptr; page=0;
   pagePl.reset(new InvPage(pl.inventory())); pageOth.reset();
   wheelItems.clear();
-  for(auto it=pl.inventory().iterator(Inventory::T_Inventory);!characterMenu && it.isValid();++it) {
+  for(auto it=pl.inventory().iterator(Inventory::T_Inventory);!utilityMenu && it.isValid();++it) {
     if(!it->checkCond(pl)) continue;
     if((it->mainFlag()&(ITM_CAT_NF|ITM_CAT_FF))!=0 || (it->isSpellOrRune() && it.slot()!=Item::NSLOT))
       wheelItems.push_back(it->clsId());
     }
   wheelActive=true; wheelPageId=0; wheelSelected=-1; wheelCentered=true;
-  wheelCharacter=characterMenu; wheelTouch=false;
+  wheelKind=kind; wheelTouch=false;
   wheelHoverPage=0;
   wheelPageHint.clear();
   update();
@@ -858,7 +859,7 @@ size_t InventoryMenu::wheelPageSize() const {
 size_t InventoryMenu::wheelSectorCount() const {
   // Paged wheels keep their navigation arrows in the same two sectors.
   if(wheelPageSize()==6) return 8;
-  if(wheelCharacter) return 3;
+  if(wheelKind!=WheelKind::Equipment) return 2;
   return std::min(wheelPageSize(),wheelItems.size()-std::min(wheelItems.size(),wheelPageId*wheelPageSize()));
   }
 
@@ -892,7 +893,7 @@ void InventoryMenu::touchWheelMove(Point pos, uint64_t now) {
     update();
     return;
     }
-  if(!wheelCharacter && wheelPageSize()==6 && selected>=6) {
+  if(wheelKind==WheelKind::Equipment && wheelPageSize()==6 && selected>=6) {
     wheelSelected=-1;
     const int direction=selected==6 ? -1 : 1;
     if(wheelHoverPage!=direction) {
@@ -909,7 +910,7 @@ void InventoryMenu::touchWheelMove(Point pos, uint64_t now) {
   wheelHoverPage=0;
   if(!wheelCentered) return;
   wheelSelected=selected;
-  if(wheelCharacter) {
+  if(wheelKind!=WheelKind::Equipment) {
     if(selected<0 || size_t(selected)>=wheelSectorCount()) wheelSelected=-1;
     }
   else if(wheelPageId*wheelPageSize()+size_t(selected)>=wheelItems.size()) {
@@ -934,11 +935,12 @@ void InventoryMenu::wheelPage(int direction) {
   }
 
 size_t InventoryMenu::wheelSelection() const {
-  if(wheelCharacter) return wheelSelected>=0 && size_t(wheelSelected)<wheelSectorCount() ? size_t(wheelSelected) : size_t(-1);
+  if(wheelKind!=WheelKind::Equipment) return wheelSelected>=0 && size_t(wheelSelected)<wheelSectorCount() ? size_t(wheelSelected) : size_t(-1);
   if(wheelSelected<0 || wheelPageId*wheelPageSize()+size_t(wheelSelected)>=wheelItems.size()) return size_t(-1);
   return wheelItems[wheelPageId*wheelPageSize()+size_t(wheelSelected)];
   }
 void InventoryMenu::drawWheel(Painter& p,DrawPass pass) {
+  const bool utilityMenu=wheelKind!=WheelKind::Equipment;
   const auto layout=wheelLayout();
   const float cx=float(layout.center.x), cy=float(layout.center.y);
   const float inner=layout.radius*0.52f;
@@ -972,7 +974,7 @@ void InventoryMenu::drawWheel(Painter& p,DrawPass pass) {
   if(pass==DrawPass::Back) {
     band(0.f,layout.outer,0.f,2.f*float(M_PI),Color(0.035f,0.026f,0.015f,0.88f));
     for(size_t i=0;i<count;++i) {
-      const bool pageButton=!wheelCharacter && wheelPageSize()==6 && i>=6;
+      const bool pageButton=!utilityMenu && wheelPageSize()==6 && i>=6;
       const bool hovered=pageButton && wheelHoverPage==(i==6 ? -1 : 1);
       if(int(i)==wheelSelected || hovered)
         band(inner,layout.outer,float(i)*step-step/2,float(i)*step+step/2,Color(0.7f,0.47f,0.18f,0.35f));
@@ -990,28 +992,32 @@ void InventoryMenu::drawWheel(Painter& p,DrawPass pass) {
     }
 
   for(size_t i=0;i<count;++i) {
-    const bool pageButton=!wheelCharacter && wheelPageSize()==6 && i>=6;
+    const bool pageButton=!utilityMenu && wheelPageSize()==6 && i>=6;
     const auto itemId=wheelPageId*wheelPageSize()+i;
-    auto item=!wheelCharacter && !pageButton && itemId<wheelItems.size() ? player->getItem(wheelItems[itemId]) : nullptr;
+    auto item=!utilityMenu && !pageButton && itemId<wheelItems.size() ? player->getItem(wheelItems[itemId]) : nullptr;
     const auto at=point(layout.radius,float(i)*step);
     if(pass==DrawPass::Back && item)
       renderer.drawItem(at.x-cell/2,at.y-cell/2,cell,cell,*item);
-    if(pass==DrawPass::Front && (wheelCharacter || pageButton)) {
+    if(pass==DrawPass::Front && (utilityMenu || pageButton)) {
       const auto fpsLabel=Gothic::settingsGetI("GAME","showFps")!=0 ? "FPS: On" : "FPS: Off";
-      const auto label=wheelCharacter ? (i==0 ? "Stats" : (i==1 ? "Journal" : fpsLabel)) : (i==6 ? "<" : ">");
-      font.drawText(p,at.x-cell,at.y+line/2,2*cell,line,label,AlignHCenter);
+      const auto debugLabel=Gothic::settingsGetI("DEBUG","touchControls")!=0 ? "Touch debug\nOn" : "Touch debug\nOff";
+      const auto label=wheelKind==WheelKind::System ? (i==0 ? fpsLabel : debugLabel) :
+                       (wheelKind==WheelKind::Character ? (i==0 ? "Stats" : "Journal") : (i==6 ? "<" : ">"));
+      const bool twoLines=wheelKind==WheelKind::System && i==1;
+      font.drawText(p,at.x-cell,at.y+(twoLines ? 0 : line/2),2*cell,twoLines ? 2*line : line,label,AlignHCenter);
       }
     }
   if(pass==DrawPass::Front) {
     // Gothic fonts position text by its baseline, not by the top of its box.
     const int centerWidth=int(inner*1.8f);
     font.drawText(p,int(cx)-centerWidth/2,int(cy)+line/2,centerWidth,line,"Cancel",AlignHCenter);
-    auto item=wheelCharacter ? nullptr : player->getItem(wheelSelection());
+    auto item=utilityMenu ? nullptr : player->getItem(wheelSelection());
     const auto pages=std::max<size_t>(1,(wheelItems.size()+wheelPageSize()-1)/wheelPageSize());
     string_frm pagedTitle("Equipment ",wheelPageId+1," / ",pages);
-    const std::string_view title=wheelCharacter ? "Character" : (pages>1 ? pagedTitle.c_str() : "Equipment");
+    const std::string_view title=wheelKind==WheelKind::System ? "System" :
+                                 (wheelKind==WheelKind::Character ? "Character" : (pages>1 ? pagedTitle.c_str() : "Equipment"));
     font.drawText(p,footerLeft,int(cy-layout.outer)-pad,footerWidth,line,title,AlignHCenter);
-    const std::string_view name=item ? item->description() : (wheelItems.empty() && !wheelCharacter ? "No equipment" : "");
+    const std::string_view name=item ? item->description() : (wheelItems.empty() && !utilityMenu ? "No equipment" : "");
     font.drawText(p,footerLeft+pad,footerTop+line,footerWidth-2*pad,2*line,name,AlignHCenter);
     if(pages>1) {
       const std::string_view hint=wheelTouch ? "Hold < / > to change page" : std::string_view(wheelPageHint);

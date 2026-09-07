@@ -24,7 +24,7 @@ Controller bindings and movement options use a separate [Gamepad.ini](CONTROLLER
 | `[ENGINE] shadowMapResolution` | `1024` | `1536` or `2048` increases shadow detail and cost |
 | `[ENGINE] zMaxFPS` | `60` | `30` reduces power/heat; `0` uncaps gameplay |
 | `[VIDEO] displayMode` | `auto` | Lowercase `sdr` forces SDR; `hdr` requests HDR with SDR fallback |
-| `[GAME] showFps` | `0` | `1` shows the text-only FPS counter; also toggle it in the touch Character wheel |
+| `[GAME] showFps` | `0` | `1` shows the text-only FPS counter; also toggle it by holding Back/menu and selecting FPS |
 
 Lower render quality can improve performance, but a cap cannot guarantee sustained FPS.
 A positive `[PARAMETERS] FPS_Limit` in `Gothic2/System/SystemPack.ini` overrides `zMaxFPS`.
@@ -78,6 +78,7 @@ Original `sightValue`, `modelDetail` and `zVobFarClipZScale` are not supported d
 
 All are off by default in `[DEBUG]`: `touchControls=1` shows the touch layout,
 `gpuProfile=1` records GPU timings, and `cpuProfile=1` enables trace markers.
+The Back/menu hold wheel also toggles the touch layout without editing an INI.
 Use `0` to disable them. Profiling adds overhead; see [contributor diagnostics](tools/README.md).
 
 ## Editing settings

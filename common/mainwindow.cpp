@@ -454,7 +454,9 @@ bool MainWindow::onTouchWheel(TouchInput::Command command, TouchInput::WheelPhas
     touchHeldAction.reset();
     touchTapRelease.reset();
     touchMovementBlocked=true;
-    inventory.openWheel(*pl,command==TouchInput::Command::Back);
+    const auto kind=command==TouchInput::Command::Back ? InventoryMenu::WheelKind::System :
+                    (command==TouchInput::Command::Inventory ? InventoryMenu::WheelKind::Character : InventoryMenu::WheelKind::Equipment);
+    inventory.openWheel(*pl,kind);
     if(!inventory.isWheelOpen()) return false;
     touchWheelOwned=true;
     inventory.beginTouchWheel(pos);
@@ -476,8 +478,10 @@ bool MainWindow::onTouchWheel(TouchInput::Command command, TouchInput::WheelPhas
   if(command==TouchInput::Command::Weapon) {
     player.controllerEquip(selected);
     }
-  else if(selected==2) {
-    Gothic::settingsSetI("GAME","showFps",!Gothic::settingsGetI("GAME","showFps"));
+  else if(command==TouchInput::Command::Back) {
+    const auto section=selected==0 ? "GAME" : "DEBUG";
+    const auto setting=selected==0 ? "showFps" : "touchControls";
+    Gothic::settingsSetI(section,setting,!Gothic::settingsGetI(section,setting));
     Gothic::flushSettings();
     }
   else {

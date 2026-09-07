@@ -1,7 +1,7 @@
 # Touch controls
 
-Touch controls are invisible during normal play. To learn the layout, enable
-`Gothic.ini` `[DEBUG] touchControls=1`; set it back to `0` to hide it.
+Touch controls are invisible during normal play. Hold **Back/menu**, drag down and release to toggle the debug layout.
+You can also set `Gothic.ini` `[DEBUG] touchControls=1` to show it, or `0` to hide it.
 See [editing settings](CONFIGURATION.md#editing-settings).
 
 A connected, enabled gamepad takes over gameplay input; the Android keyboard remains available.
@@ -46,7 +46,8 @@ Focus range is not attack reach or guaranteed safety; see [targeting settings](C
 ## Radial menus
 
 - Hold **Draw** to open equipment selection.
-- Hold **Back/menu** for Stats (up), Journal (lower-right), or the FPS toggle (lower-left).
+- Hold **Inventory** for Stats (up) / Journal (down).
+- Hold **Back/menu** for FPS (up) / touch-debug overlay (down). Both toggles are saved.
 - Keep the same finger down, drag a little toward a choice, then release to apply.
 - Release without selecting, or return to the finger's starting point, to cancel.
 

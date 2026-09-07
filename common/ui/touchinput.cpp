@@ -99,8 +99,9 @@ void TouchInput::paintEvent(Tempest::PaintEvent& e) {
     label(rect.x+pad,rect.y+rect.h/2-line,rect.w-2*pad,names[i]);
     if(i==4 && canLock && touchEnabled && !uiActive)
       label(rect.x+pad,rect.y+rect.h/2+line,rect.w-2*pad,targetLocked ? "DRAG: UNLOCK" : "DRAG: LOCK");
-    if((i==0 || i==3) && touchEnabled && !uiActive)
-      label(rect.x+pad,rect.y+rect.h/2+line,rect.w-2*pad,i==0 ? "HOLD: CHARACTER" : "HOLD: EQUIPMENT");
+    if((i==0 || i==1 || i==3) && touchEnabled && !uiActive)
+      label(rect.x+pad,rect.y+rect.h/2+line,rect.w-2*pad,
+            i==0 ? "HOLD: SYSTEM" : (i==1 ? "HOLD: CHARACTER" : "HOLD: EQUIPMENT"));
     }
 
   auto cross = [&](Point pos,int radius) {
@@ -190,7 +191,8 @@ void TouchInput::mouseDownEvent(Tempest::MouseEvent& e) {
     touch.role = Role::Button;
     touch.command = Buttons[button];
     touch.pendingAction = touch.command==Command::Accept && canLock && !uiActive;
-    touch.pendingWheel = !uiActive && (touch.command==Command::Weapon || touch.command==Command::Back);
+    touch.pendingWheel = !uiActive && (touch.command==Command::Weapon || touch.command==Command::Back ||
+                                      touch.command==Command::Inventory);
     if(!touch.pendingAction && !touch.pendingWheel) {
       touch.pendingButton = multiTap.joining(touch.pressedAt);
       if(!touch.pendingButton) {

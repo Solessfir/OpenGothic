@@ -37,10 +37,9 @@ int main() {
       }
     check(sector(0,-100,50,140,0)==-1,"An empty wheel cannot select anything");
     check(sector(0,100,50,140,2)==1,"The compact character wheel selects Journal at the bottom");
-    check(sector(0,-100,50,140,3)==0,"The three-entry character wheel keeps Stats at the top");
-    check(sector(87,50,50,140,3)==1,"The character wheel selects Journal at lower-right");
-    check(sector(-87,50,50,140,3)==2,"The character wheel selects the FPS toggle at lower-left");
-    check(sector(0,0,50,140,3)==-1,"Releasing without a choice does not toggle FPS");
+    check(sector(0,-100,50,140,2)==0,"The utility wheels select Stats or FPS at the top");
+    check(sector(0,100,50,140,2)==1,"The utility wheels select Journal or touch debug at the bottom");
+    check(sector(0,0,50,140,2)==-1,"Releasing without a choice does not toggle a setting");
     for(int count=1;count<=8;++count) {
       for(int i=0;i<count;++i) {
         const float angle=float(i)*2.f*std::numbers::pi_v<float>/float(count);
