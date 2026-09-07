@@ -484,10 +484,12 @@ void MainWindow::onTouchCommand(TouchInput::Command command, bool pressed) {
   if(command==TouchInput::Command::QuickSave || command==TouchInput::Command::QuickLoad) {
     auto& gothic=Gothic::inst();
     const auto camera=gothic.camera();
-    if(!pressed || uiActive || console.isActive() || gothic.isPause() || !gothic.isInGameAndAlive() ||
+    if(!pressed || uiActive || console.isActive() || gothic.isPause() || gothic.world()==nullptr ||
        gothic.checkLoading()!=Gothic::LoadState::Idle || camera==nullptr || camera->isCutscene() ||
        gothic.world()->isCutsceneLock() || !Gothic::settingsGetI("GAME","useQuickSaveKeys")) return;
-    if(command==TouchInput::Command::QuickSave) gothic.quickSave();
+    if(command==TouchInput::Command::QuickSave) {
+      if(gothic.isInGameAndAlive()) gothic.quickSave();
+      }
     else gothic.quickLoad();
     return;
     }

@@ -193,7 +193,8 @@ void MainWindow::tickGamepad() {
   const auto touchPlayer = Gothic::inst().player();
   const auto touchWeapon = touchPlayer!=nullptr ? touchPlayer->weaponState() : WeaponState::NoWeapon;
   const auto touchCamera=Gothic::inst().camera();
-  mobileUi.setGesturesEnabled(touchPlayer!=nullptr && !touchPlayer->isDown() && touchPlayer->interactive()==nullptr &&
+  // Keep quickload gestures available after death; individual gameplay actions still check player state.
+  mobileUi.setGesturesEnabled(touchPlayer!=nullptr && touchPlayer->interactive()==nullptr &&
                              touchCamera!=nullptr && !touchCamera->isCutscene() && !Gothic::inst().isPause() &&
                              Gothic::inst().checkLoading()==Gothic::LoadState::Idle);
   mobileUi.setDebugContext(Gothic::inst().version().game!=2 || Gothic::settingsGetI("GAME","useGothic1Controls")!=0,
