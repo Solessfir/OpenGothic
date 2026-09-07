@@ -6,6 +6,9 @@ For guided prerequisite installation, private game-file packaging and phone inst
 See [the private setup guide](PRIVATE-SETUP.md), including the separate APK + ZIP fallback and optional OpenGothic save transfer.
 The manual asset-free workflow below remains supported.
 
+The installed app appears as **Gothic II** with a gold “G” on a black icon.
+Its package ID remains `org.opengothic.app`, so existing installations, settings and saves are retained when updating.
+
 For measured S24 performance and repeatable profiling commands, see [PERFORMANCE.md](PERFORMANCE.md).
 
 ## Requirements
@@ -65,7 +68,7 @@ For an APK and separate archive:
 1. Transfer `OpenGothic-arm64.apk` and `private-game.zip` to the phone's **Downloads** folder using Wi-Fi, cloud storage or another private file-transfer method.
 2. Open the APK in the phone's file manager (for example, Samsung **My Files**) and install it.
    Allow that source to install unknown apps if Android asks.
-3. Launch **OpenGothic**, tap **Choose private-game.zip**, and select the archive from Downloads.
+3. Launch **Gothic II**, tap **Choose private-game.zip**, and select the archive from Downloads.
 4. Keep the setup screen open while the files are verified and extracted. The game starts automatically afterward.
 
 Setup follows the phone's normal orientation. Landscape mode is enabled only when the game starts.

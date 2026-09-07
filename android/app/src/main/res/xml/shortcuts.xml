@@ -3,7 +3,7 @@
     <shortcut
         android:shortcutId="import_game_files"
         android:enabled="true"
-        android:icon="@drawable/opengothic_icon"
+        android:icon="@mipmap/ic_launcher"
         android:shortcutShortLabel="@string/import_game_files">
         <intent
             android:action="org.opengothic.app.IMPORT_GAME_FILES"

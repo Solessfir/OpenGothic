@@ -4,6 +4,7 @@ Use a legally owned **Gothic II: Night of the Raven** installation.
 This guide builds a debug ARM64 APK for private testing on your own devices.
 Do not publish or redistribute an APK/archive containing Gothic files, including in GitHub releases or CI artifacts.
 The normal Gradle build remains asset-free.
+The installed app is named **Gothic II**; its package ID remains `org.opengothic.app`.
 
 ## Start here
 
@@ -60,7 +61,7 @@ The output directory is **`build/private-android`** (ignored by Git):
 
 For another device, copy the private APK over your own network or other private file-transfer method.
 Open it in Android's file manager and allow that source to install unknown apps when Android asks.
-Launch OpenGothic and keep its setup screen open until extraction finishes.
+Launch **Gothic II** and keep its setup screen open until extraction finishes.
 No USB connection, broad storage permission, or legacy external-storage setting is required.
 
 If a single APK is too large for packaging, transfer or installation, use **`--split`**:
