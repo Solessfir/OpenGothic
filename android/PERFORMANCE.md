@@ -850,3 +850,19 @@ The user also reported approximately twenty minutes of fairly stable 60 FPS duri
 These are user observations, not instrumented measurements, and should not be discarded in favor of the USB-connected stationary traces.
 Charging state, profiling overhead, scene complexity and input/play pattern were not controlled between those sessions; the evidence does not isolate charging as the cause.
 Next: capture the new slow location, compare fog quality/settings in matched conditions, and separate normal unplugged play from connected profiling when assessing sustained performance.
+
+### Second location with smaller fog volumes
+
+The user loaded the previously reported approximately 47-FPS location but observed 60 FPS on this visit.
+A screenshot confirmed a different scene: a wooded path beside a shrine, with buildings visible beyond the trees.
+Without restarting or changing settings, a 30-second trace recorded 59.97 presentation FPS over 1,794 intervals.
+Mean/median frame interval was 16.68/16.68 ms, p95/p99 19.00/20.60 ms and worst 23.94 ms.
+Live skin temperature rose from 38.2 to 38.9 C, with reported thermal status 0.
+All fifteen clock samples had an 800 MHz ceiling; fourteen sampled 800 MHz and one sampled 700 MHz.
+The checked trace had no nonzero quality errors, and process logcat contained no fatal-signal, fatal-exception, Vulkan-error or abort-message matches.
+
+The bounded GPU CSV was byte-identical to the preceding waterfall capture, so it is explicitly excluded as evidence of this location's fog or other per-pass costs.
+Only frame cadence and the overlapping clock/thermal observations were newly measured here.
+The earlier 47-FPS observation has no matched trace, camera/time or power-state reference; this run therefore does not establish a fog-related improvement or explain that earlier dip.
+Artifacts are in `build/performance/fog-half/second-scene/`, with the stale CSV clearly named `previous-scene-gpu-profile.csv`.
+The game was left running and no settings, saves or assets were changed.
