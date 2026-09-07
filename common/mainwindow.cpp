@@ -634,6 +634,11 @@ void MainWindow::onTouchCommand(TouchInput::Command command, bool pressed) {
     case TouchInput::Command::TapAccept: return;
     }
   KeyEvent event(key,Event::M_NoModifier,pressed ? Event::KeyDown : Event::KeyUp);
+  if(command==TouchInput::Command::Jump && !pressed && !uiActive && keycodec.tr(event)==KeyCodec::Jump) {
+    // Match gamepad Jump: consume a short tap before releasing it after the movement tick.
+    player.releaseControllerKey(KeyCodec::Jump);
+    return;
+    }
   if(command==TouchInput::Command::Accept && pressed && !uiActive)
     touchHeldAction = KeyCodec::ActionMapping{keycodec.tr(event),keycodec.mapping(event)};
   if(pressed)
