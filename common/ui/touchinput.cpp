@@ -31,10 +31,13 @@ void TouchInput::paintEvent(Tempest::PaintEvent& e) {
   const int line = font.pixelSize();
   const int moveEnd = w()/2;
   const int lookEnd = (w()*LookBoundaryPercent)/100;
+  const auto actionRect = buttonRect(4);
   p.setPen(Pen(gold,Painter::Alpha,2.f));
   p.setBrush(gold);
   p.drawLine(moveEnd,0,moveEnd,h());
-  p.drawLine(lookEnd,0,lookEnd,h());
+  p.drawLine(lookEnd,0,lookEnd,actionRect.y);
+  p.drawLine(actionRect.x,actionRect.y,lookEnd,actionRect.y);
+  p.drawLine(actionRect.x,actionRect.y,actionRect.x,h());
 
   auto label = [&](int x,int y,int width,std::string_view text) {
     font.drawText(p,x,y,width,3*line,text,AlignHCenter);
@@ -53,18 +56,17 @@ void TouchInput::paintEvent(Tempest::PaintEvent& e) {
   const char* names[] = {"BACK / MENU","INVENTORY","JUMP","DRAW / SHEATHE",
                         uiActive ? "ACCEPT" : (classicCombat ? "HOLD ACTION" : "USE / ATTACK")};
   for(int i=0;i<5;++i) {
-    const int top = (h()*i)/5;
-    const int bottom = (h()*(i+1))/5;
+    const auto rect = buttonRect(size_t(i));
     bool pressed = false;
     for(const auto& [id,touch]:touches)
       pressed |= touch.role==Role::Button && touch.command==Buttons[i];
     p.setBrush(pressed ? Color(0.8f,0.6f,0.2f,0.32f) : Color(0.04f,0.03f,0.02f,0.18f));
-    p.drawRect(lookEnd,top,w()-lookEnd,bottom-top);
+    p.drawRect(rect);
     p.setBrush(gold);
-    p.drawLine(lookEnd,top,w(),top);
-    label(lookEnd+pad,top+(bottom-top)/2-line,w()-lookEnd-2*pad,names[i]);
+    p.drawLine(rect.x,rect.y,w(),rect.y);
+    label(rect.x+pad,rect.y+rect.h/2-line,rect.w-2*pad,names[i]);
     if(i==4 && canLock && touchEnabled && !uiActive)
-      label(lookEnd+pad,top+(bottom-top)/2+line,w()-lookEnd-2*pad,targetLocked ? "DRAG: UNLOCK" : "DRAG: LOCK");
+      label(rect.x+pad,rect.y+rect.h/2+line,rect.w-2*pad,targetLocked ? "DRAG: UNLOCK" : "DRAG: LOCK");
     }
 
   auto cross = [&](Point pos,int radius) {
@@ -108,6 +110,11 @@ void TouchInput::mouseDownEvent(Tempest::MouseEvent& e) {
   touch.last   = e.pos();
   touch.pressedAt = Application::tickCount();
 
+  int button = -1;
+  for(size_t i=0;i<std::size(Buttons);++i)
+    if(buttonRect(i).contains(e.pos()))
+      button = int(i);
+
   if(blockVisible() && blockRect().contains(e.pos())) {
     if(blockPointer>=0)
       return;
@@ -117,22 +124,26 @@ void TouchInput::mouseDownEvent(Tempest::MouseEvent& e) {
     touch.actionSent = true;
     command(Command::Block,true);
     }
-  else if(e.x<w()/2 && movePointer<0) {
-    touch.role  = Role::Move;
-    movePointer = e.mouseID;
-    }
-  else if(e.x<(w()*LookBoundaryPercent)/100 && lookPointer<0) {
-    touch.role  = Role::Look;
-    lookPointer = e.mouseID;
-    }
-  else {
+  else if(button>=0) {
     touch.role = Role::Button;
-    touch.command = Buttons[std::clamp((e.y*5)/std::max(h(),1),0,4)];
+    touch.command = Buttons[button];
     touch.pendingAction = touch.command==Command::Accept && canLock && !uiActive;
     if(!touch.pendingAction) {
       touch.actionSent = true;
       command(touch.command,true);
       }
+    }
+  else if(e.x<w()/2) {
+    if(movePointer>=0)
+      return;
+    touch.role = Role::Move;
+    movePointer = e.mouseID;
+    }
+  else {
+    if(lookPointer>=0)
+      return;
+    touch.role = Role::Look;
+    lookPointer = e.mouseID;
     }
   touches[e.mouseID] = touch;
   if(debugOverlay || blockVisible())
@@ -247,6 +258,14 @@ void TouchInput::setDebugContext(bool classic, bool ui, bool lockAllowed, bool l
   update();
   }
 
+Rect TouchInput::buttonRect(size_t index) const {
+  // Hit testing and the optional debug overlay use exactly the same bounds.
+  const int left = w()*(index==4 ? ActionBoundaryPercent : LookBoundaryPercent)/100;
+  const int top = h()*ButtonEdgesPercent[index]/100;
+  const int bottom = h()*ButtonEdgesPercent[index+1]/100;
+  return Rect(left,top,w()-left,bottom-top);
+  }
+
 bool TouchInput::blockVisible() const {
   return touchEnabled && !classicCombat && !uiActive && canBlock;
   }
@@ -255,7 +274,7 @@ Rect TouchInput::blockRect() const {
   const float scale = std::min(Gothic::interfaceScale(this),float(h())/480.f);
   const int size = std::max(56,int(72*scale));
   const int pad = std::max(8,int(12*scale));
-  return Rect((w()*LookBoundaryPercent)/100-pad-size,h()-pad-size,size,size);
+  return Rect(buttonRect(4).x-pad-size,h()-pad-size,size,size);
   }
 
 void TouchInput::drawBlock(Painter& p) const {

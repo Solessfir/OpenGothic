@@ -132,15 +132,17 @@ OpenGothic uses invisible virtual touchscreen controls when no physical gamepad 
 
 The left half of the screen is a dynamic movement stick. Touch anywhere on that half to place its center, then drag relative to that point. The middle-right area, from 50% to 84% of the screen width, controls the camera. These areas support simultaneous touches, so the player can move and look at the same time. After 800 ms without manual camera input, moving forward gently recenters the camera behind the player. Gothic's existing focus system supplies interaction targeting and combat auto-rotation.
 
-The rightmost 16% of the screen contains five invisible virtual buttons:
+Back, Inventory, Jump and Draw occupy the rightmost 16% of the screen.
+The frequently used Attack/Use area is wider and taller: the rightmost 24% across the bottom 30%, including menu confirmation.
+This lower-right extension takes priority over camera input; the remaining middle-right area still controls the camera.
 
 | Vertical area | Action | Menu behavior |
 | --- | --- | --- |
 | Top 20% | Back | Escape or close |
 | 20% to 40% | Inventory | Inventory |
-| 40% to 60% | Jump | Left Alt |
-| 60% to 80% | Draw or sheathe weapon | Space |
-| Bottom 20% | Interact or attack | Confirm |
+| 40% to 55% | Jump | Left Alt |
+| 55% to 70% | Draw or sheathe weapon | Space |
+| Bottom 30% (rightmost 24%) | Interact or attack | Confirm |
 
 Dragging the dynamic movement stick also emits arrow-key navigation for menus and dialog choices. This avoids precision tapping on the original desktop-sized UI.
 While inventory or another UI is open, touch navigation does not feed movement or camera input into gameplay.
