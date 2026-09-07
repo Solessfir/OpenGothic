@@ -1592,6 +1592,16 @@ void MainWindow::render(){
       video.paintEvent(p);
       }
     else if(needToUpdate() || refreshFps || Gothic::inst().checkLoading()!=Gothic::LoadState::Idle) {
+#if defined(__ANDROID__)
+      char fpsText[32] = {};
+      std::snprintf(fpsText,sizeof(fpsText),"%.0f FPS",fps.get());
+      const float fpsDensity = std::max(uiScale(),1.f);
+      const int fpsMargin = int(16.f*fpsDensity);
+      const auto& fpsFont = Resources::font(fpsDensity);
+      // Reserve three digits so ordinary FPS changes do not shift the debug legend.
+      const int fpsWidth = std::max(fpsFont.textSize("999 FPS").w,fpsFont.textSize(fpsText).w);
+      mobileUi.setDebugLeftInset(showFps ? fpsMargin+fpsWidth : 0);
+#endif
       dispatchPaintEvent(uiLayer,atlas);
 
       numOverlay.clear();
@@ -1601,12 +1611,8 @@ void MainWindow::render(){
       if(showFps) {
         // Draw above menus and scale the padding with the interface.
         Painter painter(p);
-        const float density = std::max(uiScale(),1.f);
-        const int margin = int(16.f*density);
-        auto& font = Resources::font(density);
-        char text[32] = {};
-        std::snprintf(text,sizeof(text),"%.0f FPS",fps.get());
-        font.drawText(painter,margin,margin+font.pixelSize(),text);
+        auto& font = Resources::font(fpsDensity);
+        font.drawText(painter,fpsMargin,fpsMargin+font.pixelSize(),fpsText);
         fpsOverlayUpdated = Application::tickCount();
         }
 #endif

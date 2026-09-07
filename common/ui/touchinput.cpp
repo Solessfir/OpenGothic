@@ -18,6 +18,13 @@ TouchInput::TouchInput(CommandHandler command, WheelHandler wheel)
   :command(std::move(command)),wheel(std::move(wheel)) {
   }
 
+void TouchInput::setDebugLeftInset(int inset) {
+  if(debugLeftInset==inset)
+    return;
+  debugLeftInset = inset;
+  update();
+  }
+
 void TouchInput::paintEvent(Tempest::PaintEvent& e) {
   if(!debugOverlay)
     return;
@@ -45,6 +52,10 @@ void TouchInput::paintEvent(Tempest::PaintEvent& e) {
     font.drawText(p,x,y,width,3*line,text,AlignHCenter);
     };
   auto legend = [&](int x,int y,int width,std::string_view text) {
+    if(x==pad) {
+      x += debugLeftInset;
+      width = std::max(1,width-debugLeftInset);
+      }
     font.drawText(p,x,y,width,2*line,text,AlignLeft);
     };
   const int leftWidth=moveEnd-2*pad, rightX=moveEnd+pad, rightWidth=lookEnd-moveEnd-2*pad;
@@ -437,32 +448,9 @@ void TouchInput::drawBlock(Painter& p) const {
   p.drawLine(rect.x+rect.w,rect.y+rect.h,rect.x,rect.y+rect.h);
   p.drawLine(rect.x,rect.y+rect.h,rect.x,rect.y);
 
-  // Original vector parry symbol; no game texture or external icon asset is bundled.
-  const int icon = (rect.w*3)/4;
-  const int x = rect.x+(rect.w-icon)/2;
-  const int y = rect.y+rect.h/16;
-  auto stroke = [&](int x0,int y0,int x1,int y1) {
-    p.drawLine(x+x0*icon/32,y+y0*icon/32,x+x1*icon/32,y+y1*icon/32);
-    };
-  auto swords = [&]() {
-    stroke(7,25,25,7);
-    stroke(25,7,23,13);
-    stroke(25,7,19,9);
-    stroke(8,18,14,24);
-    stroke(25,25,7,7);
-    stroke(7,7,9,13);
-    stroke(7,7,13,9);
-    stroke(18,24,24,18);
-    };
-  const auto outline = Color(0.06f,0.045f,0.025f,1.f);
-  p.setBrush(outline);
-  p.setPen(Pen(outline,Painter::Alpha,float(icon)/12.f));
-  swords();
-  p.setBrush(gold);
-  p.setPen(Pen(gold,Painter::Alpha,std::max(2.f,float(icon)/28.f)));
-  swords();
-  const auto& font = Resources::font(float(rect.w)/90.f);
-  font.drawText(p,rect.x,rect.y+rect.h-font.pixelSize()-rect.h/16,rect.w,font.pixelSize()*2,"BLOCK",AlignHCenter);
+  const float scale = std::min(Gothic::interfaceScale(this),float(h())/480.f);
+  const auto& font = Resources::font(scale);
+  font.drawText(p,rect.x,rect.y+rect.h/2-font.pixelSize(),rect.w,font.pixelSize()*2,"BLOCK",AlignHCenter);
   }
 
 void TouchInput::tick() {

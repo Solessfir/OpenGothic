@@ -52,6 +52,7 @@ class TouchInput : public Tempest::Widget {
     void            setAnalogMovement(bool enabled);
     void            setClassicAction(bool held);
     void            setDebugOverlay(bool enabled);
+    void            setDebugLeftInset(int inset);
     void            setDebugContext(bool classicCombat, bool uiActive, bool canLock, bool locked, bool canBlock);
     void            tick();
     Tempest::PointF movementAxis() const;
@@ -60,6 +61,8 @@ class TouchInput : public Tempest::Widget {
     void            cancelWheel();
 
   private:
+    int debugLeftInset = 0;
+
     enum class Role : uint8_t {
       Move,
       Look,
