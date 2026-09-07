@@ -596,6 +596,8 @@ bool PlayerControl::interact(Interactive &it) {
   if(!canInteract())
     return false;
   if(it.isContainer()){
+    if(Gothic::settingsGetI("GAME","skipEmptyLoot")!=0 && it.isEmptyLootContainer())
+      return true;
     inv.open(*pl,it);
     return true;
     }
@@ -615,6 +617,8 @@ bool PlayerControl::interact(Npc &other) {
     return false;
   auto state = pl->bodyStateMasked();
   if(other.isDown()) {
+    if(Gothic::settingsGetI("GAME","skipEmptyLoot")!=0 && !other.inventory().iterator(Inventory::T_Ransack).isValid())
+      return true;
     if(state!=BS_STAND && state!=BS_SNEAK && state!=BS_SWIM && state!=BS_DIVE)
       return false;
     if(!inv.ransack(*w->player(),other))

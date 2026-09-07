@@ -424,6 +424,13 @@ Focus World::findFocus(const Npc &pl, const Focus& def, bool unarmed) {
   WorldObjects::SearchOpt optMob {policy.mob_range1,  policy.mob_range2,  policy.mob_azi,  collAlgo};
   WorldObjects::SearchOpt optItm {policy.item_range1, policy.item_range2, policy.item_azi, collAlgo, collType};
 
+  if(pl.isPlayer() && Gothic::settingsGetI("GAME","skipEmptyLoot")!=0) {
+    optMob.flags = WorldObjects::SearchFlg(optMob.flags | WorldObjects::NoEmptyLoot);
+    // Armed focus must still reach unconscious NPCs for finishing moves and spell targets.
+    if(unarmed || pl.weaponState()==WeaponState::NoWeapon)
+      optNpc.flags = WorldObjects::SearchFlg(optNpc.flags | WorldObjects::NoEmptyLoot);
+    }
+
   if(unarmed || pl.weaponState()==WeaponState::NoWeapon) {
     // used only for dialogs it seems
     optNpc.rangeMax = std::max(optNpc.rangeMax, policy.npc_longrange);
@@ -434,7 +441,7 @@ Focus World::findFocus(const Npc &pl, const Focus& def, bool unarmed) {
   auto inter = policy.mob_prio <0 ? nullptr : wobj.findInteractive(pl,def.interactive,optMob);
   auto ws = unarmed ? WeaponState::NoWeapon : pl.weaponState();
   if(ws==WeaponState::Bow || ws==WeaponState::CBow) {
-    optMob.flags = WorldObjects::SearchFlg(WorldObjects::FcOverride | WorldObjects::NoRay);
+    optMob.flags = WorldObjects::SearchFlg(optMob.flags | WorldObjects::FcOverride | WorldObjects::NoRay);
     inter = wobj.findInteractive(pl,def.interactive,optMob);
     }
 

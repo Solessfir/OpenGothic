@@ -66,6 +66,7 @@ Explicit INI preferences, including copied values of `0`, are respected. Potions
 Other supported preferences include:
 
 - `[GAME] useGothic1Controls`: `0` Gothic II combat (Android default), `1` classic combat.
+- `[GAME] skipEmptyLoot`: `1` skips empty loot targets; `0` restores interaction with them (all platforms).
 - `[GAME] subTitles`, `subTitlesPlayer`: dialogue subtitles.
 - `[SOUND] soundEnabled`, `musicEnabled`, `soundVolume`, `musicVolume`: enable flags and volumes (0–1).
 - `[VIDEO] zVidBrightness`, `zVidContrast`, `zVidGamma`: image adjustments.

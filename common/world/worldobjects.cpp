@@ -1038,10 +1038,14 @@ static bool checkFlag(Npc& n,WorldObjects::SearchFlg f){
     return false;
   if(bool(f&WorldObjects::NoUnconscious) && n.isUnconscious())
     return false;
+  if(bool(f&WorldObjects::NoEmptyLoot) && n.isDown() && !n.inventory().iterator(Inventory::T_Ransack).isValid())
+    return false;
   return true;
   }
 
 static bool checkFlag(Interactive& i,WorldObjects::SearchFlg f){
+  if(bool(f&WorldObjects::NoEmptyLoot) && i.isEmptyLootContainer())
+    return false;
   if(bool(f&WorldObjects::FcOverride) && !i.overrideFocus())
     return false;
   return true;
