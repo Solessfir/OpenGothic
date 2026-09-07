@@ -423,6 +423,24 @@ void MainWindow::onTouchCommand(TouchInput::Command command, bool pressed) {
   Event::KeyType key = Event::K_NoKey;
   const bool uiActive = video.isActive() || rootMenu.isActive() || chapter.isActive() ||
                         document.isActive() || dialogs.isActive() || inventory.isActive();
+  if(command==TouchInput::Command::LockTarget) {
+    if(pressed && !uiActive && !Gothic::inst().isPause())
+      player.toggleTargetLock();
+    return;
+    }
+  if(command==TouchInput::Command::TapAccept) {
+    if(pressed && !uiActive && !Gothic::inst().isPause()) {
+      KeyEvent event(Event::K_LControl,Event::M_NoModifier,Event::KeyDown);
+      touchTapRelease = KeyCodec::ActionMapping{keycodec.tr(event),keycodec.mapping(event)};
+      keyDownEvent(event);
+      }
+    return;
+    }
+  if(command==TouchInput::Command::Accept && !pressed && touchHeldAction) {
+    player.onKeyReleased(touchHeldAction->action,touchHeldAction->mapping);
+    touchHeldAction.reset();
+    return;
+    }
   // A direction held while closing a menu must return to neutral before moving the player.
   if(!uiActive && touchMovementBlocked && pressed && command<=TouchInput::Command::Right)
     return;
@@ -436,8 +454,12 @@ void MainWindow::onTouchCommand(TouchInput::Command command, bool pressed) {
     case TouchInput::Command::Jump:      key = Event::K_LAlt;     break;
     case TouchInput::Command::Weapon:    key = Event::K_Space;    break;
     case TouchInput::Command::Inventory: key = Event::K_Tab;      break;
+    case TouchInput::Command::LockTarget:
+    case TouchInput::Command::TapAccept: return;
     }
   KeyEvent event(key,Event::M_NoModifier,pressed ? Event::KeyDown : Event::KeyUp);
+  if(command==TouchInput::Command::Accept && pressed && !uiActive)
+    touchHeldAction = KeyCodec::ActionMapping{keycodec.tr(event),keycodec.mapping(event)};
   if(pressed)
     keyDownEvent(event); else
     keyUpEvent(event);
@@ -1050,6 +1072,13 @@ uint64_t MainWindow::tick() {
     clearInput();
   tickMouse(dt);
   player.tickMove(dt);
+#if defined(__MOBILE_PLATFORM__)
+  // A quick gesture tap must survive one simulation tick before releasing the action.
+  if(touchTapRelease) {
+    player.onKeyReleased(touchTapRelease->action,touchTapRelease->mapping);
+    touchTapRelease.reset();
+    }
+#endif
   update();
   return dt;
   }

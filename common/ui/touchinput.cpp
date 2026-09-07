@@ -1,6 +1,7 @@
 #include "touchinput.h"
 
 #include <Tempest/Painter>
+#include <Tempest/Application>
 
 #include "gothic.h"
 #include "resources.h"
@@ -61,6 +62,8 @@ void TouchInput::paintEvent(Tempest::PaintEvent& e) {
     p.setBrush(gold);
     p.drawLine(lookEnd,top,w(),top);
     label(lookEnd+pad,top+(bottom-top)/2-line,w()-lookEnd-2*pad,names[i]);
+    if(i==4 && canLock && touchEnabled && !uiActive)
+      label(lookEnd+pad,top+(bottom-top)/2+line,w()-lookEnd-2*pad,targetLocked ? "DRAG: UNLOCK" : "DRAG: LOCK");
     }
 
   auto cross = [&](Point pos,int radius) {
@@ -100,6 +103,7 @@ void TouchInput::mouseDownEvent(Tempest::MouseEvent& e) {
   Touch touch;
   touch.anchor = e.pos();
   touch.last   = e.pos();
+  touch.pressedAt = Application::tickCount();
 
   if(e.x<w()/2 && movePointer<0) {
     touch.role  = Role::Move;
@@ -121,7 +125,11 @@ void TouchInput::mouseDownEvent(Tempest::MouseEvent& e) {
       touch.command = Command::Jump;
     else
       touch.command = Command::Accept;
-    command(touch.command,true);
+    touch.pendingAction = touch.command==Command::Accept && canLock && !uiActive;
+    if(!touch.pendingAction) {
+      touch.actionSent = true;
+      command(touch.command,true);
+      }
     }
   touches[e.mouseID] = touch;
   if(debugOverlay)
@@ -133,6 +141,21 @@ void TouchInput::mouseDragEvent(Tempest::MouseEvent& e) {
   if(it==touches.end())
     return;
   auto& touch = it->second;
+  if(touch.pendingAction) {
+    const auto delta = e.pos()-touch.anchor;
+    const float distance = std::hypot(float(delta.x),float(delta.y));
+    const float threshold = float(std::max(32,std::min(w(),h())/18));
+    if(Application::tickCount()-touch.pressedAt>=ActionHoldMs) {
+      touch.pendingAction = false;
+      touch.actionSent = true;
+      command(Command::Accept,true);
+      }
+    else if(distance>=threshold) {
+      touch.pendingAction = false;
+      touch.command = Command::LockTarget;
+      command(Command::LockTarget,true);
+      }
+    }
   if(touch.role==Role::Move)
     updateMovement(e.pos());
   else if(touch.role==Role::Look) {
@@ -159,7 +182,10 @@ void TouchInput::mouseUpEvent(Tempest::MouseEvent& e) {
     lookPointer = -1;
     }
   else {
-    command(it->second.command,false);
+    if(it->second.pendingAction)
+      command(Command::TapAccept,true);
+    else if(it->second.actionSent)
+      command(it->second.command,false);
     }
   touches.erase(it);
   if(debugOverlay)
@@ -182,13 +208,30 @@ void TouchInput::setDebugOverlay(bool enabled) {
   update();
   }
 
-void TouchInput::setDebugContext(bool classic, bool ui) {
-  if(classicCombat==classic && uiActive==ui)
+void TouchInput::setDebugContext(bool classic, bool ui, bool lockAllowed, bool locked) {
+  if(classicCombat==classic && uiActive==ui && canLock==lockAllowed && targetLocked==locked)
     return;
   classicCombat = classic;
   uiActive = ui;
+  canLock = lockAllowed;
+  targetLocked = locked;
+  if(uiActive || !canLock) {
+    for(auto& [id,touch]:touches)
+      touch.pendingAction = false;
+    }
   if(debugOverlay)
     update();
+  }
+
+void TouchInput::tick() {
+  const auto now = Application::tickCount();
+  for(auto& [id,touch]:touches) {
+    if(touch.pendingAction && now-touch.pressedAt>=ActionHoldMs) {
+      touch.pendingAction = false;
+      touch.actionSent = true;
+      command(Command::Accept,true);
+      }
+    }
   }
 
 PointF TouchInput::movementAxis() const {
@@ -234,7 +277,7 @@ void TouchInput::setDirection(Command value, bool pressed) {
 
 void TouchInput::reset() {
   for(auto& touch:touches)
-    if(touch.second.role==Role::Button)
+    if(touch.second.role==Role::Button && touch.second.actionSent)
       command(touch.second.command,false);
   for(size_t i=0;i<4;++i)
     setDirection(Command(i),false);

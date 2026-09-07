@@ -17,6 +17,8 @@ class TouchInput : public Tempest::Widget {
       Jump,
       Weapon,
       Inventory,
+      LockTarget,
+      TapAccept,
       };
 
     using CommandHandler = std::function<void(Command,bool)>;
@@ -30,7 +32,8 @@ class TouchInput : public Tempest::Widget {
 
     void            setTouchEnabled(bool enabled);
     void            setDebugOverlay(bool enabled);
-    void            setDebugContext(bool classicCombat, bool uiActive);
+    void            setDebugContext(bool classicCombat, bool uiActive, bool canLock, bool locked);
+    void            tick();
     Tempest::PointF movementAxis() const;
     Tempest::Point  takeLookDelta();
     bool            isLooking() const;
@@ -47,6 +50,9 @@ class TouchInput : public Tempest::Widget {
       Tempest::Point anchor;
       Tempest::Point last;
       Command        command = Command::Accept;
+      uint64_t       pressedAt = 0;
+      bool           pendingAction = false;
+      bool           actionSent = false;
       };
 
     void updateMovement(const Tempest::Point& pos);
@@ -56,6 +62,7 @@ class TouchInput : public Tempest::Widget {
 
     static constexpr int LookBoundaryPercent = 84;
     static constexpr float DirectionThreshold = 0.35f;
+    static constexpr uint64_t ActionHoldMs = 180;
 
     CommandHandler command;
     std::unordered_map<int,Touch> touches;
@@ -67,6 +74,8 @@ class TouchInput : public Tempest::Widget {
     bool            debugOverlay = false;
     bool            classicCombat = true;
     bool            uiActive = false;
+    bool            canLock = false;
+    bool            targetLocked = false;
     bool            directions[4] = {};
   };
 

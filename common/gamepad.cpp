@@ -178,10 +178,15 @@ void MainWindow::tickGamepad() {
     controllerDisconnectPending = Gothic::inst().isInGame() || Gothic::inst().checkLoading()!=Gothic::LoadState::Idle;
   controllerWasPresent = gp.connected && options.enabled;
   const bool connected=gp.connected && options.enabled && controllerFocused;
-  mobileUi.setTouchEnabled(!connected);
+  mobileUi.setTouchEnabled(!connected && controllerFocused);
+  const auto touchPlayer = Gothic::inst().player();
   mobileUi.setDebugContext(Gothic::inst().version().game!=2 || Gothic::settingsGetI("GAME","useGothic1Controls")!=0,
                            video.isActive() || rootMenu.isActive() || chapter.isActive() ||
-                           document.isActive() || dialogs.isActive() || inventory.isActive());
+                           document.isActive() || dialogs.isActive() || inventory.isActive() || console.isActive(),
+                           touchPlayer!=nullptr && touchPlayer->weaponState()!=WeaponState::NoWeapon &&
+                           !Gothic::inst().isPause() && Gothic::inst().checkLoading()==Gothic::LoadState::Idle,
+                           player.lockedTarget()!=nullptr);
+  mobileUi.tick();
   if(!connected && controllerConnected) {
     controllerAxesBlocked=true;
     player.clearInput(); controllerBindings.reset(); controllerButtons=0; controllerTriggers=0;

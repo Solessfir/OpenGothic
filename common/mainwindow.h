@@ -191,6 +191,8 @@ class MainWindow : public Tempest::Window {
     TouchInput                mobileUi;
     uint64_t                  touchLookIdle=0;
     bool                      touchMovementBlocked=false;
+    std::optional<KeyCodec::ActionMapping> touchHeldAction;
+    std::optional<KeyCodec::ActionMapping> touchTapRelease;
 #endif
     uint64_t                  lastTick=0;
 

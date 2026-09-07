@@ -164,6 +164,15 @@ This debug view exposes the existing keyboard-style touch combat, not a redesign
 Right-side touch camera drag looks around without turning the character, respecting Mouse speed and vertical inversion.
 The left movement stick still turns the character in place when dragged sideways.
 
+With a weapon drawn, start in Use/Attack and quickly drag at least 1/18 of the short screen dimension (60 pixels on a 1080-pixel-high viewport) to toggle target lock.
+The same gesture unlocks an already locked target, and each gesture toggles only once.
+This uses Gothic's existing eligible-NPC focus/lock rules and the existing ` (locked)` name suffix; it does not select arbitrary scenery or require a new targeting system.
+The gesture must cross the threshold within 180 ms: releasing sooner without a drag sends a normal action tap, while holding for 180 ms commits the normal held action.
+Once the hold has committed, further dragging does not toggle lock; lift and start a new gesture to lock or unlock.
+This short recognition delay applies only with a drawn weapon in gameplay, not menu confirmation or unarmed interaction, and prevents a lock gesture from also attacking.
+While locked, the camera follows the character toward the target and vertical camera drag still adjusts elevation; horizontal free look resumes after unlocking.
+The debug overlay labels the gesture as `DRAG: LOCK` or `DRAG: UNLOCK`.
+
 Controller layouts vary, so Android may report different axes for some third-party devices. Ray queries and mesh shaders are disabled by default, and the build uses conservative desktop-compatible rendering paths for sustained mobile operation.
 
 ## Inspect the APK
