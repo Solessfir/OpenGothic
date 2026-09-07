@@ -11,6 +11,7 @@ Keep the writable file small. Do not replace it with the entire PC INI: some ori
 ## Third-person camera framing
 
 Android raises the ordinary third-person camera along its orbit by 10 degrees and looks down toward the character and ground ahead.
+Combat uses 20 degrees of added elevation to improve nearby enemy visibility with its closer camera.
 At a three-meter follow distance this adds roughly half a meter of height when starting from a level orbit.
 This applies to exploration, combat and inventory, including existing saves; manual camera adjustment remains available.
 The offset blends through the normal camera system and does not accumulate on save/load.
@@ -19,11 +20,13 @@ First-person, dialogue, swimming, diving, cutscenes and desktop defaults are una
 ```ini
 [GAME]
 cameraElevationOffset=10
+cameraCombatElevationOffset=20
 cameraFollowSpeed=2
 ```
 
-Values from `0` to `30` degrees are supported, subject to the camera's existing pitch limits. Use `0` for the original framing.
-Drawing or sheathing a weapon keeps the current pitch when switching between exploration, combat and inventory.
+Both elevation settings support `0` to `30` degrees, subject to the camera's existing pitch limits. Use `0` for the original framing.
+`cameraCombatElevationOffset` applies to melee, ranged and magic combat; `cameraElevationOffset` applies to exploration and inventory.
+Drawing or sheathing a weapon preserves your manual pitch adjustment while switching between these offsets.
 
 `cameraFollowSpeed` scales ordinary third-person position/rotation following and touch/gamepad camera assistance.
 The default `2` doubles the follow response, approximately halving smoothing lag; automatic recentering waits 400 ms instead of 800 ms after manual input.

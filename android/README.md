@@ -405,8 +405,9 @@ This distinguishes an early lock drag from a held action and a multi-finger gest
 While locked, the camera follows the character toward the target and vertical camera drag still adjusts elevation; horizontal free look resumes after unlocking.
 Android's ordinary third-person camera sits higher along its orbit and pitches downward toward the character and ground ahead.
 Set `[GAME] cameraElevationOffset` in the writable `Gothic.ini` to tune the extra elevation from `0` to `30` degrees; the default is `10`, and `0` restores the original framing.
-It also applies in combat and inventory, uses the existing camera following and collision handling, and works with existing saves without accumulating on reload.
-Drawing or sheathing a weapon preserves the current pitch between exploration, combat and inventory.
+Exploration and inventory use this offset; melee, ranged and magic combat use `[GAME] cameraCombatElevationOffset=20` by default for better close-range visibility, also adjustable from `0` to `30` degrees.
+Both use the existing camera following and collision handling and work with existing saves without accumulating on reload.
+Drawing or sheathing a weapon preserves your manual pitch adjustment while switching between these offsets.
 `[GAME] cameraFollowSpeed=2` doubles the camera's following response, approximately halving its smoothing lag for touch and gamepad.
 It also halves the automatic recentering delay to 400 ms; use `1` to restore the prior response. Manual look sensitivity is unchanged.
 Manual look remains available. First-person, dialogue, swimming, diving, cutscenes and desktop camera defaults are unchanged.

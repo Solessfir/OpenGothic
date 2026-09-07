@@ -170,6 +170,7 @@ Gothic::Gothic() {
 #if defined(__ANDROID__)
   defaults->set("VIDEO", "displayMode", "auto");
   defaults->set("GAME", "cameraElevationOffset", 10.f);
+  defaults->set("GAME", "cameraCombatElevationOffset", 20.f);
   defaults->set("GAME", "cameraFollowSpeed", 2.f);
 #else
   defaults->set("VIDEO", "displayMode", "sdr");

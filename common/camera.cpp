@@ -835,7 +835,8 @@ void Camera::tickThirdPerson(float dtF) {
   if(camMod==Normal || camMod==Inventory || camMod==Melee || camMod==Ranged || camMod==Magic) {
     // Raise the camera along its orbit so the normal look-at points downward toward the player.
     // Keep the offset out of saved input angles to avoid accumulating it on reload.
-    const float elevation=Gothic::settingsGetF("GAME","cameraElevationOffset");
+    const bool combat=camMod==Melee || camMod==Ranged || camMod==Magic;
+    const float elevation=Gothic::settingsGetF("GAME",combat ? "cameraCombatElevationOffset" : "cameraElevationOffset");
     if(std::isfinite(elevation)) orbitSpin.x+=std::clamp(elevation,0.f,30.f);
     orbitSpin=clampRotation(orbitSpin);
     }
