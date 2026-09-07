@@ -164,6 +164,11 @@ Gothic::Gothic() {
   defaults->set("VIDEO", "zVidBrightness", 0.5f);
   defaults->set("VIDEO", "zVidContrast",   0.5f);
   defaults->set("VIDEO", "zVidGamma",      0.5f);
+#if defined(__ANDROID__)
+  defaults->set("VIDEO", "displayMode", "auto");
+#else
+  defaults->set("VIDEO", "displayMode", "sdr");
+#endif
 
   defaults->set("SOUND", "musicEnabled",  1);
   defaults->set("SOUND", "musicVolume",   0.5f);

@@ -128,6 +128,7 @@ class MainWindow : public Tempest::Window {
 
     Tempest::Device&      device;
     Tempest::Swapchain    swapchain;
+    bool                 hdrRequested = false;
     Tempest::TextureAtlas atlas;
     Shaders               shaders;
     Renderer              renderer;

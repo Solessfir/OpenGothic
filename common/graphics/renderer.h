@@ -26,7 +26,7 @@ class Renderer final {
 
     void draw(Tempest::Attachment& result, Tempest::Encoder<Tempest::CommandBuffer>& cmd, uint8_t fId,
               Tempest::VectorImage::Mesh& uiLayer, Tempest::VectorImage::Mesh& numOverlay,
-              InventoryMenu &inventory, VideoWidget& video);
+              InventoryMenu &inventory, VideoWidget& video, float hdrPeakNits = 0);
     void draw(Tempest::Attachment& result, Tempest::Encoder<Tempest::CommandBuffer>& cmd, uint8_t fId,
               WorldView& view, const Camera& camera);
 
@@ -162,6 +162,8 @@ class Renderer final {
     Tempest::Vec3             clipInfo;
 
     Tempest::Attachment       sceneLinear;
+    Tempest::Attachment       hdrComposite;
+    float                     hdrPeakRatio = 0;
     Tempest::ZBuffer          zbuffer, shadowMap[Resources::ShadowLayers];
     Tempest::ZBuffer          zbufferUi;
 

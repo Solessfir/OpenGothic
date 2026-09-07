@@ -442,6 +442,17 @@ void MainWindow::onTouchCommand(TouchInput::Command command, bool pressed) {
 #endif
 
 void MainWindow::onSettings() {
+#if defined(__ANDROID__)
+  const auto displayMode = Gothic::settingsGetS("VIDEO", "displayMode");
+  const bool requestHdr = displayMode!="sdr" &&
+      device.properties().hasAttachFormat(TextureFormat::RGBA16F) &&
+      device.properties().hasSamplerFormat(TextureFormat::RGBA16F);
+  if(requestHdr!=hdrRequested) {
+    device.waitIdle();
+    swapchain.setHdr(requestHdr);
+    hdrRequested = requestHdr;
+    }
+#endif
   CpuTrace::setEnabled(Gothic::settingsGetI("DEBUG", "cpuProfile")!=0);
   const bool gpuProfiling = Gothic::settingsGetI("DEBUG", "gpuProfile")!=0;
   if(profileGpu!=gpuProfiling) {
@@ -1458,7 +1469,8 @@ void MainWindow::render(){
     {
     CpuTrace trace("OpenGothic::record");
     auto enc = cmd.startEncoding(device,captureGpu);
-    renderer.draw(swapchain[swapchain.currentImage()],enc,cmdId,uiMesh[cmdId],numMesh[cmdId],inventory,video);
+    renderer.draw(swapchain[swapchain.currentImage()],enc,cmdId,uiMesh[cmdId],numMesh[cmdId],inventory,video,
+                  swapchain.hdrMaxLuminance());
     }
     {
     CpuTrace trace("OpenGothic::submit");

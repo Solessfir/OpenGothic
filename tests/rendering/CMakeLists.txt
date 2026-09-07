@@ -8,6 +8,17 @@ add_test(NAME lanczos-paired-filter COMMAND lanczos-tests)
 set(RENDERING_TEST_TEMPEST_LIBRARY "" CACHE FILEPATH "Optional built shared Tempest import library for GPU comparisons")
 if(RENDERING_TEST_TEMPEST_LIBRARY)
   find_program(GLSLANG_VALIDATOR glslangValidator HINTS "$ENV{VULKAN_SDK}/Bin" REQUIRED)
+  add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/hdr-output.spv"
+    COMMAND "${GLSLANG_VALIDATOR}" -V -I${CMAKE_CURRENT_SOURCE_DIR}/../../shader
+            "${CMAKE_CURRENT_SOURCE_DIR}/hdr_output.comp" -o "${CMAKE_CURRENT_BINARY_DIR}/hdr-output.spv"
+    DEPENDS hdr_output.comp ../../shader/lighting/tonemapping.glsl ../../shader/lighting/hdr_output.glsl
+    VERBATIM)
+  add_executable(hdr-output-tests hdr_output_gpu.cpp "${CMAKE_CURRENT_BINARY_DIR}/hdr-output.spv")
+  target_compile_features(hdr-output-tests PRIVATE cxx_std_20)
+  target_include_directories(hdr-output-tests PRIVATE ../../lib/Tempest/Engine/include)
+  target_link_libraries(hdr-output-tests PRIVATE "${RENDERING_TEST_TEMPEST_LIBRARY}")
+  add_test(NAME hdr-vulkan-output COMMAND hdr-output-tests)
+  set_tests_properties(hdr-vulkan-output PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}" TIMEOUT 60)
   foreach(VARIANT reference paired)
     set(DEFINES "")
     if(VARIANT STREQUAL "reference")

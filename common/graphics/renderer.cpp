@@ -565,9 +565,16 @@ void Renderer::prepareSky(Tempest::Encoder<Tempest::CommandBuffer>& cmd, WorldVi
   cmd.draw(nullptr, 0, 3);
   }
 
-void Renderer::draw(Attachment& result, Encoder<CommandBuffer>& cmd, uint8_t fId,
+void Renderer::draw(Attachment& output, Encoder<CommandBuffer>& cmd, uint8_t fId,
                     VectorImage::Mesh& uiLayer, VectorImage::Mesh& numOverlay,
-                    InventoryMenu& inventory, VideoWidget& video) {
+                    InventoryMenu& inventory, VideoWidget& video, float hdrPeakNits) {
+  // Menus can render before any world has waited for the asynchronous shader compiler.
+  if(hdrPeakNits>0)
+    shaders.waitCompiler();
+  // Compose the existing SDR UI at paper white, not at the display's peak brightness.
+  const float paperWhite = std::min(200.f, hdrPeakNits);
+  hdrPeakRatio = hdrPeakNits>0 ? hdrPeakNits/paperWhite : 0.f;
+  auto& result = hdrPeakNits>0 ? usesAttachment(hdrComposite, TextureFormat::RGBA16F, output.size()) : output;
   auto wview  = Gothic::inst().worldView();
   auto camera = Gothic::inst().camera();
 
@@ -597,6 +604,16 @@ void Renderer::draw(Attachment& result, Encoder<CommandBuffer>& cmd, uint8_t fId
   if(!video.isActive())
     numOverlay.draw(cmd);
 #endif
+  if(hdrPeakNits>0) {
+    cmd.setDebugMarker("HDR output");
+    cmd.setFramebuffer({{output, Tempest::Discard, Tempest::Preserve}});
+    cmd.setBinding(0, hdrComposite, Sampler::nearest(ClampMode::ClampToEdge));
+    cmd.setPushData(Vec2(paperWhite, hdrPeakNits));
+    cmd.setPipeline(shaders.hdrOutput);
+    cmd.draw(nullptr, 0, 3);
+    }
+  // Save thumbnails and other offscreen draws remain SDR.
+  hdrPeakRatio = 0;
   }
 
 void Renderer::dbgDraw(Tempest::Painter& p) {
@@ -770,9 +787,12 @@ void Renderer::drawTonemapping(Attachment& result, Encoder<CommandBuffer>& cmd, 
     float contrast   = 1;
     float gamma      = 1.f/2.2f;
     float mul        = 1;
+    float hdrPeak    = 0;
+    float padding[3] = {};
     };
 
   Push p;
+  p.hdrPeak = hdrPeakRatio;
   p.brightness = (settings.zVidBrightness - 0.5f)*0.1f;
   p.contrast   = std::max(1.5f - settings.zVidContrast, 0.01f);
   p.gamma      = p.gamma/std::max(2.0f*settings.zVidGamma,  0.01f);
@@ -823,9 +843,12 @@ void Renderer::drawCMAA2(Tempest::Attachment& result, Tempest::Encoder<Tempest::
     float contrast   = 1;
     float gamma      = 1.f/2.2f;
     float mul        = 1;
+    float hdrPeak    = 0;
+    float padding[3] = {};
     };
 
   Push p;
+  p.hdrPeak = hdrPeakRatio;
   p.brightness = (settings.zVidBrightness - 0.5f)*0.1f;
   p.contrast   = std::max(1.5f - settings.zVidContrast, 0.01f);
   p.gamma      = p.gamma/std::max(2.0f*settings.zVidGamma,  0.01f);

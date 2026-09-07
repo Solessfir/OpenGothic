@@ -60,6 +60,7 @@ struct VideoSettings {
   float contrast;
   float gamma;
   float mulExposure;
+  vec4  hdr;
   };
 
 vec3 gameTonemap(vec3 color, const VideoSettings s) {
@@ -70,7 +71,15 @@ vec3 gameTonemap(vec3 color, const VideoSettings s) {
   color = color * vec3(s.contrast);
 
   // Tonemapping
-  color = acesTonemap(color);
+  if(s.hdr.x>0.0) {
+    // Preserve the SDR curve through unit scene intensity, then retain brighter highlights.
+    // The smooth extension is bounded by the display peak relative to paper white.
+    vec3 highlight = min(max(color - vec3(1.0), vec3(0.0)), vec3(1000.0));
+    highlight *= highlight;
+    color = acesTonemap(color) + max(s.hdr.x-1.0, 0.0) * highlight/(vec3(1.0)+highlight);
+    } else {
+    color = acesTonemap(color);
+    }
 
   // Gamma
   //color = srgbEncode(color);
