@@ -34,7 +34,8 @@ The target name gains `(locked)`. Sheathing, a downed target or leaving focus ra
 | --- | --- |
 | Classic melee | Y forward attack; X left; B right; A timed parry |
 | Gothic II melee | RT attack; RB timed parry |
-| Bow/crossbow/spell | RT shoot/cast; hold for spells that invest mana |
+| Bow/crossbow | Tap RT for one shot after aiming; hold for repeat fire |
+| Spell | RT cast; hold for spells that invest mana |
 | Finisher | Hold Y (classic) or RT (Gothic II) over an unconscious NPC in finishing range |
 
 A finisher requires a drawn one- or two-handed melee weapon. Release early to cancel.

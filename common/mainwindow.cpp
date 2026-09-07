@@ -557,11 +557,24 @@ void MainWindow::onTouchCommand(TouchInput::Command command, bool pressed) {
     }
   if(command==TouchInput::Command::TapAccept) {
     if(pressed && !uiActive && !Gothic::inst().isPause()) {
+      const auto pl=Gothic::inst().player();
+      if(pl!=nullptr && (pl->weaponState()==WeaponState::Bow || pl->weaponState()==WeaponState::CBow)) {
+        player.controllerCombat(0,true);
+        player.controllerCombat(0,false);
+        return;
+        }
       KeyEvent event(Event::K_LControl,Event::M_NoModifier,Event::KeyDown);
       touchTapRelease = KeyCodec::ActionMapping{keycodec.tr(event),keycodec.mapping(event)};
       keyDownEvent(event);
       }
     return;
+    }
+  if(command==TouchInput::Command::Accept && !uiActive && !Gothic::inst().isPause()) {
+    const auto pl=Gothic::inst().player();
+    if(pl!=nullptr && (pl->weaponState()==WeaponState::Bow || pl->weaponState()==WeaponState::CBow)) {
+      player.controllerCombat(0,pressed);
+      return;
+      }
     }
   if(command==TouchInput::Command::Accept && !pressed && touchHeldAction) {
     const auto pl=Gothic::inst().player();

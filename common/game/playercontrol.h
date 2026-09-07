@@ -1,5 +1,7 @@
 #pragma once
 
+#include "utils/bufferedshot.h"
+
 #include "world/focus.h"
 #include "utils/keycodec.h"
 #include "utils/attacktap.h"
@@ -172,6 +174,8 @@ class PlayerControl final {
     bool           controllerReleaseAttack=false;
     bool           controllerBlockPending=false;
     AttackTap      controllerEmptyAttack;
+    BufferedShot   controllerBowShot;
+    size_t         controllerBowWeapon=size_t(-1);
     bool           controllerWalkApplied=false;
     bool           controllerSwimming=false;
     bool           swimJumpHeld=false;

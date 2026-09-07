@@ -1,6 +1,8 @@
 #include "playercontrol.h"
 
 #include <cmath>
+#include <algorithm>
+#include <iterator>
 #include <Tempest/Application>
 
 #include "world/objects/npc.h"
@@ -379,6 +381,23 @@ void PlayerControl::assistMeleeAttack(Npc& pl) {
 void PlayerControl::controllerCombat(int direction,bool pressed,bool cancel,uint64_t holdMs) {
   // Explicit combat requests must not turn movement into an attack modifier.
   if(direction<0 || direction>=7) return;
+  auto bowPlayer=Gothic::inst().player();
+  const auto bowState=bowPlayer!=nullptr ? bowPlayer->weaponState() : WeaponState::NoWeapon;
+  if(direction==ActForward && (bowState==WeaponState::Bow || bowState==WeaponState::CBow || controllerBowShot.active())) {
+    if(cancel) {
+      controllerBowShot.cancel();
+      }
+    else if(!pressed) {
+      controllerBowShot.release();
+      }
+    else if(bowPlayer!=nullptr && !bowPlayer->isDown() && !bowPlayer->isAiBusy() &&
+            bowPlayer->interactive()==nullptr && bowPlayer->hasAmmunition() &&
+            (bowState==WeaponState::Bow || bowState==WeaponState::CBow)) {
+      controllerBowWeapon=bowPlayer->inventory().activeWeapon()->clsId();
+      controllerBowShot.press();
+      }
+    return;
+    }
   if(direction==ActForward && (!pressed || cancel)) {
     controllerFinisher=nullptr;
     controllerFinishTime=0;
@@ -561,6 +580,7 @@ void PlayerControl::tickFocus() {
   }
 
 void PlayerControl::clearFocus() {
+  controllerBowShot.cancel();
   controllerReleaseAttack=false;
   currentFocus = Focus();
   controllerTarget=nullptr;
@@ -743,6 +763,7 @@ void PlayerControl::clearInput() {
   controllerReleaseAttack=false;
   controllerBlockPending=false;
   controllerEmptyAttack.cancel();
+  controllerBowShot.cancel();
   pendingEquipment=size_t(-1);
   if(controllerWalkApplied) {
     if(auto pl=Gothic::inst().player())
@@ -879,14 +900,16 @@ bool PlayerControl::tickMove(uint64_t dt) {
   if(w->isCutsceneLock())
     clearInput();
 
-  if(tickCameraMove(dt))
+  if(tickCameraMove(dt)) {
+    controllerBowShot.cancel();
     return true;
+    }
 
   if(ctrl[Action::K_F8] && Gothic::inst().isMarvinEnabled())
     marvinF8(dt);
   if(ctrl[Action::K_K] && Gothic::inst().isMarvinEnabled())
     marvinK(dt);
-  cacheFocus = ctrl[Action::ActionGeneric] || controllerTarget!=nullptr;
+  cacheFocus = ctrl[Action::ActionGeneric] || controllerTarget!=nullptr || controllerBowShot.active();
   if(camera!=nullptr)
     camera->setLookBack(ctrl[Action::LookBack]);
 
@@ -947,6 +970,18 @@ void PlayerControl::implMove(uint64_t dt) {
   bool  allowRot  = !ctrl[KeyCodec::ActionGeneric] && pl.isRotationAllowed();
 
   Npc::Anim ani = Npc::Anim::Idle;
+
+  if(controllerBowShot.active()) {
+    const auto weapon=pl.inventory().activeWeapon();
+    if((ws!=WeaponState::Bow && ws!=WeaponState::CBow) || weapon==nullptr || weapon->clsId()!=controllerBowWeapon ||
+       !pl.hasAmmunition() || pl.isDown() || bs==BS_STUMBLE || pl.isAiBusy() || pl.interactive()!=nullptr ||
+       !pl.isInState(ScriptFn()) || dlg.isActive() || pl.isFalling() || pl.isSlide() || pl.isInAir() ||
+       pl.isJump() || pl.isJumpUp() || pl.isSwim() || pl.isDive() || pendingEquipment!=size_t(-1) ||
+       std::any_of(std::begin(wctrl),std::end(wctrl),[](bool pending){ return pending; }))
+      controllerBowShot.cancel();
+    else
+      controllerBowShot.advance(dt);
+    }
 
   if(bs==BS_DEAD)
     return;
@@ -1096,7 +1131,7 @@ void PlayerControl::implMove(uint64_t dt) {
     }
 
   if((ws==WeaponState::Bow || ws==WeaponState::CBow) && pl.hasAmmunition()) {
-    if(actrl[ActGeneric] || actrl[ActForward]) {
+    if(actrl[ActGeneric] || actrl[ActForward] || controllerBowShot.active()) {
       if(auto other = pl.target()) {
         auto dp = other->position()-pl.position();
         pl.turnTo(dp.x,dp.z,true,dt);
@@ -1118,6 +1153,13 @@ void PlayerControl::implMove(uint64_t dt) {
       if(actrl[ActRight]) {
         moveFocus(ActRight);
         actrl[ActRight]  = false;
+        }
+      if(controllerBowShot.active()) {
+        // shootBow also reports success for some non-shooting states; only aim states can fire.
+        const auto aimState=pl.bodyStateMasked();
+        if((aimState==BS_AIMNEAR || aimState==BS_AIMFAR) && pl.shootBow(currentFocus.interactive))
+          controllerBowShot.fired();
+        return;
         }
       if(!actrl[ActForward])
         return;

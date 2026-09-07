@@ -33,6 +33,9 @@ You can move and look with separate fingers.
 With no focused melee target, a short Attack tap swings on release; a hold does nothing.
 Holding Block does not repeat parries.
 
+With a bow or crossbow drawn, tap Use/Attack for one shot after aiming finishes; hold for repeat fire.
+This works with either combat setting.
+
 **Classic controls** (`useGothic1Controls=1`): hold Use/Attack, then push the left stick:
 up attacks forward, left/right attacks sideways, and a deliberate straight-down pull blocks.
 Return to neutral between attacks. Slight downward diagonals do not block.
