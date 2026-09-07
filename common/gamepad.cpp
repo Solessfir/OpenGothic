@@ -224,13 +224,16 @@ void MainWindow::tickGamepad() {
     const float sensitivity=Gothic::settingsGetF("GAME","mouseSensitivity")/0.5f;
     yaw*=sensitivity; pitch*=sensitivity;
     if(Gothic::settingsGetI("GAME","camLookaroundInverse")) pitch=-pitch;
+    const bool locked = player.lockedTarget()!=nullptr;
     if(mobileUi.isLooking() || look!=Point()) touchLookIdle=0;
-    else {
-      touchLookIdle+=dt;
-      if(!touchMovementBlocked && touchLookIdle>800 && touchMove.y < -0.35f)
-        camera->onRotateMouse(PointF(0.f,std::clamp(-camera->azimuth()*2.f*dtSec,-90.f*dtSec,90.f*dtSec)));
+    else touchLookIdle+=dt;
+    camera->onRotateMouse(PointF(pitch,locked ? 0.f : -yaw));
+    const float movement = touchMovementBlocked ? 0.f : std::max(std::abs(touchMove.x),std::abs(touchMove.y));
+    if(auto pl = Gothic::inst().player(); pl!=nullptr && (locked || (touchLookIdle>800 && movement>0.35f))) {
+      const float follow = CameraMath::followYawDelta(camera->spin().y,pl->rotation(),dtSec,options.cameraSmoothing,
+                                                    locked ? 1.f : movement);
+      camera->onRotateMouse(PointF(0.f,follow));
       }
-    camera->onRotateMouse(PointF(pitch,-yaw));
     return;
     }
   auto trigger=[&](float value,uint32_t bit) {

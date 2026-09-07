@@ -1084,7 +1084,8 @@ void MainWindow::tickCamera(uint64_t dt) {
       camera.setTarget(pos);
       }
 #if defined(__ANDROID__)
-    else if(controllerConnected && pl!=nullptr && pl->interactive()==nullptr) {
+    // Both Android input paths own camera yaw; do not overwrite touch look with character facing.
+    else if(pl!=nullptr && pl->interactive()==nullptr && !pl->isDown()) {
       camera.setTarget(pos);
       }
 #endif
