@@ -522,7 +522,7 @@ void MainWindow::onTouchCommand(TouchInput::Command command, bool pressed) {
     }
   if(command==TouchInput::Command::Block) {
     if(!pressed)
-      player.controllerCombat(1,false,true);
+      player.controllerCombat(1,false);
     else if(!uiActive && !Gothic::inst().isPause() && !player.isClassicCombat())
       player.controllerCombat(1,true);
     return;

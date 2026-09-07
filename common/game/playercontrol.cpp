@@ -385,11 +385,11 @@ void PlayerControl::controllerCombat(int direction,bool pressed,bool cancel,uint
   if(cancel) {
     actrl[direction]=false;
     if(direction==ActForward) controllerReleaseAttack=false;
+    if(direction==ActBack) controllerBlockPending=false;
     return;
     }
   if(!pressed) {
-    // Keep a short attack tap until the simulation has consumed it.
-    if(direction==ActBack) actrl[direction]=false;
+    // Keep short attack and parry taps until the simulation has consumed them.
     if(direction==ActForward) controllerReleaseAttack=true;
     return;
     }
@@ -410,6 +410,7 @@ void PlayerControl::controllerCombat(int direction,bool pressed,bool cancel,uint
     return;
     }
   if(direction==ActForward) controllerReleaseAttack=false;
+  if(direction==ActBack) controllerBlockPending=true;
   actrl[direction]=true;
   }
 
@@ -717,6 +718,7 @@ void PlayerControl::clearInput() {
   swimDiveStroke=false;
   controllerKeyReleases.fill(false);
   controllerReleaseAttack=false;
+  controllerBlockPending=false;
   pendingEquipment=size_t(-1);
   if(controllerWalkApplied) {
     if(auto pl=Gothic::inst().player())
@@ -880,6 +882,11 @@ bool PlayerControl::tickMove(uint64_t dt) {
     else controllerFinishTime-=dt;
     }
   implMove(dt);
+  if(controllerBlockPending) {
+    // One parry attempt per button press, never a held auto-parry or a delayed attack interrupt.
+    actrl[ActBack]=false;
+    controllerBlockPending=false;
+    }
   for(size_t i=0;i<controllerKeyReleases.size();++i)
     if(controllerKeyReleases[i]) releaseControllerKey(Action(i),true);
 

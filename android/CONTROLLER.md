@@ -115,14 +115,15 @@ The original `useGothic1Controls` setting selects the melee context.
 
 | Context | Controls |
 | --- | --- |
-| Classic melee, weapon drawn | Y: forward attack; X: left attack; B: right attack; hold A: block |
-| Modern melee, weapon drawn | RT: attack; hold RB: block |
+| Classic melee, weapon drawn | Y: forward attack; X: left attack; B: right attack; tap A: parry |
+| Modern melee, weapon drawn | RT: attack; tap RB: parry |
 | Bow, crossbow, or spell drawn | RT: shoot/cast; hold for spells that invest mana |
 | Melee finisher | Hold Y in classic melee or RT in modern melee over a finishable NPC |
 
 Holding LT restores exploration face buttons during classic melee. LT+A requests sheathing first, then interacts once with the same still-valid target. With no target it only sheathes; it does not redraw automatically. Ordinary A cannot pick up items while the weapon is drawn. Fists and weapons still obey Gothic's animation, ammunition, skill, and combat restrictions. Moving with a drawn weapon does not implicitly hold the classic action modifier.
 
 Default gamepad blocking uses a dedicated button (A in classic melee, RB in modern melee), not downward stick movement.
+Each button press requests one timed parry; a quick tap is retained for the next simulation tick, and holding does not repeat it.
 The narrow downward block cone described in the touch controls applies to G1 touch ACTION-plus-direction combat; gamepad buttons and keyboard combat are unchanged.
 
 Finishing uses the normal `AttackForward` binding and `[Controller] HoldMs` (400 ms by default).

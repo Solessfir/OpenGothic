@@ -303,7 +303,7 @@ With G2 controls, press ACTION instead; fists cannot perform the finishing move.
 Without a weapon, ACTION is interaction; menus use the same zone to confirm.
 With Gothic 2 controls (`useGothic1Controls=0`), the bottom-right zone directly uses/attacks.
 With fists or a melee weapon drawn, a separate Block hit area is enabled to the left of Draw/Sheathe, above Use/Attack.
-Hold it to request Gothic's normal block/parry action and release to stop; this is not an unconditional damage shield.
+Tap it for one timed block/parry attempt. Short taps survive until the next simulation tick; holding does not repeat parries or provide a continuous damage shield.
 The hit area is disabled in menus, with ranged weapons/magic, in classic controls, and when touch controls are inactive.
 Changing context also releases a held block, and a touch started on Block never becomes a camera drag.
 Its gold crossed-blade debug icon is original vector geometry drawn by OpenGothic and is shown only with `touchControls=1`.

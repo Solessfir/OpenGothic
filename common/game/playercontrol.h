@@ -169,6 +169,7 @@ class PlayerControl final {
     bool           controllerGroundStrafe=false;
     bool           controllerDirectional=false;
     bool           controllerReleaseAttack=false;
+    bool           controllerBlockPending=false;
     bool           controllerWalkApplied=false;
     bool           controllerSwimming=false;
     bool           swimJumpHeld=false;
