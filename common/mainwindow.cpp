@@ -479,8 +479,8 @@ bool MainWindow::onTouchWheel(TouchInput::Command command, TouchInput::WheelPhas
     player.controllerEquip(selected);
     }
   else if(command==TouchInput::Command::Back) {
-    const auto section=selected==0 ? "GAME" : "DEBUG";
-    const auto setting=selected==0 ? "showFps" : "touchControls";
+    const auto section=selected==1 ? "DEBUG" : "GAME";
+    const auto setting=selected==0 ? "showFps" : (selected==1 ? "touchControls" : "centerPlayerBars");
     Gothic::settingsSetI(section,setting,!Gothic::settingsGetI(section,setting));
     Gothic::flushSettings();
     }

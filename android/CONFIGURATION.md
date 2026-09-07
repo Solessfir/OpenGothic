@@ -40,7 +40,7 @@ HDR expands highlight range without brightening dark shadows. Screenshots may no
 | `cameraElevationOffset` | `10` | Exploration camera elevation, 0–30 degrees |
 | `cameraCombatElevationOffset` | `20` | Melee/ranged/magic camera elevation, 0–30 degrees |
 | `cameraFollowSpeed` | `2` | Follow response, 0.25–4; `1` restores slower following |
-| `centerPlayerBars` | `1` | Stack health, mana and air at bottom-center; `0` restores corner health/mana bars |
+| `centerPlayerBars` | `0` | Classic corner health/mana bars; `1` stacks bars at bottom-center. Also selectable in the System hold wheel |
 | `mouseSensitivity` | `0.53` | Also controls touch/gamepad camera sensitivity |
 | `camLookaroundInverse` | Game preference | Vertical camera inversion |
 

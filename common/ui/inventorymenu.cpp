@@ -859,7 +859,8 @@ size_t InventoryMenu::wheelPageSize() const {
 size_t InventoryMenu::wheelSectorCount() const {
   // Paged wheels keep their navigation arrows in the same two sectors.
   if(wheelPageSize()==6) return 8;
-  if(wheelKind!=WheelKind::Equipment) return 2;
+  if(wheelKind==WheelKind::System) return 3;
+  if(wheelKind==WheelKind::Character) return 2;
   return std::min(wheelPageSize(),wheelItems.size()-std::min(wheelItems.size(),wheelPageId*wheelPageSize()));
   }
 
@@ -1001,9 +1002,10 @@ void InventoryMenu::drawWheel(Painter& p,DrawPass pass) {
     if(pass==DrawPass::Front && (utilityMenu || pageButton)) {
       const auto fpsLabel=Gothic::settingsGetI("GAME","showFps")!=0 ? "FPS: On" : "FPS: Off";
       const auto debugLabel=Gothic::settingsGetI("DEBUG","touchControls")!=0 ? "Touch debug\nOn" : "Touch debug\nOff";
-      const auto label=wheelKind==WheelKind::System ? (i==0 ? fpsLabel : debugLabel) :
+      const auto hudLabel=Gothic::settingsGetI("GAME","centerPlayerBars")!=0 ? "HUD\nCentered" : "HUD\nClassic";
+      const auto label=wheelKind==WheelKind::System ? (i==0 ? fpsLabel : (i==1 ? debugLabel : hudLabel)) :
                        (wheelKind==WheelKind::Character ? (i==0 ? "Stats" : "Journal") : (i==6 ? "<" : ">"));
-      const bool twoLines=wheelKind==WheelKind::System && i==1;
+      const bool twoLines=wheelKind==WheelKind::System && i!=0;
       font.drawText(p,at.x-cell,at.y+(twoLines ? 0 : line/2),2*cell,twoLines ? 2*line : line,label,AlignHCenter);
       }
     }

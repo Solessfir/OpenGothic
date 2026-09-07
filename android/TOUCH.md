@@ -1,6 +1,6 @@
 # Touch controls
 
-Touch controls are invisible during normal play. Hold **Back/menu**, drag down and release to toggle the debug layout.
+Touch controls are invisible during normal play. Hold **Back/menu**, drag lower-right and release to toggle the debug layout.
 You can also set `Gothic.ini` `[DEBUG] touchControls=1` to show it, or `0` to hide it.
 See [editing settings](CONFIGURATION.md#editing-settings).
 
@@ -9,7 +9,7 @@ Set `Gamepad.ini` `[Controller] Enabled=0` to use touch while it is connected.
 
 ## Layout
 
-![Touch controls with the debug layout enabled](images/touch-controls-debug.png)
+![Touch controls with the debug layout and optional centered HUD enabled](images/touch-controls-debug.png)
 
 - **Left half:** touch anywhere to place the movement stick. Forward/back moves; sideways turns the character. Small input walks/turns gently, a firmer drag runs.
 - **Middle-right:** drag to look around. Mouse speed controls camera sensitivity.
@@ -52,7 +52,7 @@ Focus range is not attack reach or guaranteed safety; see [targeting settings](C
 
 - Hold **Draw** to open equipment selection.
 - Hold **Inventory** for Stats (up) / Journal (down).
-- Hold **Back/menu** for FPS (up) / touch-debug overlay (down). Both toggles are saved.
+- Hold **Back/menu** for FPS (up), touch-debug overlay (lower-right), or Classic/Centered HUD (lower-left). Choices are saved; Classic HUD is the default.
 - Keep the same finger down, drag a little toward a choice, then release to apply.
 - Release without selecting, or return to the finger's starting point, to cancel.
 
