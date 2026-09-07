@@ -48,7 +48,8 @@ Ordinary A cannot pick up items with a weapon drawn.
 
 ## Menus, inventory and wheels
 
-- A accepts; B backs out one level or skips a dialogue line. Left/right also means back/accept except on sliders and inventory grids.
+- A accepts; B backs out one level or skips a dialogue line.
+- Left stick/D-pad navigates items; left/right adjusts the selected slider or setting. Right stick left/right also adjusts values, but does nothing on other menu entries. Hold a direction to repeat.
 - Inventory: A uses/equips/transfers one item; X drops; Y transfers a stack; LB/RB selects trade or chest panels.
 - Save/load menu: X requests deletion, A confirms, B cancels. Deletion has no undo.
 - Save-name entry uses the Android keyboard; press **Done**.
@@ -78,6 +79,10 @@ Updates preserve the file; missing entries inherit defaults. Restart after editi
 ```ini
 [Gameplay]
 Walk=RB+L3
+
+[UI]
+AdjustLeft=RightStickLeft
+AdjustRight=RightStickRight
 
 [Controller]
 CameraAssist=0

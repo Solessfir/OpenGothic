@@ -101,7 +101,7 @@ class MainWindow : public Tempest::Window {
     void tickGamepad();
     GamepadBindings::Context controllerContext() const;
     void controllerAction(const GamepadBindings::Event& event);
-    void controllerUiKey(Tempest::Event::KeyType key, bool repeat);
+    void controllerUiKey(Tempest::Event::KeyType key, bool repeat, bool touchNavigation=false);
 #if defined(__MOBILE_PLATFORM__)
     void onTouchCommand(TouchInput::Command command, bool pressed);
 #endif

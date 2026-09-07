@@ -19,7 +19,7 @@ class GamepadBindings final {
       AttackRight, Block, Finish, Accept, Up, Down, Left, Right,
       PreviousPage, NextPage, Cancel, LeftPanel, RightPanel, TakeStack, Drop,
       Spell3, Spell4, Spell5, Spell6, Spell7, Spell8, Spell9, Spell10,
-      DeleteSave,
+      DeleteSave, AdjustLeft, AdjustRight,
       Count
       };
     enum class Phase { Press, Release, Repeat, Cancel };

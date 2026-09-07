@@ -30,7 +30,7 @@ Context MainWindow::controllerContext() const {
   return Context::ModernMelee;
   }
 
-void MainWindow::controllerUiKey(Event::KeyType key,bool repeat) {
+void MainWindow::controllerUiKey(Event::KeyType key,bool repeat,bool touchNavigation) {
   Widget* target=nullptr;
   if(video.isActive()) target=&video;
   else if(rootMenu.isActive()) target=&rootMenu;
@@ -40,13 +40,13 @@ void MainWindow::controllerUiKey(Event::KeyType key,bool repeat) {
   else if(dialogs.isActive()) target=&dialogs;
   if(target==nullptr) return;
   if(target!=&rootMenu && (key==Event::K_Left || key==Event::K_Right)) {
-    if(repeat) return;
+    if(repeat || !touchNavigation) return;
     key=key==Event::K_Left ? Event::K_ESCAPE : Event::K_Return;
     }
   KeyEvent event(key,Event::M_NoModifier,repeat?Event::KeyRepeat:Event::KeyDown);
   // Dispatch only to the active layer. Ignored UI input must never reach gameplay.
   if(target==&rootMenu) {
-    if(key==Event::K_Left || key==Event::K_Right) rootMenu.directionalInput(key==Event::K_Right,repeat);
+    if(key==Event::K_Left || key==Event::K_Right) rootMenu.directionalInput(key==Event::K_Right,repeat,touchNavigation);
     else if(repeat) rootMenu.keyRepeatEvent(event); else rootMenu.keyDownEvent(event);
     }
   else if(target==&video) { if(!repeat) video.keyDownEvent(event); }
@@ -86,6 +86,11 @@ void MainWindow::controllerAction(const GamepadBindings::Event& event) {
     }
   if(context==Context::Inventory) { inventory.controllerAction(int(action)); return; }
   if(context==Context::UI) {
+    if(action==PadAction::AdjustLeft || action==PadAction::AdjustRight) {
+      if(rootMenu.isActive() && !video.isActive())
+        rootMenu.adjustValue(action==PadAction::AdjustRight ? 1 : -1);
+      return;
+      }
     if(action==PadAction::DeleteSave && pressed && rootMenu.isActive() && !video.isActive()) {
       rootMenu.requestDeleteSave(controllerBindings.hint(PadAction::Accept,context)+": delete    "+
                                  controllerBindings.hint(PadAction::Back,context)+": cancel");

@@ -16,7 +16,8 @@ constexpr const char* actionNames[] = {
   "FirstPerson", "LookBehind", "QuickSave", "QuickLoad", "AttackForward", "AttackLeft",
   "AttackRight", "Block", "Finish", "Accept", "Up", "Down", "Left", "Right",
   "PreviousPage", "NextPage", "Cancel", "LeftPanel", "RightPanel", "TakeStack", "Drop",
-  "Spell3", "Spell4", "Spell5", "Spell6", "Spell7", "Spell8", "Spell9", "Spell10", "DeleteSave"
+  "Spell3", "Spell4", "Spell5", "Spell6", "Spell7", "Spell8", "Spell9", "Spell10", "DeleteSave",
+  "AdjustLeft", "AdjustRight"
   };
 static_assert(std::size(actionNames)==size_t(Action::Count));
 std::string trim(std::string s) {
@@ -26,7 +27,8 @@ std::string trim(std::string s) {
   return s.substr(first,s.find_last_not_of(" \t\r\n")-first+1);
   }
 bool repeatable(Action a) {
-  return a==Action::Up || a==Action::Down || a==Action::Left || a==Action::Right;
+  return a==Action::Up || a==Action::Down || a==Action::Left || a==Action::Right ||
+         a==Action::AdjustLeft || a==Action::AdjustRight;
   }
 }
 
@@ -87,6 +89,8 @@ Up=DpadUp,LeftStickUp
 Down=DpadDown,LeftStickDown
 Left=DpadLeft,LeftStickLeft
 Right=DpadRight,LeftStickRight
+AdjustLeft=RightStickLeft
+AdjustRight=RightStickRight
 
 [EquipmentWheel]
 PreviousPage=LB

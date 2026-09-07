@@ -163,14 +163,14 @@ void MenuRoot::mouseWheelEvent(MouseEvent &event) {
     }
   }
 
-void MenuRoot::directionalInput(bool right, bool repeat) {
+void MenuRoot::directionalInput(bool right, bool repeat, bool touchNavigation) {
   if(current==nullptr) return;
   if(current->adjustsHorizontally()) {
     current->onKeyboard(right ? KeyCodec::Right : KeyCodec::Left);
     return;
     }
   // A held direction must not repeatedly enter or close several menu levels.
-  if(repeat) return;
+  if(repeat || !touchNavigation) return;
   if(right) current->onKeyboard(KeyCodec::ActionGeneric);
   else if(!current->closeNestedView()) popMenu();
   }

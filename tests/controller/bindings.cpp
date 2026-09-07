@@ -109,6 +109,43 @@ int main() {
     std::istringstream oldUi("[UI]\nAccept=A\nBack=B,View,Menu\n");
     check(b.load(oldUi).empty(),"Existing UI settings remain valid");
     check(b.hint(A::DeleteSave,C::UI)=="X","Existing INI inherits save deletion binding");
+    check(b.hint(A::AdjustLeft,C::UI)=="RightStickLeft" && b.hint(A::AdjustRight,C::UI)=="RightStickRight",
+          "Existing INI inherits right-stick value adjustment without replacing left-stick navigation");
+    for(const auto& [name,action]:{std::pair("RightStickLeft",A::AdjustLeft),std::pair("RightStickRight",A::AdjustRight)}) {
+      const auto direction=B::button(name);
+      b.reset();
+      auto adjust=b.update(direction,C::UI,0);
+      check(has(adjust,action) && !has(adjust,A::Accept) && !has(adjust,A::Back),
+            "Right stick requests value adjustment without accepting or closing menus");
+      check(b.update(direction,C::UI,100).empty(),"Adjustment waits for the repeat delay");
+      check(has(b.update(direction,C::UI,350),action,P::Repeat),"Held right stick repeats value adjustment");
+      check(b.update(direction,C::UI,400).empty(),"Value adjustment respects the repeat interval");
+      check(has(b.update(direction,C::UI,500),action,P::Repeat),"Value adjustment continues repeating");
+      check(has(b.update(0,C::UI,501),action,P::Release),"Centering the stick releases value adjustment");
+      check(b.update(0,C::UI,1000).empty(),"Centered stick stops adjusting values");
+      b.reset();
+      b.update(direction,C::Gameplay,0);
+      check(b.update(direction,C::UI,1).empty(),"Opening a menu blocks an already-held camera stick");
+      b.update(0,C::UI,2);
+      check(has(b.update(direction,C::UI,3),action),"A fresh tilt adjusts after entering the menu");
+      check(has(b.update(direction,C::Gameplay,4),action,P::Cancel),"Leaving UI cancels value adjustment");
+      check(!has(b.update(direction,C::Gameplay,1000),action,P::Repeat),"Adjustment never repeats in gameplay");
+      }
+    for(const auto& [name,action]:{std::pair("LeftStickUp",A::Up),std::pair("LeftStickDown",A::Down),
+                                 std::pair("LeftStickLeft",A::Left),std::pair("LeftStickRight",A::Right),
+                                 std::pair("DpadLeft",A::Left),std::pair("DpadRight",A::Right),
+                                 std::pair("A",A::Accept),std::pair("B",A::Back)}) {
+      b.reset();
+      check(has(b.update(B::button(name),C::UI,0),action),"Menu navigation and dedicated accept/back bindings remain unchanged");
+      }
+    b.reset();
+    check(b.update(B::button("RightStickUp"),C::UI,0).empty(),"Vertical right stick does not navigate menus");
+    std::istringstream remapAdjustment("[UI]\nAdjustLeft=LB\nAdjustRight=None\n");
+    check(b.load(remapAdjustment).empty(),"Value adjustment can be remapped or disabled");
+    b.reset();
+    check(has(b.update(B::button("LB"),C::UI,0),A::AdjustLeft),"Remapped value adjustment works");
+    b.reset();
+    check(b.update(B::button("RightStickRight"),C::UI,0).empty(),"Disabled value adjustment does nothing");
     std::istringstream noDelete("[UI]\nDeleteSave=None\n");
     check(b.load(noDelete).empty(),"Save deletion can be unbound");
     check(!has(b.update(x,C::UI,0),A::DeleteSave),"Unbound save deletion does nothing");

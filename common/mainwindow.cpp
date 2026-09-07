@@ -610,7 +610,7 @@ void MainWindow::onTouchCommand(TouchInput::Command command, bool pressed) {
   if(!uiActive && touchMovementBlocked && pressed && command<=TouchInput::Command::Right)
     return;
   if(uiActive && !inventory.isActive() && (command==TouchInput::Command::Left || command==TouchInput::Command::Right)) {
-    if(pressed) controllerUiKey(command==TouchInput::Command::Right ? Event::K_Right : Event::K_Left,false);
+    if(pressed) controllerUiKey(command==TouchInput::Command::Right ? Event::K_Right : Event::K_Left,false,true);
     return;
     }
   switch(command) {
