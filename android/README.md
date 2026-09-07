@@ -279,8 +279,9 @@ Choosing an empty save slot opens the Android keyboard. Enter a save name and pr
 Physical controllers now use camera-relative directional movement, A to accept/interact, B to go back, R3 target lock, and LB+L3 walk. Classic/modern combat, D-pad shortcuts, inventory panels, and the equipment wheel have context-specific mappings. See [controller controls and Gamepad.ini](CONTROLLER.md) for the complete layout, remapping commands, and device-test checklist.
 Android touch and gamepad also face the focused NPC when starting an unlocked melee attack, within a 90-degree turn and 300-world-unit distance by default.
 This does not lunge, extend attack reach, or activate target lock. Disable or tune it with the `[Combat]` settings documented in [Gamepad.ini controls](CONTROLLER.md).
-With fists or a melee weapon drawn, NPC name/health display and target-lock range are doubled on Android.
-`[Combat] MeleeFocusRangeScale=1` in `Gamepad.ini` restores Gothic's original range; the default is `2`.
+With fists or a melee weapon drawn, NPC name/health display and target-lock range use the scripts' ordinary monster warning distance on Android (15 metres in standard Gothic II scripts).
+`[Combat] MeleeFocusRangeScale=0` in `Gamepad.ini` selects this automatic default; `1` restores Gothic's original focus range, and `2` restores the previous doubled range.
+Existing explicit overrides are preserved. The warning distance is not a safety guarantee: some enemies attack immediately, while others attack after their warning timer expires.
 This range setting is separate from the shorter melee facing-assist distance and does not affect weapon reach or item pickup.
 
 Touch controls, including the contextual G2 Block hit area, are invisible by default.

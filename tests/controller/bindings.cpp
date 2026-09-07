@@ -17,7 +17,7 @@ int main() {
     B b;
     check(b.options.meleeAssist && b.options.meleeAssistMaxAngle==90.f && b.options.meleeAssistMaxDistance==300.f,
           "Missing combat settings use conservative melee assistance defaults");
-    check(b.options.meleeFocusRangeScale==2.f,"Mobile melee focus range defaults to twice Gothic's range");
+    check(b.options.meleeFocusRangeScale==0.f,"Mobile melee focus defaults to the scripted monster warning range");
     B combat;
     std::istringstream assist("[Combat]\nMeleeAssist=0\nMeleeAssistMaxAngle=45\nMeleeAssistMaxDistance=200\nMeleeFocusRangeScale=3\n");
     check(combat.load(assist).empty(),"Combat assistance settings validate");
@@ -27,6 +27,12 @@ int main() {
     std::istringstream originalFocus("[Combat]\nMeleeFocusRangeScale=1\n");
     check(combat.load(originalFocus).empty() && combat.options.meleeFocusRangeScale==1.f,
           "Original Gothic focus range can be restored");
+    std::istringstream warningFocus("[Combat]\nMeleeFocusRangeScale=0\n");
+    check(combat.load(warningFocus).empty() && combat.options.meleeFocusRangeScale==0.f,
+          "Automatic warning range can be selected explicitly");
+    std::istringstream fractionalFocus("[Combat]\nMeleeFocusRangeScale=0.5\n");
+    check(combat.load(fractionalFocus).size()==1 && combat.options.meleeFocusRangeScale==0.f,
+          "Scaling below original range is rejected without disabling automatic focus");
     std::istringstream invalidFocus("[Combat]\nMeleeFocusRangeScale=99\n");
     check(combat.load(invalidFocus).size()==1,"Excessive focus scaling is reported");
     std::istringstream invalidAssist("[Combat]\nMeleeAssistMaxAngle=999\nMeleeAssistMaxDistance=-1\n");

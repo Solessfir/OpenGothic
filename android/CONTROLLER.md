@@ -32,7 +32,7 @@ You can explicitly resume with touch or a reconnected controller.
 | LB + Menu | Quicksave |
 | LB + View | Quickload immediately, without confirmation |
 
-Unlocked movement turns toward the chosen direction instead of strafing. Target lock retains an eligible NPC selected by Gothic's existing focus rules, without a new enemy-scoring system. Android doubles the player's melee NPC focus range by default, consistently for name/health display, acquisition, and retention. While locked, horizontal movement strafes and the character/camera face the target. The name gains a ` (locked)` suffix. Retention uses the existing cached-focus rules instead of rechecking the acquisition angle every frame. Death, unconsciousness, sheathing, or loss of eligibility releases it. Swimming and diving retain Gothic's native movement constraints. The original `Gothic.ini` `keyLockTarget` now dispatches this same lock action for keyboard input.
+Unlocked movement turns toward the chosen direction instead of strafing. Target lock retains an eligible NPC selected by Gothic's existing focus rules, without a new enemy-scoring system. Android uses the scripts' ordinary monster warning distance for melee NPC focus by default, consistently for name/health display, acquisition, and retention. While locked, horizontal movement strafes and the character/camera face the target. The name gains a ` (locked)` suffix. Retention uses the existing cached-focus rules instead of rechecking the acquisition angle every frame. Death, unconsciousness, sheathing, or loss of eligibility releases it. Swimming and diving retain Gothic's native movement constraints. The original `Gothic.ini` `keyLockTarget` now dispatches this same lock action for keyboard input.
 
 While locked, right-stick up/down still adjusts camera elevation, respecting Mouse speed, vertical inversion, and Gothic's pitch limits. Horizontal stick flicks still switch targets. Camera yaw wraps across zero and ±180 degrees before following, so an equivalent angle does not force a long rotation.
 
@@ -88,14 +88,19 @@ These `Gamepad.ini` defaults also apply to existing files that omit the section:
 MeleeAssist=1
 MeleeAssistMaxAngle=90
 MeleeAssistMaxDistance=300
-MeleeFocusRangeScale=2
+MeleeFocusRangeScale=0
 ```
 
 `MeleeAssist=0` disables it. The angle is the maximum turn from the character's facing in degrees (0–180).
 Distance is in Gothic world units: 300 is approximately three meters, not a new attack reach.
 Gothic's focus and visibility checks must still pass; these limits can restrict eligibility, not expand it.
-`MeleeFocusRangeScale` separately multiplies Gothic's maximum NPC focus distance with fists or melee weapons drawn.
-The default `2` doubles the range where NPC names/health appear and targets can be locked; `1` restores the original range (allowed range: 1–4).
+`MeleeFocusRangeScale=0` uses the installed scripts' `PERC_DIST_MONSTER_ACTIVE_MAX` for NPC names/health and target locking with fists or melee weapons drawn.
+In standard Gothic II this is 1500 world units (15 metres): the ordinary monster warning boundary, not the closer 700-unit attack threshold.
+Mods with a missing or invalid constant fall back to the previous doubled focus range.
+Positive values from `1` to `4` multiply Gothic's original focus range instead: `1` restores the original distance and `2` restores the previous Android default.
+Existing explicit overrides are preserved; set `0` to opt into automatic warning-range targeting.
+This is the standard monster boundary, not a per-enemy promise of safety. Some enemies skip warnings, and others attack when their warning timer expires.
+See the [script constants](https://github.com/dzieje-khorinis/Gothic-2-Mod-Development-Kit/blob/master/_work/Data/Scripts/CONTENT/AI/AI_Intern/AI_Constants.d) and [monster warning state](https://github.com/dzieje-khorinis/Gothic-2-Mod-Development-Kit/blob/master/_work/Data/Scripts/CONTENT/AI/Monster/ZS_Monster/ZS_MM_ThreatenEnemy.d).
 This applies to Android touch and gamepad, not desktop input, enemy AI, unarmed interaction, item pickup, bows, or spells.
 It does not change weapon reach or the independent `MeleeAssistMaxDistance` limit.
 Restart after editing. This assist is separate from camera assistance and mouse sensitivity.

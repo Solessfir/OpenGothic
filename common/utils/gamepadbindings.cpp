@@ -138,9 +138,10 @@ TriggerReleaseThreshold=0.40
 MeleeAssist=1
 MeleeAssistMaxAngle=90
 MeleeAssistMaxDistance=300
-; Scale NPC name/health and target-lock range with fists or melee weapons drawn.
+; 0 uses the scripts' ordinary monster warning range for melee NPC focus and target lock.
+; 1 restores original focus distance; 2 through 4 multiply that original distance.
 ; This does not change weapon reach, item pickup, or ranged/spell targeting.
-MeleeFocusRangeScale=2
+MeleeFocusRangeScale=0
 
 [TargetLock]
 ; Target eligibility and acquisition ranges come from Gothic's focus rules.
@@ -296,7 +297,11 @@ std::vector<std::string> GamepadBindings::load(std::istream& input) {
   options.meleeAssist=number("Combat","MeleeAssist",options.meleeAssist?1.f:0.f,0,1)!=0;
   options.meleeAssistMaxAngle=number("Combat","MeleeAssistMaxAngle",options.meleeAssistMaxAngle,0,180);
   options.meleeAssistMaxDistance=number("Combat","MeleeAssistMaxDistance",options.meleeAssistMaxDistance,0,1000);
-  options.meleeFocusRangeScale=number("Combat","MeleeFocusRangeScale",options.meleeFocusRangeScale,1,4);
+  options.meleeFocusRangeScale=number("Combat","MeleeFocusRangeScale",options.meleeFocusRangeScale,0,4);
+  if(options.meleeFocusRangeScale>0.f && options.meleeFocusRangeScale<1.f) {
+    errors.push_back("Combat: MeleeFocusRangeScale must be 0 or between 1 and 4; restored automatic range");
+    options.meleeFocusRangeScale=0.f;
+    }
   for(auto& [sec,v]:values) {
     std::string_view allowed;
     if(sec=="Controller") allowed="|Version|Enabled|ExplorationModifier|HoldMs|RepeatDelayMs|RepeatMs|CameraAssist|";

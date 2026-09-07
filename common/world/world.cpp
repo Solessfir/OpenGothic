@@ -844,11 +844,22 @@ void World::invalidateVobIndex() {
   }
 
 float World::npcFocusRange(const Npc& pl,float range,bool unarmed) const {
-  // Scale only the player's melee NPC focus, consistently for acquisition and retention.
+  // Adjust only the player's melee NPC focus, consistently for acquisition and retention.
   if(&pl!=npcPlayer || unarmed) return range;
   const auto ws=pl.weaponState();
-  if(ws==WeaponState::Fist || ws==WeaponState::W1H || ws==WeaponState::W2H)
+  if(ws==WeaponState::Fist || ws==WeaponState::W1H || ws==WeaponState::W2H) {
+    if(meleeFocusRangeScale==0.f) {
+      // Ordinary monsters begin warning at this scripted perception boundary, not their attack distance.
+      // Read the installed scripts without invoking AI or changing enemy awareness.
+      auto* warning=game.script()->findSymbol("PERC_DIST_MONSTER_ACTIVE_MAX");
+      if(warning!=nullptr && warning->type()==zenkit::DaedalusDataType::INT && warning->count()>0) {
+        const int distance=warning->get_int();
+        if(distance>0) return float(distance);
+        }
+      return range*2.f;
+      }
     return range*meleeFocusRangeScale;
+    }
   return range;
   }
 
