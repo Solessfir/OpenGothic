@@ -82,7 +82,8 @@ sneak requires the learned skill.
 Saving and quicksaving are disabled while dead, so they cannot overwrite a slot with a dead character.
 
 Drag on either stick area: up/down selects, right accepts, left goes back.
-Sliders still adjust left/right; inventory grids use all directions for item selection.
+When a slider or setting value is selected, drag horizontally in the right-side camera area to adjust it.
+The left side remains available for selection; inventory grids use all directions for item selection.
 Use/Attack accepts; Back closes one level, including journal descriptions.
 Release the movement finger before resuming gameplay.
 

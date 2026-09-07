@@ -175,6 +175,14 @@ void MenuRoot::directionalInput(bool right, bool repeat) {
   else if(!current->closeNestedView()) popMenu();
   }
 
+bool MenuRoot::canAdjustValue() {
+  return current!=nullptr && current->canAdjustValue();
+  }
+
+void MenuRoot::adjustValue(int steps) {
+  if(current!=nullptr) current->adjustValue(steps);
+  }
+
 void MenuRoot::keyRepeatEvent(Tempest::KeyEvent &e) {
   if(current==nullptr) {
     e.ignore();

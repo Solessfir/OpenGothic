@@ -14,8 +14,19 @@
 
 using namespace Tempest;
 
-TouchInput::TouchInput(CommandHandler command, WheelHandler wheel)
-  :command(std::move(command)),wheel(std::move(wheel)) {
+TouchInput::TouchInput(CommandHandler command, WheelHandler wheel, AdjustmentHandler adjust)
+  :command(std::move(command)),wheel(std::move(wheel)),adjustment(std::move(adjust)) {
+  }
+
+void TouchInput::setMenuAdjustment(bool enabled) {
+  if(menuAdjustment==enabled) return;
+  menuAdjustment=enabled;
+  if(!enabled && adjustmentPointer>=0) {
+    touches.erase(adjustmentPointer);
+    adjustmentPointer=-1;
+    adjustmentDrag.reset();
+    }
+  update();
   }
 
 void TouchInput::setDebugLeftInset(int inset) {
@@ -60,14 +71,14 @@ void TouchInput::paintEvent(Tempest::PaintEvent& e) {
     };
   const int leftWidth=moveEnd-2*pad, rightX=moveEnd+pad, rightWidth=lookEnd-moveEnd-2*pad;
   legend(pad,2*line,leftWidth,uiActive ? "MENU NAVIGATION" : "MOVE / TURN");
-  legend(rightX,2*line,rightWidth,uiActive ? "MENU NAVIGATION" : "CAMERA DRAG");
+  legend(rightX,2*line,rightWidth,uiActive ? (menuAdjustment ? "ADJUST VALUE" : "MENU NAVIGATION") : "CAMERA DRAG");
   legend(pad,4*line,leftWidth,!touchEnabled ? "Touch debug: gamepad active" :
          (uiActive ? "Touch debug: menu" : (classicCombat ? "Touch debug: Gothic 1" : "Touch debug: Gothic 2")));
   if(!touchEnabled)
     legend(pad,6*line,leftWidth,"Gameplay touch off; keyboard available");
   else if(uiActive) {
     legend(pad,6*line,leftWidth,"Up / down: select    Left: back");
-    legend(rightX,4*line,rightWidth,"Right: accept    Settings: left / right");
+    legend(rightX,4*line,rightWidth,menuAdjustment ? "Drag left / right to adjust" : "Right: accept    Left: back");
     if(saveDeleteEnabled)
       legend(pad,8*line,leftWidth,"3-finger tap anywhere: delete save");
     }
@@ -201,6 +212,12 @@ void TouchInput::mouseDownEvent(Tempest::MouseEvent& e) {
         }
       }
     }
+  else if(uiActive && menuAdjustment && e.x>=w()/2) {
+    if(adjustmentPointer>=0) return;
+    touch.role=Role::Adjust;
+    adjustmentPointer=e.mouseID;
+    adjustmentDrag.reset();
+    }
   else if(e.x<w()/2 || uiActive) {
     if(movePointer>=0)
       return;
@@ -258,6 +275,10 @@ void TouchInput::mouseDragEvent(Tempest::MouseEvent& e) {
     }
   if(touch.role==Role::Move)
     updateMovement(e.pos());
+  else if(touch.role==Role::Adjust) {
+    adjustValue(touch,e.pos());
+    return;
+    }
   else if(touch.role==Role::Look) {
     lookDelta += e.pos()-touch.last;
     }
@@ -305,6 +326,14 @@ void TouchInput::mouseUpEvent(Tempest::MouseEvent& e) {
     wheelPointer=-1;
     touches.erase(it);
     wheel(action,WheelPhase::Apply,e.pos());
+    update();
+    return;
+    }
+  if(it->second.role==Role::Adjust) {
+    adjustValue(it->second,e.pos());
+    adjustmentPointer=-1;
+    adjustmentDrag.reset();
+    touches.erase(e.mouseID);
     update();
     return;
     }
@@ -530,6 +559,14 @@ bool TouchInput::isLooking() const {
   return lookPointer>=0;
   }
 
+void TouchInput::adjustValue(Touch& touch, Point pos) {
+  const int delta=pos.x-touch.last.x;
+  touch.last=pos;
+  const int steps=adjustmentDrag.drag(delta,std::max(8,std::min(w(),h())/40));
+  if(steps!=0 && uiActive && menuAdjustment) adjustment(steps);
+  if(debugOverlay) update();
+  }
+
 void TouchInput::updateMovement(const Point& pos) {
   auto it = touches.find(movePointer);
   if(it==touches.end())
@@ -595,6 +632,8 @@ void TouchInput::reset() {
   for(size_t i=0;i<4;++i)
     setDirection(Command(i),false);
   touches.clear();
+  adjustmentPointer=-1;
+  adjustmentDrag.reset();
   moveAxis = PointF();
   lookDelta = Point();
   movePointer = -1;

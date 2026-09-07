@@ -5,6 +5,7 @@
 #include <functional>
 #include <unordered_map>
 #include "utils/multifingertap.h"
+#include "utils/touchadjustment.h"
 
 namespace Tempest { class Painter; }
 
@@ -37,8 +38,9 @@ class TouchInput : public Tempest::Widget {
     using CommandHandler = std::function<void(Command,bool)>;
     enum class WheelPhase : uint8_t { Begin, Move, Apply, Cancel };
     using WheelHandler = std::function<bool(Command,WheelPhase,Tempest::Point)>;
+    using AdjustmentHandler = std::function<void(int)>;
 
-    explicit TouchInput(CommandHandler command, WheelHandler wheel);
+    explicit TouchInput(CommandHandler command, WheelHandler wheel, AdjustmentHandler adjust);
 
     void            paintEvent(Tempest::PaintEvent& e) override;
     void            resizeEvent(Tempest::SizeEvent& e) override;
@@ -53,6 +55,7 @@ class TouchInput : public Tempest::Widget {
     void            setClassicAction(bool held);
     void            setDebugOverlay(bool enabled);
     void            setDebugLeftInset(int inset);
+    void            setMenuAdjustment(bool enabled);
     void            setDebugContext(bool classicCombat, bool uiActive, bool canLock, bool locked, bool canBlock);
     void            tick();
     Tempest::PointF movementAxis() const;
@@ -66,6 +69,7 @@ class TouchInput : public Tempest::Widget {
     enum class Role : uint8_t {
       Move,
       Look,
+      Adjust,
       Button,
       Gesture,
       MultiTap,
@@ -89,6 +93,7 @@ class TouchInput : public Tempest::Widget {
     void reset();
     void startWheel(int pointer);
     void moveWheel(Touch& touch, Tempest::Point pos);
+    void adjustValue(Touch& touch, Tempest::Point pos);
     bool tryGesture(int pointer, const Touch& touch);
     void updateGesture();
     bool gestureActive() const { return gestureFirst>=0 || gestureSecond>=0; }
@@ -111,6 +116,10 @@ class TouchInput : public Tempest::Widget {
 
     CommandHandler command;
     WheelHandler wheel;
+    AdjustmentHandler adjustment;
+    TouchAdjustment adjustmentDrag;
+    int             adjustmentPointer = -1;
+    bool            menuAdjustment = false;
     std::unordered_map<int,Touch> touches;
     Tempest::PointF moveAxis;
     Tempest::Point  lookDelta;

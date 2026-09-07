@@ -205,6 +205,7 @@ void MainWindow::tickGamepad() {
                            player.lockedTarget()!=nullptr,
                            (touchWeapon==WeaponState::Fist || touchWeapon==WeaponState::W1H || touchWeapon==WeaponState::W2H) &&
                            !Gothic::inst().isPause() && Gothic::inst().checkLoading()==Gothic::LoadState::Idle);
+  mobileUi.setMenuAdjustment(rootMenu.canAdjustValue() && !video.isActive());
   mobileUi.setSaveDeleteEnabled(rootMenu.canRequestDeleteSave() && !video.isActive() && !chapter.isActive() &&
                                !document.isActive() && !dialogs.isActive() && !inventory.isActive() && !console.isActive());
   mobileUi.tick();

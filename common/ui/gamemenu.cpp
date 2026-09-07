@@ -536,8 +536,30 @@ bool GameMenu::adjustsHorizontally() {
   if(journalList!=nullptr || pendingDelete!=nullptr) return false;
   auto sel=selectedItem();
   if(sel==nullptr) return false;
-  const auto& item=sel->handle;
-  return isHorSelectable(item) || item->type==zenkit::MenuItemType::SLIDER || item->type==zenkit::MenuItemType::CHOICEBOX;
+  return isHorSelectable(sel->handle) || canAdjustValue();
+  }
+
+bool GameMenu::canAdjustValue() {
+  if(journalList!=nullptr || pendingDelete!=nullptr || ctrlInput!=nullptr) return false;
+  auto first=selectedItem();
+  auto item=first;
+  // Gothic can select a text label whose EFFECTS chain contains the actual slider.
+  for(int count=0; item!=nullptr && count<zenkit::IMenu::item_count; ++count) {
+    const auto& handle=item->handle;
+    if(!isEnabled(handle) || isHidden(handle)) return false;
+    if((handle->type==zenkit::MenuItemType::SLIDER || handle->type==zenkit::MenuItemType::CHOICEBOX) &&
+       !handle->on_chg_set_option.empty() && !handle->on_chg_set_option_section.empty()) return true;
+    if(!(handle->flags & zenkit::MenuItemFlag::EFFECTS)) return false;
+    item=selectedNextItem(item);
+    if(item==first) break;
+    }
+  return false;
+  }
+
+void GameMenu::adjustValue(int steps) {
+  if(steps==0 || !canAdjustValue()) return;
+  exec(*selectedItem(),steps,steps>0 ? KeyCodec::Right : KeyCodec::Left);
+  update();
   }
 
 void GameMenu::onKeyboard(KeyCodec::Action key) {
@@ -569,7 +591,7 @@ void GameMenu::onKeyboard(KeyCodec::Action key) {
     return;
     }
   auto sel = selectedItem();
-  if(sel!=nullptr && isHorSelectable(sel->handle)) {
+  if(sel!=nullptr && isHorSelectable(sel->handle) && !canAdjustValue()) {
     if(key==KeyCodec::Left)
       key = KeyCodec::Forward;
     else if(key==KeyCodec::Right)

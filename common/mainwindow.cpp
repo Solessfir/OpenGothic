@@ -41,7 +41,10 @@ MainWindow::MainWindow(Device& device)
     player(dialogs,inventory)
 #if defined(__MOBILE_PLATFORM__)
     ,mobileUi([this](TouchInput::Command cmd, bool pressed){ onTouchCommand(cmd,pressed); },
-              [this](TouchInput::Command cmd, TouchInput::WheelPhase phase, Point pos){ return onTouchWheel(cmd,phase,pos); })
+              [this](TouchInput::Command cmd, TouchInput::WheelPhase phase, Point pos){ return onTouchWheel(cmd,phase,pos); },
+              [this](int steps){
+                if(rootMenu.isActive() && !video.isActive()) rootMenu.adjustValue(steps);
+                })
 #endif
     {
   Gothic::inst().onSettingsChanged.bind(this,&MainWindow::onSettings);

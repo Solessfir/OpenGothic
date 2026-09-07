@@ -29,6 +29,8 @@ class GameMenu : public Tempest::Widget {
 
     void onKeyboard(KeyCodec::Action k);
     bool adjustsHorizontally();
+    bool canAdjustValue();
+    void adjustValue(int steps);
     void onTick();
     void processMusicTheme();
     void requestDeleteSave(std::string_view hint);
