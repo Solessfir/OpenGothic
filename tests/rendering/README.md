@@ -21,7 +21,7 @@ ctest --test-dir build/rendering-tests -C Release --output-on-failure
 
 The optional Vulkan test executes the actual optimized GLSL and a separate 21-tap reference on the GPU.
 Both use the stable scalar Lanczos weight function, including its analytic limit near zero.
-It checks RGBA8 and R11G11B10UF HDR inputs, all three color channels, odd/tiny dimensions and the S24's 1170x540 and 1755x810 to 2340x1080 upscale paths.
+It checks RGBA8 and R11G11B10UF HDR inputs, all three color channels, odd/tiny dimensions and representative 1170x540 and 1755x810 to 2340x1080 upscale paths.
 The four image patterns produce 40,441,744 output-pixel comparisons.
 The tolerance is 0.01 of the input pattern's range to account for finite-precision hardware interpolation; this is not bit-identical filtering.
 Validation errors, including errors during device destruction, fail the test.

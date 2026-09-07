@@ -20,6 +20,7 @@ android/app/.cxx/
 android/app/build/
 android/local.properties
 # Private test packages can contain legally owned game files and saves.
+*.local.md
 *.apk
 *.keystore
 *.jks
