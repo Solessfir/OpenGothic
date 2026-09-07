@@ -4,6 +4,7 @@
 #include <Tempest/Painter>
 #include <Tempest/SoundEffect>
 
+#include <algorithm>
 #include <limits>
 
 #include "utils/string_frm.h"
@@ -842,6 +843,8 @@ void InventoryMenu::openWheel(Npc& pl, WheelKind kind) {
   wheelItems.clear();
   for(auto it=pl.inventory().iterator(Inventory::T_Inventory);!utilityMenu && it.isValid();++it) {
     if(!it->checkCond(pl)) continue;
+    // Equipped items and their spare copies appear separately in the inventory iterator.
+    if(std::find(wheelItems.begin(),wheelItems.end(),it->clsId())!=wheelItems.end()) continue;
     if((it->mainFlag()&(ITM_CAT_NF|ITM_CAT_FF))!=0 || (it->isSpellOrRune() && it.slot()!=Item::NSLOT))
       wheelItems.push_back(it->clsId());
     }
