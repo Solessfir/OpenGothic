@@ -277,7 +277,7 @@ void GameMenu::paintEvent(PaintEvent &e) {
     const int padding = int(20*scale);
     const int height = std::min(h(),int(180*scale));
     const int top = (h()-height)/2;
-    p.setBrush(Color(0.f,0.f,0.f,0.95f));
+    p.setBrush(Color(0.f,0.f,0.f,0.88f));
     p.drawRect(0,top,w(),height);
     const auto message = string_frm("Delete save permanently?\n",deleteName,"\n",
                                    deleteError.empty()?deleteHint:deleteError);
