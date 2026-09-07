@@ -155,12 +155,16 @@ Physical controllers now use camera-relative directional movement, A to accept/i
 Touch controls, including the contextual G2 Block hit area, are invisible by default.
 For the temporary layout/debug overlay, enable `[DEBUG] touchControls=1` in the writable `Gothic.ini` and restart.
 It draws Gothic-colored zone boundaries, action labels, pressed-button highlights and live finger anchors/trails.
-The movement stick's outer square shows full axis travel; the inner square marks the arrow-key activation threshold.
+The movement stick's outer square shows full axis travel; the inner square marks the menu/classic attack direction threshold.
+With a melee weapon drawn in G1 controls, a narrow lower cone also shows the deliberate block-entry region.
 Disable it with `touchControls=0`; it is off by default.
 With an active gamepad, the overlay marks the virtual zones inactive and explains that gameplay touches are ignored while Android text input remains available.
 
 With classic controls (`[GAME] useGothic1Controls=1`), draw a melee weapon, hold the bottom-right ACTION zone, then move the left stick from neutral: up attacks forward, down blocks, and left/right request side attacks.
 Return the stick to neutral between directional presses; holding ACTION alone is not a directional strike.
+Blocking requires at least 65% downward stick travel within roughly 22 degrees of straight down.
+Small downward deviations during side attacks no longer block. Forward and side attacks choose the dominant direction.
+An active block has a small release margin (55% depth and a slightly wider cone) to avoid flickering at the boundary.
 To finish a knocked-out NPC with a one-handed or two-handed melee weapon, focus them and hold ACTION, then push forward from neutral.
 With G2 controls, press ACTION instead; fists cannot perform the finishing move.
 Without a weapon, ACTION is interaction; menus use the same zone to confirm.
@@ -173,6 +177,9 @@ Its gold crossed-blade debug icon is original vector geometry drawn by OpenGothi
 This debug view exposes the existing keyboard-style touch combat, not a redesigned mobile combat layout.
 Right-side touch camera drag looks around without turning the character, respecting Mouse speed and vertical inversion.
 The left movement stick still turns the character in place when dragged sideways.
+Turning now scales with sideways deflection instead of switching to full speed at an arrow-key threshold.
+It uses `[Axes] MovementDeadZone` and `MovementExponent` from `Gamepad.ini`, while retaining Gothic's original maximum turn rate.
+Camera dragging remains proportional to finger travel and uses Gothic's Mouse speed setting.
 While target-locked, it instead uses the gamepad's target-relative movement: sideways strafes, up approaches, and down retreats.
 The same movement dead zone, response curve and dominant-axis filtering apply, without switching walk animations during sidesteps.
 G1's held ACTION plus direction combat still takes priority over movement; release ACTION to resume locked strafing.

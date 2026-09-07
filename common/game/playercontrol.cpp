@@ -256,6 +256,7 @@ bool PlayerControl::isPressed(KeyCodec::Action a) const {
   }
 
 void PlayerControl::setGamepadAxis(float lx, float ly) {
+  touchTurn=0;
   controllerSwimming=false;
   swimJumpHeld=false;
   swimDiveStroke=false;
@@ -270,7 +271,13 @@ void PlayerControl::setGamepadAxis(float lx, float ly) {
   gamepadLY = ly;
   }
 
+void PlayerControl::setTouchMovement(float turn,float forward) {
+  setGamepadAxis(0.f,forward);
+  touchTurn=std::clamp(turn,-1.f,1.f);
+  }
+
 void PlayerControl::setControllerMovement(float x,float y,float cameraYaw,bool walk,float turnSpeed) {
+  touchTurn=0;
   controllerSwimming=false;
   swimJumpHeld=false;
   swimDiveStroke=false;
@@ -310,6 +317,7 @@ void PlayerControl::releaseControllerKey(KeyCodec::Action action,bool cancel) {
   }
 
 void PlayerControl::setControllerSwim(float x,float y,float cameraYaw,float cameraPitch,float turnSpeed) {
+  touchTurn=0;
   // Use the same movement curve as walking, but let camera pitch steer underwater.
   if(controllerWalkApplied) {
     if(auto pl=Gothic::inst().player())
@@ -661,6 +669,7 @@ void PlayerControl::clearMovementInput() {
   }
 
 void PlayerControl::clearInput() {
+  touchTurn=0;
   controllerFinisher=nullptr;
   controllerFinishTime=0;
   controllerSwimming=false;
@@ -964,6 +973,11 @@ void PlayerControl::implMove(uint64_t dt) {
     rot+=std::clamp(delta,-step,step);
     }
   if(allowRot) {
+    if(touchTurn!=0.f) {
+      rot-=rspeed*touchTurn;
+      rotation=touchTurn>0.f ? 1 : -1;
+      rotMouse=0;
+      }
     if(this->wantsToTurnLeft()) {
       rot += rspeed;
       rotation = -1;

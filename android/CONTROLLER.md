@@ -71,6 +71,9 @@ The original `useGothic1Controls` setting selects the melee context.
 
 Holding LT restores exploration face buttons during classic melee. LT+A requests sheathing first, then interacts once with the same still-valid target. With no target it only sheathes; it does not redraw automatically. Ordinary A cannot pick up items while the weapon is drawn. Fists and weapons still obey Gothic's animation, ammunition, skill, and combat restrictions. Moving with a drawn weapon does not implicitly hold the classic action modifier.
 
+Default gamepad blocking uses a dedicated button (A in classic melee, RB in modern melee), not downward stick movement.
+The narrow downward block cone described in the touch controls applies to G1 touch ACTION-plus-direction combat; gamepad buttons and keyboard combat are unchanged.
+
 Finishing uses the normal `AttackForward` binding and `[Controller] HoldMs` (400 ms by default).
 Begin the hold while focusing a knocked-out NPC with a one-handed or two-handed melee weapon drawn.
 Releasing early or losing that target cancels it. Attacks against standing enemies remain immediate and cannot become an automatic finisher when the enemy falls.

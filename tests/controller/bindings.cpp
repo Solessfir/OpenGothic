@@ -18,6 +18,9 @@ int main() {
     check(b.movementAxis(0.2f,0.f)==std::pair<float,float>(0.f,0.f),"Movement dead zone suppresses small deflections");
     check(b.movementAxis(0.6f,0.f).first<0.4f,"Movement curve softens medium deflections");
     check(b.movementAxis(1.f,0.f)==std::pair<float,float>(1.f,0.f),"Full stick still reaches full movement");
+    const auto gentleTouch=b.movementAxis(0.4f,0.f).first;
+    const auto firmTouch=b.movementAxis(0.8f,0.f).first;
+    check(gentleTouch>0 && gentleTouch<firmTouch && firmTouch<1,"Touch turn speed increases continuously with stick deflection");
     check(b.movementAxis(-1.f,0.f).first==-1.f,"Movement curve preserves direction");
     const auto diagonal=b.movementAxis(1.f,1.f);
     check(diagonal.first*diagonal.first+diagonal.second*diagonal.second<1.001f,"Diagonal movement remains normalized");

@@ -1,5 +1,6 @@
 #include "../../common/utils/cameramath.h"
 #include "../../common/utils/swiminput.h"
+#include "../../common/utils/touchmovement.h"
 
 #include <iostream>
 #include <stdexcept>
@@ -11,6 +12,17 @@ void check(bool ok, const char* message) {
 int main() {
   try {
     using namespace CameraMath;
+    using TouchMovement::classicDirection;
+    using Direction=TouchMovement::Direction;
+    check(classicDirection(0.f,0.4f,false)==Direction::None,"A slight downward pull does not block");
+    check(classicDirection(0.8f,0.4f,false)==Direction::Right,"A downward deviation during a right attack does not block");
+    check(classicDirection(-0.8f,0.4f,false)==Direction::Left,"A downward deviation during a left attack does not block");
+    check(classicDirection(0.4f,0.8f,false)==Direction::None,"Downward diagonals outside the narrow cone do not block");
+    check(classicDirection(0.2f,0.8f,false)==Direction::Back,"A deliberate mostly-downward pull blocks");
+    check(classicDirection(0.f,0.6f,false)==Direction::None,"Block entry requires the deeper threshold");
+    check(classicDirection(0.f,0.6f,true)==Direction::Back,"An existing block tolerates a small depth variation");
+    check(classicDirection(0.f,0.5f,true)==Direction::None,"Returning toward neutral releases block");
+    check(classicDirection(0.4f,-0.8f,false)==Direction::Forward,"Forward-dominant attack remains available");
     auto swim=SwimInput::direction(0,-1,25,30);
     check(std::abs(swim.yaw-25)<0.001f && std::abs(swim.pitch+30)<0.001f,"Forward swimming follows camera yaw and downward pitch");
     swim=SwimInput::direction(0,1,25,30);

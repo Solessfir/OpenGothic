@@ -7,6 +7,7 @@
 #include "resources.h"
 #include "utils/gthfont.h"
 #include "utils/twofingerswipe.h"
+#include "utils/touchmovement.h"
 
 #include <algorithm>
 #include <cmath>
@@ -50,7 +51,7 @@ void TouchInput::paintEvent(Tempest::PaintEvent& e) {
   if(!touchEnabled)
     label(pad,6*line,lookEnd-2*pad,"Gameplay touches ignored; Android keyboard still available");
   else if(!uiActive && classicCombat) {
-    label(pad,6*line,lookEnd-2*pad,"Hold ACTION, then move stick: up = attack, down = block");
+    label(pad,6*line,lookEnd-2*pad,"Hold ACTION: up = attack; pull mostly straight down past 65% = block");
     label(pad,7*line,lookEnd-2*pad,"Left / right = side attacks with melee weapon drawn");
     }
   if(touchEnabled && !uiActive && gesturesEnabled) {
@@ -101,8 +102,16 @@ void TouchInput::paintEvent(Tempest::PaintEvent& e) {
       p.setBrush(gold);
       box(touch.anchor,radius);
       box(touch.anchor,int(float(radius)*DirectionThreshold));
+      if(classicCombat && canBlock && !uiActive) {
+        const int top=int(float(radius)*0.65f);
+        const int topWidth=int(float(top)*0.40f), bottomWidth=int(float(radius)*0.40f);
+        p.drawLine(touch.anchor.x-topWidth,touch.anchor.y+top,touch.anchor.x+topWidth,touch.anchor.y+top);
+        p.drawLine(touch.anchor.x-topWidth,touch.anchor.y+top,touch.anchor.x-bottomWidth,touch.anchor.y+radius);
+        p.drawLine(touch.anchor.x+topWidth,touch.anchor.y+top,touch.anchor.x+bottomWidth,touch.anchor.y+radius);
+        p.drawLine(touch.anchor.x-bottomWidth,touch.anchor.y+radius,touch.anchor.x+bottomWidth,touch.anchor.y+radius);
+        }
       label(touch.anchor.x-radius,touch.anchor.y+radius+pad,2*radius,
-            "Inner box: direction threshold");
+            "Inner box: menu / classic attack threshold");
       }
     }
   }
@@ -341,6 +350,12 @@ void TouchInput::setAnalogMovement(bool enabled) {
     updateMovement(touches.at(movePointer).last);
   }
 
+void TouchInput::setClassicAction(bool held) {
+  if(classicAction==held) return;
+  classicAction=held;
+  if(movePointer>=0) updateMovement(touches.at(movePointer).last);
+  }
+
 void TouchInput::setDebugContext(bool classic, bool ui, bool lockAllowed, bool locked, bool blockAllowed) {
   if(classicCombat==classic && uiActive==ui && canLock==lockAllowed && targetLocked==locked && canBlock==blockAllowed)
     return;
@@ -501,6 +516,16 @@ void TouchInput::updateMovement(const Point& pos) {
 
   if(analogMovement)
     return;
+  if(classicCombat && classicAction && canBlock && !uiActive) {
+    using Direction=TouchMovement::Direction;
+    const auto direction=TouchMovement::classicDirection(moveAxis.x,moveAxis.y,directions[size_t(Command::Down)]);
+    const bool requested[]={direction==Direction::Forward,direction==Direction::Back,
+                            direction==Direction::Left,direction==Direction::Right};
+    // Release the old chord before pressing the new one: Gothic releases clear combat actions.
+    for(size_t i=0;i<4;++i) if(!requested[i]) setDirection(Command(i),false);
+    for(size_t i=0;i<4;++i) if(requested[i]) setDirection(Command(i),true);
+    return;
+    }
   setDirection(Command::Up,   moveAxis.y < -DirectionThreshold);
   setDirection(Command::Down, moveAxis.y >  DirectionThreshold);
   setDirection(Command::Left, moveAxis.x < -DirectionThreshold);
@@ -543,6 +568,7 @@ void TouchInput::reset() {
   lookPointer = -1;
   blockPointer = -1;
   analogMovement = false;
+  classicAction = false;
   }
 
 bool TouchInput::tryGesture(int pointer, const Touch& second) {

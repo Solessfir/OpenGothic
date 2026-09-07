@@ -241,19 +241,24 @@ void MainWindow::tickGamepad() {
     const bool locked = !swimming && player.lockedTarget()!=nullptr;
     const bool classicAction = player.isClassicCombat() && player.isPressed(KeyCodec::ActionGeneric);
     const bool targetMovement = locked && !classicAction;
-    mobileUi.setAnalogMovement(targetMovement || swimming);
-    if(targetMovement || swimming) {
+    const bool analogMovement = !classicAction || swimming;
+    mobileUi.setClassicAction(classicAction);
+    mobileUi.setAnalogMovement(analogMovement);
+    if(analogMovement) {
       // Remove keyboard-style turning without clearing target lock or held combat actions.
-      player.clearMovementInput();
+      if(targetMovement || swimming)
+        player.clearMovementInput();
       const auto axis = touchMovementBlocked ? std::pair(0.f,0.f) : controllerBindings.movementAxis(touchMove.x,touchMove.y);
       if(swimming)
         player.setControllerSwim(axis.first,axis.second,camera->spin().y,camera->spin().x,options.movementTurnSpeed);
-      else
+      else if(targetMovement)
         player.setControllerMovement(axis.first,axis.second,camera->spin().y,
                                      controllerBindings.automaticWalk(axis.first,axis.second,true),options.movementTurnSpeed);
+      else
+        player.setTouchMovement(axis.first,touchMovementBlocked ? 0.f : touchMove.y);
       }
     else {
-      player.setGamepadAxis(0.f,touchMovementBlocked || (locked && classicAction) ? 0.f : touchMove.y);
+      player.setGamepadAxis(0.f,0.f);
       }
     const float dtSec=float(dt)/1000.f;
     float yaw=float(look.x)*300.f/float(std::max(w(),1));

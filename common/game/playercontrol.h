@@ -25,6 +25,7 @@ class PlayerControl final {
     void  onKeyReleased(KeyCodec::Action a, KeyCodec::Mapping mapping);
     bool  isPressed(KeyCodec::Action a) const;
     void  setGamepadAxis(float lx, float ly);
+    void  setTouchMovement(float turn, float forward);
     void  setControllerMovement(float x, float y, float cameraYaw, bool walk, float turnSpeed);
     void  setControllerSwim(float x, float y, float cameraYaw, float cameraPitch, float turnSpeed);
     void  controllerCombat(int direction, bool pressed, bool cancel=false, uint64_t holdMs=400);
@@ -162,6 +163,7 @@ class PlayerControl final {
     float          rotMouseY=0;
     float          gamepadLX=0;
     float          gamepadLY=0;
+    float          touchTurn=0;
     bool           controllerGroundStrafe=false;
     bool           controllerDirectional=false;
     bool           controllerReleaseAttack=false;
