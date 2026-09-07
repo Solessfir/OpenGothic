@@ -22,8 +22,7 @@
             android:name=".SetupActivity"
             android:exported="true"
             android:configChanges="orientation|screenSize|keyboardHidden"
-            android:screenOrientation="sensorLandscape"
-            tools:ignore="DiscouragedApi">
+            android:screenOrientation="user">
             <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

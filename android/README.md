@@ -68,6 +68,8 @@ For an APK and separate archive:
 3. Launch **OpenGothic**, tap **Choose private-game.zip**, and select the archive from Downloads.
 4. Keep the setup screen open while the files are verified and extracted. The game starts automatically afterward.
 
+Setup follows the phone's normal orientation. Landscape mode is enabled only when the game starts.
+
 Use the `private-game.zip` produced by the [setup guide](PRIVATE-SETUP.md), not an arbitrary zipped game installation.
 You do not need ZArchiver or manual access to `Android/data`.
 If the game is already installed and opens directly, quit it and long-press its launcher icon → **Import files** to select an archive.
