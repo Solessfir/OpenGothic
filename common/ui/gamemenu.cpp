@@ -273,15 +273,41 @@ void GameMenu::paintEvent(PaintEvent &e) {
     }
 
   if(pendingDelete!=nullptr) {
-    auto& font = Resources::font(scale);
-    const int padding = int(20*scale);
-    const int height = std::min(h(),int(180*scale));
+    const auto font = Resources::font(scale);
+    const auto titleFont = Resources::font(scale*1.1f);
+    const char* title = "Delete save permanently?";
+    const string_frm name("\"",deleteName,"\"");
+    const std::string_view hint = deleteError.empty() ? deleteHint : deleteError;
+    const int padding = std::max(8,int(16*scale));
+    const int gap = std::max(4,font.pixelSize()/2);
+    const int border = std::max(1,int(scale));
+    const int available = std::max(1,w()-2*padding);
+    const int contentWidth = std::max({titleFont.textSize(title).w,font.textSize(name).w,font.textSize(hint).w});
+    const int width = std::min(available,std::clamp(contentWidth+2*padding,int(280*scale),int(420*scale)));
+    const int textWidth = std::max(1,width-2*padding);
+    const int titleHeight = titleFont.textSize(textWidth,title).h;
+    const int nameHeight = font.textSize(textWidth,name).h;
+    const int hintHeight = font.textSize(textWidth,hint).h;
+    const int height = 2*padding+titleHeight+nameHeight+hintHeight+3*gap+border;
+    const int left = (w()-width)/2;
     const int top = (h()-height)/2;
     p.setBrush(Color(0.f,0.f,0.f,0.88f));
-    p.drawRect(0,top,w(),height);
-    const auto message = string_frm("Delete save permanently?\n",deleteName,"\n",
-                                   deleteError.empty()?deleteHint:deleteError);
-    font.drawText(p,padding,top+padding,w()-2*padding,height-2*padding,message,AlignHCenter);
+    p.drawRect(left,top,width,height);
+    p.setBrush(Color(0.843f,0.761f,0.631f,0.85f));
+    p.drawRect(left,top,width,border);
+    p.drawRect(left,top+height-border,width,border);
+    p.drawRect(left,top,border,height);
+    p.drawRect(left+width-border,top,border,height);
+    int row = top+padding;
+    // Gothic font coordinates use the first line's baseline.
+    titleFont.drawText(p,left+padding,row+titleFont.pixelSize(),textWidth,titleHeight,title,AlignHCenter);
+    row+=titleHeight+gap;
+    font.drawText(p,left+padding,row+font.pixelSize(),textWidth,nameHeight,name,AlignHCenter);
+    row+=nameHeight+gap;
+    p.setBrush(Color(0.843f,0.761f,0.631f,0.35f));
+    p.drawRect(left+padding,row,textWidth,border);
+    row+=border+gap;
+    font.drawText(p,left+padding,row+font.pixelSize(),textWidth,hintHeight,hint,AlignHCenter);
     }
   }
 

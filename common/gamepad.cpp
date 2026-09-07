@@ -92,8 +92,11 @@ void MainWindow::controllerAction(const GamepadBindings::Event& event) {
       return;
       }
     if(action==PadAction::DeleteSave && pressed && rootMenu.isActive() && !video.isActive()) {
-      rootMenu.requestDeleteSave(controllerBindings.hint(PadAction::Accept,context)+": delete    "+
-                                 controllerBindings.hint(PadAction::Back,context)+": cancel");
+      auto accept=controllerBindings.hint(PadAction::Accept,context);
+      auto back=controllerBindings.hint(PadAction::Back,context);
+      accept=accept.substr(0,accept.find(" / "));
+      back=back.substr(0,back.find(" / "));
+      rootMenu.requestDeleteSave(accept+": Delete    "+back+": Cancel");
       return;
       }
     Event::KeyType key=Event::K_NoKey;
