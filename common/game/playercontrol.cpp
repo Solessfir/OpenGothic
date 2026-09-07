@@ -596,8 +596,6 @@ bool PlayerControl::interact(Interactive &it) {
   if(!canInteract())
     return false;
   if(it.isContainer()){
-    if(Gothic::settingsGetI("GAME","skipEmptyLoot")!=0 && it.isEmptyLootContainer())
-      return true;
     inv.open(*pl,it);
     return true;
     }

@@ -1044,8 +1044,6 @@ static bool checkFlag(Npc& n,WorldObjects::SearchFlg f){
   }
 
 static bool checkFlag(Interactive& i,WorldObjects::SearchFlg f){
-  if(bool(f&WorldObjects::NoEmptyLoot) && i.isEmptyLootContainer())
-    return false;
   if(bool(f&WorldObjects::FcOverride) && !i.overrideFocus())
     return false;
   return true;

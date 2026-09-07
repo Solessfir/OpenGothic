@@ -425,7 +425,6 @@ Focus World::findFocus(const Npc &pl, const Focus& def, bool unarmed) {
   WorldObjects::SearchOpt optItm {policy.item_range1, policy.item_range2, policy.item_azi, collAlgo, collType};
 
   if(pl.isPlayer() && Gothic::settingsGetI("GAME","skipEmptyLoot")!=0) {
-    optMob.flags = WorldObjects::SearchFlg(optMob.flags | WorldObjects::NoEmptyLoot);
     // Armed focus must still reach unconscious NPCs for finishing moves and spell targets.
     if(unarmed || pl.weaponState()==WeaponState::NoWeapon)
       optNpc.flags = WorldObjects::SearchFlg(optNpc.flags | WorldObjects::NoEmptyLoot);

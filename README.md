@@ -82,9 +82,9 @@ Never redistribute APKs containing the game's copyrighted files.
 ---
 ### Looting
 
-Empty bodies and ordinary empty containers are skipped when focusing and looting on all platforms.
+Empty bodies are skipped when focusing and looting on all platforms.
 Set `[GAME] skipEmptyLoot=0` in the writable `Gothic.ini` to restore their interaction.
-Scripted containers remain usable, and unconscious NPCs can still be targeted for finishing moves.
+Empty chests remain accessible for storage, and unconscious NPCs can still be targeted for finishing moves.
 
 ### Modifications
 Mods can be installed as usual. Provide the `modfile.ini` to OpenGothic via the `-game:` parameter to play. Example:

@@ -171,8 +171,6 @@ bool InventoryMenu::ransack(Npc &pl, Npc &tr) {
 void InventoryMenu::open(Npc &pl, Interactive &ch) {
   if(pl.isDown())
     return;
-  if(Gothic::settingsGetI("GAME","skipEmptyLoot")!=0 && ch.isEmptyLootContainer())
-    return;
   const bool needToPicklock = ch.needToLockpick(pl);
   if(!pl.setInteraction(&ch))
     return;

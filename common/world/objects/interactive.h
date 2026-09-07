@@ -60,7 +60,6 @@ class Interactive : public Vob {
     std::string_view    posSchemeName() const;
 
     bool                isContainer() const;
-    bool                isEmptyLootContainer() const;
     bool                isDoor() const;
     bool                isTrueDoor(const Npc& npc) const;
     bool                isLadder() const;

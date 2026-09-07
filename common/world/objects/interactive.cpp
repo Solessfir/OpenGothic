@@ -562,12 +562,6 @@ bool Interactive::needToLockpick(const Npc& pl) const {
   return !(pickLockStr.empty() || isLockCracked);
   }
 
-bool Interactive::isEmptyLootContainer() const {
-  // Scripted containers can trigger quests or generate items when used.
-  return isContainer() && invent.isEmpty() && triggerTarget.empty() && onStateFunc.empty() &&
-         conditionFunc.empty() && useWithItem.empty();
-  }
-
 Inventory &Interactive::inventory()  {
   return invent;
   }
