@@ -84,6 +84,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
                         android:visibility="gone"
+                        app:trackStopIndicatorSize="0dp"
                         app:trackCornerRadius="4dp"
                         app:trackThickness="8dp" />
 
