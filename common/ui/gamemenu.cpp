@@ -149,8 +149,8 @@ GameMenu::GameMenu(MenuRoot &owner, KeyCodec& keyCodec, zenkit::DaedalusVm& vm, 
   setPosition(int(infoX*float(w())),int(infoY*float(h())));
 
   setSelection(Gothic::inst().isInGameAndAlive() ? menu->default_ingame : menu->default_outgame);
-  // Prefer loading an existing save at startup, but preserve the in-game menu's default.
-  if(menuSection==Gothic::inst().menuMain() && !Gothic::inst().isInGame()) {
+  // Prefer an existing save at startup or after death; preserve the living player's pause-menu default.
+  if(menuSection==Gothic::inst().menuMain() && !Gothic::inst().isInGameAndAlive()) {
     for(int i=0;i<zenkit::IMenu::item_count;++i) {
       const auto& item=hItems[i];
       if(item.name=="MENUITEM_MAIN_SAVEGAME_LOAD" && isSelectable(item.handle) && isEnabled(item.handle)) {
