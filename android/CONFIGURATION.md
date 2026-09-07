@@ -102,7 +102,8 @@ Fog lighting can be calculated in a smaller volume, independently of the scene a
 fogHalfResolution=1
 ```
 
-The default is `0` on Android and desktop, preserving the original fog quality.
+Android defaults to `1`; desktop defaults to `0`, preserving the original fog quality.
+Existing explicit settings are preserved, and missing settings inherit the platform default.
 Only the parsed integer `1` enables the smaller volume; other parsed values retain original quality.
 This halves the lighting volume's width and height while preserving every depth step and the original scattering calculation.
 With sunshafts enabled, both lighting volumes change from 128x64x32 to 64x32x32.
@@ -113,7 +114,7 @@ Path-traced fog does not use this setting.
 
 The smaller volumes contain 25% as many texels, but this does not imply a 75% reduction in total fog or frame time.
 Fine angular lighting gradients may become softer, especially near the sun or horizon; this is an optional quality tradeoff, not an identical-image optimization.
-The setting needs visual and timing comparisons in several scenes before choosing a new default.
+Broader scene comparisons and prolonged thermal measurements remain useful for evaluating this mobile default.
 Edit the writable INI with the game stopped, then restart; `log.txt` reports `Fog lighting volume = ...`.
 Set `fogHalfResolution=0` to restore original quality without changing any other graphics options or rebuilding the APK.
 The `Fog-LUTs` profiler marker includes the separate sunshaft occlusion work when enabled, so it does not measure only lighting-volume generation.

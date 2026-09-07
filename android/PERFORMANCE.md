@@ -904,3 +904,12 @@ These short measurements precede the final metadata addition and do not establis
 Artifacts are retained locally in `build/performance/hdr-auto/`.
 Physical HDR appearance still needs user evaluation; Android screenshots may be tone-mapped.
 External-display transitions, unsupported-HDR hardware, detailed UI/video appearance and prolonged thermal behavior remain unverified.
+
+### Android fog and HDR defaults
+
+Following the user's preference, Android now defaults to `fogHalfResolution=1`; automatic HDR (`displayMode=auto`) remains the default.
+Explicit INI overrides are preserved, including full-resolution fog or forced SDR.
+Desktop defaults remain full-resolution fog and SDR output.
+This changes the packaged fog preference, not the measured optimization results above.
+The S24 already used half-resolution fog and automatic HDR, so its effective settings are unchanged.
+Android APK and Windows Release rebuilds passed; this default-only APK was not reinstalled on the phone.

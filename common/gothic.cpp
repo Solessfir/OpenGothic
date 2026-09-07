@@ -113,12 +113,14 @@ Gothic::Gothic() {
 #if defined(__ANDROID__)
   constexpr int defaultResolutionIndex = 1; // 75% scene resolution
   constexpr int defaultSsaoHalfResolution = 1;
+  constexpr int defaultFogHalfResolution = 1;
   // Copied PC settings commonly request uncapped rendering; Android starts with a writable 60 FPS preference.
   if(!iniFile->has("ENGINE", "zMaxFPS"))
     iniFile->set("ENGINE", "zMaxFPS", 60);
 #else
   constexpr int defaultResolutionIndex = 0; // native scene resolution
   constexpr int defaultSsaoHalfResolution = 0;
+  constexpr int defaultFogHalfResolution = 0;
 #endif
   if(!iniFile->has("INTERNAL", "vidResIndex")) {
     // The original game's display-mode index is not an OpenGothic render-scale choice.
@@ -159,7 +161,7 @@ Gothic::Gothic() {
   defaults->set("ENGINE",       "zCloudShadowScale", gpu.type==Tempest::DeviceType::Discrete); // ssao
   defaults->set("INTERNAL",     "vidResIndex", defaultResolutionIndex);
   defaults->set("ENGINE",       "ssaoHalfResolution", defaultSsaoHalfResolution);
-  defaults->set("ENGINE",       "fogHalfResolution", 0);
+  defaults->set("ENGINE",       "fogHalfResolution", defaultFogHalfResolution);
 
   defaults->set("VIDEO", "zVidBrightness", 0.5f);
   defaults->set("VIDEO", "zVidContrast",   0.5f);
