@@ -815,3 +815,38 @@ This trace reported no nonzero capture-quality errors, and the collected process
 Artifacts are in `build/performance/cooled-1024-sustained/late/`.
 The game was force-stopped after capture so the device could cool; settings, saves and assets were preserved.
 Sustained 60 FPS remains unmet and needs reduced rendering workload and further hot-state verification, not repeated short cooled baselines.
+
+### Optional smaller fog lighting volumes, 2026-09-07
+
+Commit `528725e4` adds `[ENGINE] fogHalfResolution=1`, leaving the default at `0` on Android and desktop.
+Only lighting-volume width and height are halved: 128x64x32 becomes 64x32x32 with sunshafts, and 160x90x64 becomes 80x45x64 without them.
+Depth integration steps, shader code, texture formats, fog density, full-resolution sunshaft occlusion and final compositing are unchanged.
+The existing shader uses the destination image size and bounds-checks dispatches, including the 45-row variant.
+Changing the option invalidates the cached fog allocation even if the sunshaft quality mode is unchanged; the existing resource recycling path retires the previous images.
+This is an optional angular-lighting quality tradeoff, not identical-image shader optimization.
+See [fog configuration](CONFIGURATION.md#optional-lower-resolution-fog-lighting) for enabling and reverting it.
+
+Windows Release and the Android ARM64 library/APK built successfully; Android lint and all twelve existing regression tests passed.
+Those tests are not new fog-specific quality tests, and the smaller no-sunshaft variant has not yet been visually exercised on the phone.
+APK signature, ARM64-only manifest/native-library inspection and 16 KiB ZIP alignment checks passed.
+APK: `android/app/build/outputs/apk/debug/app-debug.apk`.
+SHA-256: `90F77A7771776A107058E4EF36E41E6F7638C692D8158067DA1AA5EC36A87635`.
+
+After ADB reconnection, upgrade installation succeeded and the installed APK hash matched.
+The game was closed before installation; the backed-up writable INI was changed only by adding `fogHalfResolution=1`.
+Existing user settings, including the newly selected `useGothic1Controls=0`, were preserved.
+The native log confirmed `Fog lighting volume = 64x32x32`, and the loaded waterfall screenshot showed no obvious gross corruption.
+One stationary screenshot does not establish equivalent gradients, acceptable moving quality, or behavior in the user's newly reported slow scene.
+
+The early 600-frame GPU capture averaged a 10.652 ms total marker span, with `Fog-LUTs` at 1.26 ms and the final `Fog` pass at 0.52 ms.
+The old combined `Fog-LUTs` marker includes sunshaft occlusion as well as lighting-volume generation; no isolated lighting-volume saving is established.
+A subsequent 30-second trace recorded 59.99 presentation FPS over 1,793 intervals, mean/median 16.67/16.68 ms, p95/p99 19.11/20.27 ms and worst 24.79 ms.
+Live skin temperature rose from 33.5 to 35.7 C during that trace, at thermal status 0; late clock samples were 800 MHz.
+These conditions differ from the earlier references, and the short capped capture proves neither an FPS gain nor sustained performance.
+The checked trace had no nonzero quality errors; collected startup logcat had no fatal-signal, fatal-exception, Vulkan-error or abort-message matches.
+Artifacts are retained locally in `build/performance/fog-half/`; the game was left running with the option enabled.
+
+The user also reported approximately twenty minutes of fairly stable 60 FPS during unplugged touch play, and a different location running at approximately 47 FPS even on a cold phone.
+These are user observations, not instrumented measurements, and should not be discarded in favor of the USB-connected stationary traces.
+Charging state, profiling overhead, scene complexity and input/play pattern were not controlled between those sessions; the evidence does not isolate charging as the cause.
+Next: capture the new slow location, compare fog quality/settings in matched conditions, and separate normal unplugged play from connected profiling when assessing sustained performance.
