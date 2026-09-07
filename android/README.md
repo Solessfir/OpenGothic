@@ -82,6 +82,44 @@ After successful extraction, you can delete the transferred ZIP and APK from Dow
 Do not uninstall the app to reclaim that space: uninstalling also deletes its extracted game files, settings and saves.
 Keep bundled game files private; do not redistribute them.
 
+## Install with ADB wireless debugging
+
+Android 11 or newer can install and debug the APK over the local Wi-Fi network without a USB cable.
+Keep the phone and computer on the same network, then enable **Developer options → Wireless debugging**.
+
+For the first connection, open **Pair device with pairing code** on the phone.
+Use the IP address and pairing port shown in that dialog; enter the six-digit code when ADB asks:
+
+```powershell
+$adb = "$env:ANDROID_HOME\platform-tools\adb.exe"
+& $adb pair '192.168.1.50:37123'
+```
+
+The pairing port is temporary and is not normally the port used by `adb connect`.
+After pairing, find the `_adb-tls-connect._tcp` entry and connect to that address:
+
+```powershell
+& $adb mdns services
+& $adb connect '192.168.1.50:38901'
+& $adb devices -l
+```
+
+Pairing is retained, so later sessions normally need only `adb mdns services` and `adb connect`.
+The IP address or connection port can change after Wi-Fi, the phone, or wireless debugging is restarted.
+If mDNS discovery is unavailable, use the **IP address & port** shown on the main Wireless debugging screen.
+
+Use the connected `IP:port` as the device selector when more than one device is listed, then install and launch normally:
+
+```powershell
+$device = '192.168.1.50:38901'
+& $adb -s $device install --no-streaming -r 'android\app\build\outputs\apk\debug\app-debug.apk'
+& $adb -s $device shell am start -W -n 'org.opengothic.app/org.tempest.TempestNativeActivity'
+```
+
+`-r` updates the existing app and retains its game files, settings, and saves as long as the APK uses the same signing key.
+If the phone offers **Disable adb authorization timeout**, enabling it prevents a trusted computer's authorization from expiring.
+Use that setting only on a personal phone paired with a trusted computer; paired computers can be removed from the Wireless debugging screen.
+
 ## Install and copy Gothic II using USB
 
 Enable Developer options and USB debugging on the phone, connect it, approve the debugging prompt, and confirm that ADB sees it:
