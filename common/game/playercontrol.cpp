@@ -1,6 +1,7 @@
 #include "playercontrol.h"
 
 #include <cmath>
+#include <Tempest/Application>
 
 #include "world/objects/npc.h"
 #include "world/objects/item.h"
@@ -384,12 +385,24 @@ void PlayerControl::controllerCombat(int direction,bool pressed,bool cancel,uint
     }
   if(cancel) {
     actrl[direction]=false;
-    if(direction==ActForward) controllerReleaseAttack=false;
+    if(direction==ActForward) {
+      controllerReleaseAttack=false;
+      controllerEmptyAttack.cancel();
+      }
     if(direction==ActBack) controllerBlockPending=false;
     return;
     }
   if(!pressed) {
     // Keep short attack and parry taps until the simulation has consumed them.
+    if(direction==ActForward && controllerEmptyAttack.active()) {
+      const bool tap=controllerEmptyAttack.release(Tempest::Application::tickCount());
+      auto pl=Gothic::inst().player();
+      if(tap && pl!=nullptr && !pl->isDown() && pl->interactive()==nullptr && !pl->isAiBusy()) {
+        const auto ws=pl->weaponState();
+        if(ws==WeaponState::Fist || ws==WeaponState::W1H || ws==WeaponState::W2H)
+          actrl[ActForward]=true;
+        }
+      }
     if(direction==ActForward) controllerReleaseAttack=true;
     return;
     }
@@ -399,6 +412,14 @@ void PlayerControl::controllerCombat(int direction,bool pressed,bool cancel,uint
   if(ws==WeaponState::NoWeapon) return;
   if(direction==ActKill && (pl->target()==nullptr || !pl->canFinish(*pl->target()))) return;
   if(ws==WeaponState::Fist && (direction==ActLeft || direction==ActRight)) return;
+  if(direction==ActForward && (ws==WeaponState::Fist || ws==WeaponState::W1H || ws==WeaponState::W2H) &&
+     currentFocus.npc==nullptr) {
+    // An empty-target press becomes a swing only on a short release, never on a long hold.
+    controllerEmptyAttack.begin(Tempest::Application::tickCount(),holdMs);
+    actrl[ActForward]=false;
+    controllerReleaseAttack=false;
+    return;
+    }
   if(direction==ActForward && (ws==WeaponState::W1H || ws==WeaponState::W2H) &&
      pl->target()!=nullptr && pl->canFinish(*pl->target())) {
     // Only a press begun over a finishable NPC can become a finishing blow.
@@ -719,6 +740,7 @@ void PlayerControl::clearInput() {
   controllerKeyReleases.fill(false);
   controllerReleaseAttack=false;
   controllerBlockPending=false;
+  controllerEmptyAttack.cancel();
   pendingEquipment=size_t(-1);
   if(controllerWalkApplied) {
     if(auto pl=Gothic::inst().player())

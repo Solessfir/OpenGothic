@@ -2,6 +2,7 @@
 
 #include "world/focus.h"
 #include "utils/keycodec.h"
+#include "utils/attacktap.h"
 #include "constants.h"
 
 #include <array>
@@ -170,6 +171,7 @@ class PlayerControl final {
     bool           controllerDirectional=false;
     bool           controllerReleaseAttack=false;
     bool           controllerBlockPending=false;
+    AttackTap      controllerEmptyAttack;
     bool           controllerWalkApplied=false;
     bool           controllerSwimming=false;
     bool           swimJumpHeld=false;

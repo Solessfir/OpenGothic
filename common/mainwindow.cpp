@@ -545,6 +545,15 @@ void MainWindow::onTouchCommand(TouchInput::Command command, bool pressed) {
     touchHeldAction.reset();
     return;
     }
+  if(command==TouchInput::Command::Accept && !uiActive) {
+    // A suppressed hold must not release an action owned by another input device.
+    if(!pressed) return;
+    const auto pl=Gothic::inst().player();
+    const auto ws=pl!=nullptr ? pl->weaponState() : WeaponState::NoWeapon;
+    if(!player.isClassicCombat() && (ws==WeaponState::Fist || ws==WeaponState::W1H || ws==WeaponState::W2H) &&
+       player.focus().npc==nullptr)
+      return;
+    }
   // Swimming uses analog movement and never turns stick directions into combat keys.
   if(auto pl=Gothic::inst().player(); !uiActive && command<=TouchInput::Command::Right &&
      pl!=nullptr && (pl->isSwim() || pl->isDive()))

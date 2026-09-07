@@ -129,6 +129,9 @@ The narrow downward block cone described in the touch controls applies to G1 tou
 Finishing uses the normal `AttackForward` binding and `[Controller] HoldMs` (400 ms by default).
 Begin the hold while focusing a knocked-out NPC with a one-handed or two-handed melee weapon drawn.
 Releasing early or losing that target cancels it. Attacks against standing enemies remain immediate and cannot become an automatic finisher when the enemy falls.
+With no focused NPC, a melee `AttackForward` press instead waits for release: release before `HoldMs` to swing, or hold longer to do nothing.
+The same no-target tap/hold distinction applies to G2 touch ACTION, using its existing touch hold recognition.
+This does not change classic touch ACTION-plus-direction attacks, ranged controls, spell charging or desktop keyboard/mouse input.
 `Finish=None` is now the default in both melee sections; existing files with `Finish=LT+RT` keep that optional extra shortcut until changed to `None`.
 
 ## Swimming

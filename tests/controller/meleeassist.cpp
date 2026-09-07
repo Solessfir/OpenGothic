@@ -1,4 +1,5 @@
 #include "../../common/utils/meleeassist.h"
+#include "../../common/utils/attacktap.h"
 
 #include <iostream>
 #include <limits>
@@ -10,6 +11,20 @@ void check(bool ok, const char* message) {
 
 int main() {
   try {
+    AttackTap tap;
+    check(!tap.release(0),"Release without a press cannot swing");
+    tap.begin(100,400);
+    check(tap.active() && tap.release(150),"An empty-target short press swings on release");
+    check(!tap.active() && !tap.release(160),"A tap can be consumed only once");
+    tap.begin(200,400);
+    check(!tap.release(600),"Reaching the hold threshold cancels the empty-target swing");
+    tap.begin(1000,400);
+    check(!tap.release(5000),"A long empty-target hold never becomes a release attack");
+    tap.begin(6000,400);
+    tap.cancel();
+    check(!tap.release(6010),"Context cancellation cannot leave a delayed swing");
+    tap.begin(7000,400);
+    check(!tap.release(6999),"A backwards clock cannot become a tap");
     using MeleeAssist::facing;
     check(facing(0,45,150,90,300)==45,"An eligible off-center target receives the attack");
     check(facing(0,-45,150,90,300)==-45,"Assistance works on either side");

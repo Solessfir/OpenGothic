@@ -300,6 +300,8 @@ Small downward deviations during side attacks no longer block. Forward and side 
 An active block has a small release margin (55% depth and a slightly wider cone) to avoid flickering at the boundary.
 To finish a knocked-out NPC with a one-handed or two-handed melee weapon, focus them and hold ACTION, then push forward from neutral.
 With G2 controls, press ACTION instead; fists cannot perform the finishing move.
+With G2 touch melee controls and no focused NPC, a short ACTION tap swings on release; holding it does nothing, including on release.
+Classic ACTION-plus-direction attacks, interaction with sheathed weapons, bows and spell casting keep their existing controls.
 Without a weapon, ACTION is interaction; menus use the same zone to confirm.
 With Gothic 2 controls (`useGothic1Controls=0`), the bottom-right zone directly uses/attacks.
 With fists or a melee weapon drawn, a separate Block hit area is enabled to the left of Draw/Sheathe, above Use/Attack.
