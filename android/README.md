@@ -128,7 +128,7 @@ notepad '.\SystemPack-android.ini'
 & $adb push '.\SystemPack-android.ini' '/sdcard/Android/data/org.opengothic.app/files/Gothic2/System/SystemPack.ini'
 ```
 
-OpenGothic uses invisible virtual touchscreen controls when no physical gamepad is active. Connecting a Bluetooth or USB gamepad disables these virtual zones and switches movement to the physical controller, but ordinary touch-as-mouse/UI input can still work.
+OpenGothic uses invisible virtual touchscreen controls when no physical gamepad is active. Connecting a Bluetooth or USB gamepad disables these virtual zones and switches movement to the physical controller. Gameplay touches are consumed instead of becoming mouse clicks or full-screen camera movement; the Android keyboard remains available for text entry.
 
 The left half of the screen is a dynamic movement stick. Touch anywhere on that half to place its center, then drag relative to that point. The middle-right area, from 50% to 84% of the screen width, controls the camera. These areas support simultaneous touches, so the player can move and look at the same time. After 800 ms without manual camera input, moving forward gently recenters the camera behind the player. Gothic's existing focus system supplies interaction targeting and combat auto-rotation.
 
@@ -155,7 +155,7 @@ For the temporary layout/debug overlay, enable `[DEBUG] touchControls=1` in the 
 It draws Gothic-colored zone boundaries, action labels, pressed-button highlights and live finger anchors/trails.
 The movement stick's outer square shows full axis travel; the inner square marks the arrow-key activation threshold.
 Disable it with `touchControls=0`; it is off by default.
-With an active gamepad, the overlay marks the virtual zones inactive and explains that touches pass through to normal mouse/UI handling.
+With an active gamepad, the overlay marks the virtual zones inactive and explains that gameplay touches are ignored while Android text input remains available.
 
 With classic controls (`[GAME] useGothic1Controls=1`), draw a melee weapon, hold the bottom-right ACTION zone, then move the left stick from neutral: up attacks forward, down blocks, and left/right request side attacks.
 Return the stick to neutral between directional presses; holding ACTION alone is not a directional strike.
@@ -175,6 +175,12 @@ While target-locked, it instead uses the gamepad's target-relative movement: sid
 The same movement dead zone, response curve and dominant-axis filtering apply, without switching walk animations during sidesteps.
 G1's held ACTION plus direction combat still takes priority over movement; release ACTION to resume locked strafing.
 The equipment wheel currently requires a gamepad (hold D-pad Up); holding touch ACTION or Inventory does not open it.
+
+Swimming currently retains Gothic's keyboard-style controls: Jump starts a dive while swimming at the surface.
+Underwater, movement up/down pitches the swimmer down/up, while Jump requests forward swimming.
+To surface, pitch upward with movement down, return movement to neutral, then hold Jump until reaching the surface.
+Use the touch Jump zone or the gamepad's Jump binding (X by default with weapons sheathed).
+Camera look currently changes only the view, not the swimmer's direction; modern camera-directed swimming is not implemented.
 
 With a weapon drawn, start in Use/Attack and quickly drag at least 1/18 of the short screen dimension (60 pixels on a 1080-pixel-high viewport) to toggle target lock.
 The same gesture unlocks an already locked target, and each gesture toggles only once.

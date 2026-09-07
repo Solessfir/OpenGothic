@@ -44,7 +44,7 @@ void TouchInput::paintEvent(Tempest::PaintEvent& e) {
   label(pad,4*line,lookEnd-2*pad,!touchEnabled ? "Gamepad active: virtual touch zones inactive" :
         (uiActive ? "Touch debug: menu" : (classicCombat ? "Touch debug: Gothic 1 controls" : "Touch debug: Gothic 2 controls")));
   if(!touchEnabled)
-    label(pad,6*line,lookEnd-2*pad,"Touch still reaches normal mouse / UI input");
+    label(pad,6*line,lookEnd-2*pad,"Gameplay touches ignored; Android keyboard still available");
   else if(!uiActive && classicCombat) {
     label(pad,6*line,lookEnd-2*pad,"Hold ACTION, then move stick: up = attack, down = block");
     label(pad,7*line,lookEnd-2*pad,"Left / right = side attacks with melee weapon drawn");
@@ -97,7 +97,9 @@ void TouchInput::paintEvent(Tempest::PaintEvent& e) {
 
 void TouchInput::mouseDownEvent(Tempest::MouseEvent& e) {
   if(!touchEnabled) {
-    e.ignore();
+    // Consume gameplay touches instead of forwarding them as desktop mouse input.
+    // Android's text editor receives its own input outside this widget.
+    e.accept();
     return;
     }
 

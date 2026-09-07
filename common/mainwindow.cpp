@@ -375,6 +375,12 @@ void MainWindow::processMouse(MouseEvent& event, bool enable) {
   }
 
 void MainWindow::tickMouse(uint64_t dt) {
+#if defined(__ANDROID__)
+  if(controllerConnected) {
+    dMouse = Point();
+    return;
+    }
+#endif
   auto camera = Gothic::inst().camera();
   if(dialogs.hasContent() || Gothic::inst().isPause() || camera==nullptr || camera->isCutscene()) {
     dMouse = Point();
