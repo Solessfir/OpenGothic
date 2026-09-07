@@ -159,6 +159,10 @@ OpenGothic also writes `log.txt` beside the `Gothic2` directory. Pull it with:
 
 ## Controls and current limitations
 
+At startup, the main menu highlights Load Game when a numbered OpenGothic save file exists, including a quicksave.
+Without saves it keeps the script's normal default (New Game in Gothic II).
+This only changes the initial highlight, not automatic loading; in-game menu defaults remain unchanged.
+
 Android supports an optional text-only FPS counter in the top-left corner using Gothic's normal name-label font and its original warm text color, with screen-scaled padding. It is off by default; set `[GAME] showFps=1` in the writable `Gothic.ini` to enable it. It measures rendered frame intervals and requests a text refresh every 250 ms while rendering, including in menus. Video playback hides the counter.
 
 See [Android configuration](CONFIGURATION.md) for the writable INI location, enabling quicksave/load and potion shortcuts, and which original Gothic settings affect this port.
