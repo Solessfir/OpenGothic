@@ -3,12 +3,21 @@ plugins {
 }
 
 // Incrementally rewriting a multi-gigabyte APK can overflow the packager's offsets.
-// Repackage debug builds in full while preserving native compilation caches.
+// Repackage APKs in full while preserving native compilation caches.
 // This also removes orphaned private bytes when returning to an asset-free APK.
 tasks.configureEach {
-    if (name == 'packageDebug') {
+    if (name == 'packageDebug' || name == 'packageRelease') {
         outputs.upToDateWhen { false }
     }
+}
+
+def distributionKeystore = providers.environmentVariable('OPENGOTHIC_KEYSTORE').orNull
+def distributionAlias = providers.environmentVariable('OPENGOTHIC_KEY_ALIAS').orNull
+def distributionStorePassword = providers.environmentVariable('OPENGOTHIC_STORE_PASSWORD').orNull
+def distributionKeyPassword = providers.environmentVariable('OPENGOTHIC_KEY_PASSWORD').orNull
+if ([distributionKeystore, distributionAlias, distributionStorePassword, distributionKeyPassword].any { it != null } &&
+    [distributionKeystore, distributionAlias, distributionStorePassword, distributionKeyPassword].any { !it }) {
+    throw new GradleException('Set all four OPENGOTHIC signing environment variables, or leave all unset for local signing.')
 }
 
 android {
@@ -42,6 +51,17 @@ android {
         }
     }
 
+    signingConfigs {
+        if (distributionKeystore != null) {
+            distribution {
+                storeFile file(distributionKeystore)
+                keyAlias distributionAlias
+                storePassword distributionStorePassword
+                keyPassword distributionKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         debug {
             debuggable true
@@ -50,8 +70,14 @@ android {
             externalNativeBuild.cmake.arguments '-DCMAKE_BUILD_TYPE=RelWithDebInfo'
         }
         release {
-            minifyEnabled false
-            ndk.debugSymbolLevel 'SYMBOL_TABLE'
+            debuggable false
+            jniDebuggable false
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            // Reuse the local key for in-place testing unless a distribution key is supplied.
+            signingConfig distributionKeystore != null ? signingConfigs.distribution : signingConfigs.debug
+            ndk.debugSymbolLevel 'FULL'
             externalNativeBuild.cmake.arguments '-DCMAKE_BUILD_TYPE=Release'
         }
     }

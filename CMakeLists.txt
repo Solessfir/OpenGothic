@@ -11,10 +11,21 @@ set(CMAKE_RELWITHDEBINFO_POSTFIX "")
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_SKIP_RPATH ON)
 
+if(ANDROID AND CMAKE_BUILD_TYPE STREQUAL "Release")
+  # The pinned NDK supports ThinLTO through Clang, llvm-ar and LLD.
+  # CMake 3.22's IPO check incorrectly selects the removed gold linker with this toolchain.
+  add_compile_options("$<$<COMPILE_LANGUAGE:C,CXX>:-flto=thin>")
+  add_link_options(-flto=thin)
+  # Keep symbols in build outputs for crash analysis; Gradle strips the APK's native library.
+  set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -DNDEBUG -g")
+  set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -DNDEBUG -g")
+endif()
+
 add_library(${PROJECT_NAME} STATIC)
 if(ANDROID)
   add_library(Gothic2Notr SHARED)
   set_target_properties(Gothic2Notr PROPERTIES OUTPUT_NAME "opengothic")
+  target_link_options(Gothic2Notr PRIVATE "$<$<CONFIG:Release>:-Wl,--thinlto-jobs=4>")
 else()
   add_executable(Gothic2Notr)
   add_executable(Spacer)
