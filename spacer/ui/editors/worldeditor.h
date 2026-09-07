@@ -31,6 +31,7 @@ class WorldEditor: public BaseEditor,
     void keyUpEvent  (Tempest::KeyEvent& e) override;
 
     void mouseDownEvent(Tempest::MouseEvent& e) override;
+    void mouseUpEvent  (Tempest::MouseEvent& e) override;
     void mouseDragEvent(Tempest::MouseEvent& e) override;
 
     void moveDropOver(DropOverEvent& ev) override;
@@ -40,18 +41,32 @@ class WorldEditor: public BaseEditor,
     void resizeEvent(Tempest::SizeEvent& e) override;
 
   private:
+    struct Gizmo;
+
+    enum class State : uint32_t {
+      T_Idle  = 0,
+      T_WASD  = 1,
+      T_DragX = 2,
+      T_DragY = 3,
+      T_DragZ = 4,
+      };
+
     void load(std::string_view wname);
     void update3d(Tempest::Encoder<Tempest::CommandBuffer>& cmd, uint8_t cmdId);
     void processKeyboard(Tempest::KeyEvent& e);
     void tickCamera(uint64_t dt);
     void tick();
 
+    int  gizmoQuery(Tempest::Point mpos) const;
     auto rayQuery(Tempest::Point mpos) -> const WorldEdit::Vob*;
+    void dragVob(Tempest::Point mpos, const WorldEdit::Vob& vob, State st);
     void selectVob(const WorldEdit::Vob& vob);
+    bool setVobPosition(const WorldEdit::Vob* selVob, WorldEdit::Vob& root, Tempest::Vec3 pos);
 
     Tempest::Timer             timer;
     Camera                     camera;
     std::unique_ptr<WorldEdit> level;
+    State                      state = State::T_Idle;
 
     Tempest::Fence         fence   [Resources::MaxFramesInFlight];
     Tempest::CommandBuffer commands[Resources::MaxFramesInFlight];
@@ -63,6 +78,9 @@ class WorldEditor: public BaseEditor,
     bool                   ctrl[KeyCodec::Last] = {};
     Tempest::Point         mpos = {};
 
+    const WorldEdit::Vob*  selVob = nullptr;
     VobTreeDelegate*       treeDelegate = nullptr;
     PropertyDelegate*      propertyDelegate = nullptr;
+
+    MeshObjects::Mesh      selectedVobBevel;
   };

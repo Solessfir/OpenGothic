@@ -10,9 +10,24 @@
 #include "physics/dynamicworld.h"
 #include "physics/physicmesh.h"
 #include "utils/workers.h"
+#include "assets.h"
 #include "resources.h"
 
 using namespace Tempest;
+
+void WorldEdit::Vob::setPosition(const Tempest::Vec3& v) {
+  auto& vob = *orig;
+  vob.position = zenkit::Vec3(v.x, v.y, v.z);
+
+  auto pos = Tempest::Matrix4x4(vob.rotation.columns[0].x, vob.rotation.columns[1].x, vob.rotation.columns[2].x, vob.position.x,
+                                vob.rotation.columns[0].y, vob.rotation.columns[1].y, vob.rotation.columns[2].y, vob.position.y,
+                                vob.rotation.columns[0].z, vob.rotation.columns[1].z, vob.rotation.columns[2].z, vob.position.z,
+                                0, 0, 0, 1);
+  phys.setObjMatrix(pos);
+  mesh.setObjMatrix(pos);
+  light.setPosition(v);
+  }
+
 
 WorldEdit::WorldEdit(std::string_view wname) {
   const auto* entry = Resources::vdfsIndex().find(wname);
@@ -162,7 +177,7 @@ void WorldEdit::rayQueryLight(Tempest::Point mpos, Tempest::Size wsize, const Te
     ndc = (ndc*0.5 + 0.5);
     ndc *= Vec3(wsize.w, wsize.h, 1);
 
-    const int spriteSize = 32;
+    const int spriteSize = Assets::inst().im.pointLight.w();
     if(ndc.z>0 && Vec2(ndc.x - mpos.x, ndc.y - mpos.y).quadLength() < spriteSize*spriteSize) {
       auto dir     = (dst - src);
       auto forward = Vec3(vp[0][2], vp[1][2], vp[2][2]);

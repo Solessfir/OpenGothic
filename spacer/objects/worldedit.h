@@ -26,10 +26,13 @@ class WorldEdit {
 
         const zenkit::VirtualObject* get() const { return orig.get(); }
         const zenkit::VirtualObject& operator *  () const { return *orig; }
-        const zenkit::VirtualObject& operator -> () const { return *orig; }
+        const zenkit::VirtualObject* operator -> () const { return orig.get(); }
 
         size_t size() const { return child.size(); }
-        const Vob& operator[](size_t i) const { return child[i]; }
+        auto& operator[](size_t i) const { return child[i]; }
+        auto& operator[](size_t i)       { return child[i]; }
+
+        void setPosition(const Tempest::Vec3& pos);
 
       private:
         std::vector<Vob>                       child;
@@ -43,6 +46,7 @@ class WorldEdit {
       };
 
     const Vob& root() const { return rootVob; }
+    Vob&       root() { return rootVob; }
 
     Vob* rayQuery(const Tempest::Vec3 s, const Tempest::Vec3 e);
     Vob* rayQuery(Tempest::Matrix4x4 view, Tempest::Matrix4x4 vp, Tempest::Point mpos, Tempest::Size wsize);
