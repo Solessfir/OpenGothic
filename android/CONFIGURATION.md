@@ -31,6 +31,44 @@ Edit the INI with the game stopped; no APK rebuild is required.
 The Lanczos optimization applies only when reduced-resolution rendering is selected.
 The 50% measurements in the performance report are diagnostic results, not a recommended or packaged default.
 
+## Automatic HDR display output
+
+Android now defaults to automatic HDR detection:
+
+```ini
+[VIDEO]
+displayMode=auto
+```
+
+Use lowercase `sdr` to force the original SDR output, or `hdr` to explicitly request HDR when supported.
+Missing or unrecognized values behave as `auto`; `hdr` never forces an unsupported format.
+Edit the writable INI with the game stopped and restart after changing modes.
+Desktop output remains SDR; this first HDR output implementation is Android/Vulkan-specific.
+
+Automatic mode requires both a display advertising HDR10/HDR10+ and a Vulkan surface exposing a supported 10-bit Rec.2020/ST 2084 (PQ) format.
+It also requires the floating-point intermediate render target used by OpenGothic.
+HLG-only and scRGB-only output paths are not implemented and fall back to SDR.
+Tempest rechecks display support when the surface is recreated or the display's reported HDR capability changes.
+If the HDR swapchain cannot be created, it attempts SDR instead; device-loss errors are not hidden as capability failures.
+The engine requests static HDR metadata when the driver supports it; it does not generate HDR10+ dynamic metadata.
+
+The display's reported peak luminance is used with a conservative 1000-nit upper limit; missing peak information uses 1000 nits.
+The reference white for UI/video is 200 nits, reduced if the reported peak is lower.
+These are rendering targets, not measured screen brightness or a guarantee of sustained panel luminance.
+The HDR tone curve preserves the existing curve through unit scene intensity and smoothly extends brighter highlights toward the reference peak.
+Fog density, ambient/shadow lighting and the user's brightness/contrast/gamma settings are not adjusted to lift shadows.
+SDR composition remains the original path, and save thumbnails remain SDR.
+
+HDR uses a full-resolution RGBA16F intermediate for composition, then converts to Rec.2020/PQ with final 10-bit dithering.
+Menus, subtitles, inventory models and video are composed before that conversion rather than being drawn as SDR pixels directly into a PQ surface.
+This adds memory and GPU work; use `sdr` if HDR's visual benefit is not worth its cost on your device.
+`HDR output` measures the final conversion pass, not all additional bandwidth/compositing overhead.
+
+Look for `Display output = HDR10 PQ` or `Display output = SDR` in logcat/native logs.
+On the tested S24, Android's compositor confirms `RGBA_1010102` and `BT2020_PQ` for HDR, versus `RGBA_8888` and `V0_SRGB` for SDR.
+Screenshots may be tone-mapped by Android and are not a calibrated representation of the physical HDR display.
+External-display transitions, unsupported HDR devices and prolonged HDR power/thermal behavior still need hardware coverage.
+
 ## Optional half-resolution ambient occlusion
 
 Android defaults to half-resolution SSAO, independently of scene resolution.

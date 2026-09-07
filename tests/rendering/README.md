@@ -1,4 +1,14 @@
-# Lanczos upscaler regression tests
+# Rendering regression tests
+
+## HDR output checks
+
+The optional Vulkan suite also builds `hdr-output-tests` and runs it as `hdr-vulkan-output`.
+It executes the production HDR/PQ helpers over 4,097 intensity samples.
+Checks cover the unchanged default SDR tone curve, matching darker HDR values, monotonic bounded highlights, Rec.709-to-Rec.2020 conversion, ST 2084 encoding and 200-nit reference white.
+GPU values are compared with double-precision CPU references, and Vulkan validation errors fail the test.
+This is a shader-math test, not a substitute for checking HDR surface negotiation, UI/video rendering, display calibration or lifecycle behavior on real hardware.
+
+## Lanczos checks
 
 The CPU test compares the old 21-tap footprint with the paired 12-read formulation using ideal double-precision bilinear sampling.
 It covers clamped borders, fractional positions, odd image dimensions, and constant, impulse, checkerboard and HDR-like inputs.

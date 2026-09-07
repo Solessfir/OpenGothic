@@ -866,3 +866,41 @@ Only frame cadence and the overlapping clock/thermal observations were newly mea
 The earlier 47-FPS observation has no matched trace, camera/time or power-state reference; this run therefore does not establish a fog-related improvement or explain that earlier dip.
 Artifacts are in `build/performance/fog-half/second-scene/`, with the stale CSV clearly named `previous-scene-gpu-profile.csv`.
 The game was left running and no settings, saves or assets were changed.
+
+### Automatic Android HDR output, 2026-09-07
+
+Commit `e0c78d2d` adds automatic HDR10 output with an SDR override and capability-based fallback.
+See [HDR configuration](CONFIGURATION.md#automatic-hdr-display-output) for modes and limits.
+Display/surface negotiation and optional static metadata live in Tempest; OpenGothic supplies floating-point composition, highlight mapping and final Rec.2020/PQ encoding.
+Desktop output remains SDR, and no ambient or shadow lighting adjustment was made.
+
+The final Android ARM64 native library, APK and lint checks passed, as did the Windows Release build and all thirteen regression tests.
+The new GPU test checks HDR/SDR shader math against double-precision references; it does not measure physical display accuracy.
+APK signature, ARM64-only manifest inspection and 16 KiB ZIP alignment checks passed.
+APK: `android/app/build/outputs/apk/debug/app-debug.apk`.
+SHA-256: `C76FD4F3C66EC5C918B17D77F1554D20ADA3E9511C7F841E58000E80793C8EE0`.
+Upgrade installation succeeded on the S24 and the installed APK hash matched.
+
+Final startup logs report `HDR static metadata = enabled` and `Display output = HDR10 PQ`, Vulkan format 64, color space 1000104008 and a reported reference peak of 450 nits.
+SurfaceFlinger confirms the game uses `RGBA_1010102`, `BT2020_PQ` and HDR metadata types 3.
+The final screenshot shows the loaded waterfall scene and a 60 FPS counter; that counter is not a sustained measurement.
+The writable INI is byte-identical to its pre-HDR backup, leaving automatic HDR active while preserving the user's controls and performance settings.
+
+An earlier HDR candidate without static metadata also passed loaded-scene, background/resume and forced-SDR checks.
+With `displayMode=sdr`, the compositor reported `RGBA_8888` and `V0_SRGB`; removing the override restored HDR.
+The first development startup crashed inside the Samsung Vulkan driver because menu rendering reached the asynchronous HDR pipeline before compilation completed.
+Waiting for compilation before HDR composition fixed that startup race; the subsequent startup, mode and resume checks did not reproduce it.
+No fatal-signal, fatal-exception, Vulkan-error or abort-message matches appeared in the final process logcat.
+
+The earlier metadata-free HDR candidate's bounded 600-frame capture measured the final `HDR output` pass at 0.70 ms average and 1.09 ms maximum.
+Total GPU marker span averaged 13.470 ms.
+This isolates the final conversion pass, not all HDR overhead: full-resolution FP16 composition adds about 19.3 MiB at 2340x1080 and additional bandwidth.
+There was no matched SDR/HDR clock-controlled comparison, so these measurements do not establish the total cost or power impact.
+Its later 30-second trace averaged 59.96 presentation FPS over 1,793 intervals: mean/median 16.68/16.65 ms, p95/p99 19.01/20.33 ms and worst 26.25 ms.
+Skin temperature rose from 38.2 to 40.9 C, with thermal status changing from 0 to 1 and sampled GPU clocks mostly 700-800 MHz under an 800 MHz ceiling.
+The checked trace had no nonzero capture-quality errors.
+These short measurements precede the final metadata addition and do not establish prolonged hot-state 60 FPS.
+
+Artifacts are retained locally in `build/performance/hdr-auto/`.
+Physical HDR appearance still needs user evaluation; Android screenshots may be tone-mapped.
+External-display transitions, unsupported-HDR hardware, detailed UI/video appearance and prolonged thermal behavior remain unverified.
