@@ -54,6 +54,7 @@ Ordinary A cannot pick up items with a weapon drawn.
 - Save/load menu: X requests deletion, A confirms, B cancels. Deletion has no undo.
 - Save-name entry uses the Android keyboard; press **Done**.
 - Equipment wheel: hold D-pad Up, select with the right stick, release Up to equip/draw. Center the stick or press B to cancel; LB/RB changes pages.
+- Up to eight items fit on one page. Larger collections use six items plus two page arrows, matching touch. Hold the stick over an arrow to turn a page; center it before selecting again.
 - Only owned, usable weapons and assigned spells appear in the wheel. The world keeps running while it is open.
 - Equipped items have a gold rim. Selecting a sheathed weapon draws it; selecting the weapon already in hand leaves it drawn.
 - After closing menus or reconnecting, release buttons and center sticks before moving.

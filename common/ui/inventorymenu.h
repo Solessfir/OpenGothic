@@ -61,7 +61,7 @@ class InventoryMenu : public Tempest::Widget {
     void  controllerAction(int action);
     void  openWheel(Npc& pl, WheelKind kind=WheelKind::Equipment);
     bool  isWheelOpen() const { return wheelActive; }
-    void  wheelMove(float x, float y);
+    void  wheelMove(float x, float y, uint64_t now);
     void  wheelPage(int direction);
     size_t wheelSelection() const;
     void  setWheelPageHint(std::string hint) { wheelPageHint=std::move(hint); }
@@ -127,6 +127,7 @@ class InventoryMenu : public Tempest::Widget {
     std::string               wheelPageHint;
     void                      drawWheel(Tempest::Painter& p, DrawPass pass);
     size_t                    wheelPageSize() const;
+    void                      selectWheelSector(int selected, uint64_t now);
     size_t                    wheelSectorCount() const;
     struct WheelLayout {
       Tempest::Point center;

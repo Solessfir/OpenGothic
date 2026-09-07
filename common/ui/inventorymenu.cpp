@@ -851,12 +851,13 @@ void InventoryMenu::openWheel(Npc& pl, WheelKind kind) {
   wheelActive=true; wheelPageId=0; wheelSelected=-1; wheelCentered=true;
   wheelKind=kind; wheelTouch=false;
   wheelHoverPage=0;
+  wheelPageArmed=true;
   wheelPageHint.clear();
   update();
   }
 
 size_t InventoryMenu::wheelPageSize() const {
-  return wheelTouch && wheelItems.size()>8 ? 6 : 8;
+  return wheelItems.size()>8 ? 6 : 8;
   }
 
 size_t InventoryMenu::wheelSectorCount() const {
@@ -897,6 +898,10 @@ void InventoryMenu::touchWheelMove(Point pos, uint64_t now) {
     update();
     return;
     }
+  selectWheelSector(selected,now);
+  }
+
+void InventoryMenu::selectWheelSector(int selected, uint64_t now) {
   if(wheelKind==WheelKind::Equipment && wheelPageSize()==6 && selected>=6) {
     wheelSelected=-1;
     const int direction=selected==6 ? -1 : 1;
@@ -923,11 +928,17 @@ void InventoryMenu::touchWheelMove(Point pos, uint64_t now) {
   update();
   }
 
-void InventoryMenu::wheelMove(float x,float y) {
-  if(x*x+y*y<0.25f) { wheelSelected=-1; wheelCentered=true; update(); return; }
-  if(!wheelCentered) return;
-  wheelSelected=RadialInput::sector(x,y,0.5f,std::numeric_limits<float>::max(),int(wheelSectorCount()));
-  update();
+void InventoryMenu::wheelMove(float x,float y,uint64_t now) {
+  if(!wheelActive || wheelTouch) return;
+  if(x*x+y*y<0.25f) {
+    wheelSelected=-1;
+    wheelCentered=true;
+    wheelHoverPage=0;
+    wheelPageArmed=true;
+    update();
+    return;
+    }
+  selectWheelSector(RadialInput::sector(x,y,0.5f,std::numeric_limits<float>::max(),int(wheelSectorCount())),now);
   }
 
 void InventoryMenu::wheelPage(int direction) {
@@ -935,12 +946,15 @@ void InventoryMenu::wheelPage(int direction) {
   const auto pages=std::max<size_t>(1,(wheelItems.size()+count-1)/count);
   wheelPageId=(wheelPageId+pages+(direction<0?pages-1:1))%pages;
   wheelSelected=-1; wheelCentered=false;
+  wheelHoverPage=0;
+  wheelPageArmed=false;
   update();
   }
 
 size_t InventoryMenu::wheelSelection() const {
   if(wheelKind!=WheelKind::Equipment) return wheelSelected>=0 && size_t(wheelSelected)<wheelSectorCount() ? size_t(wheelSelected) : size_t(-1);
-  if(wheelSelected<0 || wheelPageId*wheelPageSize()+size_t(wheelSelected)>=wheelItems.size()) return size_t(-1);
+  if(wheelSelected<0 || size_t(wheelSelected)>=wheelPageSize() ||
+     wheelPageId*wheelPageSize()+size_t(wheelSelected)>=wheelItems.size()) return size_t(-1);
   return wheelItems[wheelPageId*wheelPageSize()+size_t(wheelSelected)];
   }
 void InventoryMenu::drawWheel(Painter& p,DrawPass pass) {

@@ -342,7 +342,7 @@ void MainWindow::tickGamepad() {
   const auto left=deadZone(gp.leftStickX,gp.leftStickY), right=deadZone(gp.rightStickX,gp.rightStickY);
   if(inventory.isWheelOpen()) {
     const auto stick=options.swapWheel?left:right;
-    inventory.wheelMove(stick.x,stick.y);
+    inventory.wheelMove(stick.x,stick.y,now);
     }
   const auto context=controllerContext();
   if(context==Context::UI || context==Context::Inventory || context==Context::EquipmentWheel || context==Context::Interaction ||
