@@ -33,6 +33,7 @@ class GameMenu : public Tempest::Widget {
     void requestDeleteSave(std::string_view hint);
     bool canRequestDeleteSave() const;
     bool isDeletingSave() const { return pendingDelete!=nullptr; }
+    bool closeNestedView();
 
     KeyCodec::Action keyClose() const { return kClose; }
 
@@ -48,8 +49,6 @@ class GameMenu : public Tempest::Widget {
       Log       = uint8_t(5),
       };
 
-    struct ListContentDialog;
-    struct ListViewDialog;
     struct KeyEditDialog;
     struct SavNameDialog;
     struct Item {
@@ -79,6 +78,10 @@ class GameMenu : public Tempest::Widget {
     Item                                  hItems[zenkit::IMenu::item_count];
     Item*                                 ctrlInput = nullptr;
     Item*                                 pendingDelete = nullptr;
+    Item*                                 journalList = nullptr;
+    Item*                                 journalContent = nullptr;
+    uint32_t                              journalCategory = 0;
+    bool                                  journalContentWasVisible = false;
     std::string                           deleteName;
     std::string                           deleteHint;
     std::string                           deleteError;
@@ -92,6 +95,8 @@ class GameMenu : public Tempest::Widget {
     void                                  drawSlider(Tempest::Painter& p, Item& it, int x, int y, int w, int h);
     void                                  drawQuestList(Tempest::Painter& p, Item& it, int x, int y, int w, int h,
                                                         const QuestLog& log, QuestStat st);
+    void                                  showQuest();
+    void                                  journalInput(KeyCodec::Action key);
 
     Item*                                 selectedItem();
     Item*                                 selectedNextItem(Item* cur);

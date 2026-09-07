@@ -138,8 +138,7 @@ bool MenuRoot::hasVersionLine() const {
 void MenuRoot::mouseDownEvent(MouseEvent& event) {
   if(current!=nullptr) {
     if(event.button==Event::ButtonRight) {
-      if(current->isDeletingSave()) current->onKeyboard(KeyCodec::Escape);
-      else popMenu();
+      if(!current->closeNestedView()) popMenu();
       } else {
       // A stray screen tap must not confirm permanent deletion.
       if(!current->isDeletingSave())
@@ -218,8 +217,7 @@ void MenuRoot::keyDownEvent(KeyEvent &e) {
     else if(e.key==Event::K_Delete)
       current->onKeyboard(KeyCodec::K_Del);
     else if(e.key==Event::K_ESCAPE || keyCodec.tr(e)==current->keyClose()) {
-      if(current->isDeletingSave()) current->onKeyboard(KeyCodec::Escape);
-      else popMenu();
+      if(!current->closeNestedView()) popMenu();
       }
     }
   }

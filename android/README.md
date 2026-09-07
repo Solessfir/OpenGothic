@@ -231,6 +231,8 @@ This lower-right extension takes priority over camera input; the remaining middl
 Dragging the dynamic movement stick also emits arrow-key navigation for menus and dialog choices. This avoids precision tapping on the original desktop-sized UI.
 While inventory or another UI is open, touch navigation does not feed movement or camera input into gameplay.
 Release or center the movement stick after closing a UI before moving again; a held selection direction does not become character movement.
+In the journal, Accept opens a category or quest, and Back returns one level: description, quest list, categories, then gameplay.
+Use up/down on the touch movement area to select quests or scroll their descriptions.
 
 Choosing an empty save slot opens the Android keyboard. Enter a save name and press the keyboard's Done button to accept it and write the save. The keyboard stays hidden during normal gameplay and menu navigation.
 

@@ -27,169 +27,6 @@ using namespace Tempest;
 
 static const float scriptDiv=8192.0f;
 
-struct GameMenu::ListContentDialog : Dialog {
-  ListContentDialog(Item& textView):textView(textView) {
-    setFocusPolicy(ClickFocus);
-    setCursorShape(CursorShape::Hidden);
-    setFocus(true);
-    }
-
-  void mouseDownEvent(MouseEvent& e) override {
-    if(e.button==Event::ButtonRight) {
-      close();
-      }
-    }
-
-  void mouseWheelEvent(Tempest::MouseEvent& event) override {
-    onMove(-event.delta);
-    }
-
-  void keyDownEvent(KeyEvent &e) override { e.accept(); }
-  void keyUpEvent  (KeyEvent &e) override {
-    if(e.key==Event::K_ESCAPE) {
-      close();
-      return;
-      }
-    if(e.key==Event::K_W || e.key==Event::K_Up) {
-      onMove(-1);
-      }
-    if(e.key==Event::K_S || e.key==Event::K_Down) {
-      onMove(+1);
-      }
-    }
-
-  void onMove(int dy) {
-    if(dy<0) {
-      if(textView.scroll>0)
-        textView.scroll--;
-      }
-    if(dy>0) {
-      // will be clamped at draw
-      textView.scroll++;
-      }
-    }
-
-  void paintEvent (PaintEvent&) override {}
-  void paintShadow(PaintEvent&) override {}
-
-  Item& textView;
-  };
-
-struct GameMenu::ListViewDialog : Dialog {
-  ListViewDialog(GameMenu& owner, Item& list):owner(owner),list(list){
-    setFocusPolicy(ClickFocus);
-    setCursorShape(CursorShape::Hidden);
-    setFocus(true);
-    status = toStatus(list.handle->user_string[0]);
-    }
-
-  void mouseDownEvent(MouseEvent& e) override {
-    if(e.button==Event::ButtonLeft) {
-      showQuest();
-      }
-    if(e.button==Event::ButtonRight) {
-      close();
-      }
-    }
-
-  void showQuest() {
-    auto  prev = owner.curItem;
-    auto* next = owner.selectedContentItem(&list);
-    auto* ql   = selectedQuest();
-    if(next==nullptr || ql==nullptr)
-      return;
-
-    auto vis = next->visible;
-    next->visible = true;
-
-    std::string text;
-    for(size_t i=0; i<ql->entry.size(); ++i) {
-      text += ql->entry[i];
-      if(i+1<ql->entry.size())
-        text+="\n---\n";
-      }
-    next->scroll          = 0;
-    next->handle->text[0] = text;
-
-    for(uint32_t i=0; i<zenkit::IMenu::item_count; ++i)
-      if(&owner.hItems[i]==next) {
-        owner.curItem = i;
-        break;
-        }
-
-    ListContentDialog dlg(*next);
-    dlg.resize(owner.owner.size());
-    dlg.exec();
-    next->visible = vis;
-    owner.curItem = prev;
-    }
-
-  void keyDownEvent(KeyEvent &e) override { e.accept(); }
-
-  void keyRepeatEvent(KeyEvent &e) override {
-    keyUpEvent(e);
-    }
-
-  void keyUpEvent  (KeyEvent &e) override {
-    if(e.key==Event::K_Return) {
-      showQuest();
-      return;
-      }
-    if(e.key==Event::K_ESCAPE) {
-      close();
-      return;
-      }
-    if(e.key==Event::K_W || e.key==Event::K_Up) {
-      onMove(-1);
-      }
-    if(e.key==Event::K_S || e.key==Event::K_Down) {
-      onMove(+1);
-      }
-    }
-
-  void mouseWheelEvent(Tempest::MouseEvent& event) override {
-    onMove(-event.delta);
-    }
-
-  void onMove(int dy) {
-    if(dy<0) {
-      if(list.value>0)
-        list.value--;
-      }
-    if(dy>0) {
-      const size_t num = numQuests();
-      if(list.value+1<int(num))
-        list.value++;
-      }
-    update();
-    }
-
-  void paintEvent (PaintEvent&) override {}
-  void paintShadow(PaintEvent&) override {}
-
-  size_t numQuests() const {
-    return size_t(GameMenu::numQuests(Gothic::inst().questLog(),status));
-    }
-
-  const QuestLog::Quest* selectedQuest() const {
-    int32_t num = 0;
-    if(auto ql=Gothic::inst().questLog()) {
-      for(size_t i=0; i<ql->questCount(); ++i) {
-        auto& quest = ql->quest(ql->questCount()-i-1);
-        if(!isCompatible(quest,status))
-          continue;
-        if(num==list.value)
-          return &quest;
-        ++num;
-        }
-      }
-    return nullptr;
-    }
-
-  GameMenu& owner;
-  Item&     list;
-  QuestStat status = QuestStat::Log;
-  };
 
 struct GameMenu::KeyEditDialog : Dialog {
   KeyEditDialog(){
@@ -339,6 +176,7 @@ GameMenu::~GameMenu() {
   }
 
 void GameMenu::resetVm(zenkit::DaedalusVm* inVm) {
+  while(closeNestedView()) {}
   vm = inVm;
   for(int i=0; i<zenkit::IMenu::item_count; ++i){
     hItems[i].handle = nullptr;
@@ -626,7 +464,79 @@ void GameMenu::resizeEvent(SizeEvent &) {
   onTick();
   }
 
+bool GameMenu::closeNestedView() {
+  if(pendingDelete!=nullptr) {
+    pendingDelete=nullptr;
+    }
+  else if(journalContent!=nullptr) {
+    journalContent->visible=journalContentWasVisible;
+    journalContent=nullptr;
+    curItem=uint32_t(journalList-hItems);
+    }
+  else if(journalList!=nullptr) {
+    journalList=nullptr;
+    curItem=journalCategory;
+    }
+  else {
+    return false;
+    }
+  update();
+  return true;
+  }
+
+void GameMenu::showQuest() {
+  auto* log=Gothic::inst().questLog();
+  auto* content=selectedContentItem(journalList);
+  if(log==nullptr || content==nullptr) return;
+  const auto status=toStatus(journalList->handle->user_string[0]);
+  int32_t selected=0;
+  for(size_t i=log->questCount();i>0;--i) {
+    const auto& quest=log->quest(i-1);
+    if(!isCompatible(quest,status)) continue;
+    if(selected++!=journalList->value) continue;
+    std::string text;
+    for(size_t entry=0;entry<quest.entry.size();++entry) {
+      if(entry>0) text+="\n---\n";
+      text+=quest.entry[entry];
+      }
+    journalContent=content;
+    journalContentWasVisible=content->visible;
+    content->visible=true;
+    content->scroll=0;
+    content->handle->text[0]=std::move(text);
+    curItem=uint32_t(content-hItems);
+    update();
+    return;
+    }
+  }
+
+void GameMenu::journalInput(KeyCodec::Action key) {
+  // Stay in the regular menu input path so touch and gamepad can reach every journal level.
+  if(key==KeyCodec::Escape) {
+    closeNestedView();
+    return;
+    }
+  if(key==KeyCodec::ActionGeneric && journalContent==nullptr) {
+    showQuest();
+    return;
+    }
+  if(key!=KeyCodec::Forward && key!=KeyCodec::Back) return;
+  const int32_t dy=key==KeyCodec::Forward ? -1 : 1;
+  if(journalContent!=nullptr) {
+    journalContent->scroll=std::max(0,journalContent->scroll+dy);
+    }
+  else {
+    const int32_t count=numQuests(Gothic::inst().questLog(),toStatus(journalList->handle->user_string[0]));
+    journalList->value=std::clamp(journalList->value+dy,0,std::max(0,count-1));
+    }
+  update();
+  }
+
 void GameMenu::onKeyboard(KeyCodec::Action key) {
+  if(journalList!=nullptr) {
+    journalInput(key);
+    return;
+    }
   if(pendingDelete!=nullptr) {
     if(key==KeyCodec::Escape) {
       pendingDelete=nullptr;
@@ -688,7 +598,7 @@ void GameMenu::onKeyboard(KeyCodec::Action key) {
 
 bool GameMenu::canRequestDeleteSave() const {
   // This is queried by touch input every frame; check the file only when deletion is requested.
-  return pendingDelete==nullptr && ctrlInput==nullptr && curItem<zenkit::IMenu::item_count &&
+  return journalList==nullptr && pendingDelete==nullptr && ctrlInput==nullptr && curItem<zenkit::IMenu::item_count &&
          saveSlotId(hItems[curItem])!=size_t(-1) && Gothic::inst().checkLoading()==Gothic::LoadState::Idle;
   }
 
@@ -1029,16 +939,13 @@ void GameMenu::execCommands(std::string str, bool isClick, KeyCodec::Action hint
       if(i.handle != nullptr && i.handle->type==zenkit::MenuItemType::LISTBOX) {
         i.visible = (i.name==arg0);
         if(i.visible && isClick) {
-          const uint32_t prev = curItem;
-          curItem = id;
-          ListViewDialog dlg(*this,i);
-          if(dlg.numQuests()==0) {
-            curItem = prev;
-            return;
-            }
-          dlg.resize(owner.size());
-          dlg.exec();
-          curItem = prev;
+          const int32_t count=numQuests(Gothic::inst().questLog(),toStatus(i.handle->user_string[0]));
+          if(count==0) continue;
+          journalCategory=curItem;
+          journalList=&i;
+          i.value=std::clamp(i.value,0,count-1);
+          curItem=id;
+          update();
           }
         }
       }
