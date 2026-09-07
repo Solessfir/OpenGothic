@@ -851,17 +851,24 @@ size_t InventoryMenu::wheelPageSize() const {
   return wheelTouch && wheelItems.size()>8 ? 6 : 8;
   }
 
+size_t InventoryMenu::wheelSectorCount() const {
+  // Paged wheels keep their navigation arrows in the same two sectors.
+  if(!wheelTouch || wheelPageSize()==6) return 8;
+  return wheelCharacter ? 2 : std::min<size_t>(8,wheelItems.size());
+  }
+
 InventoryMenu::WheelLayout InventoryMenu::wheelLayout() const {
   const float scale=Gothic::interfaceScale(this);
   const int cell=int(64*scale);
   const float radius=std::min(float(h())*0.30f,float(w())*0.20f);
   Point center(w()/2,h()/2);
   if(wheelTouch) {
-    const int margin=int(radius)+cell;
-    const int mx=std::min(w()/2,margin), my=std::min(h()/2,margin);
-    center=Point(std::clamp(wheelAnchor.x,mx,w()-mx),std::clamp(wheelAnchor.y,my,h()-my));
+    const float fontScale=std::min(scale,float(std::min(w(),h()))/720.f);
+    const auto layout=RadialInput::touchLayout(w(),h(),scale,float(wheelAnchor.x),float(wheelAnchor.y),
+                                              int(wheelSectorCount()),Resources::font(fontScale).pixelSize());
+    return {Point(int(std::lround(layout.x)),int(std::lround(layout.y))),layout.cell,layout.radius,layout.outer,layout.footer};
     }
-  return {center,cell,radius};
+  return {center,cell,radius,radius+float(cell),0};
   }
 
 void InventoryMenu::beginTouchWheel(Point anchor) {
@@ -876,11 +883,11 @@ void InventoryMenu::touchWheelMove(Point pos, uint64_t now) {
   if(!wheelActive || !wheelTouch) return;
   const auto layout=wheelLayout();
   const auto delta=pos-layout.center;
-  const int selected=RadialInput::sector(float(delta.x),float(delta.y),layout.radius*0.5f,layout.radius+float(layout.cell));
+  const int selected=RadialInput::sector(float(delta.x),float(delta.y),layout.radius*0.52f,layout.outer,int(wheelSectorCount()));
   if(selected<0) {
     wheelSelected=-1;
     wheelHoverPage=0;
-    if(std::hypot(float(delta.x),float(delta.y))<layout.radius*0.5f) {
+    if(std::hypot(float(delta.x),float(delta.y))<layout.radius*0.52f) {
       wheelCentered=true;
       wheelPageArmed=true;
       }
@@ -905,7 +912,7 @@ void InventoryMenu::touchWheelMove(Point pos, uint64_t now) {
   if(!wheelCentered) return;
   wheelSelected=selected;
   if(wheelCharacter) {
-    if(selected!=0 && selected!=4) wheelSelected=-1;
+    if(selected!=0 && selected!=1) wheelSelected=-1;
     }
   else if(wheelPageId*wheelPageSize()+size_t(selected)>=wheelItems.size()) {
     wheelSelected=-1;
@@ -932,12 +939,13 @@ void InventoryMenu::wheelPage(int direction) {
   }
 
 size_t InventoryMenu::wheelSelection() const {
-  if(wheelCharacter) return wheelSelected==0 ? 0 : (wheelSelected==4 ? 1 : size_t(-1));
+  if(wheelCharacter) return wheelSelected==0 ? 0 : (wheelSelected==(wheelTouch ? 1 : 4) ? 1 : size_t(-1));
   if(wheelSelected<0 || wheelPageId*wheelPageSize()+size_t(wheelSelected)>=wheelItems.size()) return size_t(-1);
   return wheelItems[wheelPageId*wheelPageSize()+size_t(wheelSelected)];
   }
 
 void InventoryMenu::drawWheel(Painter& p,DrawPass pass) {
+  if(wheelTouch) { drawTouchWheel(p,pass); return; }
   const float scale=Gothic::interfaceScale(this);
   const auto layout=wheelLayout();
   const auto cell=layout.cell;
@@ -960,7 +968,7 @@ void InventoryMenu::drawWheel(Painter& p,DrawPass pass) {
     if(pass==DrawPass::Back) {
       const bool hovered=pageButton && wheelHoverPage==(i==6 ? -1 : 1);
       const auto texture=int(i)==wheelSelected || hovered ? selT : slot;
-      if(texture) { p.setBrush(*texture); p.drawRect(x,y,cell,cell); }
+      if(texture) { p.setBrush(*texture); p.drawRect(x,y,cell,cell,0,0,texture->w(),texture->h()); }
       if(item) renderer.drawItem(x,y,cell,cell,*item);
       }
     else if(wheelCharacter || pageButton) {
@@ -978,4 +986,87 @@ void InventoryMenu::drawWheel(Painter& p,DrawPass pass) {
     font.drawText(p,cx-textWidth/2,cy+font.pixelSize(),textWidth,3*font.pixelSize(),name,AlignHCenter);
     font.drawText(p,20,h()-3*font.pixelSize(),w()-40,2*font.pixelSize(),wheelHint,AlignHCenter);
     }
+  }
+
+void InventoryMenu::drawTouchWheel(Painter& p,DrawPass pass) {
+  const auto layout=wheelLayout();
+  const float cx=float(layout.center.x), cy=float(layout.center.y);
+  const float inner=layout.radius*0.52f;
+  const int cell=layout.cell;
+  const auto count=wheelSectorCount();
+  const float step=count>0 ? 2.f*float(M_PI)/float(count) : 0.f;
+  const float scale=std::min(Gothic::interfaceScale(this),float(std::min(w(),h()))/720.f);
+  auto& font=Resources::font(scale);
+  const int line=font.pixelSize();
+  const int pad=std::max(4,int(8*scale));
+  const int footerTop=int(cy+layout.outer)+pad;
+  const int footerLeft=int(cx-layout.outer);
+  const int footerWidth=int(2*layout.outer);
+  const Color gold(0.843f,0.761f,0.631f,0.85f);
+
+  p.pushState();
+  auto point=[&](float radius,float angle) {
+    return Point(int(std::lround(cx+std::sin(angle)*radius)),int(std::lround(cy-std::cos(angle)*radius)));
+    };
+  auto band=[&](float r0,float r1,float a0,float a1,const Color& color) {
+    p.setBrush(color);
+    const int segments=std::max(1,int(std::ceil((a1-a0)*24.f)));
+    for(int s=0;s<segments;++s) {
+      const float a=a0+(a1-a0)*float(s)/float(segments);
+      const float b=a0+(a1-a0)*float(s+1)/float(segments);
+      const auto p0=point(r0,a), p1=point(r1,a), p2=point(r1,b), p3=point(r0,b);
+      p.drawTriangle(p0.x,p0.y,0.f,0.f,p1.x,p1.y,0.f,0.f,p2.x,p2.y,0.f,0.f);
+      if(r0>0.f) p.drawTriangle(p0.x,p0.y,0.f,0.f,p2.x,p2.y,0.f,0.f,p3.x,p3.y,0.f,0.f);
+      }
+    };
+  if(pass==DrawPass::Back) {
+    band(0.f,layout.outer,0.f,2.f*float(M_PI),Color(0.035f,0.026f,0.015f,0.88f));
+    for(size_t i=0;i<count;++i) {
+      const bool pageButton=!wheelCharacter && wheelPageSize()==6 && i>=6;
+      const bool hovered=pageButton && wheelHoverPage==(i==6 ? -1 : 1);
+      if(int(i)==wheelSelected || hovered)
+        band(inner,layout.outer,float(i)*step-step/2,float(i)*step+step/2,Color(0.7f,0.47f,0.18f,0.35f));
+      }
+    band(layout.outer-std::max(1.5f,scale),layout.outer,0.f,2.f*float(M_PI),gold);
+    band(inner-1.f,inner,0.f,2.f*float(M_PI),Color(0.843f,0.761f,0.631f,0.4f));
+    p.setBrush(gold);
+    p.setPen(Pen(Color(0.843f,0.761f,0.631f,0.4f),Painter::Alpha,std::max(1.f,scale)));
+    if(count>1) {
+      for(size_t i=0;i<count;++i) {
+        const float angle=float(i)*step-step/2;
+        p.drawLine(point(inner,angle),point(layout.outer,angle));
+        }
+      }
+    p.setBrush(Color(0.035f,0.026f,0.015f,0.8f));
+    p.drawRect(footerLeft,footerTop,footerWidth,layout.footer-pad);
+    }
+
+  for(size_t i=0;i<count;++i) {
+    const bool pageButton=!wheelCharacter && wheelPageSize()==6 && i>=6;
+    const auto itemId=wheelPageId*wheelPageSize()+i;
+    auto item=!wheelCharacter && !pageButton && itemId<wheelItems.size() ? player->getItem(wheelItems[itemId]) : nullptr;
+    const auto at=point(layout.radius,float(i)*step);
+    if(pass==DrawPass::Back && item)
+      renderer.drawItem(at.x-cell/2,at.y-cell/2,cell,cell,*item);
+    if(pass==DrawPass::Front && (wheelCharacter || pageButton)) {
+      const auto label=wheelCharacter ? (i==0 ? "Stats" : "Journal") : (i==6 ? "<" : ">");
+      font.drawText(p,at.x-cell,at.y+line/2,2*cell,line,label,AlignHCenter);
+      }
+    }
+  if(pass==DrawPass::Front) {
+    // Gothic fonts position text by its baseline, not by the top of its box.
+    const int centerWidth=int(inner*1.8f);
+    font.drawText(p,int(cx)-centerWidth/2,int(cy)+line/2,centerWidth,line,"Cancel",AlignHCenter);
+    auto item=wheelCharacter ? nullptr : player->getItem(wheelSelection());
+    std::string_view title=wheelCharacter ? "Character" : (wheelItems.empty() ? "No equipment" : "Equipment");
+    if(item) title=item->description();
+    if(wheelCharacter && wheelSelected>=0) title=wheelSelected==0 ? "Character stats" : "Journal";
+    font.drawText(p,footerLeft+pad,footerTop+pad+line,footerWidth-2*pad,2*line,title,AlignHCenter);
+    const auto pages=std::max<size_t>(1,(wheelItems.size()+wheelPageSize()-1)/wheelPageSize());
+    string_frm paging("Page ",wheelPageId+1," / ",pages," - hold < / >");
+    const auto hint=wheelHoverPage!=0 ? "Hold to change page" :
+                    (wheelSelected>=0 ? "Release to select" : (pages>1 ? paging.c_str() : "Drag to select"));
+    font.drawText(p,footerLeft+pad,footerTop+layout.footer-pad,footerWidth-2*pad,line,hint,AlignHCenter);
+    }
+  p.popState();
   }

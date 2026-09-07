@@ -120,11 +120,15 @@ class InventoryMenu : public Tempest::Widget {
     std::vector<size_t>        wheelItems;
     std::string               wheelHint;
     void                      drawWheel(Tempest::Painter& p, DrawPass pass);
+    void                      drawTouchWheel(Tempest::Painter& p, DrawPass pass);
     size_t                    wheelPageSize() const;
+    size_t                    wheelSectorCount() const;
     struct WheelLayout {
       Tempest::Point center;
       int cell;
       float radius;
+      float outer;
+      int footer;
       };
     WheelLayout               wheelLayout() const;
 

@@ -445,7 +445,6 @@ bool MainWindow::onTouchWheel(TouchInput::Command command, TouchInput::WheelPhas
     if(!inventory.isWheelOpen()) return false;
     touchWheelOwned=true;
     inventory.beginTouchWheel(pos);
-    inventory.setWheelHint("Drag onto a choice; release to apply. Center / outside: cancel. Hold a page arrow to browse.");
     return true;
     }
   if(!touchWheelOwned) return false;

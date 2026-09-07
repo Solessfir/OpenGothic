@@ -275,6 +275,9 @@ Drag the same finger onto either entry and release to open it.
 Short taps still draw/sheathe or open/close the menu; holding does not also trigger the tap action.
 
 Wheels appear near the starting finger position, shifted inward to fit on screen.
+Touch wheels use a compact circular layout with evenly spaced choices, a highlighted selection and Gothic-colored borders.
+Item names and short prompts stay below the wheel instead of spanning the screen.
+The two-entry character wheel is smaller than a full equipment wheel.
 Release without moving, in the wheel's center, outside its outer edge, or over an empty sector to cancel.
 For equipment with more than eight entries, each page has six items plus Previous/Next sectors.
 Hover the same finger over a page sector for 500 ms, move through the center to rearm selection, then choose an item without lifting.
