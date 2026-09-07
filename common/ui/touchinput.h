@@ -61,6 +61,7 @@ class TouchInput : public Tempest::Widget {
     int  movementRadius() const;
 
     static constexpr int LookBoundaryPercent = 84;
+    static constexpr Command Buttons[] = {Command::Back,Command::Inventory,Command::Jump,Command::Weapon,Command::Accept};
     static constexpr float DirectionThreshold = 0.35f;
     static constexpr uint64_t ActionHoldMs = 180;
 

@@ -138,8 +138,8 @@ The rightmost 16% of the screen contains five invisible virtual buttons:
 | --- | --- | --- |
 | Top 20% | Back | Escape or close |
 | 20% to 40% | Inventory | Inventory |
-| 40% to 60% | Draw or sheathe weapon | Space |
-| 60% to 80% | Jump | Left Alt |
+| 40% to 60% | Jump | Left Alt |
+| 60% to 80% | Draw or sheathe weapon | Space |
 | Bottom 20% | Interact or attack | Confirm |
 
 Dragging the dynamic movement stick also emits arrow-key navigation for menus and dialog choices. This avoids precision tapping on the original desktop-sized UI.

@@ -48,15 +48,14 @@ void TouchInput::paintEvent(Tempest::PaintEvent& e) {
     label(pad,7*line,lookEnd-2*pad,"Left / right = side attacks with melee weapon drawn");
     }
 
-  constexpr Command buttons[] = {Command::Back,Command::Inventory,Command::Weapon,Command::Jump,Command::Accept};
-  const char* names[] = {"BACK / MENU","INVENTORY","DRAW / SHEATHE","JUMP",
+  const char* names[] = {"BACK / MENU","INVENTORY","JUMP","DRAW / SHEATHE",
                         uiActive ? "ACCEPT" : (classicCombat ? "HOLD ACTION" : "USE / ATTACK")};
   for(int i=0;i<5;++i) {
     const int top = (h()*i)/5;
     const int bottom = (h()*(i+1))/5;
     bool pressed = false;
     for(const auto& [id,touch]:touches)
-      pressed |= touch.role==Role::Button && touch.command==buttons[i];
+      pressed |= touch.role==Role::Button && touch.command==Buttons[i];
     p.setBrush(pressed ? Color(0.8f,0.6f,0.2f,0.32f) : Color(0.04f,0.03f,0.02f,0.18f));
     p.drawRect(lookEnd,top,w()-lookEnd,bottom-top);
     p.setBrush(gold);
@@ -115,16 +114,7 @@ void TouchInput::mouseDownEvent(Tempest::MouseEvent& e) {
     }
   else {
     touch.role = Role::Button;
-    if(e.y<(h()*20)/100)
-      touch.command = Command::Back;
-    else if(e.y<(h()*40)/100)
-      touch.command = Command::Inventory;
-    else if(e.y<(h()*60)/100)
-      touch.command = Command::Weapon;
-    else if(e.y<(h()*80)/100)
-      touch.command = Command::Jump;
-    else
-      touch.command = Command::Accept;
+    touch.command = Buttons[std::clamp((e.y*5)/std::max(h(),1),0,4)];
     touch.pendingAction = touch.command==Command::Accept && canLock && !uiActive;
     if(!touch.pendingAction) {
       touch.actionSent = true;
