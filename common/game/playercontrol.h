@@ -36,6 +36,7 @@ class PlayerControl final {
     Npc*  lockedTarget() const { return controllerTarget; }
     bool  isControllerMoving() const { return controllerDirectional && gamepadLY!=0.f; }
     bool  isClassicCombat() const { return !g2Ctrl; }
+    void  setSneaking(bool enabled);
     void  onRotateMouse(float dAngleX, float dAngleY);
 
     void  drawVobRay(DbgPainter& p) const;

@@ -194,6 +194,24 @@ The world continues running while the wheel is open, as with the gamepad wheel.
 These wheels are visible on demand even when the normal touch zones and debug overlay are hidden.
 Touch ACTION and Inventory holds are not wheel gestures.
 
+Two-finger swipes work during gameplay in the movement and camera areas:
+
+| Starting area | Swipe | Action |
+| --- | --- | --- |
+| Left movement area | Up | Toggle first-person view |
+| Left movement area | Down, then keep both fingers held | Look behind until either finger lifts |
+| Right camera area | Down | Enable sneak, if Gothic allows it |
+| Right camera area | Up | Leave sneak mode |
+
+Put both fingers down on the same side within 180 ms, before moving the first finger significantly.
+Move both in the same vertical direction by at least 1/18 of the shorter screen dimension (60 pixels on a 1080-pixel-high viewport) within 700 ms.
+Both fingers must start outside the action buttons and Block hit area; a movement finger plus a camera finger remains ordinary move/look input.
+Once paired, the fingers stop driving movement/camera input and trigger at most one gesture; lift both before starting another.
+Pinches, mostly horizontal swipes, late second fingers and one-finger drags do not trigger these actions.
+Menus, radial wheels and gamepad mode do not recognize these swipes.
+Focus loss, resizing or leaving gameplay cancels the gesture and releases look-behind.
+Sneak uses Gothic's existing skill/state restrictions; up/down explicitly disables/enables it instead of toggling.
+
 Swimming uses camera-relative movement on both touch and gamepad.
 Underwater, forward swims where the camera looks, backward reverses that direction, and sideways movement stays level.
 Hold Jump at the surface to dive downward; release it, then hold again underwater to rise, even with movement centered.

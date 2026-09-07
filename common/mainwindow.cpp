@@ -476,6 +476,24 @@ void MainWindow::onTouchCommand(TouchInput::Command command, bool pressed) {
   Event::KeyType key = Event::K_NoKey;
   const bool uiActive = video.isActive() || rootMenu.isActive() || chapter.isActive() ||
                         document.isActive() || dialogs.isActive() || inventory.isActive();
+  if(command==TouchInput::Command::SneakOn || command==TouchInput::Command::SneakOff ||
+     command==TouchInput::Command::FirstPerson || command==TouchInput::Command::LookBehind) {
+    auto camera=Gothic::inst().camera();
+    if(command==TouchInput::Command::LookBehind && !pressed) {
+      player.releaseControllerKey(KeyCodec::LookBack,true);
+      if(camera) camera->setLookBack(false);
+      return;
+      }
+    auto pl=Gothic::inst().player();
+    if(!pressed || uiActive || console.isActive() || Gothic::inst().isPause() || pl==nullptr || pl->isDown() ||
+       pl->interactive()!=nullptr || camera==nullptr || camera->isCutscene() ||
+       Gothic::inst().checkLoading()!=Gothic::LoadState::Idle) return;
+    if(command==TouchInput::Command::FirstPerson) camera->setFirstPerson(!camera->isFirstPerson());
+    else if(command==TouchInput::Command::LookBehind)
+      player.onKeyPressed(KeyCodec::LookBack,Event::K_NoKey,KeyCodec::Mapping::Secondary);
+    else player.setSneaking(command==TouchInput::Command::SneakOn);
+    return;
+    }
   if(command==TouchInput::Command::Block) {
     if(!pressed)
       player.controllerCombat(1,false,true);
@@ -523,6 +541,10 @@ void MainWindow::onTouchCommand(TouchInput::Command command, bool pressed) {
     case TouchInput::Command::Weapon:    key = Event::K_Space;    break;
     case TouchInput::Command::Inventory: key = Event::K_Tab;      break;
     case TouchInput::Command::LockTarget:
+    case TouchInput::Command::SneakOn:
+    case TouchInput::Command::SneakOff:
+    case TouchInput::Command::FirstPerson:
+    case TouchInput::Command::LookBehind:
     case TouchInput::Command::Block:
     case TouchInput::Command::TapAccept: return;
     }

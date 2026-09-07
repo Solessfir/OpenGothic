@@ -186,6 +186,10 @@ void MainWindow::tickGamepad() {
     mobileUi.cancelWheel();
   const auto touchPlayer = Gothic::inst().player();
   const auto touchWeapon = touchPlayer!=nullptr ? touchPlayer->weaponState() : WeaponState::NoWeapon;
+  const auto touchCamera=Gothic::inst().camera();
+  mobileUi.setGesturesEnabled(touchPlayer!=nullptr && !touchPlayer->isDown() && touchPlayer->interactive()==nullptr &&
+                             touchCamera!=nullptr && !touchCamera->isCutscene() && !Gothic::inst().isPause() &&
+                             Gothic::inst().checkLoading()==Gothic::LoadState::Idle);
   mobileUi.setDebugContext(Gothic::inst().version().game!=2 || Gothic::settingsGetI("GAME","useGothic1Controls")!=0,
                            video.isActive() || rootMenu.isActive() || chapter.isActive() ||
                            document.isActive() || dialogs.isActive() || inventory.isActive() || console.isActive(),
@@ -259,7 +263,8 @@ void MainWindow::tickGamepad() {
     else touchLookIdle+=dt;
     camera->onRotateMouse(PointF(pitch,locked ? 0.f : -yaw));
     const float movement = touchMovementBlocked ? 0.f : std::max(std::abs(touchMove.x),std::abs(touchMove.y));
-    if(auto pl = Gothic::inst().player(); pl!=nullptr && !swimming && (locked || (touchLookIdle>800 && movement>0.35f))) {
+    if(auto pl = Gothic::inst().player(); pl!=nullptr && !swimming && !player.isPressed(KeyCodec::LookBack) &&
+       !camera->isFirstPerson() && (locked || (touchLookIdle>800 && movement>0.35f))) {
       const float follow = CameraMath::followYawDelta(camera->spin().y,pl->rotation(),dtSec,options.cameraSmoothing,
                                                     locked ? 1.f : movement);
       camera->onRotateMouse(PointF(0.f,follow));

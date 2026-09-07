@@ -633,6 +633,15 @@ void PlayerControl::toggleSneakMode() {
     pl->setWalkMode(pl->walkMode()^WalkBit::WM_Sneak);
   }
 
+void PlayerControl::setSneaking(bool enabled) {
+  auto pl=Gothic::inst().player();
+  if(pl==nullptr || pl->isDown() || (enabled && !pl->canSneak())) return;
+  auto mode=uint8_t(pl->walkMode());
+  if(enabled) mode|=uint8_t(WalkBit::WM_Sneak);
+  else mode&=~uint8_t(WalkBit::WM_Sneak);
+  pl->setWalkMode(WalkBit(mode));
+  }
+
 bool PlayerControl::canInteract() const {
   auto w = Gothic::inst().world();
   if(w==nullptr || w->player()==nullptr)

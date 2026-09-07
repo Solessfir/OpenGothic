@@ -22,6 +22,10 @@ class TouchInput : public Tempest::Widget {
       LockTarget,
       TapAccept,
       Block,
+      SneakOn,
+      SneakOff,
+      FirstPerson,
+      LookBehind,
       };
 
     using CommandHandler = std::function<void(Command,bool)>;
@@ -37,6 +41,7 @@ class TouchInput : public Tempest::Widget {
     void            mouseUpEvent(Tempest::MouseEvent& e) override;
 
     void            setTouchEnabled(bool enabled);
+    void            setGesturesEnabled(bool enabled);
     void            setAnalogMovement(bool enabled);
     void            setDebugOverlay(bool enabled);
     void            setDebugContext(bool classicCombat, bool uiActive, bool canLock, bool locked, bool canBlock);
@@ -51,6 +56,7 @@ class TouchInput : public Tempest::Widget {
       Move,
       Look,
       Button,
+      Gesture,
       };
 
     struct Touch {
@@ -70,6 +76,10 @@ class TouchInput : public Tempest::Widget {
     void reset();
     void startWheel(int pointer);
     void moveWheel(Touch& touch, Tempest::Point pos);
+    bool tryGesture(int pointer, const Touch& touch);
+    void updateGesture();
+    bool gestureActive() const { return gestureFirst>=0 || gestureSecond>=0; }
+    void releaseGesture();
     int  movementRadius() const;
     Tempest::Rect buttonRect(size_t index) const;
     bool blockVisible() const;
@@ -93,6 +103,12 @@ class TouchInput : public Tempest::Widget {
     int             lookPointer = -1;
     int             blockPointer = -1;
     int             wheelPointer = -1;
+    int             gestureFirst = -1;
+    int             gestureSecond = -1;
+    uint64_t        gestureStarted = 0;
+    bool            gestureFired = false;
+    bool            gestureLookBehind = false;
+    bool            gesturesEnabled = false;
     bool            touchEnabled = true;
     bool            analogMovement = false;
     bool            debugOverlay = false;

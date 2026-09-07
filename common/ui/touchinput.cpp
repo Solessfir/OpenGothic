@@ -6,6 +6,7 @@
 #include "gothic.h"
 #include "resources.h"
 #include "utils/gthfont.h"
+#include "utils/twofingerswipe.h"
 
 #include <algorithm>
 #include <cmath>
@@ -51,6 +52,10 @@ void TouchInput::paintEvent(Tempest::PaintEvent& e) {
   else if(!uiActive && classicCombat) {
     label(pad,6*line,lookEnd-2*pad,"Hold ACTION, then move stick: up = attack, down = block");
     label(pad,7*line,lookEnd-2*pad,"Left / right = side attacks with melee weapon drawn");
+    }
+  if(touchEnabled && !uiActive && gesturesEnabled) {
+    label(pad,h()-3*line,moveEnd-2*pad,"2 fingers: up = first person; down + hold = look behind");
+    label(moveEnd+pad,h()/2,lookEnd-moveEnd-2*pad,"2 fingers: up = stand; down = sneak");
     }
 
   const char* names[] = {"BACK / MENU","INVENTORY","JUMP","DRAW / SHEATHE",
@@ -105,7 +110,7 @@ void TouchInput::resizeEvent(Tempest::SizeEvent&) {
   }
 
 void TouchInput::mouseDownEvent(Tempest::MouseEvent& e) {
-  if(wheelPointer>=0)
+  if(wheelPointer>=0 || gestureActive())
     return;
   if(!touchEnabled) {
     // Consume gameplay touches instead of forwarding them as desktop mouse input.
@@ -124,7 +129,11 @@ void TouchInput::mouseDownEvent(Tempest::MouseEvent& e) {
     if(buttonRect(i).contains(e.pos()))
       button = int(i);
 
-  if(blockVisible() && blockRect().contains(e.pos())) {
+  const bool onBlock=blockVisible() && blockRect().contains(e.pos());
+  if(button<0 && !onBlock && tryGesture(e.mouseID,touch))
+    return;
+
+  if(onBlock) {
     if(blockPointer>=0)
       return;
     blockPointer = e.mouseID;
@@ -165,6 +174,12 @@ void TouchInput::mouseDragEvent(Tempest::MouseEvent& e) {
   if(it==touches.end())
     return;
   auto& touch = it->second;
+  if(touch.role==Role::Gesture) {
+    touch.last=e.pos();
+    updateGesture();
+    update();
+    return;
+    }
   if(wheelPointer>=0) {
     if(e.mouseID==wheelPointer) {
       moveWheel(touch,e.pos());
@@ -202,6 +217,16 @@ void TouchInput::mouseUpEvent(Tempest::MouseEvent& e) {
   auto it = touches.find(e.mouseID);
   if(it==touches.end())
     return;
+  if(it->second.role==Role::Gesture) {
+    it->second.last=e.pos();
+    updateGesture();
+    releaseGesture();
+    if(e.mouseID==gestureFirst) gestureFirst=-1;
+    if(e.mouseID==gestureSecond) gestureSecond=-1;
+    touches.erase(it);
+    update();
+    return;
+    }
   if(e.mouseID==wheelPointer) {
     const auto action=it->second.command;
     moveWheel(it->second,e.pos());
@@ -252,6 +277,13 @@ void TouchInput::setTouchEnabled(bool enabled) {
   update();
   }
 
+void TouchInput::setGesturesEnabled(bool enabled) {
+  if(gesturesEnabled==enabled) return;
+  gesturesEnabled=enabled;
+  if(!enabled && gestureActive()) reset();
+  update();
+  }
+
 void TouchInput::setDebugOverlay(bool enabled) {
   if(debugOverlay==enabled)
     return;
@@ -277,6 +309,7 @@ void TouchInput::setDebugContext(bool classic, bool ui, bool lockAllowed, bool l
   canLock = lockAllowed;
   targetLocked = locked;
   canBlock = blockAllowed;
+  if(uiActive && gestureActive()) reset();
   if(uiActive || !canLock) {
     for(auto& [id,touch]:touches)
       touch.pendingAction = false;
@@ -447,6 +480,10 @@ void TouchInput::setDirection(Command value, bool pressed) {
   }
 
 void TouchInput::reset() {
+  releaseGesture();
+  gestureFirst=-1;
+  gestureSecond=-1;
+  gestureFired=false;
   if(wheelPointer>=0) {
     const auto action=touches.at(wheelPointer).command;
     wheelPointer=-1;
@@ -464,4 +501,57 @@ void TouchInput::reset() {
   lookPointer = -1;
   blockPointer = -1;
   analogMovement = false;
+  }
+
+bool TouchInput::tryGesture(int pointer, const Touch& second) {
+  if(!gesturesEnabled || uiActive || touches.size()!=1) return false;
+  auto& [firstId,first]=*touches.begin();
+  if(first.role!=Role::Move && first.role!=Role::Look) return false;
+  if((first.anchor.x<w()/2)!=(second.anchor.x<w()/2)) return false;
+  const auto travel=first.last-first.anchor;
+  const float slop=float(std::max(12,std::min(w(),h())/90));
+  if(!TwoFingerSwipe::canPair(second.pressedAt-first.pressedAt,std::hypot(float(travel.x),float(travel.y)),slop))
+    return false;
+  gestureFirst=firstId;
+  gestureSecond=pointer;
+  gestureStarted=second.pressedAt;
+  gestureFired=false;
+  first.role=Role::Gesture;
+  auto touch=second;
+  touch.role=Role::Gesture;
+  touches[pointer]=touch;
+  movePointer=-1;
+  lookPointer=-1;
+  moveAxis=PointF();
+  lookDelta=Point();
+  for(size_t i=0;i<4;++i) setDirection(Command(i),false);
+  update();
+  return true;
+  }
+
+void TouchInput::updateGesture() {
+  if(gestureFired || gestureFirst<0 || gestureSecond<0) return;
+  const auto& first=touches.at(gestureFirst);
+  const auto& second=touches.at(gestureSecond);
+  const auto a=first.last-first.anchor, b=second.last-second.anchor;
+  const float threshold=float(std::max(48,std::min(w(),h())/18));
+  const int direction=TwoFingerSwipe::direction(float(a.x),float(a.y),float(b.x),float(b.y),threshold,
+                                               Application::tickCount()-gestureStarted);
+  if(direction==0) return;
+  gestureFired=true;
+  if(first.anchor.x<w()/2) {
+    if(direction<0) command(Command::FirstPerson,true);
+    else {
+      gestureLookBehind=true;
+      command(Command::LookBehind,true);
+      }
+    }
+  else command(direction<0 ? Command::SneakOff : Command::SneakOn,true);
+  }
+
+void TouchInput::releaseGesture() {
+  if(gestureLookBehind) {
+    gestureLookBehind=false;
+    command(Command::LookBehind,false);
+    }
   }
