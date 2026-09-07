@@ -800,13 +800,6 @@ void Camera::tickThirdPerson(float dtF) {
   auto  rotOffsetDef = Vec3(def.rot_offset_x,
                             def.rot_offset_y,
                             def.rot_offset_z);
-#if defined(__ANDROID__)
-  if(camMod==Normal || camMod==Inventory || camMod==Melee || camMod==Ranged || camMod==Magic) {
-    // Raise the view above the followed character without changing the orbit or manual look input.
-    const float tilt=Gothic::settingsGetF("GAME","cameraUpTilt");
-    if(std::isfinite(tilt)) rotOffsetDef.x+=std::clamp(tilt,0.f,20.f);
-    }
-#endif
   auto  range        = (camMod==Dialog) ? dlgRange : state.range*100.f;
 
   if(camMod==Dialog) {
@@ -820,7 +813,17 @@ void Camera::tickThirdPerson(float dtF) {
     inter.rotOffset = followRot(inter.rotOffset, rotOffsetDef, dtF, def.velo_rot);
     }
 
-  const auto rotOffsetMat = mkRotMatrix(state.spin);
+  auto orbitSpin=state.spin;
+#if defined(__ANDROID__)
+  if(camMod==Normal || camMod==Inventory || camMod==Melee || camMod==Ranged || camMod==Magic) {
+    // Raise the camera along its orbit so the normal look-at points downward toward the player.
+    // Keep the offset out of saved input angles to avoid accumulating it on reload.
+    const float elevation=Gothic::settingsGetF("GAME","cameraElevationOffset");
+    if(std::isfinite(elevation)) orbitSpin.x+=std::clamp(elevation,0.f,30.f);
+    orbitSpin=clampRotation(orbitSpin);
+    }
+#endif
+  const auto rotOffsetMat = mkRotMatrix(orbitSpin);
   if(camMod!=Dialog) {
     rotOffsetMat.project(targetOffset);
     // vanilla clamps target-offset according to collision

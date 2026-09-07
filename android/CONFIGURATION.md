@@ -10,17 +10,18 @@ Keep the writable file small. Do not replace it with the entire PC INI: some ori
 
 ## Third-person camera framing
 
-Android tilts the ordinary third-person view upward by 6 degrees, placing the character lower on the screen.
+Android raises the ordinary third-person camera along its orbit by 10 degrees and looks down toward the character and ground ahead.
+At a three-meter follow distance this adds roughly half a meter of height when starting from a level orbit.
 This applies to exploration, combat and inventory, including existing saves; manual camera adjustment remains available.
 The offset blends through the normal camera system and does not accumulate on save/load.
 First-person, dialogue, swimming, diving, cutscenes and desktop defaults are unaffected.
 
 ```ini
 [GAME]
-cameraUpTilt=6
+cameraElevationOffset=10
 ```
 
-Values from `0` to `20` are supported. Use `0` for the original framing.
+Values from `0` to `30` degrees are supported, subject to the camera's existing pitch limits. Use `0` for the original framing.
 
 ## Optional render scale
 

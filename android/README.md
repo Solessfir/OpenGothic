@@ -403,9 +403,9 @@ An ordinary held action starts after the multi-finger joining window if the fing
 Once the hold has committed, further dragging does not toggle lock; lift and start a new gesture to lock or unlock.
 This distinguishes an early lock drag from a held action and a multi-finger gesture.
 While locked, the camera follows the character toward the target and vertical camera drag still adjusts elevation; horizontal free look resumes after unlocking.
-Android's ordinary third-person camera tilts upward by 6 degrees to place the character lower in the screen and show more ahead.
-Set `[GAME] cameraUpTilt` in the writable `Gothic.ini` to tune it from `0` to `20` degrees; `0` restores the original framing.
-It also applies in combat and inventory, blends through the existing camera offsets, and works with existing saves without accumulating on reload.
+Android's ordinary third-person camera sits higher along its orbit and pitches downward toward the character and ground ahead.
+Set `[GAME] cameraElevationOffset` in the writable `Gothic.ini` to tune the extra elevation from `0` to `30` degrees; the default is `10`, and `0` restores the original framing.
+It also applies in combat and inventory, uses the existing camera following and collision handling, and works with existing saves without accumulating on reload.
 Manual look remains available. First-person, dialogue, swimming, diving, cutscenes and desktop camera defaults are unchanged.
 The debug overlay labels the gesture as `DRAG: LOCK` or `DRAG: UNLOCK`.
 
