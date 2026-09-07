@@ -45,6 +45,9 @@ class GamepadBindings final {
       uint64_t switchCooldownMs = 250;
       float cameraSmoothing = 0.20f;
       bool cameraAssist = true;
+      bool meleeAssist = true;
+      float meleeAssistMaxAngle = 90.f;
+      float meleeAssistMaxDistance = 300.f;
       } options;
 
     GamepadBindings();

@@ -54,6 +54,26 @@ WalkThreshold=0.65
 
 The existing Mouse speed setting (`[GAME] mouseSensitivity`) also scales the controller camera. `camLookaroundInverse` controls vertical inversion. Camera assistance waits 800 ms after manual input before recentering during movement; disable it with `[Controller] CameraAssist=0` in `Gamepad.ini`.
 
+Android touch and gamepad share an optional unlocked melee facing assist for both Gothic control modes.
+At the start of a punch or sword attack, the character faces the currently focused living NPC if Gothic still considers it eligible.
+It does not acquire another target, enable persistent lock, move the camera, extend weapon reach, or move the player toward the enemy.
+Already-running attack animations, blocking, finishers, ranged attacks, and manual target lock retain their existing behavior.
+Desktop keyboard/mouse combat is unchanged.
+
+These `Gamepad.ini` defaults also apply to existing files that omit the section:
+
+```ini
+[Combat]
+MeleeAssist=1
+MeleeAssistMaxAngle=90
+MeleeAssistMaxDistance=300
+```
+
+`MeleeAssist=0` disables it. The angle is the maximum turn from the character's facing in degrees (0–180).
+Distance is in Gothic world units: 300 is approximately three meters, not a new attack reach.
+Gothic's focus and visibility checks must still pass; these limits can restrict eligibility, not expand it.
+Restart after editing. This assist is separate from camera assistance and mouse sensitivity.
+
 Unlocked camera assistance scales with the left stick's effective movement amount after its dead zone and response curve: small deflections recenter gently, full deflection gives full assistance, and releasing the stick stops assistance. Locked tracking remains active while stationary. Both use frame-rate-independent smoothing controlled by `[TargetLock] CameraSmoothingSeconds`; mouse sensitivity still controls manual camera input, not movement-stick assistance.
 
 Quicksave/load require `[GAME] useQuickSaveKeys=1` in `Gothic.ini`. Potion shortcuts require `usePotionKeys=1`. Disabled shortcuts remain consumed: LB+View never falls through to opening inventory. Potion selection and restrictions come from the installed Gothic scripts, exactly as with the keyboard hotkeys. No separate potion-selection policy is added. See [configuration](CONFIGURATION.md) for safely editing these flags.
@@ -166,6 +186,7 @@ Binding syntax and precedence:
 - `[Controller] ExplorationModifier` remaps LT's exploration override. `Finish` remains available as an optional independently remappable shortcut; hold-to-finish follows `AttackForward`.
 - `[Axes]` configures dead zone, analog walk threshold, trigger hysteresis, and movement/camera stick assignment. Wheel stick assignment is `[EquipmentWheel] SelectionStick`.
 - `[TargetLock]` configures switch threshold/reset, cooldown, and camera smoothing, not Gothic's target eligibility rules.
+- `[Combat]` configures unlocked melee facing assistance for Android touch and gamepad.
 
 Only the first connected controller is active. Physical volume buttons remain Android media-volume controls. Touch retains its existing invisible prototype mapping; the new touch layout is a separate milestone.
 

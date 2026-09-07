@@ -11,6 +11,7 @@
 #include "gothic.h"
 #include "utils/gamepadbindings.h"
 #include "utils/swiminput.h"
+#include "utils/meleeassist.h"
 
 PlayerControl::PlayerControl(DialogMenu& dlg, InventoryMenu &inv)
   :dlg(dlg),inv(inv) {
@@ -334,6 +335,30 @@ void PlayerControl::setControllerSwim(float x,float y,float cameraYaw,float came
   swimPitch=aim.pitch;
   gamepadLX=0;
   gamepadLY=-std::min(1.f,std::hypot(x,y));
+  }
+
+void PlayerControl::setMeleeAssist(bool enabled,float maxAngle,float maxDistance) {
+  meleeAssist=enabled;
+  meleeAssistMaxAngle=maxAngle;
+  meleeAssistMaxDistance=maxDistance;
+  }
+
+void PlayerControl::assistMeleeAttack(Npc& pl) {
+  const auto ws=pl.weaponState();
+  if(!meleeAssist || controllerTarget!=nullptr || pl.isAttackAnim() || !pl.isRotationAllowed() || pl.isSwim() || pl.isDive() ||
+     (ws!=WeaponState::Fist && ws!=WeaponState::W1H && ws!=WeaponState::W2H)) return;
+  auto& world=pl.world();
+  auto target=world.validateFocus(currentFocus).npc;
+  if(target==nullptr || target==&pl || target!=pl.target() || target->isDown() || !world.testFocusNpc(target)) return;
+  const auto delta=target->centerPosition()-pl.centerPosition();
+  if(delta.x==0.f && delta.z==0.f) return;
+  const float targetYaw=std::atan2(delta.z,delta.x)*180.f/float(M_PI);
+  const auto yaw=MeleeAssist::facing(pl.rotation(),targetYaw,delta.length(),
+                                   meleeAssistMaxAngle,meleeAssistMaxDistance);
+  if(yaw) {
+    pl.setDirection(*yaw);
+    pl.setAnimRotate(0);
+    }
   }
 
 void PlayerControl::controllerCombat(int direction,bool pressed,bool cancel,uint64_t holdMs) {
@@ -1081,6 +1106,7 @@ void PlayerControl::implMove(uint64_t dt) {
     }
 
   if(actrl[ActForward] || actrl[ActMove]) {
+    assistMeleeAttack(pl);
     if(controllerReleaseAttack) {
       actrl[ActForward]=false;
       controllerReleaseAttack=false;
@@ -1131,6 +1157,7 @@ void PlayerControl::implMove(uint64_t dt) {
       return;
       }
     else if(ws==WeaponState::W1H || ws==WeaponState::W2H) {
+      if(actrl[ActLeft] || actrl[ActRight]) assistMeleeAttack(pl);
       if(actrl[ActLeft] && pl.swingSwordL()) {
         movement.strafeRightLeft.reset();
         }

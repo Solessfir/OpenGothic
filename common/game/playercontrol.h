@@ -29,6 +29,7 @@ class PlayerControl final {
     void  setControllerMovement(float x, float y, float cameraYaw, bool walk, float turnSpeed);
     void  setControllerSwim(float x, float y, float cameraYaw, float cameraPitch, float turnSpeed);
     void  controllerCombat(int direction, bool pressed, bool cancel=false, uint64_t holdMs=400);
+    void  setMeleeAssist(bool enabled, float maxAngle, float maxDistance);
     void  releaseControllerKey(KeyCodec::Action action, bool cancel=false);
     void  controllerInteract(bool sheath);
     void  controllerEquip(size_t item);
@@ -177,6 +178,9 @@ class PlayerControl final {
     float          controllerYaw=0;
     float          controllerTurnSpeed=180.f;
     Npc*           controllerTarget=nullptr;
+    bool           meleeAssist=false;
+    float          meleeAssistMaxAngle=90.f;
+    float          meleeAssistMaxDistance=300.f;
     Focus          pendingInteraction;
     uint64_t       pendingInteractionUntil=0;
     size_t         pendingEquipment=size_t(-1);
@@ -212,6 +216,7 @@ class PlayerControl final {
     void           assignRunAngle(Npc& pl, float rotation, uint64_t dt);
     void           setAnimRotate (Npc& pl, float rotation, int anim, bool force, uint64_t dt);
     void           processAutoRotate(Npc& pl, float& rot, uint64_t dt);
+    void           assistMeleeAttack(Npc& pl);
 
 
     //////////////////////////////////

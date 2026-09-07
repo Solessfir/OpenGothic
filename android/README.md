@@ -237,6 +237,8 @@ Use up/down on the touch movement area to select quests or scroll their descript
 Choosing an empty save slot opens the Android keyboard. Enter a save name and press the keyboard's Done button to accept it and write the save. The keyboard stays hidden during normal gameplay and menu navigation.
 
 Physical controllers now use camera-relative directional movement, A to accept/interact, B to go back, R3 target lock, and LB+L3 walk. Classic/modern combat, D-pad shortcuts, inventory panels, and the equipment wheel have context-specific mappings. See [controller controls and Gamepad.ini](CONTROLLER.md) for the complete layout, remapping commands, and device-test checklist.
+Android touch and gamepad also face the focused NPC when starting an unlocked melee attack, within a 90-degree turn and 300-world-unit distance by default.
+This does not lunge, extend attack reach, or activate target lock. Disable or tune it with the `[Combat]` settings documented in [Gamepad.ini controls](CONTROLLER.md).
 
 Touch controls, including the contextual G2 Block hit area, are invisible by default.
 For the temporary layout/debug overlay, enable `[DEBUG] touchControls=1` in the writable `Gothic.ini` and restart.

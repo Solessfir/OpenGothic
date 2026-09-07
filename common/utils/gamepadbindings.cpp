@@ -126,6 +126,13 @@ WalkThreshold=0.65
 TriggerPressThreshold=0.55
 TriggerReleaseThreshold=0.40
 
+[Combat]
+; Face the focused NPC at the start of an unlocked melee attack.
+; Distance is in Gothic world units (centimeters); this does not increase weapon reach.
+MeleeAssist=1
+MeleeAssistMaxAngle=90
+MeleeAssistMaxDistance=300
+
 [TargetLock]
 ; Target eligibility and acquisition ranges come from Gothic's focus rules.
 SwitchThreshold=0.65
@@ -272,17 +279,21 @@ std::vector<std::string> GamepadBindings::load(std::istream& input) {
     }
   options.switchCooldownMs=uint64_t(number("TargetLock","SwitchCooldownMs",float(options.switchCooldownMs),0,2000));
   options.cameraSmoothing=number("TargetLock","CameraSmoothingSeconds",options.cameraSmoothing,0.01f,2);
+  options.meleeAssist=number("Combat","MeleeAssist",options.meleeAssist?1.f:0.f,0,1)!=0;
+  options.meleeAssistMaxAngle=number("Combat","MeleeAssistMaxAngle",options.meleeAssistMaxAngle,0,180);
+  options.meleeAssistMaxDistance=number("Combat","MeleeAssistMaxDistance",options.meleeAssistMaxDistance,0,1000);
   for(auto& [sec,v]:values) {
     std::string_view allowed;
     if(sec=="Controller") allowed="|Version|Enabled|ExplorationModifier|HoldMs|RepeatDelayMs|RepeatMs|CameraAssist|";
     if(sec=="Axes") allowed="|MovementStick|CameraStick|StickDeadZone|MovementDeadZone|MovementExponent|MovementTurnSpeed|WalkThreshold|TriggerPressThreshold|TriggerReleaseThreshold|";
     if(sec=="TargetLock") allowed="|SwitchThreshold|SwitchResetThreshold|SwitchCooldownMs|CameraSmoothingSeconds|";
+    if(sec=="Combat") allowed="|MeleeAssist|MeleeAssistMaxAngle|MeleeAssistMaxDistance|";
     if(!allowed.empty()) for(auto& [key,value]:v) {
       (void)value;
       if(allowed.find("|"+key+"|")==std::string_view::npos)
         errors.push_back(sec+"/"+key+": unknown option");
       }
-    if(std::find(std::begin(names),std::end(names),sec)==std::end(names) && sec!="Controller" && sec!="Axes" && sec!="TargetLock")
+    if(std::find(std::begin(names),std::end(names),sec)==std::end(names) && sec!="Controller" && sec!="Axes" && sec!="TargetLock" && sec!="Combat")
       errors.push_back(sec+": unknown section");
     }
   reset();
