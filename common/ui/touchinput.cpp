@@ -17,10 +17,14 @@ TouchInput::TouchInput(CommandHandler command)
   }
 
 void TouchInput::paintEvent(Tempest::PaintEvent& e) {
-  if(!debugOverlay)
+  if(!debugOverlay && !blockVisible())
     return;
 
   Painter p(e);
+  if(blockVisible())
+    drawBlock(p);
+  if(!debugOverlay)
+    return;
   const auto gold = Color(0.843f,0.761f,0.631f,0.75f);
   const auto active = Color(1.f,0.85f,0.4f,0.95f);
   const float scale = std::min(Gothic::interfaceScale(this),float(h())/480.f);
@@ -104,7 +108,16 @@ void TouchInput::mouseDownEvent(Tempest::MouseEvent& e) {
   touch.last   = e.pos();
   touch.pressedAt = Application::tickCount();
 
-  if(e.x<w()/2 && movePointer<0) {
+  if(blockVisible() && blockRect().contains(e.pos())) {
+    if(blockPointer>=0)
+      return;
+    blockPointer = e.mouseID;
+    touch.role = Role::Button;
+    touch.command = Command::Block;
+    touch.actionSent = true;
+    command(Command::Block,true);
+    }
+  else if(e.x<w()/2 && movePointer<0) {
     touch.role  = Role::Move;
     movePointer = e.mouseID;
     }
@@ -122,7 +135,7 @@ void TouchInput::mouseDownEvent(Tempest::MouseEvent& e) {
       }
     }
   touches[e.mouseID] = touch;
-  if(debugOverlay)
+  if(debugOverlay || blockVisible())
     update();
   }
 
@@ -152,7 +165,7 @@ void TouchInput::mouseDragEvent(Tempest::MouseEvent& e) {
     lookDelta += e.pos()-touch.last;
     }
   touch.last = e.pos();
-  if(debugOverlay)
+  if(debugOverlay || blockVisible())
     update();
   }
 
@@ -172,13 +185,15 @@ void TouchInput::mouseUpEvent(Tempest::MouseEvent& e) {
     lookPointer = -1;
     }
   else {
+    if(it->second.command==Command::Block)
+      blockPointer = -1;
     if(it->second.pendingAction)
       command(Command::TapAccept,true);
     else if(it->second.actionSent)
       command(it->second.command,false);
     }
   touches.erase(it);
-  if(debugOverlay)
+  if(debugOverlay || blockVisible())
     update();
   }
 
@@ -198,19 +213,80 @@ void TouchInput::setDebugOverlay(bool enabled) {
   update();
   }
 
-void TouchInput::setDebugContext(bool classic, bool ui, bool lockAllowed, bool locked) {
-  if(classicCombat==classic && uiActive==ui && canLock==lockAllowed && targetLocked==locked)
+void TouchInput::setDebugContext(bool classic, bool ui, bool lockAllowed, bool locked, bool blockAllowed) {
+  if(classicCombat==classic && uiActive==ui && canLock==lockAllowed && targetLocked==locked && canBlock==blockAllowed)
     return;
   classicCombat = classic;
   uiActive = ui;
   canLock = lockAllowed;
   targetLocked = locked;
+  canBlock = blockAllowed;
   if(uiActive || !canLock) {
     for(auto& [id,touch]:touches)
       touch.pendingAction = false;
     }
-  if(debugOverlay)
-    update();
+  if(!blockVisible()) {
+    for(auto& [id,touch]:touches) {
+      if(touch.command==Command::Block && touch.actionSent) {
+        touch.actionSent = false;
+        command(Command::Block,false);
+        }
+      }
+    blockPointer = -1;
+    }
+  update();
+  }
+
+bool TouchInput::blockVisible() const {
+  return touchEnabled && !classicCombat && !uiActive && canBlock;
+  }
+
+Rect TouchInput::blockRect() const {
+  const float scale = std::min(Gothic::interfaceScale(this),float(h())/480.f);
+  const int size = std::max(56,int(72*scale));
+  const int pad = std::max(8,int(12*scale));
+  return Rect((w()*LookBoundaryPercent)/100-pad-size,h()-pad-size,size,size);
+  }
+
+void TouchInput::drawBlock(Painter& p) const {
+  const auto rect = blockRect();
+  const bool pressed = blockPointer>=0;
+  p.setBrush(pressed ? Color(0.45f,0.30f,0.08f,0.6f) : Color(0.025f,0.02f,0.015f,0.4f));
+  p.drawRect(rect);
+  const auto gold = pressed ? Color(1.f,0.85f,0.4f,1.f) : Color(0.843f,0.761f,0.631f,0.9f);
+  p.setBrush(gold);
+  p.setPen(Pen(gold,Painter::Alpha,2.f));
+  p.drawLine(rect.x,rect.y,rect.x+rect.w,rect.y);
+  p.drawLine(rect.x+rect.w,rect.y,rect.x+rect.w,rect.y+rect.h);
+  p.drawLine(rect.x+rect.w,rect.y+rect.h,rect.x,rect.y+rect.h);
+  p.drawLine(rect.x,rect.y+rect.h,rect.x,rect.y);
+
+  // Original vector parry symbol; no game texture or external icon asset is bundled.
+  const int icon = (rect.w*3)/4;
+  const int x = rect.x+(rect.w-icon)/2;
+  const int y = rect.y+rect.h/16;
+  auto stroke = [&](int x0,int y0,int x1,int y1) {
+    p.drawLine(x+x0*icon/32,y+y0*icon/32,x+x1*icon/32,y+y1*icon/32);
+    };
+  auto swords = [&]() {
+    stroke(7,25,25,7);
+    stroke(25,7,23,13);
+    stroke(25,7,19,9);
+    stroke(8,18,14,24);
+    stroke(25,25,7,7);
+    stroke(7,7,9,13);
+    stroke(7,7,13,9);
+    stroke(18,24,24,18);
+    };
+  const auto outline = Color(0.06f,0.045f,0.025f,1.f);
+  p.setBrush(outline);
+  p.setPen(Pen(outline,Painter::Alpha,float(icon)/12.f));
+  swords();
+  p.setBrush(gold);
+  p.setPen(Pen(gold,Painter::Alpha,std::max(2.f,float(icon)/28.f)));
+  swords();
+  const auto& font = Resources::font(float(rect.w)/90.f);
+  font.drawText(p,rect.x,rect.y+rect.h-font.pixelSize()-rect.h/16,rect.w,font.pixelSize()*2,"BLOCK",AlignHCenter);
   }
 
 void TouchInput::tick() {
@@ -276,4 +352,5 @@ void TouchInput::reset() {
   lookDelta = Point();
   movePointer = -1;
   lookPointer = -1;
+  blockPointer = -1;
   }

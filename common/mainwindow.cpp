@@ -423,6 +423,13 @@ void MainWindow::onTouchCommand(TouchInput::Command command, bool pressed) {
   Event::KeyType key = Event::K_NoKey;
   const bool uiActive = video.isActive() || rootMenu.isActive() || chapter.isActive() ||
                         document.isActive() || dialogs.isActive() || inventory.isActive();
+  if(command==TouchInput::Command::Block) {
+    if(!pressed)
+      player.controllerCombat(1,false,true);
+    else if(!uiActive && !Gothic::inst().isPause() && !player.isClassicCombat())
+      player.controllerCombat(1,true);
+    return;
+    }
   if(command==TouchInput::Command::LockTarget) {
     if(pressed && !uiActive && !Gothic::inst().isPause())
       player.toggleTargetLock();
@@ -455,6 +462,7 @@ void MainWindow::onTouchCommand(TouchInput::Command command, bool pressed) {
     case TouchInput::Command::Weapon:    key = Event::K_Space;    break;
     case TouchInput::Command::Inventory: key = Event::K_Tab;      break;
     case TouchInput::Command::LockTarget:
+    case TouchInput::Command::Block:
     case TouchInput::Command::TapAccept: return;
     }
   KeyEvent event(key,Event::M_NoModifier,pressed ? Event::KeyDown : Event::KeyUp);

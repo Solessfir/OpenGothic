@@ -180,12 +180,15 @@ void MainWindow::tickGamepad() {
   const bool connected=gp.connected && options.enabled && controllerFocused;
   mobileUi.setTouchEnabled(!connected && controllerFocused);
   const auto touchPlayer = Gothic::inst().player();
+  const auto touchWeapon = touchPlayer!=nullptr ? touchPlayer->weaponState() : WeaponState::NoWeapon;
   mobileUi.setDebugContext(Gothic::inst().version().game!=2 || Gothic::settingsGetI("GAME","useGothic1Controls")!=0,
                            video.isActive() || rootMenu.isActive() || chapter.isActive() ||
                            document.isActive() || dialogs.isActive() || inventory.isActive() || console.isActive(),
                            touchPlayer!=nullptr && touchPlayer->weaponState()!=WeaponState::NoWeapon &&
                            !Gothic::inst().isPause() && Gothic::inst().checkLoading()==Gothic::LoadState::Idle,
-                           player.lockedTarget()!=nullptr);
+                           player.lockedTarget()!=nullptr,
+                           (touchWeapon==WeaponState::Fist || touchWeapon==WeaponState::W1H || touchWeapon==WeaponState::W2H) &&
+                           !Gothic::inst().isPause() && Gothic::inst().checkLoading()==Gothic::LoadState::Idle);
   mobileUi.tick();
   if(!connected && controllerConnected) {
     controllerAxesBlocked=true;

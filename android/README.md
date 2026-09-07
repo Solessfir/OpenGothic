@@ -150,7 +150,8 @@ Choosing an empty save slot opens the Android keyboard. Enter a save name and pr
 
 Physical controllers now use camera-relative directional movement, A to accept/interact, B to go back, R3 target lock, and LB+L3 walk. Classic/modern combat, D-pad shortcuts, inventory panels, and the equipment wheel have context-specific mappings. See [controller controls and Gamepad.ini](CONTROLLER.md) for the complete layout, remapping commands, and device-test checklist.
 
-Touch controls are normally invisible. For the temporary layout/debug overlay, enable `[DEBUG] touchControls=1` in the writable `Gothic.ini` and restart.
+Most touch controls are normally invisible; the contextual G2 Block button is visible even without debugging.
+For the temporary layout/debug overlay, enable `[DEBUG] touchControls=1` in the writable `Gothic.ini` and restart.
 It draws Gothic-colored zone boundaries, action labels, pressed-button highlights and live finger anchors/trails.
 The movement stick's outer square shows full axis travel; the inner square marks the arrow-key activation threshold.
 Disable it with `touchControls=0`; it is off by default.
@@ -160,6 +161,11 @@ With classic controls (`[GAME] useGothic1Controls=1`), draw a melee weapon, hold
 Return the stick to neutral between directional presses; holding ACTION alone is not a directional strike.
 Without a weapon, ACTION is interaction; menus use the same zone to confirm.
 With Gothic 2 controls (`useGothic1Controls=0`), the bottom-right zone directly uses/attacks.
+With fists or a melee weapon drawn, a separate Block button appears immediately left of Use/Attack.
+Hold it to request Gothic's normal block/parry action and release to stop; this is not an unconditional damage shield.
+The button disappears in menus, with ranged weapons/magic, in classic controls, and when touch controls are inactive.
+Changing context also releases a held block, and a touch started on Block never becomes a camera drag.
+Its gold crossed-blade icon is original vector geometry drawn by OpenGothic, not a copied game texture or external icon dependency.
 This debug view exposes the existing keyboard-style touch combat, not a redesigned mobile combat layout.
 Right-side touch camera drag looks around without turning the character, respecting Mouse speed and vertical inversion.
 The left movement stick still turns the character in place when dragged sideways.

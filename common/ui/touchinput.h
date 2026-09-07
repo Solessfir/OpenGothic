@@ -5,6 +5,8 @@
 #include <functional>
 #include <unordered_map>
 
+namespace Tempest { class Painter; }
+
 class TouchInput : public Tempest::Widget {
   public:
     enum class Command : uint8_t {
@@ -19,6 +21,7 @@ class TouchInput : public Tempest::Widget {
       Inventory,
       LockTarget,
       TapAccept,
+      Block,
       };
 
     using CommandHandler = std::function<void(Command,bool)>;
@@ -32,7 +35,7 @@ class TouchInput : public Tempest::Widget {
 
     void            setTouchEnabled(bool enabled);
     void            setDebugOverlay(bool enabled);
-    void            setDebugContext(bool classicCombat, bool uiActive, bool canLock, bool locked);
+    void            setDebugContext(bool classicCombat, bool uiActive, bool canLock, bool locked, bool canBlock);
     void            tick();
     Tempest::PointF movementAxis() const;
     Tempest::Point  takeLookDelta();
@@ -59,6 +62,9 @@ class TouchInput : public Tempest::Widget {
     void setDirection(Command command, bool pressed);
     void reset();
     int  movementRadius() const;
+    bool blockVisible() const;
+    Tempest::Rect blockRect() const;
+    void drawBlock(Tempest::Painter& p) const;
 
     static constexpr int LookBoundaryPercent = 84;
     static constexpr Command Buttons[] = {Command::Back,Command::Inventory,Command::Jump,Command::Weapon,Command::Accept};
@@ -71,12 +77,14 @@ class TouchInput : public Tempest::Widget {
     Tempest::Point  lookDelta;
     int             movePointer = -1;
     int             lookPointer = -1;
+    int             blockPointer = -1;
     bool            touchEnabled = true;
     bool            debugOverlay = false;
     bool            classicCombat = true;
     bool            uiActive = false;
     bool            canLock = false;
     bool            targetLocked = false;
+    bool            canBlock = false;
     bool            directions[4] = {};
   };
 
