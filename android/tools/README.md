@@ -10,6 +10,7 @@ From the repository root:
 
 ```powershell
 ./android/gradlew.bat -p android --no-daemon assembleDebug lintDebug
+./android/gradlew.bat -p android --no-daemon assembleRelease lintRelease
 cmake -S tests/controller -B build/controller-tests
 cmake --build build/controller-tests --config Release
 ctest --test-dir build/controller-tests -C Release --output-on-failure
@@ -23,7 +24,7 @@ Compilation/tests do not replace device checks for controls, audio, lifecycle, i
 ## Inspect the APK
 
 ```powershell
-$apk = 'android/app/build/outputs/apk/debug/app-debug.apk'
+$apk = 'android/app/build/outputs/apk/release/app-release.apk'
 & "$env:ANDROID_HOME/build-tools/35.0.0/apksigner.bat" verify --verbose $apk
 & "$env:ANDROID_HOME/build-tools/35.0.0/aapt2.exe" dump badging $apk
 & "$env:JAVA_HOME/bin/jar.exe" tf $apk
@@ -32,6 +33,12 @@ $apk = 'android/app/build/outputs/apk/debug/app-debug.apk'
 
 Expect only `arm64-v8a` native libraries. A normal asset-free build must not contain `assets/private-game-*`,
 including after a private bundled build. Never upload game assets, signing keys or private test artifacts.
+
+Release must not report `application-debuggable`. Native compile/link commands under
+`android/app/.cxx/Release/` should use `-O3`, `-DNDEBUG` and `-flto=thin`.
+Keep `android/app/build/outputs/native-debug-symbols/release/native-debug-symbols.zip` and
+`android/app/build/outputs/mapping/release/mapping.txt` with each release for crash analysis.
+The guided setup copies them beside its APK. Debug symbols are stripped from the packaged native library.
 
 ## GPU timings
 

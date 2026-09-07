@@ -28,6 +28,9 @@ builds and checks an ARM64 APK, and offers phone installation.
 Android SDK licenses remain interactive. Downloads and completed build work are reused on reruns.
 If a required dependency is declined, install it yourself and rerun.
 
+Builds default to **optimized release**: native `-O3` and ThinLTO, Java/resource shrinking, and no debugger support.
+For debugging, pass `--build-type debug` to either launcher. Debug APK names include `-debug`.
+
 ## Install without USB
 
 For the more portable APK + ZIP option:
@@ -45,6 +48,7 @@ Outputs are in `build/private-android/`:
 | `OpenGothic-arm64.apk` + `private-game.zip` | Install APK, then import ZIP |
 | `OpenGothic-PRIVATE-arm64.apk` | Single-file package with game assets, when it fits |
 | `*-report.json` | Build/package details and checksums |
+| `*-native-symbols.zip`, `*-mapping.txt` | Release crash symbols; keep with the matching APK |
 | `phone-saves-*` | Optional save backups |
 
 1. Transfer the APK and, in split mode, ZIP to the phone's Downloads folder privately.
@@ -77,6 +81,14 @@ For direct installation over Wi-Fi, see [wireless debugging](README.md#wireless-
 
 A bundled APK keeps both compressed and extracted assets. APK + ZIP avoids retaining the archive once Downloads is cleaned up.
 
+### Signing
+
+Both build types use your local `~/.android/debug.keystore` by default, so you can switch without reinstalling.
+For distribution with your own key, set all four environment variables before building release:
+`OPENGOTHIC_KEYSTORE` (absolute keystore path), `OPENGOTHIC_KEY_ALIAS`, `OPENGOTHIC_STORE_PASSWORD`, and `OPENGOTHIC_KEY_PASSWORD`.
+Keep keys/passwords outside the repository. Changing the key prevents in-place updates to an already installed app.
+Only asset-free APKs may be shared publicly.
+
 ## PC preferences and saves
 
 Do not copy a complete PC `Gothic.ini`. The guide can import only these supported preferences:
@@ -106,6 +118,7 @@ setup-android.bat --game "D:/Games/Gothic II" --jdk "C:/Path/To/jdk-17" --sdk "C
 setup-android.bat --prepare-only
 setup-android.bat --package-only --game "D:/Games/Gothic II"
 setup-android.bat --no-install
+setup-android.bat --build-type debug --split --no-install
 setup-android.bat --help
 ```
 

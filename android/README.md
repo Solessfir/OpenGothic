@@ -36,11 +36,15 @@ $env:ANDROID_HOME = 'C:/Path/To/Android/Sdk'
 $env:ANDROID_SDK_ROOT = $env:ANDROID_HOME
 & "$env:ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager.bat" 'platform-tools' 'platforms;android-35' 'build-tools;35.0.0' 'ndk;27.0.12077973' 'cmake;3.22.1'
 & "$env:ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager.bat" --licenses
-./android/gradlew.bat -p android --no-daemon assembleDebug
+./android/gradlew.bat -p android --no-daemon assembleRelease lintRelease
 ```
 
-Output: `android/app/build/outputs/apk/debug/app-debug.apk` (ARM64, no Gothic assets).
-On Linux, set `JAVA_HOME`/`ANDROID_HOME` and use `bash android/gradlew -p android assembleDebug`.
+Output: `android/app/build/outputs/apk/release/app-release.apk` (ARM64, no Gothic assets).
+On Linux, set `JAVA_HOME`/`ANDROID_HOME` and use `bash android/gradlew -p android assembleRelease lintRelease`.
+
+Release uses native `-O3` and ThinLTO, Java/resource shrinking, and disables debugger support.
+For native debugging, use `assembleDebug lintDebug`; output is `android/app/build/outputs/apk/debug/app-debug.apk`.
+Both use the same local signing key by default. See [custom signing](PRIVATE-SETUP.md#signing) for distribution.
 
 ## Connect and install with ADB
 
@@ -51,7 +55,7 @@ $adb = "$env:ANDROID_HOME/platform-tools/adb.exe"
 & $adb devices -l
 $device = 'YOUR_DEVICE_SERIAL'
 & $adb -s $device shell am force-stop org.opengothic.app
-& $adb -s $device install --no-streaming -r android/app/build/outputs/apk/debug/app-debug.apk
+& $adb -s $device install --no-streaming -r android/app/build/outputs/apk/release/app-release.apk
 if ($LASTEXITCODE -ne 0) { throw 'APK installation failed' }
 & $adb -s $device shell am start -W -n org.opengothic.app/.SetupActivity
 ```

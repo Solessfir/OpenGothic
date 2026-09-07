@@ -368,31 +368,52 @@ def stage_chunks():
             index += 1
 
 
-def build(sdk, env, bundled):
+def build(sdk, env, bundled, build_type="release"):
+    if build_type not in ("release", "debug"):
+        raise ValueError("Build type must be release or debug")
+    variant = build_type.capitalize()
+    print(f"\nBuilding {build_type} ARM64 APK" + (" with native ThinLTO and Java shrinking." if build_type == "release" else " with debugger support."))
     if bundled:
         stage_chunks()
     wrapper = ROOT / "android" / ("gradlew.bat" if WINDOWS else "gradlew")
     command = [wrapper] if WINDOWS else ["sh", wrapper]
-    command += ["-p", ROOT / "android", "--no-daemon", "assembleDebug", "lintDebug", "--max-workers=2",
+    command += ["-p", ROOT / "android", "--no-daemon", f"assemble{variant}", f"lint{variant}", "--max-workers=2",
                 "-Dorg.gradle.jvmargs=-Xmx3g -Dfile.encoding=UTF-8"]
     if bundled:
         command.append(f"-PprivateGameAssets={OUTPUT / 'assets'}")
     run(command, env=env)
-    apk = ROOT / "android/app/build/outputs/apk/debug/app-debug.apk"
+    outputs = ROOT / "android/app/build/outputs"
+    apk = outputs / f"apk/{build_type}/app-{build_type}.apk"
     inspect_apk(apk, bundled)
     build_tools = sdk / "build-tools/35.0.0"
-    run([build_tools / ("apksigner.bat" if WINDOWS else "apksigner"), "verify", "--verbose", apk], env=env)
-    destination = OUTPUT / ("OpenGothic-PRIVATE-arm64.apk" if bundled else "OpenGothic-arm64.apk")
+    run([build_tools / ("apksigner.bat" if WINDOWS else "apksigner"), "verify", "--verbose", "--print-certs", apk], env=env)
+    manifest = run([build_tools / ("aapt.exe" if WINDOWS else "aapt"), "dump", "badging", apk], env=env, capture=True).stdout
+    debuggable = "application-debuggable" in manifest
+    if debuggable != (build_type == "debug"):
+        raise RuntimeError("APK debuggable flag does not match the selected build type")
+    stem = "OpenGothic" + ("-PRIVATE" if bundled else "") + ("-debug" if build_type == "debug" else "") + "-arm64"
+    destination = OUTPUT / f"{stem}.apk"
+    symbols = []
+    if build_type == "release":
+        for source, suffix in ((outputs / "native-debug-symbols/release/native-debug-symbols.zip", "native-symbols.zip"),
+                               (outputs / "mapping/release/mapping.txt", "mapping.txt")):
+            target = OUTPUT / f"{stem}-{suffix}"
+            shutil.copy2(source, target)
+            symbols.append(target.name)
     shutil.copy2(apk, destination)
     revision = run(["git", "rev-parse", "HEAD"], capture=True).stdout.strip()
     report = {"revision": revision, "apk": destination.name, "bytes": destination.stat().st_size,
               "sha256": sha256(destination), "bundled_game_files": bundled,
+              "build_type": build_type, "debuggable": debuggable, "debug_artifacts": symbols,
+              "signing": "custom" if build_type == "release" and env.get("OPENGOTHIC_KEYSTORE") else "local_debug_key",
               "source_modified": bool(run(["git", "status", "--porcelain"], capture=True).stdout.strip()),
               "submodules": run(["git", "submodule", "status", "--recursive"], capture=True).stdout.splitlines(),
               "warning": "Private testing only. Never upload game files, saves or private APKs."}
     (OUTPUT / "build-report.json").write_text(json.dumps(report, indent=2) + "\n")
     print(f"\nVerified signed ARM64 APK: {destination}\nSHA-256: {report['sha256']}")
-    print("Keep ~/.android/debug.keystore private and backed up. A different signing key cannot update the same app in place.")
+    print("Keep your signing key private and backed up (default: ~/.android/debug.keystore). A different key cannot update the same app in place.")
+    if symbols:
+        print("Keep the matching native symbols and Java mapping for crash reports; they are not included in the APK.")
     return destination
 
 
@@ -439,7 +460,7 @@ def install_apk(prefix, apk):
         if result.returncode == 0:
             return
         print("Installation failed. Check USB debugging/authorization and free space. For large-APK failures, try --split or manual network transfer.")
-        print("For INSTALL_FAILED_UPDATE_INCOMPATIBLE, restore the previous debug.keystore. Do not uninstall without backing up assets, settings and saves.")
+        print("For INSTALL_FAILED_UPDATE_INCOMPATIBLE, restore the previous signing key. Do not uninstall without backing up assets, settings and saves.")
         run([prefix[0], "devices", "-l"], check=False)
         if not ask("Retry installation on the same phone after correcting the problem?"):
             raise RuntimeError("Installation cancelled. Built files are still available for manual transfer; no app was uninstalled.")
@@ -485,6 +506,7 @@ def main(argv=None):
     parser.add_argument("--sdk", help="Existing or new Android SDK directory")
     parser.add_argument("--cache", default=str(Path.home() / ".cache/opengothic-android"), help="Portable tool cache")
     parser.add_argument("--split", action="store_true", help="Build an asset-free APK and a separate importable ZIP")
+    parser.add_argument("--build-type", choices=("release", "debug"), default="release", help="Optimized release (default), or debug with debugger support")
     parser.add_argument("--no-install", action="store_true", help="Build for manual/network transfer without ADB installation")
     parser.add_argument("--prepare-only", action="store_true", help="Discover/install tools, but do not package, build or install")
     parser.add_argument("--package-only", action="store_true", help="Create the private archive without installing tools or building")
@@ -534,7 +556,7 @@ def main(argv=None):
     if (OUTPUT / "private-game.zip").stat().st_size > 3800 * 1024**2:
         print("Archive approaches the APK's ZIP32 limit. Switching to separate APK + ZIP.")
         bundled = False
-    apk = build(sdk, env, bundled)
+    apk = build(sdk, env, bundled, args.build_type)
     if not args.no_install:
         install(sdk, apk, bundled, env)
     print(f"\nOutput: {OUTPUT}\nManual transfer: install the APK from Android's file manager (allow installs from that source). For split mode, select the ZIP in OpenGothic. No USB is required for manual transfer.")

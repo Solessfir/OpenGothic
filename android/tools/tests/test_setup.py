@@ -1,4 +1,5 @@
 import io
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -33,6 +34,46 @@ class SetupTests(unittest.TestCase):
             self.assertTrue(setup.ask("Yes"))
             self.assertFalse(setup.ask("No", False))
             self.assertFalse(setup.ask("Retry"))
+
+    def test_build_variants_and_release_default(self):
+        for build_type in ("release", "debug"):
+            for bundled in (False, True):
+                with self.subTest(build_type=build_type, bundled=bundled):
+                    outputs = self.base / "android/app/build/outputs"
+                    apk = outputs / f"apk/{build_type}/app-{build_type}.apk"
+                    apk.parent.mkdir(parents=True, exist_ok=True)
+                    with zipfile.ZipFile(apk, "w") as archive:
+                        archive.writestr("AndroidManifest.xml", b"manifest")
+                        archive.writestr("lib/arm64-v8a/libopengothic.so", b"library")
+                        if bundled:
+                            archive.writestr("assets/private-game-00000.ogpart", b"private")
+                    for name in ("native-debug-symbols/release/native-debug-symbols.zip", "mapping/release/mapping.txt"):
+                        target = outputs / name
+                        target.parent.mkdir(parents=True, exist_ok=True)
+                        target.write_bytes(b"symbols")
+                    output = self.base / "result"
+                    output.mkdir(exist_ok=True)
+                    def run(command, **kwargs):
+                        result = "application-debuggable" if "badging" in command and build_type == "debug" else ""
+                        return subprocess.CompletedProcess(command, 0, result, "")
+                    with patch.object(setup, "ROOT", self.base), patch.object(setup, "OUTPUT", output), \
+                         patch.object(setup, "run", side_effect=run) as calls, patch.object(setup, "stage_chunks") as stage:
+                        args = {} if build_type == "release" else {"build_type": "debug"}
+                        destination = setup.build(self.base / "sdk", {}, bundled, **args)
+                    variant = build_type.capitalize()
+                    self.assertIn(f"assemble{variant}", calls.call_args_list[0].args[0])
+                    self.assertIn(f"lint{variant}", calls.call_args_list[0].args[0])
+                    self.assertEqual(stage.call_count, int(bundled))
+                    self.assertEqual("-debug-" in destination.name, build_type == "debug")
+                    self.assertEqual("-PRIVATE-" in destination.name, bundled)
+                    report = json.loads((output / "build-report.json").read_text())
+                    self.assertEqual(report["build_type"], build_type)
+                    self.assertEqual(report["debuggable"], build_type == "debug")
+                    self.assertEqual(len(report["debug_artifacts"]), 2 if build_type == "release" else 0)
+
+    def test_build_rejects_unknown_variant(self):
+        with self.assertRaisesRegex(ValueError, "Build type"):
+            setup.build(self.base, {}, False, "relase")
 
     def test_safe_ini(self):
         result = assets.safe_preferences(self.game / "system/Gothic.ini").decode()
