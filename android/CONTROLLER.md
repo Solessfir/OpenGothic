@@ -92,6 +92,9 @@ Gothic's swim animations, collision, oxygen and automatic surfacing rules still 
 
 ## Menus, inventory, and equipment
 
+Touch also supports hold-and-drag wheels: hold Draw for equipment or Menu/Back for Character Stats and Journal, select with the same finger, and release to apply.
+See [touch controls](README.md#controls-and-current-limitations) for cancellation and touch-only page browsing; gamepad wheel bindings remain unchanged.
+
 Menus and dialogue use A to confirm, B to go back/skip, and the D-pad or left stick to navigate. View and Menu also close ordinary menus. Save-name entry still opens the Android keyboard; use its Done button. Unhandled UI input is not forwarded to gameplay.
 
 In the save/load menu, select an occupied slot and press X to request deletion. The confirmation shows the save name: A permanently deletes that one save file; B cancels without leaving the menu. Empty slots do nothing. The slot name and preview clear after deletion. This does not delete game assets or other slots, but there is no undo, so back up important saves first. Keyboard users can use Delete, Enter to confirm, and Escape to cancel. Screen taps cannot confirm deletion.

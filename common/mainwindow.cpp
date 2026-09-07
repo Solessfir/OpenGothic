@@ -40,7 +40,8 @@ MainWindow::MainWindow(Device& device)
     console(*this),
     player(dialogs,inventory)
 #if defined(__MOBILE_PLATFORM__)
-    ,mobileUi([this](TouchInput::Command cmd, bool pressed){ onTouchCommand(cmd,pressed); })
+    ,mobileUi([this](TouchInput::Command cmd, bool pressed){ onTouchCommand(cmd,pressed); },
+              [this](TouchInput::Command cmd, TouchInput::WheelPhase phase, Point pos){ return onTouchWheel(cmd,phase,pos); })
 #endif
     {
   Gothic::inst().onSettingsChanged.bind(this,&MainWindow::onSettings);
@@ -425,6 +426,52 @@ void MainWindow::tickMouse(uint64_t dt) {
 
 
 #if defined(__MOBILE_PLATFORM__)
+bool MainWindow::onTouchWheel(TouchInput::Command command, TouchInput::WheelPhase phase, Point pos) {
+  using Phase=TouchInput::WheelPhase;
+  auto& gothic=Gothic::inst();
+  auto pl=gothic.player();
+  if(phase==Phase::Begin) {
+    const auto camera=gothic.camera();
+    if(pl==nullptr || gothic.isPause() || gothic.checkLoading()!=Gothic::LoadState::Idle ||
+       camera==nullptr || camera->isCutscene() || pl->isDown() ||
+       video.isActive() || rootMenu.isActive() || chapter.isActive() || document.isActive() ||
+       dialogs.isActive() || inventory.isActive() || console.isActive())
+      return false;
+    player.clearInput();
+    touchHeldAction.reset();
+    touchTapRelease.reset();
+    touchMovementBlocked=true;
+    inventory.openWheel(*pl,command==TouchInput::Command::Back);
+    if(!inventory.isWheelOpen()) return false;
+    touchWheelOwned=true;
+    inventory.beginTouchWheel(pos);
+    inventory.setWheelHint("Drag onto a choice; release to apply. Center / outside: cancel. Hold a page arrow to browse.");
+    return true;
+    }
+  if(!touchWheelOwned) return false;
+  if(phase==Phase::Move) {
+    if(inventory.isWheelOpen()) inventory.touchWheelMove(pos,Application::tickCount());
+    return true;
+    }
+  const auto selected=inventory.isWheelOpen() ? inventory.wheelSelection() : size_t(-1);
+  if(inventory.isWheelOpen()) inventory.close();
+  touchWheelOwned=false;
+  player.clearInput();
+  touchMovementBlocked=true;
+  if(phase!=Phase::Apply || selected==size_t(-1) || pl==nullptr || pl->isDown() || gothic.isPause() ||
+     gothic.checkLoading()!=Gothic::LoadState::Idle || rootMenu.isActive() || video.isActive() ||
+     chapter.isActive() || document.isActive() || dialogs.isActive() || console.isActive()) return true;
+  if(command==TouchInput::Command::Weapon) {
+    player.controllerEquip(selected);
+    }
+  else {
+    const auto action=selected==0 ? KeyCodec::Status : KeyCodec::Log;
+    rootMenu.setMenu(selected==0 ? "MENU_STATUS" : "MENU_LOG",action);
+    rootMenu.setPlayer(*pl);
+    }
+  return true;
+  }
+
 void MainWindow::onTouchCommand(TouchInput::Command command, bool pressed) {
   Event::KeyType key = Event::K_NoKey;
   const bool uiActive = video.isActive() || rootMenu.isActive() || chapter.isActive() ||

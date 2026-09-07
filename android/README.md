@@ -176,7 +176,23 @@ The left movement stick still turns the character in place when dragged sideways
 While target-locked, it instead uses the gamepad's target-relative movement: sideways strafes, up approaches, and down retreats.
 The same movement dead zone, response curve and dominant-axis filtering apply, without switching walk animations during sidesteps.
 G1's held ACTION plus direction combat still takes priority over movement; release ACTION to resume locked strafing.
-The equipment wheel currently requires a gamepad (hold D-pad Up); holding touch ACTION or Inventory does not open it.
+Hold the touch Draw/Sheathe area for 400 ms to open the equipment wheel.
+Keep the same finger down, drag onto an item, then release to equip and draw it.
+It uses the existing eligible equipment list: owned melee/ranged weapons and assigned spells that satisfy Gothic's requirements.
+Hold Menu/Back for 400 ms to open the character wheel: Character Stats at the top, Journal at the bottom.
+Drag the same finger onto either entry and release to open it.
+Short taps still draw/sheathe or open/close the menu; holding does not also trigger the tap action.
+
+Wheels appear near the starting finger position, shifted inward to fit on screen.
+Release without moving, in the wheel's center, outside its outer edge, or over an empty sector to cancel.
+For equipment with more than eight entries, each page has six items plus Previous/Next sectors.
+Hover the same finger over a page sector for 500 ms, move through the center to rearm selection, then choose an item without lifting.
+Releasing on a page sector cancels without equipping anything.
+Other touch controls stop while a wheel is open; release and touch again to resume movement.
+Focus loss, gamepad takeover, resizing, loading, and another modal UI cancel the gesture without applying it.
+The world continues running while the wheel is open, as with the gamepad wheel.
+These wheels are visible on demand even when the normal touch zones and debug overlay are hidden.
+Touch ACTION and Inventory holds are not wheel gestures.
 
 Swimming uses camera-relative movement on both touch and gamepad.
 Underwater, forward swims where the camera looks, backward reverses that direction, and sideways movement stays level.

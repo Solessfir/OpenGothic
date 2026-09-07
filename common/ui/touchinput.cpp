@@ -12,12 +12,12 @@
 
 using namespace Tempest;
 
-TouchInput::TouchInput(CommandHandler command)
-  :command(std::move(command)) {
+TouchInput::TouchInput(CommandHandler command, WheelHandler wheel)
+  :command(std::move(command)),wheel(std::move(wheel)) {
   }
 
 void TouchInput::paintEvent(Tempest::PaintEvent& e) {
-  if(!debugOverlay)
+  if(!debugOverlay || wheelPointer>=0)
     return;
 
   Painter p(e);
@@ -67,6 +67,8 @@ void TouchInput::paintEvent(Tempest::PaintEvent& e) {
     label(rect.x+pad,rect.y+rect.h/2-line,rect.w-2*pad,names[i]);
     if(i==4 && canLock && touchEnabled && !uiActive)
       label(rect.x+pad,rect.y+rect.h/2+line,rect.w-2*pad,targetLocked ? "DRAG: UNLOCK" : "DRAG: LOCK");
+    if((i==0 || i==3) && touchEnabled && !uiActive)
+      label(rect.x+pad,rect.y+rect.h/2+line,rect.w-2*pad,i==0 ? "HOLD: CHARACTER" : "HOLD: EQUIPMENT");
     }
 
   auto cross = [&](Point pos,int radius) {
@@ -97,7 +99,14 @@ void TouchInput::paintEvent(Tempest::PaintEvent& e) {
     }
   }
 
+void TouchInput::resizeEvent(Tempest::SizeEvent&) {
+  // A moved layout must not apply the selection from a gesture in the old viewport.
+  reset();
+  }
+
 void TouchInput::mouseDownEvent(Tempest::MouseEvent& e) {
+  if(wheelPointer>=0)
+    return;
   if(!touchEnabled) {
     // Consume gameplay touches instead of forwarding them as desktop mouse input.
     // Android's text editor receives its own input outside this widget.
@@ -128,7 +137,8 @@ void TouchInput::mouseDownEvent(Tempest::MouseEvent& e) {
     touch.role = Role::Button;
     touch.command = Buttons[button];
     touch.pendingAction = touch.command==Command::Accept && canLock && !uiActive;
-    if(!touch.pendingAction) {
+    touch.pendingWheel = !uiActive && (touch.command==Command::Weapon || touch.command==Command::Back);
+    if(!touch.pendingAction && !touch.pendingWheel) {
       touch.actionSent = true;
       command(touch.command,true);
       }
@@ -155,6 +165,12 @@ void TouchInput::mouseDragEvent(Tempest::MouseEvent& e) {
   if(it==touches.end())
     return;
   auto& touch = it->second;
+  if(wheelPointer>=0) {
+    if(e.mouseID==wheelPointer) {
+      moveWheel(touch,e.pos());
+      }
+    return;
+    }
   if(touch.pendingAction) {
     const auto delta = e.pos()-touch.anchor;
     const float distance = std::hypot(float(delta.x),float(delta.y));
@@ -181,9 +197,20 @@ void TouchInput::mouseDragEvent(Tempest::MouseEvent& e) {
   }
 
 void TouchInput::mouseUpEvent(Tempest::MouseEvent& e) {
+  // Recognize long holds even when Android batches the last move and release.
+  tick();
   auto it = touches.find(e.mouseID);
   if(it==touches.end())
     return;
+  if(e.mouseID==wheelPointer) {
+    const auto action=it->second.command;
+    moveWheel(it->second,e.pos());
+    wheelPointer=-1;
+    touches.erase(it);
+    wheel(action,WheelPhase::Apply,e.pos());
+    update();
+    return;
+    }
   if(it->second.role==Role::Move) {
     movePointer = -1;
     moveAxis = PointF();
@@ -198,6 +225,14 @@ void TouchInput::mouseUpEvent(Tempest::MouseEvent& e) {
   else {
     if(it->second.command==Command::Block)
       blockPointer = -1;
+    if(it->second.pendingWheel) {
+      const auto action=it->second.command;
+      touches.erase(it);
+      command(action,true);
+      command(action,false);
+      update();
+      return;
+      }
     if(it->second.pendingAction)
       command(Command::TapAccept,true);
     else if(it->second.actionSent)
@@ -246,6 +281,9 @@ void TouchInput::setDebugContext(bool classic, bool ui, bool lockAllowed, bool l
     for(auto& [id,touch]:touches)
       touch.pendingAction = false;
     }
+  if(uiActive)
+    for(auto& [id,touch]:touches)
+      touch.pendingWheel=false;
   if(!blockVisible()) {
     for(auto& [id,touch]:touches) {
       if(touch.command==Command::Block && touch.actionSent) {
@@ -320,13 +358,49 @@ void TouchInput::drawBlock(Painter& p) const {
 
 void TouchInput::tick() {
   const auto now = Application::tickCount();
+  if(wheelPointer>=0) {
+    auto& touch=touches.at(wheelPointer);
+    moveWheel(touch,touch.last);
+    return;
+    }
   for(auto& [id,touch]:touches) {
+    if(touch.pendingWheel && now-touch.pressedAt>=WheelHoldMs) {
+      startWheel(id);
+      return;
+      }
     if(touch.pendingAction && now-touch.pressedAt>=ActionHoldMs) {
       touch.pendingAction = false;
       touch.actionSent = true;
       command(Command::Accept,true);
       }
     }
+  }
+
+void TouchInput::startWheel(int pointer) {
+  auto touch=touches.at(pointer);
+  // Release other held controls before the wheel becomes modal.
+  reset();
+  touch.pendingWheel=false;
+  touch.pendingAction=false;
+  touch.actionSent=false;
+  touches[pointer]=touch;
+  if(wheel(touch.command,WheelPhase::Begin,touch.anchor))
+    wheelPointer=pointer;
+  update();
+  }
+
+void TouchInput::moveWheel(Touch& touch, Point pos) {
+  touch.last=pos;
+  const auto delta=pos-touch.anchor;
+  touch.wheelMoved |= std::hypot(float(delta.x),float(delta.y))>=12.f;
+  // Ignore initial finger jitter, but always use the final release position after dragging.
+  if(touch.wheelMoved)
+    wheel(touch.command,WheelPhase::Move,pos);
+  }
+
+void TouchInput::cancelWheel() {
+  if(wheelPointer>=0)
+    reset();
   }
 
 PointF TouchInput::movementAxis() const {
@@ -373,6 +447,11 @@ void TouchInput::setDirection(Command value, bool pressed) {
   }
 
 void TouchInput::reset() {
+  if(wheelPointer>=0) {
+    const auto action=touches.at(wheelPointer).command;
+    wheelPointer=-1;
+    wheel(action,WheelPhase::Cancel,Point());
+    }
   for(auto& touch:touches)
     if(touch.second.role==Role::Button && touch.second.actionSent)
       command(touch.second.command,false);

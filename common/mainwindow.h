@@ -189,6 +189,8 @@ class MainWindow : public Tempest::Window {
 #endif
 #if defined(__MOBILE_PLATFORM__)
     TouchInput                mobileUi;
+    bool                      touchWheelOwned=false;
+    bool onTouchWheel(TouchInput::Command command, TouchInput::WheelPhase phase, Tempest::Point pos);
     uint64_t                  touchLookIdle=0;
     bool                      touchMovementBlocked=false;
     std::optional<KeyCodec::ActionMapping> touchHeldAction;

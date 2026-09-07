@@ -180,6 +180,10 @@ void MainWindow::tickGamepad() {
   controllerWasPresent = gp.connected && options.enabled;
   const bool connected=gp.connected && options.enabled && controllerFocused;
   mobileUi.setTouchEnabled(!connected && controllerFocused);
+  if(touchWheelOwned && (!inventory.isWheelOpen() || Gothic::inst().isPause() ||
+     Gothic::inst().checkLoading()!=Gothic::LoadState::Idle || rootMenu.isActive() ||
+     dialogs.isActive() || video.isActive() || chapter.isActive() || document.isActive() || console.isActive()))
+    mobileUi.cancelWheel();
   const auto touchPlayer = Gothic::inst().player();
   const auto touchWeapon = touchPlayer!=nullptr ? touchPlayer->weaponState() : WeaponState::NoWeapon;
   mobileUi.setDebugContext(Gothic::inst().version().game!=2 || Gothic::settingsGetI("GAME","useGothic1Controls")!=0,

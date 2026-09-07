@@ -53,12 +53,14 @@ class InventoryMenu : public Tempest::Widget {
     void  draw(Tempest::Encoder<Tempest::CommandBuffer>& cmd);
     void  paintNumOverlay(Tempest::PaintEvent& e);
     void  controllerAction(int action);
-    void  openWheel(Npc& pl);
+    void  openWheel(Npc& pl, bool characterMenu=false);
     bool  isWheelOpen() const { return wheelActive; }
     void  wheelMove(float x, float y);
     void  wheelPage(int direction);
     size_t wheelSelection() const;
     void  setWheelHint(std::string hint) { wheelHint=std::move(hint); }
+    void  beginTouchWheel(Tempest::Point anchor);
+    void  touchWheelMove(Tempest::Point pos, uint64_t now);
 
     void  keyDownEvent  (Tempest::KeyEvent&   e) override;
     void  keyRepeatEvent(Tempest::KeyEvent&   e) override;
@@ -106,12 +108,25 @@ class InventoryMenu : public Tempest::Widget {
     size_t                    columsCount = 5;
     int32_t                   scrollDelta = 0;
     bool                      wheelActive = false;
+    bool                      wheelCharacter = false;
+    bool                      wheelTouch = false;
+    Tempest::Point            wheelAnchor;
+    int                       wheelHoverPage = 0;
+    uint64_t                  wheelHoverSince = 0;
+    bool                      wheelPageArmed = true;
     bool                      wheelCentered = true;
     size_t                    wheelPageId = 0;
     int                       wheelSelected = -1;
     std::vector<size_t>        wheelItems;
     std::string               wheelHint;
     void                      drawWheel(Tempest::Painter& p, DrawPass pass);
+    size_t                    wheelPageSize() const;
+    struct WheelLayout {
+      Tempest::Point center;
+      int cell;
+      float radius;
+      };
+    WheelLayout               wheelLayout() const;
 
     size_t                    rowsCount() const;
 
