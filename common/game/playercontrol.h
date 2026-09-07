@@ -26,7 +26,8 @@ class PlayerControl final {
     bool  isPressed(KeyCodec::Action a) const;
     void  setGamepadAxis(float lx, float ly);
     void  setControllerMovement(float x, float y, float cameraYaw, bool walk, float turnSpeed);
-    void  controllerCombat(int direction, bool pressed, bool cancel=false);
+    void  setControllerSwim(float x, float y, float cameraYaw, float cameraPitch, float turnSpeed);
+    void  controllerCombat(int direction, bool pressed, bool cancel=false, uint64_t holdMs=400);
     void  releaseControllerKey(KeyCodec::Action action, bool cancel=false);
     void  controllerInteract(bool sheath);
     void  controllerEquip(size_t item);
@@ -164,6 +165,12 @@ class PlayerControl final {
     bool           controllerDirectional=false;
     bool           controllerReleaseAttack=false;
     bool           controllerWalkApplied=false;
+    bool           controllerSwimming=false;
+    bool           swimJumpHeld=false;
+    bool           swimDiveStroke=false;
+    float          swimPitch=0;
+    Npc*           controllerFinisher=nullptr;
+    uint64_t       controllerFinishTime=0;
     float          controllerYaw=0;
     float          controllerTurnSpeed=180.f;
     Npc*           controllerTarget=nullptr;
@@ -193,6 +200,7 @@ class PlayerControl final {
 
     void           clrDraw();
     void           implMove(uint64_t dt);
+    void           implSwim(Npc& pl, uint64_t dt);
     void           implMoveMobsi(Npc& pl, uint64_t dt);
     void           processPickLock(Npc& pl, Interactive& inter, KeyCodec::Action key);
     void           processLadder(Npc& pl, Interactive& inter, KeyCodec::Action key);

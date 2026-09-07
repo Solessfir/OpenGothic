@@ -176,11 +176,13 @@ The same movement dead zone, response curve and dominant-axis filtering apply, w
 G1's held ACTION plus direction combat still takes priority over movement; release ACTION to resume locked strafing.
 The equipment wheel currently requires a gamepad (hold D-pad Up); holding touch ACTION or Inventory does not open it.
 
-Swimming currently retains Gothic's keyboard-style controls: Jump starts a dive while swimming at the surface.
-Underwater, movement up/down pitches the swimmer down/up, while Jump requests forward swimming.
-To surface, pitch upward with movement down, return movement to neutral, then hold Jump until reaching the surface.
-Use the touch Jump zone or the gamepad's Jump binding (X by default with weapons sheathed).
-Camera look currently changes only the view, not the swimmer's direction; modern camera-directed swimming is not implemented.
+Swimming uses camera-relative movement on both touch and gamepad.
+Underwater, forward swims where the camera looks, backward reverses that direction, and sideways movement stays level.
+Hold Jump at the surface to dive downward; release it, then hold again underwater to rise, even with movement centered.
+Reaching the surface while still holding Jump does not trigger another dive.
+Use the invisible touch Jump zone or the gamepad's Jump binding (X by default).
+Camera assistance is disabled in water, and the old ACTION/directional combat keys do not consume swimming movement.
+Gothic's collision, oxygen and swim animations remain in use; keyboard swimming is unchanged.
 
 With a weapon drawn, start in Use/Attack and quickly drag at least 1/18 of the short screen dimension (60 pixels on a 1080-pixel-high viewport) to toggle target lock.
 The same gesture unlocks an already locked target, and each gesture toggles only once.

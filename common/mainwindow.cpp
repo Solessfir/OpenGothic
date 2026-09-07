@@ -454,6 +454,10 @@ void MainWindow::onTouchCommand(TouchInput::Command command, bool pressed) {
     touchHeldAction.reset();
     return;
     }
+  // Swimming uses analog movement and never turns stick directions into combat keys.
+  if(auto pl=Gothic::inst().player(); !uiActive && command<=TouchInput::Command::Right &&
+     pl!=nullptr && (pl->isSwim() || pl->isDive()))
+    return;
   // Locked movement uses the analog stick, except for classic ACTION + direction attacks.
   if(!uiActive && command<=TouchInput::Command::Right && player.lockedTarget()!=nullptr &&
      !(player.isClassicCombat() && player.isPressed(KeyCodec::ActionGeneric)))

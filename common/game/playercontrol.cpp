@@ -10,6 +10,7 @@
 #include "ui/inventorymenu.h"
 #include "gothic.h"
 #include "utils/gamepadbindings.h"
+#include "utils/swiminput.h"
 
 PlayerControl::PlayerControl(DialogMenu& dlg, InventoryMenu &inv)
   :dlg(dlg),inv(inv) {
@@ -255,6 +256,9 @@ bool PlayerControl::isPressed(KeyCodec::Action a) const {
   }
 
 void PlayerControl::setGamepadAxis(float lx, float ly) {
+  controllerSwimming=false;
+  swimJumpHeld=false;
+  swimDiveStroke=false;
   if(controllerWalkApplied) {
     if(auto pl=Gothic::inst().player())
       pl->setWalkMode(WalkBit(uint8_t(pl->walkMode()) & ~uint8_t(WalkBit::WM_Walk)));
@@ -267,6 +271,9 @@ void PlayerControl::setGamepadAxis(float lx, float ly) {
   }
 
 void PlayerControl::setControllerMovement(float x,float y,float cameraYaw,bool walk,float turnSpeed) {
+  controllerSwimming=false;
+  swimJumpHeld=false;
+  swimDiveStroke=false;
   auto pl=Gothic::inst().player();
   if(pl==nullptr) return;
   if(controllerWalkApplied) {
@@ -302,9 +309,32 @@ void PlayerControl::releaseControllerKey(KeyCodec::Action action,bool cancel) {
   handleMovementAction({action,KeyCodec::Mapping::Secondary},false);
   }
 
-void PlayerControl::controllerCombat(int direction,bool pressed,bool cancel) {
+void PlayerControl::setControllerSwim(float x,float y,float cameraYaw,float cameraPitch,float turnSpeed) {
+  // Use the same movement curve as walking, but let camera pitch steer underwater.
+  if(controllerWalkApplied) {
+    if(auto pl=Gothic::inst().player())
+      pl->setWalkMode(WalkBit(uint8_t(pl->walkMode()) & ~uint8_t(WalkBit::WM_Walk)));
+    controllerWalkApplied=false;
+    }
+  controllerSwimming=true;
+  controllerDirectional=false;
+  controllerGroundStrafe=false;
+  controllerTarget=nullptr;
+  controllerTurnSpeed=turnSpeed;
+  const auto aim=SwimInput::direction(x,y,cameraYaw,cameraPitch);
+  controllerYaw=aim.yaw;
+  swimPitch=aim.pitch;
+  gamepadLX=0;
+  gamepadLY=-std::min(1.f,std::hypot(x,y));
+  }
+
+void PlayerControl::controllerCombat(int direction,bool pressed,bool cancel,uint64_t holdMs) {
   // Explicit combat requests must not turn movement into an attack modifier.
   if(direction<0 || direction>=7) return;
+  if(direction==ActForward && (!pressed || cancel)) {
+    controllerFinisher=nullptr;
+    controllerFinishTime=0;
+    }
   if(cancel) {
     actrl[direction]=false;
     if(direction==ActForward) controllerReleaseAttack=false;
@@ -322,6 +352,16 @@ void PlayerControl::controllerCombat(int direction,bool pressed,bool cancel) {
   if(ws==WeaponState::NoWeapon) return;
   if(direction==ActKill && (pl->target()==nullptr || !pl->canFinish(*pl->target()))) return;
   if(ws==WeaponState::Fist && (direction==ActLeft || direction==ActRight)) return;
+  if(direction==ActForward && (ws==WeaponState::W1H || ws==WeaponState::W2H) &&
+     pl->target()!=nullptr && pl->canFinish(*pl->target())) {
+    // Only a press begun over a finishable NPC can become a finishing blow.
+    // Normal attacks stay immediate and cannot turn into executions when an enemy falls.
+    controllerFinisher=pl->target();
+    controllerFinishTime=holdMs;
+    actrl[ActForward]=false;
+    controllerReleaseAttack=false;
+    return;
+    }
   if(direction==ActForward) controllerReleaseAttack=false;
   actrl[direction]=true;
   }
@@ -612,6 +652,11 @@ void PlayerControl::clearMovementInput() {
   }
 
 void PlayerControl::clearInput() {
+  controllerFinisher=nullptr;
+  controllerFinishTime=0;
+  controllerSwimming=false;
+  swimJumpHeld=false;
+  swimDiveStroke=false;
   controllerKeyReleases.fill(false);
   controllerReleaseAttack=false;
   pendingEquipment=size_t(-1);
@@ -764,6 +809,18 @@ bool PlayerControl::tickMove(uint64_t dt) {
   if(pl==nullptr)
     return true;
 
+  if(controllerFinisher!=nullptr) {
+    const auto ws=pl->weaponState();
+    if(pl->target()!=controllerFinisher || !pl->canFinish(*pl->target()) || pl->isDown() ||
+       pl->interactive()!=nullptr || (ws!=WeaponState::W1H && ws!=WeaponState::W2H)) {
+      controllerFinisher=nullptr;
+      }
+    else if(dt>=controllerFinishTime) {
+      actrl[ActKill]=true;
+      controllerFinisher=nullptr;
+      }
+    else controllerFinishTime-=dt;
+    }
   implMove(dt);
   for(size_t i=0;i<controllerKeyReleases.size();++i)
     if(controllerKeyReleases[i]) releaseControllerKey(Action(i),true);
@@ -883,6 +940,11 @@ void PlayerControl::implMove(uint64_t dt) {
 
   if(!pl.isInState(ScriptFn()) || dlg.isActive()) {
     runAngleDest = 0;
+    return;
+    }
+
+  if(controllerSwimming && (pl.isSwim() || pl.isDive())) {
+    implSwim(pl,dt);
     return;
     }
 
@@ -1174,6 +1236,45 @@ void PlayerControl::implMove(uint64_t dt) {
     assignRunAngle(pl,pl.rotation(),dt);
     }
   pl.setDirection(rot);
+  }
+
+void PlayerControl::implSwim(Npc& pl, uint64_t dt) {
+  const bool jump=ctrl[Action::Jump];
+  if(!jump)
+    swimDiveStroke=false;
+  if(jump && !swimJumpHeld) {
+    swimDiveStroke=pl.isSwim();
+    if(swimDiveStroke)
+      pl.startDive();
+    }
+  swimJumpHeld=jump;
+
+  float magnitude=-gamepadLY;
+  float yaw=controllerYaw;
+  float pitch=pl.isDive() ? swimPitch : 0.f;
+  if(jump && pl.isDive()) {
+    // A fresh press underwater rises; the surface dive press must be released first.
+    pitch=swimDiveStroke ? -40.f : 80.f;
+    if(magnitude==0.f)
+      yaw=pl.rotation();
+    magnitude=1.f;
+    }
+  if(magnitude>0.f) {
+    const float step=controllerTurnSpeed*float(dt)/1000.f;
+    const float rotation=std::remainder(yaw-pl.rotation(),360.f);
+    pl.setDirection(pl.rotation()+std::clamp(rotation,-step,step));
+    const float elevation=pitch-pl.rotationY();
+    pl.setDirectionY(pl.rotationY()+std::clamp(elevation,-step,step));
+    }
+  else if(pl.isSwim()) {
+    pl.setDirectionY(0.f);
+    }
+  pl.setAnimRotate(0);
+  pl.setRunAngle(0.f);
+  runAngleDest=0.f;
+  rotMouse=0.f;
+  rotMouseY=0.f;
+  pl.setAnim(magnitude>0.f ? Npc::Anim::Move : Npc::Anim::Idle);
   }
 
 void PlayerControl::implMoveMobsi(Npc& pl, uint64_t /*dt*/) {

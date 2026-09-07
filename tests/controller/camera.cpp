@@ -1,4 +1,5 @@
 #include "../../common/utils/cameramath.h"
+#include "../../common/utils/swiminput.h"
 
 #include <iostream>
 #include <stdexcept>
@@ -10,6 +11,14 @@ void check(bool ok, const char* message) {
 int main() {
   try {
     using namespace CameraMath;
+    auto swim=SwimInput::direction(0,-1,25,30);
+    check(std::abs(swim.yaw-25)<0.001f && std::abs(swim.pitch+30)<0.001f,"Forward swimming follows camera yaw and downward pitch");
+    swim=SwimInput::direction(0,1,25,30);
+    check(std::abs(yawDelta(25,swim.yaw))==180.f && std::abs(swim.pitch-30)<0.001f,"Backward swimming reverses both horizontal and vertical direction");
+    swim=SwimInput::direction(1,0,25,30);
+    check(std::abs(swim.yaw+65)<0.001f && swim.pitch==0.f,"Sideways swimming remains level relative to the camera");
+    swim=SwimInput::direction(0,0,25,30);
+    check(std::isfinite(swim.yaw) && std::isfinite(swim.pitch),"Neutral swimming has finite direction");
     check(yawDelta(350.f,0.f)==10.f,"350 to 0 takes the short positive turn");
     check(yawDelta(0.f,350.f)==-10.f,"0 to 350 takes the short negative turn");
     check(yawNear(-179.f,179.f)==181.f,"Yaw wraps near the character across positive 180");

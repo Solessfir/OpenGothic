@@ -67,9 +67,28 @@ The original `useGothic1Controls` setting selects the melee context.
 | Classic melee, weapon drawn | Y: forward attack; X: left attack; B: right attack; hold A: block |
 | Modern melee, weapon drawn | RT: attack; hold RB: block |
 | Bow, crossbow, or spell drawn | RT: shoot/cast; hold for spells that invest mana |
-| Melee finisher | LT + RT, only when Gothic permits finishing the current target |
+| Melee finisher | Hold Y in classic melee or RT in modern melee over a finishable NPC |
 
 Holding LT restores exploration face buttons during classic melee. LT+A requests sheathing first, then interacts once with the same still-valid target. With no target it only sheathes; it does not redraw automatically. Ordinary A cannot pick up items while the weapon is drawn. Fists and weapons still obey Gothic's animation, ammunition, skill, and combat restrictions. Moving with a drawn weapon does not implicitly hold the classic action modifier.
+
+Finishing uses the normal `AttackForward` binding and `[Controller] HoldMs` (400 ms by default).
+Begin the hold while focusing a knocked-out NPC with a one-handed or two-handed melee weapon drawn.
+Releasing early or losing that target cancels it. Attacks against standing enemies remain immediate and cannot become an automatic finisher when the enemy falls.
+`Finish=None` is now the default in both melee sections; existing files with `Finish=LT+RT` keep that optional extra shortcut until changed to `None`.
+
+## Swimming
+
+Touch and gamepad use the same camera-directed swimming behavior; keyboard swimming is unchanged.
+The movement stick selects travel direction relative to the camera. Underwater, forward follows camera pitch, backward reverses it, and sideways movement stays level.
+Right stick or the touch camera area steers the view. Camera assistance does not recenter it while swimming.
+
+- At the surface, hold Jump to dive and swim downward.
+- Release Jump, then hold it again underwater to swim upward, even with movement centered.
+- Release Jump to return to camera-directed swimming; center movement to stop.
+- Reaching the surface while holding Jump does not start another dive. Release before diving again.
+
+Jump is X by default on gamepad, or the invisible touch Jump zone. Gamepad swimming uses the gameplay bindings even if fists remain drawn.
+Gothic's swim animations, collision, oxygen and automatic surfacing rules still apply.
 
 ## Menus, inventory, and equipment
 
@@ -133,7 +152,7 @@ Binding syntax and precedence:
 - UI, wheel, and interaction contexts never inherit gameplay shortcuts. Context changes cancel held actions and require fresh button presses.
 - The most specific matching chord wins. Equally specific chords with different simultaneously-held modifiers are suppressed. Duplicate input assignments within a section invalidate that section and retain its previous valid defaults/settings. Errors are logged without rewriting the user's file.
 - `[Controller] Enabled=0` disables physical-controller handling and restores the existing touch controls. The copied PC `enableJoystick=0` does not disable Android controllers.
-- `[Controller] ExplorationModifier` remaps LT's exploration override. Remap the separate `Finish` chord too if desired.
+- `[Controller] ExplorationModifier` remaps LT's exploration override. `Finish` remains available as an optional independently remappable shortcut; hold-to-finish follows `AttackForward`.
 - `[Axes]` configures dead zone, analog walk threshold, trigger hysteresis, and movement/camera stick assignment. Wheel stick assignment is `[EquipmentWheel] SelectionStick`.
 - `[TargetLock]` configures switch threshold/reset, cooldown, and camera smoothing, not Gothic's target eligibility rules.
 

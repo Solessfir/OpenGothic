@@ -68,12 +68,12 @@ AttackForward=Y
 AttackLeft=X
 AttackRight=B
 Block=A
-Finish=LT+RT
+Finish=None
 
 [ModernMelee]
 AttackForward=RT
 Block=RB
-Finish=LT+RT
+Finish=None
 
 [Ranged]
 AttackForward=RT

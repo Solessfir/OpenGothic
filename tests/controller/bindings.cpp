@@ -118,7 +118,10 @@ int main() {
     auto lt=B::button("LT"), rt=B::button("RT");
     defaultsOnly.update(lt,C::ModernMelee,0);
     events=defaultsOnly.update(lt|rt,C::ModernMelee,1);
-    check(has(events,A::Finish) && !has(events,A::AttackForward),"Finisher does not fire ordinary attack");
+    check(has(events,A::AttackForward) && !has(events,A::Finish),"Modern finisher uses the attack action, not a separate chord");
+    defaultsOnly.reset();
+    defaultsOnly.update(0,C::ClassicMelee,0);
+    check(has(defaultsOnly.update(B::button("Y"),C::ClassicMelee,1),A::AttackForward),"Classic forward attack also owns hold-to-finish");
     defaultsOnly.reset();
     defaultsOnly.update(lb,C::Inventory,0);
     check(!has(defaultsOnly.update(lb|menu,C::Inventory,1),A::QuickSave),"UI does not inherit gameplay saves");
