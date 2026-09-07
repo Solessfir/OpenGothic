@@ -1,5 +1,17 @@
 # Android follow-up work
 
+## Separate fog profiling measurements
+
+Status: planned, not implemented.
+
+- Split the combined `Fog-LUTs` GPU marker into lighting-volume generation and sunshaft occlusion measurements.
+  Keep the final fog-compositing measurement separate.
+- Compare `fogHalfResolution=0` and `1` in the same saved scene and camera position, recording GPU clocks and power/charging state.
+  Preserve the combined total for comparisons with older captures.
+- Check stationary and moving image quality near the sun, horizon and shadowed vegetation before changing defaults.
+  Include both sunshaft settings and the second wooded-path/shrine test location.
+- Distinguish short instrumented captures from longer normal unplugged play when assessing sustained FPS.
+
 ## One-command private test APK with game files
 
 Status: planned, not implemented.
