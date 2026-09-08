@@ -442,9 +442,10 @@ void MainWindow::tickMouse(uint64_t dt) {
 
 
 void MainWindow::applySystemWheelSelection(size_t selected) {
-  if(selected>=3) return;
+  const char* settings[]={"showFps","touchControls","centerPlayerBars","useGothic1Controls"};
+  if(selected>=std::size(settings)) return;
   const auto section=selected==1 ? "DEBUG" : "GAME";
-  const auto setting=selected==0 ? "showFps" : (selected==1 ? "touchControls" : "centerPlayerBars");
+  const auto setting=settings[selected];
   Gothic::settingsSetI(section,setting,!Gothic::settingsGetI(section,setting));
   Gothic::flushSettings();
   }

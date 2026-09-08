@@ -55,7 +55,7 @@ Focus range is not attack reach or guaranteed safety; see [targeting settings](C
 
 - Hold **Draw** to open equipment selection.
 - Hold **Inventory** for Stats (up) / Journal (down).
-- Hold **Back/menu** for FPS (up), touch-debug overlay (lower-right), or Classic/Centered HUD (lower-left). Choices are saved; Classic HUD is the default.
+- Hold **Back/menu** for FPS (up), touch-debug overlay (right), Classic/Centered HUD (down), or Classic/Modern combat (left). Choices are saved separately for each game; Classic HUD is the default. Combat changes apply immediately to touch and gamepad in both games and share the `useGothic1Controls` setting with Gothic II's options menu.
 - Keep the same finger down, drag a little toward a choice, then release to apply.
 - Release without selecting, or return to the finger's starting point, to cancel.
 

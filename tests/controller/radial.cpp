@@ -48,10 +48,11 @@ int main() {
     check(sector(0,-100,50,140,0)==-1,"An empty wheel cannot select anything");
     check(sector(0,100,50,140,2)==1,"The compact character wheel selects Journal at the bottom");
     check(sector(0,-100,50,140,2)==0,"The character wheel selects Stats at the top");
-    check(sector(0,-100,50,140,3)==0,"The system wheel selects FPS at the top");
-    check(sector(87,50,50,140,3)==1,"The system wheel selects touch debug at lower-right");
-    check(sector(-87,50,50,140,3)==2,"The system wheel selects HUD layout at lower-left");
-    check(sector(0,0,50,140,3)==-1,"Releasing without a choice does not toggle a setting");
+    check(sector(0,-100,50,140,4)==0,"The system wheel selects FPS at the top");
+    check(sector(100,0,50,140,4)==1,"The system wheel selects touch debug on the right");
+    check(sector(0,100,50,140,4)==2,"The system wheel selects HUD layout at the bottom");
+    check(sector(-100,0,50,140,4)==3,"The system wheel selects combat controls on the left");
+    check(sector(0,0,50,140,4)==-1,"Releasing without a choice does not toggle a setting");
     for(int count=1;count<=8;++count) {
       for(int i=0;i<count;++i) {
         const float angle=float(i)*2.f*std::numbers::pi_v<float>/float(count);
@@ -66,7 +67,7 @@ int main() {
       }
     for(const auto dimensions : {std::pair{2340,1080},std::pair{1280,720},std::pair{640,360},std::pair{1080,2340}}) {
       for(float scale : {1.f,2.f,4.f}) {
-        for(int count : {0,1,2,3,8}) {
+        for(int count : {0,1,2,3,4,8}) {
           const auto [width,height]=dimensions;
           const auto layout=RadialInput::layout(width,height,scale,count,24);
           check(layout.x==float(width)*0.5f && layout.y==float(height)*0.5f,
