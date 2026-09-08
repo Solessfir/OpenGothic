@@ -66,44 +66,50 @@ void MainWindow::updateControllerOverlay() {
 void MainWindow::paintControllerOverlay(PaintEvent& event,int top) {
 #if defined(__ANDROID__)
   if(controllerOverlayContext<0) return;
+  const auto safe=safeArea();
   const int pad=std::max(12,int(16.f*uiScale()));
-  // Side columns leave the middle third clear; the lower fifth stays available for the HUD.
-  const int columnWidth=std::max(1,(w()-2*pad)*32/100);
+  // Let long bindings wrap instead of shrinking the whole guide to fit one line.
+  const int columnWidth=std::max(1,(safe.w-2*pad)*42/100);
   constexpr int columns[]={0,1,0,1,1};
-  int rowCounts[2]={};
-  for(size_t i=0;i<controllerOverlayGroups.size();++i)
-    if(!controllerOverlayGroups[i].lines.empty()) rowCounts[columns[i]]+=int(controllerOverlayGroups[i].lines.size())+3;
-  const int rows=std::max(rowCounts[0],rowCounts[1]);
-  float scale=std::min(std::max(uiScale(),1.f),float(h())/720.f);
-  const auto& initialFont=Resources::font(scale*0.82f);
-  int widest=1;
-  for(const auto& group:controllerOverlayGroups)
-    for(const auto& text:group.lines) widest=std::max(widest,initialFont.textSize(text).w);
-  const float widthFit=std::min(1.f,float(columnWidth)/float(widest));
-  const float heightFit=std::min(1.f,float(std::max(1,h()*4/5-top-3*pad))/float((rows+2)*(initialFont.pixelSize()+6)));
-  scale*=std::min(widthFit,heightFit);
+  float scale=1.4f*std::min(std::max(uiScale(),1.f),float(h())/720.f);
+  auto requiredHeight=[&](float s) {
+    const auto& font=Resources::font(s*0.92f);
+    const int gap=std::max(4,int(6.f*s));
+    int heights[2]={};
+    for(size_t i=0;i<controllerOverlayGroups.size();++i) {
+      const auto& group=controllerOverlayGroups[i];
+      if(group.lines.empty()) continue;
+      heights[columns[i]]+=Resources::font(s).pixelSize()+3*gap;
+      for(const auto& text:group.lines)
+        heights[columns[i]]+=font.textSize(columnWidth,text).h+gap;
+      }
+    return std::max(heights[0],heights[1])+Resources::font(s).pixelSize()+2*gap;
+    };
+  const int available=std::max(1,safe.h-top-3*pad);
+  for(int i=0;i<20 && requiredHeight(scale)>available;++i) scale*=0.95f;
   const auto& heading=Resources::font(scale);
-  const auto& font=Resources::font(scale*0.82f);
-  const int line=font.pixelSize()+std::max(4,int(6.f*scale));
-  const int baseline=top+pad+heading.pixelSize();
+  const auto& font=Resources::font(scale*0.92f);
+  const int gap=std::max(4,int(6.f*scale));
+  const int baseline=safe.y+top+pad+heading.pixelSize();
   Painter painter(event);
-  heading.drawTextShadow(painter,pad,baseline,w()-2*pad,heading.pixelSize(),controllerOverlayTitle);
-  int row[2]={3,3};
+  heading.drawTextShadow(painter,safe.x+pad,baseline,safe.w-2*pad,heading.pixelSize(),controllerOverlayTitle);
+  int cursor[2]={baseline+heading.pixelSize()+2*gap,baseline+heading.pixelSize()+2*gap};
   for(size_t i=0;i<controllerOverlayGroups.size();++i) {
     const auto& group=controllerOverlayGroups[i];
     if(group.lines.empty()) continue;
     const int column=columns[i];
-    const int x=column==0 ? pad : w()-pad-columnWidth;
-    int y=baseline+row[column]*line;
+    const int x=column==0 ? safe.x+pad : safe.x+safe.w-pad-columnWidth;
+    int y=cursor[column];
     heading.drawTextShadow(painter,x,y,columnWidth,heading.pixelSize(),group.title);
     painter.setPen(Pen(Color(0.843f,0.761f,0.631f,0.25f),Painter::Alpha,1.f));
-    painter.drawLine(x,y+line/3,x+columnWidth,y+line/3);
-    y+=2*line;
+    painter.drawLine(x,y+gap,x+columnWidth,y+gap);
+    y+=font.pixelSize()+2*gap;
     for(const auto& text:group.lines) {
-      font.drawTextShadow(painter,x,y,columnWidth,font.pixelSize(),text);
-      y+=line;
+      const int height=font.textSize(columnWidth,text).h;
+      font.drawTextShadow(painter,x,y,columnWidth,height,text);
+      y+=height+gap;
       }
-    row[column]+=int(group.lines.size())+3;
+    cursor[column]=y+heading.pixelSize()-font.pixelSize();
     }
 #else
   (void)event;

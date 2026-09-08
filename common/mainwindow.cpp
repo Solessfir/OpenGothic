@@ -1665,6 +1665,8 @@ void MainWindow::render(){
       const auto& fpsFont = Resources::font(fpsDensity);
       // Reserve three digits so ordinary FPS changes do not shift the debug legend.
       const int fpsWidth = std::max(fpsFont.textSize("999 FPS").w,fpsFont.textSize(fpsText).w);
+      const auto overlaySafeArea=safeArea();
+      mobileUi.setDebugSafeArea(overlaySafeArea);
       mobileUi.setDebugLeftInset(showFps ? fpsMargin+fpsWidth : 0);
 #endif
       dispatchPaintEvent(uiLayer,atlas);
@@ -1678,7 +1680,7 @@ void MainWindow::render(){
         // Draw above menus and scale the padding with the interface.
         Painter painter(p);
         auto& font = Resources::font(fpsDensity);
-        font.drawText(painter,fpsMargin,fpsMargin+font.pixelSize(),fpsText);
+        font.drawText(painter,overlaySafeArea.x+fpsMargin,overlaySafeArea.y+fpsMargin+font.pixelSize(),fpsText);
         fpsOverlayUpdated = Application::tickCount();
         }
 #endif

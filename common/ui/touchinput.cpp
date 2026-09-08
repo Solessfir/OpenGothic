@@ -36,6 +36,12 @@ void TouchInput::setDebugLeftInset(int inset) {
   update();
   }
 
+void TouchInput::setDebugSafeArea(Rect area) {
+  if(debugSafeArea==area) return;
+  debugSafeArea=area;
+  update();
+  }
+
 void TouchInput::paintEvent(Tempest::PaintEvent& e) {
   if(!debugOverlay)
     return;
@@ -54,18 +60,19 @@ void TouchInput::paintEvent(Tempest::PaintEvent& e) {
   const int lookEnd = (w()*LookBoundaryPercent)/100;
   p.setPen(Pen(gold,Painter::Alpha,std::max(1.f,scale)));
   p.setBrush(gold);
-  const int hudTop=h()-int(64.f*scale);
-  p.drawLine(moveEnd,0,moveEnd,hudTop);
-  p.drawLine(lookEnd,0,lookEnd,hudTop);
+  p.drawLine(moveEnd,0,moveEnd,h());
+  p.drawLine(lookEnd,0,lookEnd,h());
 
   auto label = [&](int x,int y,int width,std::string_view text) {
     font.drawTextShadow(p,x,y,width,2*line,text,AlignHCenter);
     };
-  const int leftWidth=moveEnd-2*pad, rightX=moveEnd+pad, rightWidth=lookEnd-moveEnd-2*pad;
-  const int baseline=pad+line;
-  font.drawTextShadow(p,pad+debugLeftInset,baseline,std::max(1,leftWidth-debugLeftInset),line,uiActive ? "NAVIGATE" : "MOVE / TURN");
+  const auto safe=debugSafeArea.isEmpty() ? Rect(0,0,w(),h()) : debugSafeArea;
+  const int leftX=safe.x+pad;
+  const int leftWidth=moveEnd-pad-leftX, rightX=moveEnd+pad, rightWidth=lookEnd-moveEnd-2*pad;
+  const int baseline=safe.y+pad+line;
+  font.drawTextShadow(p,leftX+debugLeftInset,baseline,std::max(1,leftWidth-debugLeftInset),line,uiActive ? "NAVIGATE" : "MOVE / TURN");
   font.drawTextShadow(p,rightX,baseline,rightWidth,line,uiActive ? (menuAdjustment ? "ADJUST VALUE" : "NAVIGATE") : "LOOK");
-  detail.drawTextShadow(p,pad,baseline+2*line,leftWidth,line,
+  detail.drawTextShadow(p,leftX,baseline+2*line,leftWidth,line,
                         uiActive ? "Touch controls / Menus" : (classicCombat ? "Touch controls / Classic combat" : "Touch controls / Modern combat"));
   if(!uiActive)
     detail.drawTextShadow(p,rightX,baseline+2*line,rightWidth,line,"Drag to move the camera");
@@ -75,7 +82,7 @@ void TouchInput::paintEvent(Tempest::PaintEvent& e) {
   int legendY=baseline+5*line;
   auto legend=[&](std::string_view text,bool heading=false) {
     const auto& f=heading ? font : detail;
-    f.drawTextShadow(p,pad,legendY,leftWidth,2*line,text);
+    f.drawTextShadow(p,leftX,legendY,leftWidth,2*line,text);
     legendY+=f.textSize(leftWidth,text).h+std::max(4,int(6.f*scale));
     };
   if(!touchEnabled)
@@ -113,12 +120,19 @@ void TouchInput::paintEvent(Tempest::PaintEvent& e) {
       p.drawRect(rect);
       }
     p.setBrush(gold);
-    p.drawLine(rect.x,rect.y,w(),rect.y);
-    label(rect.x+pad,rect.y+rect.h/2,rect.w-2*pad,names[i]);
+    p.drawLine(rect.x,rect.y,rect.x+rect.w,rect.y);
+    if(i==2) {
+      p.drawLine(rect.x,rect.y,rect.x,rect.y+rect.h);
+      p.drawLine(rect.x,rect.y+rect.h,rect.x+rect.w,rect.y+rect.h);
+      }
+    const int textLeft=std::max(rect.x,safe.x)+pad;
+    const int textRight=std::min(rect.x+rect.w,safe.x+safe.w)-pad;
+    const int textY=std::max(rect.y,safe.y)+(std::min(rect.y+rect.h,safe.y+safe.h)-std::max(rect.y,safe.y))/2;
+    label(textLeft,textY,textRight-textLeft,names[i]);
     if(i==4 && canLock && touchEnabled && !uiActive)
-      detail.drawTextShadow(p,rect.x+pad,rect.y+rect.h/2+line,rect.w-2*pad,2*line,targetLocked ? "Drag: unlock" : "Drag: lock",AlignHCenter);
+      detail.drawTextShadow(p,textLeft,textY+line,textRight-textLeft,2*line,targetLocked ? "Drag: unlock" : "Drag: lock",AlignHCenter);
     if((i==0 || i==1 || i==3) && touchEnabled && !uiActive)
-      detail.drawTextShadow(p,rect.x+pad,rect.y+rect.h/2+line,rect.w-2*pad,2*line,
+      detail.drawTextShadow(p,textLeft,textY+line,textRight-textLeft,2*line,
                            i==0 ? "Hold: System" : (i==1 ? "Hold: Character" : "Hold: Equipment"),AlignHCenter);
     }
 
@@ -454,9 +468,17 @@ void TouchInput::setDebugContext(bool classic, bool ui, bool lockAllowed, bool l
 Rect TouchInput::buttonRect(size_t index) const {
   // Hit testing and the optional debug overlay use exactly the same bounds.
   const int left = w()*LookBoundaryPercent/100;
-  const int top = h()*ButtonEdgesPercent[index]/100;
-  const int bottom = h()*ButtonEdgesPercent[index+1]/100;
-  return Rect(left,top,w()-left,bottom-top);
+  const int width = w()-left;
+  if(index<2) {
+    const int top=h()*int(index)*20/100;
+    const int bottom=h()*int(index+1)*20/100;
+    return Rect(left,top,width,bottom-top);
+    }
+  if(index==4)
+    return Rect(left,h()*70/100,width,h()-h()*70/100);
+  const int sideWidth=std::min(width,h()-h()*70/100);
+  return Rect(index==2 ? left-sideWidth : left,h()*40/100,
+              index==2 ? sideWidth : width,h()*70/100-h()*40/100);
   }
 
 bool TouchInput::blockVisible() const {

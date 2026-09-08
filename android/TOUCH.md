@@ -16,18 +16,18 @@ Set `Gamepad.ini` `[Controller] Enabled=0` to use touch while it is connected.
 
 - **Left half:** touch anywhere to place the movement stick. Forward/back moves; sideways turns the character. Small input walks/turns gently, a firmer drag runs.
 - **Middle-right:** drag to look around. Mouse speed controls camera sensitivity.
-- **Right edge:** buttons arranged from top to bottom:
+- **Right side:** Back/menu and Inventory above a two-column combat area:
 
-| Screen height | Action |
-| --- | --- |
-| Top 20% | Back/menu |
-| 20–40% | Inventory |
-| 40–55% | Jump |
-| 55–70% | Draw/sheathe |
-| Bottom 30% | Use/attack or menu accept |
+| Screen height | Left | Right edge |
+| --- | --- | --- |
+| Top 20% | Camera | Back/menu |
+| 20-40% | Camera | Inventory |
+| 40-70% | Jump | Draw/sheathe |
+| Bottom 30% | Block when available | Use/attack or menu accept |
 
-Buttons occupy the rightmost 16% of the screen. Use/Attack is the same width as Draw, with a taller region covering the bottom 30%.
-In modern melee controls, **Block** sits directly left of Use/Attack, aligned with its top edge. Outside melee combat, this space remains part of the camera area.
+The right column occupies the rightmost 16% of the screen. Jump sits directly above Block, beside Draw.
+In modern melee controls, **Block** sits directly left of Use/Attack. Outside melee combat, its space remains part of the camera area.
+Guide text and FPS stay clear of the phone's camera cutout; the game view and touch regions still use the full screen.
 You can move and look with separate fingers.
 
 ## Combat and target lock

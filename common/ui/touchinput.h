@@ -55,6 +55,7 @@ class TouchInput : public Tempest::Widget {
     void            setClassicAction(bool held);
     void            setDebugOverlay(bool enabled);
     void            setDebugLeftInset(int inset);
+    void            setDebugSafeArea(Tempest::Rect area);
     void            setMenuAdjustment(bool enabled);
     void            setDebugContext(bool classicCombat, bool uiActive, bool canLock, bool locked, bool canBlock);
     void            tick();
@@ -65,6 +66,7 @@ class TouchInput : public Tempest::Widget {
 
   private:
     int debugLeftInset = 0;
+    Tempest::Rect debugSafeArea;
 
     enum class Role : uint8_t {
       Move,
@@ -107,7 +109,6 @@ class TouchInput : public Tempest::Widget {
     void drawBlock(Tempest::Painter& p) const;
 
     static constexpr int LookBoundaryPercent = 84;
-    static constexpr int ButtonEdgesPercent[] = {0,20,40,55,70,100};
     static constexpr Command Buttons[] = {Command::Back,Command::Inventory,Command::Jump,Command::Weapon,Command::Accept};
     static constexpr float DirectionThreshold = 0.35f;
     static constexpr uint64_t ActionHoldMs = 180;
