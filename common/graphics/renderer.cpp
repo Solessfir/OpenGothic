@@ -817,6 +817,8 @@ void Renderer::drawTonemapping(Attachment& result, Encoder<CommandBuffer>& cmd, 
   auto& pso = (settings.vidResIndex==0) ? shaders.tonemapping : shaders.tonemappingUpscale;
   cmd.setFramebuffer({ {result, Tempest::Discard, Tempest::Preserve} });
   cmd.setBinding(0, wview.sceneGlobals().uboGlobal[SceneGlobals::V_Main]);
+  // This Lanczos implementation pairs adjacent weights using bilinear sampling.
+  // Keep nearest sampling at native resolution.
   const auto sampler = settings.vidResIndex==0 ? Sampler::nearest(ClampMode::ClampToEdge) :
                                                Sampler::bilinear(ClampMode::ClampToEdge);
   cmd.setBinding(1, sceneLinear, sampler);

@@ -2,6 +2,8 @@
 
 #include <vector>
 #include <memory>
+#include <limits>
+#include <cstdint>
 
 namespace Command {
 
