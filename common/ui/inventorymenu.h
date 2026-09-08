@@ -130,6 +130,7 @@ class InventoryMenu : public Tempest::Widget {
     std::string               wheelPageHint;
     QuickSlots::Kind          wheelFilter = QuickSlots::Kind::Empty;
     size_t                    assignmentItem = size_t(-1);
+    size_t                    assignmentCell = size_t(-1);
     int                       assignmentDirection = -1;
     uint64_t                  assignmentUntil = 0;
     void                      drawWheel(Tempest::Painter& p, DrawPass pass);

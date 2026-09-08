@@ -13,7 +13,7 @@ using PadAction=GamepadBindings::Action;
 using Context=GamepadBindings::Context;
 using Phase=GamepadBindings::Phase;
 
-void MainWindow::controllerQuickSlot(size_t slot) {
+void MainWindow::controllerQuickSlot(size_t slot,bool toggleDraw) {
   auto pl=Gothic::inst().player();
   if(pl==nullptr || pl->isDown() || pl->isMonster() || pl->isAiBusy() || pl->interactive()!=nullptr ||
      pl->isSwim() || pl->isDive()) return;
@@ -21,7 +21,7 @@ void MainWindow::controllerQuickSlot(size_t slot) {
   if(item==nullptr || !item->checkCond(*pl)) return;
   const auto category=QuickSlots::kind(*item);
   if(category==QuickSlots::Kind::Weapons || category==QuickSlots::Kind::Magic) {
-    player.controllerEquip(item->clsId());
+    player.controllerEquip(item->clsId(),toggleDraw);
     return;
     }
   // Consumables and documents retain their normal scripted use restrictions.
@@ -377,7 +377,7 @@ void MainWindow::tickGamepad() {
           if(quickSlot<4) {
             auto pl=Gothic::inst().player();
             auto item=pl!=nullptr ? pl->getItem(selected) : nullptr;
-            if(item!=nullptr && QuickSlots::assign(*pl,quickSlot,*item)) controllerQuickSlot(quickSlot);
+            if(item!=nullptr && QuickSlots::assign(*pl,quickSlot,*item)) controllerQuickSlot(quickSlot,false);
             }
           else player.controllerEquip(selected);
           }

@@ -103,7 +103,7 @@ class MainWindow : public Tempest::Window {
     void applySystemWheelSelection(size_t selected);
     GamepadBindings::Context controllerContext() const;
     void controllerAction(const GamepadBindings::Event& event);
-    void controllerQuickSlot(size_t slot);
+    void controllerQuickSlot(size_t slot, bool toggleDraw=true);
     void controllerUiKey(Tempest::Event::KeyType key, bool repeat, bool touchNavigation=false);
 #if defined(__MOBILE_PLATFORM__)
     void onTouchCommand(TouchInput::Command command, bool pressed);

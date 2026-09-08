@@ -690,7 +690,8 @@ void InventoryMenu::drawSlot(Painter &p, DrawPass pass, const Inventory::Iterato
     } else {
     auto fnt = Resources::font(scale);
 
-    if(it->clsId()==assignmentItem && assignmentDirection>=0 && Application::tickCount()<assignmentUntil) {
+    if(&page==&active && id==sel.sel && id==assignmentCell && it->clsId()==assignmentItem &&
+       assignmentDirection>=0 && Application::tickCount()<assignmentUntil) {
       const auto label=QuickSlots::directions[assignmentDirection];
       fnt.drawText(p,x,y+fnt.pixelSize(),slotSize().w,fnt.pixelSize(),label,AlignHCenter);
       }
@@ -816,6 +817,7 @@ void InventoryMenu::controllerAction(int action) {
     const size_t direction=size_t(action-int(A::AssignUp));
     if(item.isValid() && QuickSlots::assign(*player,direction,*item)) {
       assignmentItem=item->clsId();
+      assignmentCell=activePageSel().sel;
       assignmentDirection=int(direction);
       assignmentUntil=Application::tickCount()+1500;
       update();

@@ -68,7 +68,8 @@ Ordinary A cannot pick up items with a weapon drawn.
 ### Quick slots
 
 All four directions start empty. In inventory, hold A first, then press the direction to assign; a brief direction label confirms it. D-pad alone still navigates and repeats when held.
-Weapons draw on use. Magic is readied without casting; an unassigned spell takes a free numbered spell slot, or replaces slot 3 if all eight are occupied. Teleport and other charging spells still require holding Attack to cast.
+Tapping a weapon or magic slot readies it; tapping the same slot with that item already drawn sheathes it. Wheel selection only readies equipment, so choosing the item already in hand leaves it drawn.
+Magic is readied without casting; an unassigned spell takes a free numbered spell slot, or replaces slot 3 if all eight are occupied. Teleport and other charging spells still require holding Attack to cast.
 Maps keep their individual identities, so different directions can open different owned maps.
 When an assigned standard health/mana potion runs out, the slot switches to an available standard potion of the same type, starting with the smallest tier. Permanent-stat potions and unknown/modded potion families are never substituted automatically.
 Food, potions and documents use their normal scripts; sheathe first. Quick potions respect `usePotionKeys`.

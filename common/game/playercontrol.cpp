@@ -477,7 +477,16 @@ void PlayerControl::controllerInteract(bool sheath) {
   else if(f.npc) interact(*f.npc);
   }
 
-void PlayerControl::controllerEquip(size_t item) {
+void PlayerControl::controllerEquip(size_t item,bool toggleDraw) {
+  auto pl=Gothic::inst().player();
+  auto active=pl!=nullptr ? pl->activeWeapon() : nullptr;
+  // Direct slot taps toggle the weapon in hand; wheel choices only ready equipment.
+  if(toggleDraw && active!=nullptr && active->clsId()==item) {
+    pendingEquipment=size_t(-1);
+    std::fill(std::begin(wctrl),std::end(wctrl),false);
+    wctrl[WeaponClose]=true;
+    return;
+    }
   pendingEquipment=item;
   }
 
