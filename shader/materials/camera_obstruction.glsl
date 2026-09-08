@@ -12,12 +12,17 @@ float cameraObstructionVisibilityAt(vec3 viewPos) {
   if(radius>0.0 && length2>1.0) {
     float t = dot(viewPos,target)/length2;
     if(t>0.0 && t<1.0) {
-      // Every layer in the corridor shares a fully clear core, not cumulative partial opacity.
+      // Keep a faint, aligned dither remainder so stacked leaves do not close the view again.
       vec3 offset = viewPos-target*t;
       float radial = smoothstep(radius*radius*0.25,radius*radius,dot(offset,offset));
       // Close the corridor on the camera side of the player, never beyond them.
       float endFade = 1.0-smoothstep(0.0,60.0,(1.0-t)*sqrt(length2));
-      visibility = min(visibility,max(radial,endFade));
+      float corridor = mix(0.2,1.0,max(radial,endFade));
+      // Preserve low plants below the player's hips, independently of camera pitch or roll.
+      float height = dot(viewPos-target,scene.view[1].xyz);
+      float upperBody = smoothstep(-60.0,-15.0,height);
+      corridor = mix(1.0,corridor,upperBody);
+      visibility = min(visibility,corridor);
       }
     }
   return visibility;

@@ -44,15 +44,17 @@ int main() {
       if(i>=16 && values[i][1]!=thresholds[i%16])
         throw std::runtime_error("Dither pattern is not periodic");
       const double edge=(135.0*135.0-90.0*90.0)/(180.0*180.0-90.0*90.0);
-      const std::array<double,12> corridor={0,0,0,0,1,edge*edge*(3-2*edge),0.5,1,1,1,1,1};
+      const std::array<double,16> corridor={0.2,0.2,0.2,0.2,1,0.2+0.8*edge*edge*(3-2*edge),0.6,1,1,1,1,1,1,0.6,0.2,0};
       for(size_t c=2;c<4;++c)
-        if(!std::isfinite(values[i][c]) || std::abs(values[i][c]-corridor[i%12])>0.00002)
+        if(!std::isfinite(values[i][c]) || std::abs(values[i][c]-corridor[i%16])>0.00002)
           throw std::runtime_error("Camera corridor differs from expected coverage or fades behind the player");
     }
     std::sort(thresholds.begin(),thresholds.end());
     for(size_t i=0;i<thresholds.size();++i)
       if(thresholds[i]!=(float(i)+0.5f)/16.f)
         throw std::runtime_error("Dither coverage is biased");
+    if(std::count_if(thresholds.begin(),thresholds.end(),[](float t) { return t<0.2f; })!=3)
+      throw std::runtime_error("The faded corridor lost its visible dither remainder");
     device.waitIdle();
   } catch(const std::exception& e) {
     std::cerr << e.what() << '\n';
