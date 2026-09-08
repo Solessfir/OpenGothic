@@ -6,19 +6,13 @@ The normal APK contains no game files.
 
 ## Don't care - let me play
 
-1. Download your game's APK from [Releases](https://github.com/Solessfir/OpenGothic/releases), using the table below.
+1. Download your game's APK from [Releases](https://github.com/Solessfir/OpenGothic/releases).
 2. Run `setup-android.bat --package-only` on Windows or `bash setup-android.sh --package-only` on Linux. Choose the game and its installation, then copy `build/android-setup/game-data.zip` to your phone.
 3. Open the app, tap **Choose game archive**, and select the archive.
 4. Wait for the import to finish and the game to start. You can then delete the ZIP from your phone.
 
 The script collects the required files and adds an import index. Zipping only `Data`, or manually zipping the installation, will not work. No USB is needed.
 All three apps can be installed together, with separate game files, saves and settings.
-
-| Game | APK | Icon |
-| --- | --- | --- |
-| Gothic 1 | `OpenGothic-Gothic1-arm64.apk` | White G |
-| Gothic II Classic | `OpenGothic-Gothic2-Classic-arm64.apk` | Gold G |
-| Gothic II: Night of the Raven | `OpenGothic-Gothic2-NotR-arm64.apk` | Blue G |
 
 Use a clean installation without Union or Windows DLL plugins: they are unsupported, and their script/asset changes can break the game.
 Classic needs actual Classic files; removing NotR's addon archives or selecting a different APK does not convert the installation.

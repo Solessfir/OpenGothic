@@ -16,7 +16,6 @@ setup-android.bat --package-only --game "D:/Games/Gothic II"
 On Linux: `bash setup-android.sh --package-only --game "/path/to/Gothic II"`.
 For Gothic 1, use `setup-android.bat --package-only --game "D:/Games/Gothic"` (the same `--game` option works on Linux).
 The game is detected automatically from its world archives, independently of dialogue language.
-When building, this also selects the matching launcher: Gothic 1 uses a white G, Classic a gold G, and NotR a blue G.
 Omit `--game` to search Steam/GOG/common installation folders and choose which edition to install.
 No Android SDK, NDK or Java is needed for packaging.
 Classic requires a complete Classic installation; removing addon archives from NotR or using Steam's Classic-mode mods is not a standalone Classic installation for these scripts.
@@ -70,9 +69,7 @@ Outputs are in `build/android-setup/`:
 
 | Output | Use |
 | --- | --- |
-| `OpenGothic-Gothic1-arm64.apk` | Gothic 1, white G |
-| `OpenGothic-Gothic2-Classic-arm64.apk` | Gothic II Classic, gold G |
-| `OpenGothic-Gothic2-NotR-arm64.apk` | Gothic II: Night of the Raven, blue G |
+| `OpenGothic-*-arm64.apk` | Install the APK built for your selected game |
 | `game-data.zip` | Import into the matching app |
 | `*-with-data-arm64.apk` | Single-file package with that edition's game assets, when it fits |
 | `*-report.json` | Build/package details and checksums |
@@ -114,11 +111,11 @@ A bundled APK keeps both compressed and extracted assets. APK + ZIP avoids retai
 Install any or all three APKs and import each game's archive into its matching app.
 The apps have separate storage, so neither replaces the other's saves, settings or game files.
 
-| Game | App ID | Launcher |
-| --- | --- | --- |
-| Gothic 1 | `org.opengothic.gothic1` | Gothic, white G |
-| Gothic II Classic | `org.opengothic.gothic2` | Gothic II Classic, gold G |
-| Gothic II: Night of the Raven | `org.opengothic.gothic2notr` | Gothic II: NotR, blue G |
+| Game | App ID |
+| --- | --- |
+| Gothic 1 | `org.opengothic.gothic1` |
+| Gothic II Classic | `org.opengothic.gothic2` |
+| Gothic II: Night of the Raven | `org.opengothic.gothic2notr` |
 
 All retain the internal `Gothic2` game-data directory name for compatibility with existing archives.
 ADB examples elsewhere in these docs use NotR's app ID.
