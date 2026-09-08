@@ -497,20 +497,18 @@ Rect TouchInput::blockRect() const {
 
 void TouchInput::drawBlock(Painter& p) const {
   const auto rect = blockRect();
+  const float scale = 1.4f*std::min(Gothic::interfaceScale(this),float(h())/720.f);
   const bool pressed = blockPointer>=0;
   if(pressed) {
     p.setBrush(Color(0.8f,0.6f,0.2f,0.18f));
     p.drawRect(rect);
     }
-  const auto gold = pressed ? Color(1.f,0.85f,0.4f,0.95f) : Color(0.843f,0.761f,0.631f,0.65f);
+  const auto gold = Color(0.843f,0.761f,0.631f,0.28f);
   p.setBrush(gold);
-  p.setPen(Pen(gold,Painter::Alpha,3.f));
-  p.drawLine(rect.x,rect.y,rect.x+rect.w,rect.y);
-  p.drawLine(rect.x+rect.w,rect.y,rect.x+rect.w,rect.y+rect.h);
-  p.drawLine(rect.x+rect.w,rect.y+rect.h,rect.x,rect.y+rect.h);
+  p.setPen(Pen(gold,Painter::Alpha,std::max(1.f,scale)));
+  // Jump and Attack already draw the shared edges.
   p.drawLine(rect.x,rect.y+rect.h,rect.x,rect.y);
 
-  const float scale = 1.4f*std::min(Gothic::interfaceScale(this),float(h())/720.f);
   const auto& font = Resources::font(scale);
   font.drawTextShadow(p,rect.x,rect.y+(rect.h+font.pixelSize())/2,rect.w,font.pixelSize(),"Block",AlignHCenter);
   }
