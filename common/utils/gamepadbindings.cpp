@@ -23,6 +23,20 @@ constexpr const char* actionNames[] = {
   "AssignUp", "AssignDown", "AssignLeft", "AssignRight", "RenameSave"
   };
 static_assert(std::size(actionNames)==size_t(Action::Count));
+constexpr const char* actionLabels[] = {
+  "Use / pick up", "Back", "Jump", "Journal", "Inventory", "Menu", "Sneak", "Walk", "Target lock",
+  "Draw / sheathe", "Equipment wheel", "Map", "Health potion", "Mana potion", "Character stats",
+  "First person", "Look behind", "Quicksave", "Quickload", "Attack", "Attack left",
+  "Attack right", "Block", "Finishing blow", "Accept / use", "Up", "Down", "Left", "Right",
+  "Previous page", "Next page", "Cancel", "Left inventory pane", "Right inventory pane", "Transfer stack", "Drop item",
+  "Spell slot 3", "Spell slot 4", "Spell slot 5", "Spell slot 6", "Spell slot 7", "Spell slot 8", "Spell slot 9", "Spell slot 10",
+  "Delete save", "Decrease slider", "Increase slider", "System wheel",
+  "Quick slot up", "Quick slot down", "Quick slot left", "Quick slot right",
+  "Up slot wheel", "Down slot wheel", "Left slot wheel", "Right slot wheel",
+  "Assign up (hold modifier first)", "Assign down (hold modifier first)",
+  "Assign left (hold modifier first)", "Assign right (hold modifier first)", "Rename save"
+  };
+static_assert(std::size(actionLabels)==size_t(Action::Count));
 std::string trim(std::string s) {
   const auto first = s.find_first_not_of(" \t\r\n");
   if(first==std::string::npos)
@@ -365,6 +379,18 @@ std::string GamepadBindings::hint(Action action,Context context) const {
     out+=b.text;
     }
   return out.empty()?"None":out;
+  }
+
+std::vector<GamepadBindings::Hint> GamepadBindings::hints(Context context) const {
+  std::vector<Hint> result;
+  for(const auto& b:bindings(context)) {
+    auto found=std::find_if(result.begin(),result.end(),[&](const Hint& hint){ return hint.action==b.action; });
+    if(found==result.end())
+      result.push_back({b.action,b.text,actionLabels[size_t(b.action)]});
+    else
+      found->keys+=" / "+b.text;
+    }
+  return result;
   }
 
 void GamepadBindings::reset(uint32_t held) {

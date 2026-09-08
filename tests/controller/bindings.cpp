@@ -15,6 +15,23 @@ bool has(const std::vector<B::Event>& events,A action,P phase=P::Press) {
 int main() {
   try {
     B b;
+    auto overlayHint=[](const B& bindings,A action,C context) {
+      for(const auto& hint:bindings.hints(context)) if(hint.action==action) return hint.keys;
+      return std::string("None");
+      };
+    check(overlayHint(b,A::AttackForward,C::ClassicMelee)=="Y","Classic overlay shows the effective attack binding");
+    check(overlayHint(b,A::Jump,C::ClassicMelee)=="None","Classic overlay omits Jump when X is assigned to attack left");
+    check(overlayHint(b,A::AttackForward,C::ModernMelee)=="RT","Modern overlay uses the current combat context");
+    check(overlayHint(b,A::SystemWheel,C::Gameplay)=="Hold:Menu","Overlay keeps hold actions distinct from taps");
+    check(overlayHint(b,A::AssignLeft,C::Inventory)=="A+DpadLeft","Inventory overlay includes assignment chords");
+    check(overlayHint(b,A::AdjustLeft,C::UI)=="RightStickLeft","Menu overlay includes slider controls");
+    B remappedOverlay;
+    std::istringstream overlayConfig("[ModernMelee]\nAttackForward=RB\nBlock=None\n");
+    check(remappedOverlay.load(overlayConfig).empty(),"Overlay test remapping loads");
+    check(overlayHint(remappedOverlay,A::AttackForward,C::ModernMelee)=="RB" &&
+          overlayHint(remappedOverlay,A::DrawSheathe,C::ModernMelee)=="None" &&
+          overlayHint(remappedOverlay,A::Block,C::ModernMelee)=="None",
+          "Overlay respects remapped, overridden and unbound actions");
     check(b.options.meleeAssist && b.options.meleeAssistMaxAngle==90.f && b.options.meleeAssistMaxDistance==300.f,
           "Missing combat settings use conservative melee assistance defaults");
     check(b.options.meleeFocusRangeScale==0.f,"Mobile melee focus defaults to the scripted monster warning range");

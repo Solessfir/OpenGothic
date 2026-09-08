@@ -100,7 +100,9 @@ class MainWindow : public Tempest::Window {
     void processMouse(Tempest::MouseEvent& event, bool enable);
     void tickMouse(uint64_t dt);
     void tickGamepad();
-    void applySystemWheelSelection(size_t selected);
+    void applySystemWheelSelection(size_t selected, bool touch=false);
+    void updateControllerOverlay();
+    void paintControllerOverlay(Tempest::PaintEvent& event, int top);
     GamepadBindings::Context controllerContext() const;
     void controllerAction(const GamepadBindings::Event& event);
     void controllerQuickSlot(size_t slot, bool toggleDraw=true);
@@ -192,6 +194,9 @@ class MainWindow : public Tempest::Window {
     bool                      controllerSwitchReady=true;
     bool                      controllerWasPresent=false;
     bool                      controllerDisconnectPending=false;
+    int                       controllerOverlayContext=-1;
+    std::string               controllerOverlayTitle;
+    std::vector<std::string>  controllerOverlayLines;
 #endif
 #if defined(__MOBILE_PLATFORM__)
     TouchInput                mobileUi;

@@ -170,6 +170,7 @@ Gothic::Gothic() {
   defaults->set("ENGINE",       "ssaoHalfResolution", defaultSsaoHalfResolution);
   defaults->set("ENGINE",       "fogHalfResolution", defaultFogHalfResolution);
   defaults->set("DEBUG",        "touchControls", 0);
+  defaults->set("DEBUG",        "gamepadControls", 0);
 
   defaults->set("VIDEO", "zVidBrightness", 0.5f);
   defaults->set("VIDEO", "zVidContrast",   0.5f);

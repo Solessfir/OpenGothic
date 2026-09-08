@@ -63,6 +63,8 @@ class GamepadBindings final {
     static std::string defaults();
     static uint32_t button(std::string_view name);
     std::string hint(Action action, Context context) const;
+    struct Hint { Action action; std::string keys; std::string_view label; };
+    std::vector<Hint> hints(Context context) const;
     std::vector<Event> update(uint32_t buttons, Context context, uint64_t now);
     void reset(uint32_t held = 0);
     std::pair<float,float> movementAxis(float x, float y, bool touch=false) const;

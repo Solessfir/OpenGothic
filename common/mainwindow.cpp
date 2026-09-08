@@ -441,8 +441,8 @@ void MainWindow::tickMouse(uint64_t dt) {
   }
 
 
-void MainWindow::applySystemWheelSelection(size_t selected) {
-  const char* settings[]={"showFps","touchControls","centerPlayerBars","useGothic1Controls"};
+void MainWindow::applySystemWheelSelection(size_t selected,bool touch) {
+  const char* settings[]={"showFps",touch ? "touchControls" : "gamepadControls","centerPlayerBars","useGothic1Controls"};
   if(selected>=std::size(settings)) return;
   const auto section=selected==1 ? "DEBUG" : "GAME";
   const auto setting=settings[selected];
@@ -491,7 +491,7 @@ bool MainWindow::onTouchWheel(TouchInput::Command command, TouchInput::WheelPhas
     player.controllerEquip(selected);
     }
   else if(command==TouchInput::Command::Back) {
-    applySystemWheelSelection(selected);
+    applySystemWheelSelection(selected,true);
     }
   else {
     const auto action=selected==0 ? KeyCodec::Status : KeyCodec::Log;
@@ -659,6 +659,9 @@ void MainWindow::onTouchCommand(TouchInput::Command command, bool pressed) {
 void MainWindow::onSettings() {
 #if defined(__MOBILE_PLATFORM__)
   mobileUi.setDebugOverlay(Gothic::settingsGetI("DEBUG", "touchControls")!=0);
+#if defined(__ANDROID__)
+  if(controllerConnected) mobileUi.setDebugOverlay(false);
+#endif
 #endif
 #if defined(__ANDROID__)
   const auto displayMode = Gothic::settingsGetS("VIDEO", "displayMode");
@@ -1670,6 +1673,7 @@ void MainWindow::render(){
       PaintEvent p(numOverlay,atlas,this->w(),this->h());
       inventory.paintNumOverlay(p);
 #if defined(__ANDROID__)
+      paintControllerOverlay(p,showFps ? fpsMargin+fpsFont.pixelSize() : 0);
       if(showFps) {
         // Draw above menus and scale the padding with the interface.
         Painter painter(p);

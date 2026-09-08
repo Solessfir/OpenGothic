@@ -80,9 +80,8 @@ Original `sightValue`, `modelDetail` and `zVobFarClipZScale` are not supported d
 
 ## Optional diagnostics
 
-All are off by default in `[DEBUG]`: `touchControls=1` shows the touch layout,
-`gpuProfile=1` records GPU timings, and `cpuProfile=1` enables trace markers.
-The Back/menu hold wheel also toggles the touch layout without editing an INI.
+All are off by default in `[DEBUG]`: `touchControls=1` shows the touch layout, `gamepadControls=1` shows the current gamepad bindings, `gpuProfile=1` records GPU timings, and `cpuProfile=1` enables trace markers.
+The Back/menu hold wheel toggles the controls overlay for the input method used to open it. Touch and gamepad overlay preferences are saved separately.
 Use `0` to disable them. Profiling adds overhead; see [contributor diagnostics](tools/README.md).
 
 ## Editing settings

@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 #include "gothic.h"
 #include "utils/cameramath.h"
+#include "utils/gthfont.h"
 #include "world/objects/npc.h"
 #include "world/objects/interactive.h"
 #include "world/objects/item.h"
@@ -12,6 +13,62 @@ using namespace Tempest;
 using PadAction=GamepadBindings::Action;
 using Context=GamepadBindings::Context;
 using Phase=GamepadBindings::Phase;
+
+void MainWindow::updateControllerOverlay() {
+#if defined(__ANDROID__)
+  const auto context=controllerContext();
+  const bool enabled=controllerConnected && Gothic::settingsGetI("DEBUG","gamepadControls")!=0 &&
+                     !video.isActive() && Gothic::inst().checkLoading()==Gothic::LoadState::Idle;
+  const int key=enabled ? int(context)*2+int(player.isClassicCombat()) : -1;
+  if(key==controllerOverlayContext) return;
+  controllerOverlayContext=key;
+  controllerOverlayLines.clear();
+  if(enabled) {
+    constexpr const char* names[]={"Exploration","Classic combat","Modern combat","Bow / magic","Menus","Inventory","Radial wheel","Interaction"};
+    controllerOverlayTitle=std::string("Gamepad controls: ")+names[size_t(context)];
+    const auto& options=controllerBindings.options;
+    if(context==Context::EquipmentWheel)
+      controllerOverlayLines.push_back("Either stick: Select; release wheel button to apply");
+    else if(context!=Context::UI && context!=Context::Inventory && context!=Context::Interaction) {
+      controllerOverlayLines.push_back(std::string(options.swapMovement ? "Right stick" : "Left stick")+": Move / turn; small input walks");
+      controllerOverlayLines.push_back(std::string(options.swapCamera ? "Left stick" : "Right stick")+": Camera / switch locked target");
+      }
+    for(const auto& hint:controllerBindings.hints(context))
+      controllerOverlayLines.push_back(hint.keys+": "+std::string(hint.label));
+    }
+  update();
+#endif
+  }
+
+void MainWindow::paintControllerOverlay(PaintEvent& event,int top) {
+#if defined(__ANDROID__)
+  if(controllerOverlayLines.empty()) return;
+  const int pad=std::max(12,int(16.f*uiScale()));
+  const int columnWidth=std::max(1,(w()-3*pad)/2);
+  const int rows=int((controllerOverlayLines.size()+1)/2);
+  float scale=std::min(std::max(uiScale(),1.f),float(h())/720.f);
+  const auto& initialFont=Resources::font(scale);
+  int widest=1;
+  for(const auto& text:controllerOverlayLines)
+    widest=std::max(widest,initialFont.textSize(text).w);
+  const float widthFit=std::min(1.f,float(columnWidth)/float(widest));
+  const float heightFit=std::min(1.f,float(std::max(1,h()-top-3*pad))/float((rows+2)*(initialFont.pixelSize()+6)));
+  scale*=std::min(widthFit,heightFit);
+  const auto& font=Resources::font(scale);
+  const int line=font.pixelSize()+std::max(3,int(6.f*scale));
+  const int baseline=top+pad+font.pixelSize();
+  Painter painter(event);
+  font.drawText(painter,pad,baseline,controllerOverlayTitle);
+  for(size_t i=0;i<controllerOverlayLines.size();++i) {
+    const int column=int(i)/rows;
+    const int row=int(i)%rows;
+    font.drawText(painter,pad+column*(columnWidth+pad),baseline+(row+2)*line,controllerOverlayLines[i]);
+    }
+#else
+  (void)event;
+  (void)top;
+#endif
+  }
 
 void MainWindow::controllerQuickSlot(size_t slot,bool toggleDraw) {
   auto pl=Gothic::inst().player();
@@ -268,6 +325,8 @@ void MainWindow::tickGamepad() {
     wheelHeldMask=0;
     }
   controllerConnected=connected;
+  mobileUi.setDebugOverlay(!connected && Gothic::settingsGetI("DEBUG","touchControls")!=0);
+  updateControllerOverlay();
   if(controllerDisconnectPending && controllerFocused && Gothic::inst().checkLoading()==Gothic::LoadState::Idle) {
     controllerDisconnectPending = false;
     if(auto pl = Gothic::inst().player(); pl!=nullptr && !rootMenu.isActive()) {
