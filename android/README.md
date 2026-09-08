@@ -1,19 +1,29 @@
 # OpenGothic for Android
 
-Native Android port of OpenGothic for Gothic 1 and Gothic II: Night of the Raven.
+Native Android port of OpenGothic for Gothic 1, Gothic II Classic and Gothic II: Night of the Raven.
 Requires an ARM64 device with Vulkan 1.1 and a legally owned game installation.
 The normal APK contains no game files.
 
 ## Don't care - let me play
 
-1. Download the APK for your game from [Releases](https://github.com/Solessfir/OpenGothic/releases): `OpenGothic-Gothic1-arm64.apk` for Gothic 1, or `OpenGothic-arm64.apk` for Gothic II.
-2. [Run the packaging script](SETUP.md#package-game-files-only) on your computer, pointing it at your Gothic 1 or Gothic II: Night of the Raven installation folder. Copy the resulting `game-data.zip` to any folder on your phone.
+1. Download your game's APK from [Releases](https://github.com/Solessfir/OpenGothic/releases), using the table below.
+2. Run `setup-android.bat --package-only` on Windows or `bash setup-android.sh --package-only` on Linux. Choose the game and its installation, then copy `build/android-setup/game-data.zip` to your phone.
 3. Open the app, tap **Choose game archive**, and select the archive.
 4. Wait for the import to finish and the game to start. You can then delete the ZIP from your phone.
 
 The script collects the required files and adds an import index. Zipping only `Data`, or manually zipping the installation, will not work. No USB is needed.
-Both apps can be installed together: **Gothic** has a white G and **Gothic II** has a gold G, with separate files, saves and settings.
+All three apps can be installed together, with separate game files, saves and settings.
+
+| Game | APK | Icon |
+| --- | --- | --- |
+| Gothic 1 | `OpenGothic-Gothic1-arm64.apk` | White G |
+| Gothic II Classic | `OpenGothic-Gothic2-Classic-arm64.apk` | Gold G |
+| Gothic II: Night of the Raven | `OpenGothic-Gothic2-NotR-arm64.apk` | Blue G |
+
+Use a clean installation without Union or Windows DLL plugins: they are unsupported, and their script/asset changes can break the game.
+Classic needs actual Classic files; removing NotR's addon archives or selecting a different APK does not convert the installation.
 To build the APK yourself instead, run `setup-android.bat` on Windows or `bash setup-android.sh` on Linux and follow the prompts.
+Both scripts detect installed games and ask which edition to install.
 
 - [Setup options and installation without USB](SETUP.md)
 - [Touch controls](TOUCH.md)
@@ -26,6 +36,7 @@ Audio pauses in the background, gameplay keeps the screen awake, and volume butt
 
 **Update rather than uninstall:** uninstalling also removes game files, settings and saves.
 Back up saves first. Never redistribute packages containing Gothic assets.
+If upgrading from the old NotR app, follow the [app-ID migration instructions](SETUP.md#migrating-an-older-notr-app) to retain your files and saves.
 
 ## Manual build
 
@@ -47,8 +58,10 @@ $env:ANDROID_SDK_ROOT = $env:ANDROID_HOME
 ```
 
 Output: `build/android/OpenGothic/app/build/outputs/apk/release/app-release.apk` (ARM64, no Gothic assets).
-For Gothic 1, use `-B build/android-g1 -DOPENGOTHIC_ANDROID_GAME=1` when configuring, then build `build/android-g1` instead.
-Its APK is `build/android-g1/OpenGothic/app/build/outputs/apk/release/app-release.apk`.
+NotR is the default build.
+For Gothic 1, configure with `-B build/android-g1 -DOPENGOTHIC_ANDROID_GAME=gothic1`; for Classic, use `-B build/android-g2-classic -DOPENGOTHIC_ANDROID_GAME=gothic2`.
+Build that directory instead; its APK is under `OpenGothic/app/build/outputs/apk/release/app-release.apk`.
+The setup scripts copy APKs into `build/android-setup` using the edition-specific names above.
 On Linux, set `JAVA_HOME`/`ANDROID_HOME`, then use `cmake -S android -B build/android -G Ninja`
 and `cmake --build build/android --target OpenGothic-apk` with CMake 3.22+ and Ninja on PATH.
 Tempest generates the Gradle project under `build/android/OpenGothic`; do not edit generated files.
@@ -66,10 +79,10 @@ Enable Developer options and USB debugging, connect the phone and approve its au
 $adb = "$env:ANDROID_HOME/platform-tools/adb.exe"
 & $adb devices -l
 $device = 'YOUR_DEVICE_SERIAL'
-& $adb -s $device shell am force-stop org.opengothic.app
+& $adb -s $device shell am force-stop org.opengothic.gothic2notr
 & $adb -s $device install --no-streaming -r build/android/OpenGothic/app/build/outputs/apk/release/app-release.apk
 if ($LASTEXITCODE -ne 0) { throw 'APK installation failed' }
-& $adb -s $device shell am start -W -n org.opengothic.app/.SetupActivity
+& $adb -s $device shell am start -W -n org.opengothic.gothic2notr/org.opengothic.app.SetupActivity
 ```
 
 Keep the same debug signing key (`~/.android/debug.keystore`) for updates.
@@ -106,15 +119,15 @@ No ZArchiver or manual access to `Android/data` is needed.
 For a direct ADB copy, launch once, close the app, and copy your installation:
 
 ```powershell
-& $adb -s $device shell am force-stop org.opengothic.app
-& $adb -s $device shell mkdir -p /sdcard/Android/data/org.opengothic.app/files/Gothic2
-& $adb -s $device push 'C:/Path/To/Gothic II/.' /sdcard/Android/data/org.opengothic.app/files/Gothic2/
-& $adb -s $device shell am start -W -n org.opengothic.app/org.tempest.TempestNativeActivity
+& $adb -s $device shell am force-stop org.opengothic.gothic2notr
+& $adb -s $device shell mkdir -p /sdcard/Android/data/org.opengothic.gothic2notr/files/Gothic2
+& $adb -s $device push 'C:/Path/To/Gothic II/.' /sdcard/Android/data/org.opengothic.gothic2notr/files/Gothic2/
+& $adb -s $device shell am start -W -n org.opengothic.gothic2notr/org.tempest.TempestNativeActivity
 ```
 
 `Gothic2` must directly contain `Data`, `_work` and `System` (or `system`).
 The same folder is used for Gothic 1; the game is detected from its world files, not the folder name or language.
-Use each game's own app and do not mix Gothic 1 and Gothic II assets or saves; see [both games on one phone](SETUP.md#both-games-on-one-phone).
+Use each game's own app and do not mix assets or saves; see [game editions and storage](SETUP.md#game-editions-and-storage).
 If your device restricts direct access, use the archive importer.
 Windows plugins such as Union DLLs do not run on Android.
 
@@ -124,21 +137,21 @@ Only **OpenGothic** `save_slot_N.sav` files transfer; original Gothic 1 or Gothi
 Use matching OpenGothic versions and game/mod data. Keep backups until the imported save loads successfully.
 
 PC saves are in OpenGothic's working directory, usually beside `log.txt`.
-Android saves are in `/sdcard/Android/data/org.opengothic.app/files/`, not its `Gothic2` subfolder.
-For Gothic 1, replace `org.opengothic.app` in storage paths with `org.opengothic.gothic1`.
+Android saves are in `/sdcard/Android/data/org.opengothic.gothic2notr/files/`, not its `Gothic2` subfolder.
+For Gothic 1 or Classic, substitute the corresponding app ID from the [edition table](SETUP.md#game-editions-and-storage).
 Slot `0` is the quicksave. Close both games and choose an empty destination slot:
 
 ```powershell
 $pcSave = 'C:/Path/To/OpenGothic/save_slot_1.sav'
-$phoneSave = '/sdcard/Android/data/org.opengothic.app/files/save_slot_1.sav'
+$phoneSave = '/sdcard/Android/data/org.opengothic.gothic2notr/files/save_slot_1.sav'
 if (!(Test-Path -LiteralPath $pcSave -PathType Leaf)) { throw 'PC save not found' }
-& $adb -s $device shell am force-stop org.opengothic.app
+& $adb -s $device shell am force-stop org.opengothic.gothic2notr
 if ($LASTEXITCODE -ne 0) { throw 'Could not stop the game' }
 & $adb -s $device shell test ! -e $phoneSave
 if ($LASTEXITCODE -ne 0) { throw 'Slot exists or ADB failed; choose an empty slot' }
 & $adb -s $device push $pcSave $phoneSave
 if ($LASTEXITCODE -ne 0) { throw 'Save transfer failed' }
-& $adb -s $device shell am start -W -n org.opengothic.app/org.tempest.TempestNativeActivity
+& $adb -s $device shell am start -W -n org.opengothic.gothic2notr/org.tempest.TempestNativeActivity
 ```
 
 For phone-to-PC backups, use `setup-android.bat --backup-saves` (or the `.sh` equivalent).
@@ -156,7 +169,7 @@ The setup scripts can also include PC OpenGothic saves in an archive for transfe
 To collect logs:
 
 ```powershell
-& $adb -s $device pull /sdcard/Android/data/org.opengothic.app/files/log.txt ./opengothic-android-log.txt
+& $adb -s $device pull /sdcard/Android/data/org.opengothic.gothic2notr/files/log.txt ./opengothic-android-log.txt
 & $adb -s $device logcat -d -v threadtime 'app:I' 'Tempest:I' 'AndroidRuntime:E' 'libc:F' '*:S'
 ```
 

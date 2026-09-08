@@ -50,7 +50,7 @@ The capture records up to 600 completed frames into `gpu-profile.csv`; another r
 $adb = "$env:ANDROID_HOME/platform-tools/adb.exe"
 $device = 'YOUR_DEVICE_SERIAL_OR_IP:PORT'
 New-Item -ItemType Directory -Force build/performance | Out-Null
-& $adb -s $device pull /sdcard/Android/data/org.opengothic.app/files/gpu-profile.csv build/performance/gpu-profile.csv
+& $adb -s $device pull /sdcard/Android/data/org.opengothic.gothic2notr/files/gpu-profile.csv build/performance/gpu-profile.csv
 ./android/tools/Summarize-GpuProfile.ps1 -Path build/performance/gpu-profile.csv
 ```
 

@@ -72,7 +72,7 @@ def game_edition(root):
     data = child_ci(root, "Data")
     worlds = child_ci(data, "Worlds.vdf") if data and data.is_dir() else None
     if not worlds or not worlds.is_file():
-        raise ValueError("Expected Data/Worlds.vdf from Gothic 1 or Gothic II: Night of the Raven.")
+        raise ValueError("Expected Data/Worlds.vdf from Gothic 1, Gothic II Classic or Night of the Raven.")
     names = world_names(worlds)
     addon = child_ci(data, "Worlds_Addon.vdf")
     if addon and addon.is_file():
@@ -85,7 +85,23 @@ def game_edition(root):
         return "Gothic 1"
     if gothic2 and b"ADDONWORLD.ZEN" in names:
         return "Gothic II: Night of the Raven"
-    raise ValueError("Expected Gothic 1 or Gothic II: Night of the Raven worlds. Classic Gothic II is not supported by these scripts.")
+    if gothic2:
+        if any("_addon" in p.name.casefold() for p in data.iterdir() if p.is_file()):
+            raise ValueError("Addon archives remain but the addon world is missing. Use a complete Classic or NotR installation; removing addon files does not convert the game.")
+        return "Gothic II Classic"
+    raise ValueError("Expected Gothic 1, Gothic II Classic or Night of the Raven worlds.")
+
+
+def unsupported_plugins(root):
+    """Recognize common Windows plugin locations without rejecting Steam's bundled SystemPack."""
+    system = child_ci(root, "System")
+    if not system or not system.is_dir():
+        return []
+    found = [p for p in system.iterdir() if "union" in p.name.casefold()]
+    autorun = child_ci(system, "Autorun")
+    if autorun and autorun.is_dir():
+        found += [p for p in autorun.iterdir() if p.suffix.casefold() == ".dll"]
+    return sorted(found, key=str)
 
 
 def game_files(root):

@@ -17,14 +17,17 @@ import time
 import urllib.request
 import zipfile
 
-from game_package import child_ci, game_edition, package, safe_preferences, sha256, validate_game, validate_save
+from game_package import child_ci, game_edition, package, safe_preferences, sha256, unsupported_plugins, validate_game, validate_save
 
 ROOT = Path(__file__).resolve().parents[2]
 OUTPUT = ROOT / "build/android-setup"
 WINDOWS = os.name == "nt"
 HOST = "windows" if WINDOWS else "linux"
-APP = "org.opengothic.app"
-EDITIONS = {"gothic1": "org.opengothic.gothic1", "gothic2": APP}
+APP = "org.opengothic.gothic2notr"
+EDITIONS = {"gothic1": "org.opengothic.gothic1", "gothic2": "org.opengothic.gothic2", "gothic2notr": APP}
+EDITION_NAMES = {"gothic1": "Gothic 1", "gothic2": "Gothic II Classic", "gothic2notr": "Gothic II: Night of the Raven"}
+BUILD_DIRS = {"gothic1": "build/android-g1", "gothic2": "build/android-g2-classic", "gothic2notr": "build/android"}
+APK_NAMES = {"gothic1": "OpenGothic-Gothic1", "gothic2": "OpenGothic-Gothic2-Classic", "gothic2notr": "OpenGothic-Gothic2-NotR"}
 LOCK = json.loads(Path(__file__).with_name("toolchain.json").read_text())
 
 
@@ -200,7 +203,7 @@ def toolchain(args):
         if missing:
             raise RuntimeError("SDK packages still missing: " + ", ".join(missing))
     # An existing local.properties overrides ANDROID_HOME in Gradle. Never rewrite it silently.
-    build_dir = "build/android-g1" if getattr(args, "edition", None) == "gothic1" else "build/android"
+    build_dir = BUILD_DIRS[getattr(args, "edition", None) or "gothic2notr"]
     properties = ROOT / build_dir / "OpenGothic/local.properties"
     if properties.exists():
         match = re.search(r"^sdk\.dir\s*=\s*(.+)$", properties.read_text(), re.MULTILINE)
@@ -272,16 +275,23 @@ def discover_games():
     return sorted(found, key=str)
 
 
-def select_game(explicit):
+def select_game(explicit, edition=None):
     if explicit:
-        return validate_game(explicit)
+        game = validate_game(explicit)
+        if edition and game_edition(game) != EDITION_NAMES[edition]:
+            raise ValueError("--edition does not match the selected installation. Use that edition's actual files, not renamed or partially deleted addon files.")
+        return game
     print("\nSearching Steam libraries, GOG and common Games directories...")
     found = discover_games()
+    if edition is None:
+        print("Which game do you want to install?")
+        edition = choose(list(EDITIONS), lambda item: EDITION_NAMES[item] + (" (found)" if any(game_edition(p) == EDITION_NAMES[item] for p in found) else " (choose its installation folder)"))
+    found = [p for p in found if game_edition(p) == EDITION_NAMES[edition]]
     if found and ask("Use a discovered installation?"):
         return choose(found, lambda path: f"{game_edition(path)}: {path}")
     while True:
         try:
-            return validate_game(input("Gothic 1 or Gothic II: Night of the Raven installation path: ").strip().strip('"'))
+            return select_game(input(f"{EDITION_NAMES[edition]} installation path: ").strip().strip('"'), edition)
         except (ValueError, OSError) as error:
             print(error)
 
@@ -369,7 +379,7 @@ def stage_chunks():
             index += 1
 
 
-def build(sdk, env, bundled, build_type="release", edition="gothic2"):
+def build(sdk, env, bundled, build_type="release", edition="gothic2notr"):
     if build_type not in ("release", "debug"):
         raise ValueError("Build type must be release or debug")
     app = EDITIONS[edition]
@@ -378,12 +388,12 @@ def build(sdk, env, bundled, build_type="release", edition="gothic2"):
     if bundled:
         stage_chunks()
     cmake_bin = sdk / "cmake/3.22.1/bin"
-    build_root = ROOT / ("build/android-g1" if edition == "gothic1" else "build/android")
+    build_root = ROOT / BUILD_DIRS[edition]
     run([cmake_bin / ("cmake.exe" if WINDOWS else "cmake"), "-S", ROOT / "android",
          "-B", build_root, "-G", "Ninja",
          f"-DCMAKE_MAKE_PROGRAM={cmake_bin / ('ninja.exe' if WINDOWS else 'ninja')}",
          f"-DTEMPEST_ANDROID_BUILD_TYPE={variant}",
-         f"-DOPENGOTHIC_ANDROID_GAME={1 if edition == 'gothic1' else 2}"], env=env)
+         f"-DOPENGOTHIC_ANDROID_GAME={edition}"], env=env)
     project = build_root / "OpenGothic"
     wrapper = project / ("gradlew.bat" if WINDOWS else "gradlew")
     command = [wrapper] if WINDOWS else ["sh", wrapper]
@@ -403,7 +413,7 @@ def build(sdk, env, bundled, build_type="release", edition="gothic2"):
         raise RuntimeError("APK application ID does not match the selected game")
     if debuggable != (build_type == "debug"):
         raise RuntimeError("APK debuggable flag does not match the selected build type")
-    stem = "OpenGothic" + ("-Gothic1" if edition == "gothic1" else "") + ("-with-data" if bundled else "") + ("-debug" if build_type == "debug" else "") + "-arm64"
+    stem = APK_NAMES[edition] + ("-with-data" if bundled else "") + ("-debug" if build_type == "debug" else "") + "-arm64"
     destination = OUTPUT / f"{stem}.apk"
     symbols = []
     if build_type == "release":
@@ -422,7 +432,7 @@ def build(sdk, env, bundled, build_type="release", edition="gothic2"):
               "source_modified": bool(run(["git", "status", "--porcelain"], capture=True).stdout.strip()),
               "submodules": run(["git", "submodule", "status", "--recursive"], capture=True).stdout.splitlines(),
               "warning": "Do not redistribute Gothic game files or APKs containing them."}
-    (OUTPUT / ("gothic1-build-report.json" if edition == "gothic1" else "build-report.json")).write_text(json.dumps(report, indent=2) + "\n")
+    (OUTPUT / f"{edition}-build-report.json").write_text(json.dumps(report, indent=2) + "\n")
     print(f"\nVerified signed ARM64 APK: {destination}\nSHA-256: {report['sha256']}")
     print("Keep your signing key private and backed up (default: ~/.android/debug.keystore). A different key cannot update the same app in place.")
     if symbols:
@@ -448,7 +458,7 @@ def device(adb):
             return None
 
 
-def backup_saves(adb, serial, edition="gothic2"):
+def backup_saves(adb, serial, edition="gothic2notr"):
     app = EDITIONS[edition]
     phone = f"/sdcard/Android/data/{app}/files"
     prefix = [adb, "-s", serial]
@@ -481,7 +491,7 @@ def install_apk(prefix, apk):
             raise RuntimeError("Installation cancelled. Built files are still available for manual transfer; no app was uninstalled.")
 
 
-def install(sdk, apk, bundled, env, edition="gothic2"):
+def install(sdk, apk, bundled, env, edition="gothic2notr"):
     app = EDITIONS[edition]
     phone = f"/sdcard/Android/data/{app}/files"
     adb = sdk / "platform-tools" / ("adb.exe" if WINDOWS else "adb")
@@ -518,7 +528,7 @@ def install(sdk, apk, bundled, env, edition="gothic2"):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--game", help="Gothic 1 or Gothic II: Night of the Raven installation directory")
+    parser.add_argument("--game", help="Gothic 1, Gothic II Classic or Night of the Raven installation directory")
     parser.add_argument("--edition", choices=tuple(EDITIONS), help="Launcher/save-backup edition; builds normally detect it from --game")
     parser.add_argument("--jdk", help="Existing JDK 17 directory")
     parser.add_argument("--sdk", help="Existing or new Android SDK directory")
@@ -543,21 +553,28 @@ def main(argv=None):
             raise RuntimeError("Set --sdk to an SDK with platform-tools, or put adb on PATH")
         serial = device(adb)
         if serial:
-            edition = args.edition or choose(list(EDITIONS), lambda item: "Gothic 1" if item == "gothic1" else "Gothic II")
+            edition = args.edition or choose(list(EDITIONS), lambda item: EDITION_NAMES[item])
             backup_saves(adb, serial, edition)
         return
+    if args.prepare_only:
+        source_ready()
+        sdk, env = toolchain(args)
+        print("Prerequisites ready. Rerun without --prepare-only to build and install.")
+        return
+    game = select_game(args.game, args.edition)
+    edition = next(key for key, name in EDITION_NAMES.items() if name == game_edition(game))
+    args.edition = edition
+    print(f"Selected installation (read only): {game}")
+    print(f"Game: {game_edition(game)}")
+    print("Use a clean installation. Union and Windows DLL plugins do not run here; their modified scripts or assets can break the game.")
+    plugins = unsupported_plugins(game)
+    if plugins:
+        print("Unsupported plugin files found:\n" + "\n".join(str(p.relative_to(game)) for p in plugins))
+        if not ask("Continue with these modified files anyway? A clean installation is recommended", False):
+            raise RuntimeError("Choose a clean game installation and rerun")
     if not args.package_only:
         source_ready()
         sdk, env = toolchain(args)
-        if args.prepare_only:
-            print("Prerequisites ready. Rerun without --prepare-only to build and install.")
-            return
-    game = select_game(args.game)
-    edition = "gothic1" if game_edition(game) == "Gothic 1" else "gothic2"
-    if args.edition and args.edition != edition:
-        raise ValueError("--edition does not match the selected game files")
-    print(f"Selected installation (read only): {game}")
-    print(f"Game: {game_edition(game)}")
     if not ask("Package this legally owned installation for your own devices?"):
         raise RuntimeError("Game-data packaging cancelled")
     preferences = optional_preferences(game)

@@ -1,7 +1,9 @@
 # Android setup
 
-Build and install using your legally owned **Gothic 1** or **Gothic II: Night of the Raven** files.
+Build and install using your legally owned **Gothic 1**, **Gothic II Classic** or **Gothic II: Night of the Raven** files.
 Do not redistribute game assets or APKs containing them.
+Use a clean installation without Union or Windows DLL plugins; unsupported plugin-dependent scripts or modified assets can break startup or gameplay.
+Removing a plugin DLL alone does not undo its script/data changes.
 
 ## Package game files only
 
@@ -14,8 +16,10 @@ setup-android.bat --package-only --game "D:/Games/Gothic II"
 On Linux: `bash setup-android.sh --package-only --game "/path/to/Gothic II"`.
 For Gothic 1, use `setup-android.bat --package-only --game "D:/Games/Gothic"` (the same `--game` option works on Linux).
 The game is detected automatically from its world archives, independently of dialogue language.
-When building, this also selects the matching launcher: Gothic 1 uses a white G; Gothic II keeps the gold G.
-Omit `--game` to search common installation folders. No Android SDK, NDK or Java is needed for packaging.
+When building, this also selects the matching launcher: Gothic 1 uses a white G, Classic a gold G, and NotR a blue G.
+Omit `--game` to search Steam/GOG/common installation folders and choose which edition to install.
+No Android SDK, NDK or Java is needed for packaging.
+Classic requires a complete Classic installation; removing addon archives from NotR or using Steam's Classic-mode mods is not a standalone Classic installation for these scripts.
 The script creates `build/android-setup/game-data.zip`. Copy it to your phone, select it in the app,
 and delete the transferred ZIP after the game starts.
 
@@ -66,16 +70,18 @@ Outputs are in `build/android-setup/`:
 
 | Output | Use |
 | --- | --- |
-| `OpenGothic-arm64.apk` + `game-data.zip` | Install APK, then import ZIP |
-| `OpenGothic-Gothic1-arm64.apk` + `game-data.zip` | Separate Gothic 1 app, installed alongside Gothic II |
-| `OpenGothic-with-data-arm64.apk` | Single-file package with game assets, when it fits |
+| `OpenGothic-Gothic1-arm64.apk` | Gothic 1, white G |
+| `OpenGothic-Gothic2-Classic-arm64.apk` | Gothic II Classic, gold G |
+| `OpenGothic-Gothic2-NotR-arm64.apk` | Gothic II: Night of the Raven, blue G |
+| `game-data.zip` | Import into the matching app |
+| `*-with-data-arm64.apk` | Single-file package with that edition's game assets, when it fits |
 | `*-report.json` | Build/package details and checksums |
 | `*-native-symbols.zip`, `*-mapping.txt` | Release crash symbols; keep with the matching APK |
 | `phone-saves-*` | Optional save backups |
 
 1. Transfer the APK and, in split mode, ZIP to any folder on your phone.
 2. Open the APK in the file manager and allow that source to install unknown apps.
-3. Launch **Gothic** or **Gothic II**, matching your game files. For split mode, tap **Choose game archive** and select the ZIP.
+3. Launch the matching app: **Gothic**, **Gothic II Classic** or **Gothic II NotR**. For split mode, tap **Choose game archive** and select the ZIP.
 4. Keep setup open until extraction completes. Gameplay starts in landscape afterward.
 
 Use the ZIP produced by the setup scripts, not an arbitrary zipped installation.
@@ -87,38 +93,68 @@ To import into an existing installation, quit the game and long-press its launch
 If the launcher lacks shortcuts:
 
 ```sh
-adb shell am start -n org.opengothic.app/.SetupActivity -a org.opengothic.app.IMPORT_GAME_FILES
+adb shell am start -n org.opengothic.gothic2notr/org.opengothic.app.SetupActivity -a org.opengothic.gothic2notr.IMPORT_GAME_FILES
 ```
 
 For direct installation over Wi-Fi, see [wireless debugging](README.md#wireless-debugging).
 
 ## Updates and data safety
 
-- Gothic II assets go to `Android/data/org.opengothic.app/files/Gothic2`; Gothic 1 uses `org.opengothic.gothic1` instead.
+- Assets go to `Android/data/<app-id>/files/Gothic2`; saves and settings are directly under `files`.
 - Import preserves existing saves/settings. Conflicting modified assets stop import instead of being overwritten.
 - Interrupted imports can be retried; completed matching files are reused.
 - Update with the same signing key. Back up `~/.android/debug.keystore` privately for builds on another PC.
 - **Uninstalling removes extracted assets, saves and settings.** An in-place APK update preserves them.
-- Windows executable plugins are not supported. Start with an unmodified Gothic 1 or Night of the Raven installation.
+- Windows executable plugins are not supported. Start with an unmodified installation of your chosen game.
 
 A bundled APK keeps both compressed and extracted assets. APK + ZIP avoids retaining the archive once the transferred ZIP is deleted.
 
-### Both games on one phone
+### Game editions and storage
 
-Install both APKs and import each game's archive into its matching app.
+Install any or all three APKs and import each game's archive into its matching app.
 The apps have separate storage, so neither replaces the other's saves, settings or game files.
 
 | Game | App ID | Launcher |
 | --- | --- | --- |
 | Gothic 1 | `org.opengothic.gothic1` | Gothic, white G |
-| Gothic II | `org.opengothic.app` | Gothic II, gold G |
+| Gothic II Classic | `org.opengothic.gothic2` | Gothic II Classic, gold G |
+| Gothic II: Night of the Raven | `org.opengothic.gothic2notr` | Gothic II NotR, blue G |
 
-Both retain the internal `Gothic2` game-data directory name for compatibility with existing archives.
-Gothic II ADB examples elsewhere in these docs use `org.opengothic.app`.
+All retain the internal `Gothic2` game-data directory name for compatibility with existing archives.
+ADB examples elsewhere in these docs use NotR's app ID.
 To launch Gothic 1, use `adb shell am start -n org.opengothic.gothic1/org.opengothic.app.SetupActivity`.
 To reopen its importer, append `-a org.opengothic.gothic1.IMPORT_GAME_FILES`.
 Use `org.opengothic.gothic1` in its ADB storage paths too.
 Never mix the games' files or saves.
+
+### Migrating an older NotR app
+
+Older APKs used `org.opengothic.app`; the new NotR app uses `org.opengothic.gothic2notr` and installs separately.
+Back up the old app before moving anything, and keep it until your saves load in the new app.
+For example, with the ADB variables from the [connection guide](README.md#connect-and-install-with-adb):
+
+```powershell
+$backup = 'C:/Path/To/NotR-migration-backup'
+if (Test-Path -LiteralPath $backup) { throw 'Choose a new backup directory' }
+New-Item -ItemType Directory -Path $backup | Out-Null
+& $adb -s $device shell am force-stop org.opengothic.app
+& $adb -s $device pull /sdcard/Android/data/org.opengothic.app/files "$backup/files"
+if ($LASTEXITCODE -ne 0) { throw 'Backup failed' }
+& $adb -s $device install -r build/android-setup/OpenGothic-Gothic2-NotR-arm64.apk
+if ($LASTEXITCODE -ne 0) { throw 'Installation failed' }
+& $adb -s $device shell am start -W -n org.opengothic.gothic2notr/org.opengothic.app.SetupActivity -a org.opengothic.gothic2notr.IMPORT_GAME_FILES
+& $adb -s $device shell am force-stop org.opengothic.gothic2notr
+& $adb -s $device shell test ! -e /sdcard/Android/data/org.opengothic.gothic2notr/files/Gothic2
+if ($LASTEXITCODE -ne 0) { throw 'New app already has game data; do not merge installations' }
+& $adb -s $device shell test ! -e /sdcard/Android/data/org.opengothic.gothic2notr/files/save_slot_0.sav
+if ($LASTEXITCODE -ne 0) { throw 'New app already has saves; keep both sets separately' }
+& $adb -s $device push "$backup/files/." /sdcard/Android/data/org.opengothic.gothic2notr/files/
+if ($LASTEXITCODE -ne 0) { throw 'Transfer failed; keep the backup and old app' }
+& $adb -s $device shell am start -W -n org.opengothic.gothic2notr/org.opengothic.app.SetupActivity
+```
+
+Verify game files, settings and save loading before removing the old app or backups.
+The Java activity class remains `org.opengothic.app.SetupActivity` in all editions; that class name is not their installation/storage ID.
 
 ### Signing
 
@@ -148,7 +184,7 @@ setup-android.bat --backup-saves --sdk "C:/Path/To/Android/Sdk"
 ```
 
 The `.sh` accepts the same arguments. With PC OpenGothic closed, copy the backups into its working directory using empty slots.
-Save backup asks which game to use; pass `--edition gothic1` or `--edition gothic2` to select it directly.
+Save backup asks which game to use; pass `--edition gothic1`, `--edition gothic2` (Classic) or `--edition gothic2notr` to select it directly.
 See [manual save transfer](README.md#transfer-saves-from-pc).
 
 ## Useful options

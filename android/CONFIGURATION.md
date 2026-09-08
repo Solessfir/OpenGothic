@@ -1,12 +1,13 @@
 # Android settings
 
 Most play settings are in the game's menu. For additional options, edit the INI files with the game closed, then restart.
+Examples use NotR's app ID; substitute `org.opengothic.gothic1` for Gothic 1 or `org.opengothic.gothic2` for Classic.
 
 ## Files and precedence
 
 `Gothic.ini` is read in this order, per setting:
 
-1. `/sdcard/Android/data/org.opengothic.app/files/Gothic.ini` - writable overrides.
+1. `/sdcard/Android/data/org.opengothic.gothic2notr/files/Gothic.ini` - writable overrides.
 2. `Gothic2/System/Gothic.ini` below that directory - copied game settings.
 3. Built-in defaults.
 
@@ -91,10 +92,10 @@ For `Gamepad.ini`, change `$file` below; for UI scale, use `Gothic2/System/Syste
 
 ```powershell
 $file = 'Gothic.ini'
-$remote = "/sdcard/Android/data/org.opengothic.app/files/$file"
+$remote = "/sdcard/Android/data/org.opengothic.gothic2notr/files/$file"
 $configDir = Join-Path $env:TEMP ('OpenGothic-config-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $configDir | Out-Null
-& $adb -s $device shell am force-stop org.opengothic.app
+& $adb -s $device shell am force-stop org.opengothic.gothic2notr
 if ($LASTEXITCODE -ne 0) { throw 'Could not stop the game' }
 & $adb -s $device pull $remote "$configDir/settings.ini"
 if ($LASTEXITCODE -ne 0) { throw 'Could not read settings; check path and launch the app once first' }
@@ -107,7 +108,7 @@ Edit existing keys rather than adding duplicate sections/keys. Save and close th
 ```powershell
 & $adb -s $device push "$configDir/settings.ini" $remote
 if ($LASTEXITCODE -ne 0) { throw 'Settings upload failed' }
-& $adb -s $device shell am start -W -n org.opengothic.app/org.tempest.TempestNativeActivity
+& $adb -s $device shell am start -W -n org.opengothic.gothic2notr/org.tempest.TempestNativeActivity
 ```
 
 Keep the backup for recovery. A running game may overwrite external edits on exit.

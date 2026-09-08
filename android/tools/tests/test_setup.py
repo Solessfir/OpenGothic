@@ -43,10 +43,10 @@ class SetupTests(unittest.TestCase):
             self.assertFalse(setup.ask("Retry"))
 
     def test_build_variants_and_release_default(self):
-        for build_type, edition in itertools.product(("release", "debug"), ("gothic1", "gothic2")):
+        for build_type, edition in itertools.product(("release", "debug"), setup.EDITIONS):
             for bundled in (False, True):
                 with self.subTest(build_type=build_type, bundled=bundled, edition=edition):
-                    build_dir = "build/android-g1" if edition == "gothic1" else "build/android"
+                    build_dir = setup.BUILD_DIRS[edition]
                     outputs = self.base / build_dir / "OpenGothic/app/build/outputs"
                     apk = outputs / f"apk/{build_type}/app-{build_type}.apk"
                     apk.parent.mkdir(parents=True, exist_ok=True)
@@ -73,7 +73,7 @@ class SetupTests(unittest.TestCase):
                         destination = setup.build(self.base / "sdk", {}, bundled, **args)
                     variant = build_type.capitalize()
                     self.assertIn(f"-DTEMPEST_ANDROID_BUILD_TYPE={variant}", calls.call_args_list[0].args[0])
-                    self.assertIn(f"-DOPENGOTHIC_ANDROID_GAME={1 if edition == 'gothic1' else 2}", calls.call_args_list[0].args[0])
+                    self.assertIn(f"-DOPENGOTHIC_ANDROID_GAME={edition}", calls.call_args_list[0].args[0])
                     self.assertIn(self.base / build_dir, calls.call_args_list[0].args[0])
                     self.assertIn(f"assemble{variant}", calls.call_args_list[1].args[0])
                     self.assertIn(f"lint{variant}", calls.call_args_list[1].args[0])
@@ -81,7 +81,8 @@ class SetupTests(unittest.TestCase):
                     self.assertEqual("-debug-" in destination.name, build_type == "debug")
                     self.assertEqual("-with-data-" in destination.name, bundled)
                     self.assertEqual("-Gothic1" in destination.name, edition == "gothic1")
-                    report_file = "gothic1-build-report.json" if edition == "gothic1" else "build-report.json"
+                    self.assertTrue(destination.name.startswith(setup.APK_NAMES[edition]))
+                    report_file = f"{edition}-build-report.json"
                     report = json.loads((output / report_file).read_text())
                     self.assertEqual(report["application_id"], setup.EDITIONS[edition])
                     self.assertEqual(report["build_type"], build_type)
@@ -126,10 +127,37 @@ class SetupTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             assets.validate_save(save)
 
-    def test_missing_addon(self):
+    def test_gothic2_classic(self):
         (self.game / "Data/Worlds_Addon.vdf").unlink()
-        with self.assertRaisesRegex(ValueError, "Night of the Raven"):
+        self.assertEqual(assets.validate_game(self.game), self.game.resolve())
+        self.assertEqual(assets.game_edition(self.game), "Gothic II Classic")
+
+    def test_incomplete_addon_is_not_classic(self):
+        (self.game / "Data/Worlds_Addon.vdf").unlink()
+        (self.game / "Data/Scripts_Addon.vdf").write_bytes(b"addon scripts")
+        with self.assertRaisesRegex(ValueError, "Addon archives remain"):
             assets.validate_game(self.game)
+
+    def test_choose_game_before_installation(self):
+        classic = self.base / "Classic"
+        import shutil
+        shutil.copytree(self.game, classic)
+        (classic / "Data/Worlds_Addon.vdf").unlink()
+        with patch.object(setup, "discover_games", return_value=[self.game.resolve(), classic.resolve()]), patch("builtins.input", side_effect=["2", ""]):
+            self.assertEqual(setup.select_game(None), classic.resolve())
+        with self.assertRaisesRegex(ValueError, "does not match"):
+            setup.select_game(self.game, "gothic2")
+
+    def test_union_warning_without_rejecting_systempack(self):
+        (self.game / "system/SystemPack.dll").write_bytes(b"steam component")
+        self.assertEqual(assets.unsupported_plugins(self.game), [])
+        plugin = self.game / "system/Union.dll"
+        plugin.write_bytes(b"unsupported")
+        autorun = self.game / "system/Autorun"
+        autorun.mkdir()
+        other = autorun / "plugin.dll"
+        other.write_bytes(b"unsupported")
+        self.assertEqual(set(assets.unsupported_plugins(self.game)), {plugin, other})
 
     def test_gothic1_packaging_and_detection(self):
         (self.game / "Data/Worlds_Addon.vdf").unlink()

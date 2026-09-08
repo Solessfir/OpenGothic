@@ -19,4 +19,5 @@ if ! command -v python3 >/dev/null || ! python3 -c 'import sys; sys.exit(sys.ver
         exit 1
     fi
 fi
+# The shared guide detects installations and asks which Gothic edition to use.
 exec python3 android/tools/setup_android.py "$@"

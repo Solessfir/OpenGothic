@@ -1,5 +1,6 @@
 @echo off
 setlocal
+rem The shared guide detects installations and asks which Gothic edition to use.
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0android\tools\Setup-Android.ps1" %*
 set "result=%errorlevel%"
 if not "%result%"=="0" echo Setup stopped. See the message above; rerun this script after correcting it.

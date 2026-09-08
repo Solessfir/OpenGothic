@@ -1,6 +1,7 @@
 # Gamepad controls
 
 Gothic 1 and Gothic II use the same mappings, movement and radial menus on Android.
+Storage examples use NotR's app ID; substitute your [edition's ID](SETUP.md#game-editions-and-storage) for Gothic 1 or Classic.
 
 Xbox button names are used below: L3/R3 click the sticks; Menu/View are Start/Select.
 Only the first connected controller is active. Disconnecting it pauses gameplay; reconnecting does not resume automatically.
@@ -78,7 +79,7 @@ Center movement to stop. Reaching the surface while holding X does not start ano
 
 ## Remapping
 
-Edit `/sdcard/Android/data/org.opengothic.app/files/Gamepad.ini` with the game closed.
+Edit `/sdcard/Android/data/org.opengothic.gothic2notr/files/Gamepad.ini` with the game closed.
 Use the [INI editing commands](CONFIGURATION.md#editing-settings), choosing `Gamepad.ini`.
 Updates preserve the file; missing entries inherit defaults. Restart after editing.
 
