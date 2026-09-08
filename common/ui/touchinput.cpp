@@ -45,21 +45,18 @@ void TouchInput::paintEvent(Tempest::PaintEvent& e) {
     drawBlock(p);
   const auto gold = Color(0.843f,0.761f,0.631f,0.28f);
   const auto active = Color(1.f,0.85f,0.4f,0.95f);
-  const float scale = std::min(Gothic::interfaceScale(this),float(h())/720.f);
+  const float scale = 1.4f*std::min(Gothic::interfaceScale(this),float(h())/720.f);
   const auto& font = Resources::font(scale);
-  const auto& detail = Resources::font(scale*0.82f);
+  const auto& detail = Resources::font(scale*0.92f);
   const int pad = std::max(8,int(12*scale));
   const int line = font.pixelSize();
   const int moveEnd = w()/2;
   const int lookEnd = (w()*LookBoundaryPercent)/100;
-  const auto actionRect = buttonRect(4);
   p.setPen(Pen(gold,Painter::Alpha,std::max(1.f,scale)));
   p.setBrush(gold);
   const int hudTop=h()-int(64.f*scale);
   p.drawLine(moveEnd,0,moveEnd,hudTop);
-  p.drawLine(lookEnd,0,lookEnd,actionRect.y);
-  p.drawLine(actionRect.x,actionRect.y,lookEnd,actionRect.y);
-  p.drawLine(actionRect.x,actionRect.y,actionRect.x,hudTop);
+  p.drawLine(lookEnd,0,lookEnd,hudTop);
 
   auto label = [&](int x,int y,int width,std::string_view text) {
     font.drawTextShadow(p,x,y,width,2*line,text,AlignHCenter);
@@ -456,7 +453,7 @@ void TouchInput::setDebugContext(bool classic, bool ui, bool lockAllowed, bool l
 
 Rect TouchInput::buttonRect(size_t index) const {
   // Hit testing and the optional debug overlay use exactly the same bounds.
-  const int left = w()*(index==4 ? ActionBoundaryPercent : LookBoundaryPercent)/100;
+  const int left = w()*LookBoundaryPercent/100;
   const int top = h()*ButtonEdgesPercent[index]/100;
   const int bottom = h()*ButtonEdgesPercent[index+1]/100;
   return Rect(left,top,w()-left,bottom-top);
@@ -467,11 +464,10 @@ bool TouchInput::blockVisible() const {
   }
 
 Rect TouchInput::blockRect() const {
-  const float scale = std::min(Gothic::interfaceScale(this),float(h())/480.f);
-  const auto draw = buttonRect(3);
-  const int size = std::min(draw.h,std::max(56,int(72*scale)));
-  const int pad = std::max(8,int(12*scale));
-  return Rect(draw.x-pad-size,draw.y+(draw.h-size)/2,size,size);
+  // Keep Block beside Attack, with a shared top edge and enough room for a thumb.
+  const auto attack = buttonRect(4);
+  const int width = std::min(attack.w,attack.h);
+  return Rect(attack.x-width,attack.y,width,attack.h);
   }
 
 void TouchInput::drawBlock(Painter& p) const {
@@ -481,15 +477,15 @@ void TouchInput::drawBlock(Painter& p) const {
     p.setBrush(Color(0.8f,0.6f,0.2f,0.18f));
     p.drawRect(rect);
     }
-  const auto gold = pressed ? Color(1.f,0.85f,0.4f,0.8f) : Color(0.843f,0.761f,0.631f,0.28f);
+  const auto gold = pressed ? Color(1.f,0.85f,0.4f,0.95f) : Color(0.843f,0.761f,0.631f,0.65f);
   p.setBrush(gold);
-  p.setPen(Pen(gold,Painter::Alpha,2.f));
+  p.setPen(Pen(gold,Painter::Alpha,3.f));
   p.drawLine(rect.x,rect.y,rect.x+rect.w,rect.y);
   p.drawLine(rect.x+rect.w,rect.y,rect.x+rect.w,rect.y+rect.h);
   p.drawLine(rect.x+rect.w,rect.y+rect.h,rect.x,rect.y+rect.h);
   p.drawLine(rect.x,rect.y+rect.h,rect.x,rect.y);
 
-  const float scale = std::min(Gothic::interfaceScale(this),float(h())/720.f);
+  const float scale = 1.4f*std::min(Gothic::interfaceScale(this),float(h())/720.f);
   const auto& font = Resources::font(scale);
   font.drawTextShadow(p,rect.x,rect.y+(rect.h+font.pixelSize())/2,rect.w,font.pixelSize(),"Block",AlignHCenter);
   }

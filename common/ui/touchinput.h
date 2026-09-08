@@ -107,7 +107,6 @@ class TouchInput : public Tempest::Widget {
     void drawBlock(Tempest::Painter& p) const;
 
     static constexpr int LookBoundaryPercent = 84;
-    static constexpr int ActionBoundaryPercent = 76;
     static constexpr int ButtonEdgesPercent[] = {0,20,40,55,70,100};
     static constexpr Command Buttons[] = {Command::Back,Command::Inventory,Command::Jump,Command::Weapon,Command::Accept};
     static constexpr float DirectionThreshold = 0.35f;

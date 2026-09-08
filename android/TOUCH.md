@@ -26,8 +26,8 @@ Set `Gamepad.ini` `[Controller] Enabled=0` to use touch while it is connected.
 | 55–70% | Draw/sheathe |
 | Bottom 30% | Use/attack or menu accept |
 
-Buttons occupy the rightmost 16% of the screen; Use/Attack extends to the rightmost 24%.
-In modern melee controls, **Block** sits left of Draw, above Use/Attack.
+Buttons occupy the rightmost 16% of the screen. Use/Attack is the same width as Draw, with a taller region covering the bottom 30%.
+In modern melee controls, **Block** sits directly left of Use/Attack, aligned with its top edge. Outside melee combat, this space remains part of the camera area.
 You can move and look with separate fingers.
 
 ## Combat and target lock
