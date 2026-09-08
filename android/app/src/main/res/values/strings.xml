@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Gothic II</string>
     <string name="import_game_files">Import files</string>
     <string name="setup_brand">OpenGothic</string>
     <string name="setup_title">Add your game files</string>

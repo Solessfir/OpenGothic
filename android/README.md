@@ -6,12 +6,13 @@ The normal APK contains no game files.
 
 ## Don't care - let me play
 
-1. Download `OpenGothic-arm64.apk` from [Releases](https://github.com/Solessfir/OpenGothic/releases) and install it on your phone.
+1. Download the APK for your game from [Releases](https://github.com/Solessfir/OpenGothic/releases): `OpenGothic-Gothic1-arm64.apk` for Gothic 1, or `OpenGothic-arm64.apk` for Gothic II.
 2. [Run the packaging script](SETUP.md#package-game-files-only) on your computer, pointing it at your Gothic 1 or Gothic II: Night of the Raven installation folder. Copy the resulting `game-data.zip` to any folder on your phone.
 3. Open the app, tap **Choose game archive**, and select the archive.
 4. Wait for the import to finish and the game to start. You can then delete the ZIP from your phone.
 
 The script collects the required files and adds an import index. Zipping only `Data`, or manually zipping the installation, will not work. No USB is needed.
+Both apps can be installed together: **Gothic** has a white G and **Gothic II** has a gold G, with separate files, saves and settings.
 To build the APK yourself instead, run `setup-android.bat` on Windows or `bash setup-android.sh` on Linux and follow the prompts.
 
 - [Setup options and installation without USB](SETUP.md)
@@ -46,6 +47,8 @@ $env:ANDROID_SDK_ROOT = $env:ANDROID_HOME
 ```
 
 Output: `build/android/OpenGothic/app/build/outputs/apk/release/app-release.apk` (ARM64, no Gothic assets).
+For Gothic 1, use `-B build/android-g1 -DOPENGOTHIC_ANDROID_GAME=1` when configuring, then build `build/android-g1` instead.
+Its APK is `build/android-g1/OpenGothic/app/build/outputs/apk/release/app-release.apk`.
 On Linux, set `JAVA_HOME`/`ANDROID_HOME`, then use `cmake -S android -B build/android -G Ninja`
 and `cmake --build build/android --target OpenGothic-apk` with CMake 3.22+ and Ninja on PATH.
 Tempest generates the Gradle project under `build/android/OpenGothic`; do not edit generated files.
@@ -111,7 +114,7 @@ For a direct ADB copy, launch once, close the app, and copy your installation:
 
 `Gothic2` must directly contain `Data`, `_work` and `System` (or `system`).
 The same folder is used for Gothic 1; the game is detected from its world files, not the folder name or language.
-Use one installation at a time and do not mix Gothic 1 and Gothic II assets or saves; see [switching games](SETUP.md#switching-games).
+Use each game's own app and do not mix Gothic 1 and Gothic II assets or saves; see [both games on one phone](SETUP.md#both-games-on-one-phone).
 If your device restricts direct access, use the archive importer.
 Windows plugins such as Union DLLs do not run on Android.
 
@@ -122,6 +125,7 @@ Use matching OpenGothic versions and game/mod data. Keep backups until the impor
 
 PC saves are in OpenGothic's working directory, usually beside `log.txt`.
 Android saves are in `/sdcard/Android/data/org.opengothic.app/files/`, not its `Gothic2` subfolder.
+For Gothic 1, replace `org.opengothic.app` in storage paths with `org.opengothic.gothic1`.
 Slot `0` is the quicksave. Close both games and choose an empty destination slot:
 
 ```powershell

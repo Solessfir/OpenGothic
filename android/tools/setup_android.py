@@ -24,7 +24,7 @@ OUTPUT = ROOT / "build/android-setup"
 WINDOWS = os.name == "nt"
 HOST = "windows" if WINDOWS else "linux"
 APP = "org.opengothic.app"
-PHONE = f"/sdcard/Android/data/{APP}/files"
+EDITIONS = {"gothic1": "org.opengothic.gothic1", "gothic2": APP}
 LOCK = json.loads(Path(__file__).with_name("toolchain.json").read_text())
 
 
@@ -200,7 +200,8 @@ def toolchain(args):
         if missing:
             raise RuntimeError("SDK packages still missing: " + ", ".join(missing))
     # An existing local.properties overrides ANDROID_HOME in Gradle. Never rewrite it silently.
-    properties = ROOT / "build/android/OpenGothic/local.properties"
+    build_dir = "build/android-g1" if getattr(args, "edition", None) == "gothic1" else "build/android"
+    properties = ROOT / build_dir / "OpenGothic/local.properties"
     if properties.exists():
         match = re.search(r"^sdk\.dir\s*=\s*(.+)$", properties.read_text(), re.MULTILINE)
         if match:
@@ -368,19 +369,21 @@ def stage_chunks():
             index += 1
 
 
-def build(sdk, env, bundled, build_type="release"):
+def build(sdk, env, bundled, build_type="release", edition="gothic2"):
     if build_type not in ("release", "debug"):
         raise ValueError("Build type must be release or debug")
+    app = EDITIONS[edition]
     variant = build_type.capitalize()
     print(f"\nBuilding {build_type} ARM64 APK" + (" with native ThinLTO and Java shrinking." if build_type == "release" else " with debugger support."))
     if bundled:
         stage_chunks()
     cmake_bin = sdk / "cmake/3.22.1/bin"
-    build_root = ROOT / "build/android"
+    build_root = ROOT / ("build/android-g1" if edition == "gothic1" else "build/android")
     run([cmake_bin / ("cmake.exe" if WINDOWS else "cmake"), "-S", ROOT / "android",
          "-B", build_root, "-G", "Ninja",
          f"-DCMAKE_MAKE_PROGRAM={cmake_bin / ('ninja.exe' if WINDOWS else 'ninja')}",
-         f"-DTEMPEST_ANDROID_BUILD_TYPE={variant}"], env=env)
+         f"-DTEMPEST_ANDROID_BUILD_TYPE={variant}",
+         f"-DOPENGOTHIC_ANDROID_GAME={1 if edition == 'gothic1' else 2}"], env=env)
     project = build_root / "OpenGothic"
     wrapper = project / ("gradlew.bat" if WINDOWS else "gradlew")
     command = [wrapper] if WINDOWS else ["sh", wrapper]
@@ -396,9 +399,11 @@ def build(sdk, env, bundled, build_type="release"):
     run([build_tools / ("apksigner.bat" if WINDOWS else "apksigner"), "verify", "--verbose", "--print-certs", apk], env=env)
     manifest = run([build_tools / ("aapt.exe" if WINDOWS else "aapt"), "dump", "badging", apk], env=env, capture=True).stdout
     debuggable = "application-debuggable" in manifest
+    if not re.search(r"package: name='" + re.escape(app) + r"'", manifest):
+        raise RuntimeError("APK application ID does not match the selected game")
     if debuggable != (build_type == "debug"):
         raise RuntimeError("APK debuggable flag does not match the selected build type")
-    stem = "OpenGothic" + ("-with-data" if bundled else "") + ("-debug" if build_type == "debug" else "") + "-arm64"
+    stem = "OpenGothic" + ("-Gothic1" if edition == "gothic1" else "") + ("-with-data" if bundled else "") + ("-debug" if build_type == "debug" else "") + "-arm64"
     destination = OUTPUT / f"{stem}.apk"
     symbols = []
     if build_type == "release":
@@ -412,11 +417,12 @@ def build(sdk, env, bundled, build_type="release"):
     report = {"revision": revision, "apk": destination.name, "bytes": destination.stat().st_size,
               "sha256": sha256(destination), "bundled_game_files": bundled,
               "build_type": build_type, "debuggable": debuggable, "debug_artifacts": symbols,
+              "edition": edition, "application_id": app,
               "signing": "custom" if build_type == "release" and env.get("OPENGOTHIC_KEYSTORE") else "local_debug_key",
               "source_modified": bool(run(["git", "status", "--porcelain"], capture=True).stdout.strip()),
               "submodules": run(["git", "submodule", "status", "--recursive"], capture=True).stdout.splitlines(),
               "warning": "Do not redistribute Gothic game files or APKs containing them."}
-    (OUTPUT / "build-report.json").write_text(json.dumps(report, indent=2) + "\n")
+    (OUTPUT / ("gothic1-build-report.json" if edition == "gothic1" else "build-report.json")).write_text(json.dumps(report, indent=2) + "\n")
     print(f"\nVerified signed ARM64 APK: {destination}\nSHA-256: {report['sha256']}")
     print("Keep your signing key private and backed up (default: ~/.android/debug.keystore). A different key cannot update the same app in place.")
     if symbols:
@@ -442,18 +448,20 @@ def device(adb):
             return None
 
 
-def backup_saves(adb, serial):
+def backup_saves(adb, serial, edition="gothic2"):
+    app = EDITIONS[edition]
+    phone = f"/sdcard/Android/data/{app}/files"
     prefix = [adb, "-s", serial]
-    run([*prefix, "shell", "am", "force-stop", APP])
-    listing = run([*prefix, "shell", "ls", PHONE], capture=True)
+    run([*prefix, "shell", "am", "force-stop", app])
+    listing = run([*prefix, "shell", "ls", phone], capture=True)
     slots = [line.strip() for line in listing.stdout.splitlines() if re.fullmatch(r"save_slot_[0-9]+\.sav", line.strip())]
     if not slots:
         print("No OpenGothic saves found on this phone.")
         return
     # Unique backup directories never replace PC saves, even when slot numbers match.
-    backup = Path(tempfile.mkdtemp(prefix="phone-saves-" + datetime.now().strftime("%Y%m%d-%H%M%S-"), dir=OUTPUT))
+    backup = Path(tempfile.mkdtemp(prefix="phone-saves-" + edition + "-" + datetime.now().strftime("%Y%m%d-%H%M%S-"), dir=OUTPUT))
     for name in slots:
-        run([*prefix, "pull", f"{PHONE}/{name}", backup / name])
+        run([*prefix, "pull", f"{phone}/{name}", backup / name])
         validate_save(backup / name)
     print(f"Backed up {len(slots)} saves to {backup}\nFor backport: close PC OpenGothic, then copy to its working directory using empty slots. Keep the backups.")
 
@@ -473,7 +481,9 @@ def install_apk(prefix, apk):
             raise RuntimeError("Installation cancelled. Built files are still available for manual transfer; no app was uninstalled.")
 
 
-def install(sdk, apk, bundled, env):
+def install(sdk, apk, bundled, env, edition="gothic2"):
+    app = EDITIONS[edition]
+    phone = f"/sdcard/Android/data/{app}/files"
     adb = sdk / "platform-tools" / ("adb.exe" if WINDOWS else "adb")
     print("\nInstalling over ADB requires USB or wireless debugging. Otherwise, transfer the APK and (for split mode) game-data.zip to Downloads.")
     if not ask("Install on a connected phone now?"):
@@ -488,19 +498,19 @@ def install(sdk, apk, bundled, env):
     print("The selected phone's game will be closed for installation. Save progress before continuing.")
     if not ask("Continue with this phone?"):
         return
-    exists = run([*prefix, "shell", "test", "-d", PHONE], capture=True, check=False)
+    exists = run([*prefix, "shell", "test", "-d", phone], capture=True, check=False)
     if exists.returncode == 0 and ask("Back up phone OpenGothic saves to this PC before updating?", False):
-        backup_saves(adb, serial)
-    run([*prefix, "shell", "am", "force-stop", APP])
+        backup_saves(adb, serial, edition)
+    run([*prefix, "shell", "am", "force-stop", app])
     run([*prefix, "shell", "df", "-h", "/data"])
     print("Allow room for the APK, extracted game files and installer overhead (about 8–10 GB free for a typical installation).")
     install_apk(prefix, apk)
     if not bundled:
         run([*prefix, "push", OUTPUT / "game-data.zip", "/sdcard/Download/game-data.zip"])
         print("On the phone, choose game-data.zip from Downloads. Matching game files will be reused and existing saves/settings kept.")
-    launch = [*prefix, "shell", "am", "start", "-W", "-n", f"{APP}/.SetupActivity"]
+    launch = [*prefix, "shell", "am", "start", "-W", "-n", f"{app}/org.opengothic.app.SetupActivity"]
     if not bundled:
-        launch += ["-a", f"{APP}.IMPORT_GAME_FILES"]
+        launch += ["-a", f"{app}.IMPORT_GAME_FILES"]
     run(launch)
     print("APK installed. Keep the phone unlocked while extraction runs, then check that the game reaches its menu.")
     print(f"Logs: {adb} -s {serial} logcat -v threadtime Tempest:I AndroidRuntime:E libc:F '*:S'")
@@ -509,6 +519,7 @@ def install(sdk, apk, bundled, env):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--game", help="Gothic 1 or Gothic II: Night of the Raven installation directory")
+    parser.add_argument("--edition", choices=tuple(EDITIONS), help="Launcher/save-backup edition; builds normally detect it from --game")
     parser.add_argument("--jdk", help="Existing JDK 17 directory")
     parser.add_argument("--sdk", help="Existing or new Android SDK directory")
     parser.add_argument("--cache", default=str(Path.home() / ".cache/opengothic-android"), help="Portable tool cache")
@@ -532,7 +543,8 @@ def main(argv=None):
             raise RuntimeError("Set --sdk to an SDK with platform-tools, or put adb on PATH")
         serial = device(adb)
         if serial:
-            backup_saves(adb, serial)
+            edition = args.edition or choose(list(EDITIONS), lambda item: "Gothic 1" if item == "gothic1" else "Gothic II")
+            backup_saves(adb, serial, edition)
         return
     if not args.package_only:
         source_ready()
@@ -541,6 +553,9 @@ def main(argv=None):
             print("Prerequisites ready. Rerun without --prepare-only to build and install.")
             return
     game = select_game(args.game)
+    edition = "gothic1" if game_edition(game) == "Gothic 1" else "gothic2"
+    if args.edition and args.edition != edition:
+        raise ValueError("--edition does not match the selected game files")
     print(f"Selected installation (read only): {game}")
     print(f"Game: {game_edition(game)}")
     if not ask("Package this legally owned installation for your own devices?"):
@@ -564,9 +579,9 @@ def main(argv=None):
     if (OUTPUT / "game-data.zip").stat().st_size > 3800 * 1024**2:
         print("Archive approaches the APK's ZIP32 limit. Switching to separate APK + ZIP.")
         bundled = False
-    apk = build(sdk, env, bundled, args.build_type)
+    apk = build(sdk, env, bundled, args.build_type, edition)
     if not args.no_install:
-        install(sdk, apk, bundled, env)
+        install(sdk, apk, bundled, env, edition)
     print(f"\nOutput: {OUTPUT}\nManual transfer: install the APK from Android's file manager (allow installs from that source). For split mode, select the ZIP in OpenGothic. No USB is required for manual transfer.")
 
 

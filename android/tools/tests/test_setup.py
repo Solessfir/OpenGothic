@@ -1,4 +1,5 @@
 import io
+import itertools
 import json
 import os
 from pathlib import Path
@@ -42,10 +43,11 @@ class SetupTests(unittest.TestCase):
             self.assertFalse(setup.ask("Retry"))
 
     def test_build_variants_and_release_default(self):
-        for build_type in ("release", "debug"):
+        for build_type, edition in itertools.product(("release", "debug"), ("gothic1", "gothic2")):
             for bundled in (False, True):
-                with self.subTest(build_type=build_type, bundled=bundled):
-                    outputs = self.base / "build/android/OpenGothic/app/build/outputs"
+                with self.subTest(build_type=build_type, bundled=bundled, edition=edition):
+                    build_dir = "build/android-g1" if edition == "gothic1" else "build/android"
+                    outputs = self.base / build_dir / "OpenGothic/app/build/outputs"
                     apk = outputs / f"apk/{build_type}/app-{build_type}.apk"
                     apk.parent.mkdir(parents=True, exist_ok=True)
                     with zipfile.ZipFile(apk, "w") as archive:
@@ -60,20 +62,28 @@ class SetupTests(unittest.TestCase):
                     output = self.base / "result"
                     output.mkdir(exist_ok=True)
                     def run(command, **kwargs):
-                        result = "application-debuggable" if "badging" in command and build_type == "debug" else ""
+                        result = f"package: name='{setup.EDITIONS[edition]}'\n" if "badging" in command else ""
+                        if "badging" in command and build_type == "debug":
+                            result += "application-debuggable"
                         return subprocess.CompletedProcess(command, 0, result, "")
                     with patch.object(setup, "ROOT", self.base), patch.object(setup, "OUTPUT", output), \
                          patch.object(setup, "run", side_effect=run) as calls, patch.object(setup, "stage_chunks") as stage:
                         args = {} if build_type == "release" else {"build_type": "debug"}
+                        args["edition"] = edition
                         destination = setup.build(self.base / "sdk", {}, bundled, **args)
                     variant = build_type.capitalize()
                     self.assertIn(f"-DTEMPEST_ANDROID_BUILD_TYPE={variant}", calls.call_args_list[0].args[0])
+                    self.assertIn(f"-DOPENGOTHIC_ANDROID_GAME={1 if edition == 'gothic1' else 2}", calls.call_args_list[0].args[0])
+                    self.assertIn(self.base / build_dir, calls.call_args_list[0].args[0])
                     self.assertIn(f"assemble{variant}", calls.call_args_list[1].args[0])
                     self.assertIn(f"lint{variant}", calls.call_args_list[1].args[0])
                     self.assertEqual(stage.call_count, int(bundled))
                     self.assertEqual("-debug-" in destination.name, build_type == "debug")
                     self.assertEqual("-with-data-" in destination.name, bundled)
-                    report = json.loads((output / "build-report.json").read_text())
+                    self.assertEqual("-Gothic1" in destination.name, edition == "gothic1")
+                    report_file = "gothic1-build-report.json" if edition == "gothic1" else "build-report.json"
+                    report = json.loads((output / report_file).read_text())
+                    self.assertEqual(report["application_id"], setup.EDITIONS[edition])
                     self.assertEqual(report["build_type"], build_type)
                     self.assertEqual(report["debuggable"], build_type == "debug")
                     self.assertEqual(len(report["debug_artifacts"]), 2 if build_type == "release" else 0)
@@ -209,6 +219,19 @@ class SetupTests(unittest.TestCase):
         self.assertEqual(run.call_args_list[0].args[0], ["adb", "-s", "phone-one", "install", "--no-streaming", "-r", apk])
         self.assertEqual(run.call_args_list[0], run.call_args_list[2])
         self.assertNotIn("uninstall", str(run.call_args_list))
+
+    def test_gothic1_install_targets_its_own_app(self):
+        def run(command, **kwargs):
+            text = "arm64-v8a" if "getprop" in command else ""
+            return subprocess.CompletedProcess(command, 0, text, "")
+        with patch.object(setup, "run", side_effect=run) as calls, patch.object(setup, "ask", return_value=True), patch.object(setup, "device", return_value="phone"), patch.object(setup, "backup_saves") as backup, patch.object(setup, "install_apk"):
+            setup.install(self.base, self.base / "g1.apk", False, {}, "gothic1")
+        self.assertEqual(backup.call_args.args[-1], "gothic1")
+        commands = [call.args[0] for call in calls.call_args_list]
+        self.assertTrue(any("org.opengothic.gothic1/org.opengothic.app.SetupActivity" in cmd for cmd in commands))
+        self.assertTrue(any("org.opengothic.gothic1.IMPORT_GAME_FILES" in cmd for cmd in commands))
+        self.assertTrue(any("/sdcard/Android/data/org.opengothic.gothic1/files" in cmd for cmd in commands))
+        self.assertFalse(any("org.opengothic.app" in cmd for cmd in commands))
 
     @unittest.skipUnless(os.environ.get("JAVA_HOME"), "Set JAVA_HOME to run host extraction checks")
     def test_java_extractor(self):

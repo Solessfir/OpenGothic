@@ -14,6 +14,7 @@ setup-android.bat --package-only --game "D:/Games/Gothic II"
 On Linux: `bash setup-android.sh --package-only --game "/path/to/Gothic II"`.
 For Gothic 1, use `setup-android.bat --package-only --game "D:/Games/Gothic"` (the same `--game` option works on Linux).
 The game is detected automatically from its world archives, independently of dialogue language.
+When building, this also selects the matching launcher: Gothic 1 uses a white G; Gothic II keeps the gold G.
 Omit `--game` to search common installation folders. No Android SDK, NDK or Java is needed for packaging.
 The script creates `build/android-setup/game-data.zip`. Copy it to your phone, select it in the app,
 and delete the transferred ZIP after the game starts.
@@ -66,6 +67,7 @@ Outputs are in `build/android-setup/`:
 | Output | Use |
 | --- | --- |
 | `OpenGothic-arm64.apk` + `game-data.zip` | Install APK, then import ZIP |
+| `OpenGothic-Gothic1-arm64.apk` + `game-data.zip` | Separate Gothic 1 app, installed alongside Gothic II |
 | `OpenGothic-with-data-arm64.apk` | Single-file package with game assets, when it fits |
 | `*-report.json` | Build/package details and checksums |
 | `*-native-symbols.zip`, `*-mapping.txt` | Release crash symbols; keep with the matching APK |
@@ -73,7 +75,7 @@ Outputs are in `build/android-setup/`:
 
 1. Transfer the APK and, in split mode, ZIP to any folder on your phone.
 2. Open the APK in the file manager and allow that source to install unknown apps.
-3. Launch **Gothic II**. For split mode, tap **Choose game archive** and select the ZIP.
+3. Launch **Gothic** or **Gothic II**, matching your game files. For split mode, tap **Choose game archive** and select the ZIP.
 4. Keep setup open until extraction completes. Gameplay starts in landscape afterward.
 
 Use the ZIP produced by the setup scripts, not an arbitrary zipped installation.
@@ -92,7 +94,7 @@ For direct installation over Wi-Fi, see [wireless debugging](README.md#wireless-
 
 ## Updates and data safety
 
-- Game assets go to `Android/data/org.opengothic.app/files/Gothic2`.
+- Gothic II assets go to `Android/data/org.opengothic.app/files/Gothic2`; Gothic 1 uses `org.opengothic.gothic1` instead.
 - Import preserves existing saves/settings. Conflicting modified assets stop import instead of being overwritten.
 - Interrupted imports can be retried; completed matching files are reused.
 - Update with the same signing key. Back up `~/.android/debug.keystore` privately for builds on another PC.
@@ -101,15 +103,22 @@ For direct installation over Wi-Fi, see [wireless debugging](README.md#wireless-
 
 A bundled APK keeps both compressed and extracted assets. APK + ZIP avoids retaining the archive once the transferred ZIP is deleted.
 
-### Switching games
+### Both games on one phone
 
-The APK supports one active installation, stored in `Gothic2` for compatibility with existing packages.
-Do not import Gothic 1 over Gothic II, or merge their folders.
-Close the app, back up its entire external `files` directory, then move the active `Gothic2` directory and `save_slot_*.sav` files out of that directory before importing the other game.
-Keep each game's saves with its matching game files; they are not interchangeable.
-Settings may be retained, including the same touch/gamepad mappings and combat preference.
-Use the launcher icon's **Import files** shortcut to select the new archive.
-For switching installations, use an asset-free APK so a bundled archive does not restore the previous game.
+Install both APKs and import each game's archive into its matching app.
+The apps have separate storage, so neither replaces the other's saves, settings or game files.
+
+| Game | App ID | Launcher |
+| --- | --- | --- |
+| Gothic 1 | `org.opengothic.gothic1` | Gothic, white G |
+| Gothic II | `org.opengothic.app` | Gothic II, gold G |
+
+Both retain the internal `Gothic2` game-data directory name for compatibility with existing archives.
+Gothic II ADB examples elsewhere in these docs use `org.opengothic.app`.
+To launch Gothic 1, use `adb shell am start -n org.opengothic.gothic1/org.opengothic.app.SetupActivity`.
+To reopen its importer, append `-a org.opengothic.gothic1.IMPORT_GAME_FILES`.
+Use `org.opengothic.gothic1` in its ADB storage paths too.
+Never mix the games' files or saves.
 
 ### Signing
 
@@ -139,6 +148,7 @@ setup-android.bat --backup-saves --sdk "C:/Path/To/Android/Sdk"
 ```
 
 The `.sh` accepts the same arguments. With PC OpenGothic closed, copy the backups into its working directory using empty slots.
+Save backup asks which game to use; pass `--edition gothic1` or `--edition gothic2` to select it directly.
 See [manual save transfer](README.md#transfer-saves-from-pc).
 
 ## Useful options

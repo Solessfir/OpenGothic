@@ -1,5 +1,7 @@
 package org.opengothic.app;
 
+import @OPENGOTHIC_APPLICATION_ID@.R;
+
 import android.content.Intent;
 import android.content.res.Configuration;
 import android.net.Uri;
@@ -78,7 +80,7 @@ public final class SetupActivity extends AppCompatActivity {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         checksStarted = SystemClock.uptimeMillis();
         if (!running) {
-            if ("org.opengothic.app.IMPORT_GAME_FILES".equals(getIntent().getAction())) {
+            if ((getPackageName() + ".IMPORT_GAME_FILES").equals(getIntent().getAction())) {
                 ready = false;
                 failed = false;
                 message = getString(R.string.setup_import_existing);
