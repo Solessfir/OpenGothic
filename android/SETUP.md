@@ -127,35 +127,6 @@ To reopen its importer, append `-a org.opengothic.gothic1.IMPORT_GAME_FILES`.
 Use `org.opengothic.gothic1` in its ADB storage paths too.
 Never mix the games' files or saves.
 
-### Migrating an older NotR app
-
-Older APKs used `org.opengothic.app`; the new NotR app uses `org.opengothic.gothic2notr` and installs separately.
-Back up the old app before moving anything, and keep it until your saves load in the new app.
-For example, with the ADB variables from the [connection guide](README.md#connect-and-install-with-adb):
-
-```powershell
-$backup = 'C:/Path/To/NotR-migration-backup'
-if (Test-Path -LiteralPath $backup) { throw 'Choose a new backup directory' }
-New-Item -ItemType Directory -Path $backup | Out-Null
-& $adb -s $device shell am force-stop org.opengothic.app
-& $adb -s $device pull /sdcard/Android/data/org.opengothic.app/files "$backup/files"
-if ($LASTEXITCODE -ne 0) { throw 'Backup failed' }
-& $adb -s $device install -r build/android-setup/OpenGothic-Gothic2-NotR-arm64.apk
-if ($LASTEXITCODE -ne 0) { throw 'Installation failed' }
-& $adb -s $device shell am start -W -n org.opengothic.gothic2notr/org.opengothic.app.SetupActivity -a org.opengothic.gothic2notr.IMPORT_GAME_FILES
-& $adb -s $device shell am force-stop org.opengothic.gothic2notr
-& $adb -s $device shell test ! -e /sdcard/Android/data/org.opengothic.gothic2notr/files/Gothic2
-if ($LASTEXITCODE -ne 0) { throw 'New app already has game data; do not merge installations' }
-& $adb -s $device shell test ! -e /sdcard/Android/data/org.opengothic.gothic2notr/files/save_slot_0.sav
-if ($LASTEXITCODE -ne 0) { throw 'New app already has saves; keep both sets separately' }
-& $adb -s $device push "$backup/files/." /sdcard/Android/data/org.opengothic.gothic2notr/files/
-if ($LASTEXITCODE -ne 0) { throw 'Transfer failed; keep the backup and old app' }
-& $adb -s $device shell am start -W -n org.opengothic.gothic2notr/org.opengothic.app.SetupActivity
-```
-
-Verify game files, settings and save loading before removing the old app or backups.
-The Java activity class remains `org.opengothic.app.SetupActivity` in all editions; that class name is not their installation/storage ID.
-
 ### Signing
 
 Both build types use your local `~/.android/debug.keystore` by default, so you can switch without reinstalling.

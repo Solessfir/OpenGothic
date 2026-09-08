@@ -36,7 +36,6 @@ Audio pauses in the background, gameplay keeps the screen awake, and volume butt
 
 **Update rather than uninstall:** uninstalling also removes game files, settings and saves.
 Back up saves first. Never redistribute packages containing Gothic assets.
-If upgrading from the old NotR app, follow the [app-ID migration instructions](SETUP.md#migrating-an-older-notr-app) to retain your files and saves.
 
 ## Manual build
 
