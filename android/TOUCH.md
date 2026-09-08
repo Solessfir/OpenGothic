@@ -1,5 +1,8 @@
 # Touch controls
 
+The same layout, movement, camera and radial menus apply to Gothic 1 and Gothic II.
+Both games support modern combat (the Android default) and optional classic combat below.
+
 Touch controls are invisible during normal play. Hold **Back/menu**, drag lower-right and release to toggle the debug layout.
 You can also set `Gothic.ini` `[DEBUG] touchControls=1` to show it, or `0` to hide it.
 See [editing settings](CONFIGURATION.md#editing-settings).
@@ -24,12 +27,12 @@ Set `Gamepad.ini` `[Controller] Enabled=0` to use touch while it is connected.
 | Bottom 30% | Use/attack or menu accept |
 
 Buttons occupy the rightmost 16% of the screen; Use/Attack extends to the rightmost 24%.
-In Gothic II melee controls, **Block** sits left of Draw, above Use/Attack.
+In modern melee controls, **Block** sits left of Draw, above Use/Attack.
 You can move and look with separate fingers.
 
 ## Combat and target lock
 
-**Gothic II controls** (`[GAME] useGothic1Controls=0`): tap Use/Attack to strike and Block for one timed parry.
+**Modern controls** (`[GAME] useGothic1Controls=0`): tap Use/Attack to strike and Block for one timed parry.
 With no focused melee target, a short Attack tap swings on release; a hold does nothing.
 Holding Block does not repeat parries.
 
@@ -41,7 +44,7 @@ up attacks forward, left/right attacks sideways, and a deliberate straight-down 
 Return to neutral between attacks. Slight downward diagonals do not block.
 
 To finish an unconscious NPC, focus them at close range with a one- or two-handed weapon drawn.
-Use Attack in Gothic II controls; in classic controls, hold Attack and push forward. Fists cannot finish.
+Use Attack in modern controls; in classic controls, hold Attack and push forward. Fists cannot finish.
 
 With a weapon drawn, press Attack and quickly drag that finger to toggle target lock.
 Repeat the gesture to unlock. While locked, sideways movement strafes and vertical camera look still works.

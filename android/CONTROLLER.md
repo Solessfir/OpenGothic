@@ -1,5 +1,7 @@
 # Gamepad controls
 
+Gothic 1 and Gothic II use the same mappings, movement and radial menus on Android.
+
 Xbox button names are used below: L3/R3 click the sticks; Menu/View are Start/Select.
 Only the first connected controller is active. Disconnecting it pauses gameplay; reconnecting does not resume automatically.
 Physical volume buttons remain Android media controls.
@@ -29,7 +31,7 @@ The target name gains `(locked)`. Sheathing, a downed target or leaving focus ra
 
 ## Combat
 
-`Gothic.ini` `[GAME] useGothic1Controls` selects classic (`1`) or Gothic II (`0`) combat.
+`Gothic.ini` `[GAME] useGothic1Controls` selects classic (`1`) or modern (`0`, default) combat in either game on Android.
 
 | Context | Controls |
 | --- | --- |

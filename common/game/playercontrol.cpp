@@ -28,11 +28,16 @@ PlayerControl::~PlayerControl() {
   }
 
 void PlayerControl::setupSettings() {
+#if defined(__ANDROID__)
+  // Android uses the selected combat scheme for either game, including modern touch attacks and block.
+  g2Ctrl = Gothic::inst().settingsGetI("GAME","USEGOTHIC1CONTROLS")==0;
+#else
   if(Gothic::inst().version().game==2) {
     g2Ctrl = Gothic::inst().settingsGetI("GAME","USEGOTHIC1CONTROLS")==0;
     } else {
     g2Ctrl = false;
     }
+#endif
   }
 
 void PlayerControl::setTarget(Npc *other) {

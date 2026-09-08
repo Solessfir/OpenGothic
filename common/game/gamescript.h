@@ -174,6 +174,8 @@ class GameScript final {
     void      eventPlayAni(Npc& npc, std::string_view ani);
 
   private:
+    void playerHotPotionG1(Npc& pl, bool mana);
+
     template<typename T>
     struct DetermineSignature {
       using signature = void();

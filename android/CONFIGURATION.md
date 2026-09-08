@@ -61,11 +61,13 @@ usePotionKeys=1
 ```
 
 Both default to `1` on Android, enabling quicksave/load and potion shortcuts for touch and gamepad.
-Explicit INI preferences, including copied values of `0`, are respected. Potions use Gothic's existing selection logic.
+Explicit INI preferences, including copied values of `0`, are respected. Potion shortcuts use the game's script handlers when available.
+Gothic 1 has no standard handlers, so Android uses the smallest owned standard health/mana potion through its normal drinking action; sheathe first.
+Permanent-stat potions are never selected by this fallback, and no potion is used when the corresponding stat is full.
 
 Other supported preferences include:
 
-- `[GAME] useGothic1Controls`: `0` Gothic II combat (Android default), `1` classic combat.
+- `[GAME] useGothic1Controls`: `0` modern combat (Android default), `1` classic combat. Both settings work in Gothic 1 and Gothic II on Android.
 - `[GAME] skipEmptyLoot`: `1` skips empty bodies; `0` restores interaction with them. Empty chests remain accessible (all platforms).
 - `[GAME] subTitles`, `subTitlesPlayer`: dialogue subtitles.
 - `[SOUND] soundEnabled`, `musicEnabled`, `soundVolume`, `musicVolume`: enable flags and volumes (0–1).

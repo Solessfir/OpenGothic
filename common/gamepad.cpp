@@ -207,7 +207,7 @@ void MainWindow::tickGamepad() {
   mobileUi.setGesturesEnabled(touchPlayer!=nullptr && touchPlayer->interactive()==nullptr &&
                              touchCamera!=nullptr && !touchCamera->isCutscene() && !Gothic::inst().isPause() &&
                              Gothic::inst().checkLoading()==Gothic::LoadState::Idle);
-  mobileUi.setDebugContext(Gothic::inst().version().game!=2 || Gothic::settingsGetI("GAME","useGothic1Controls")!=0,
+  mobileUi.setDebugContext(player.isClassicCombat(),
                            video.isActive() || rootMenu.isActive() || chapter.isActive() ||
                            document.isActive() || dialogs.isActive() || (inventory.isActive() && !inventory.isWheelOpen()) || console.isActive(),
                            touchPlayer!=nullptr && touchPlayer->weaponState()!=WeaponState::NoWeapon &&
