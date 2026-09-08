@@ -55,7 +55,7 @@ UI scales automatically. In `Gothic2/System/SystemPack.ini`, set `[INTERFACE] Sc
 
 ## Camera obstruction fading
 
-Nearby foliage and spiderwebs fade locally around the camera in G1 and G2. Enabled by default on Android; optional on desktop. Walls, terrain, characters, equipment and shadows stay unchanged. This does not make obstacles transparent along the entire camera-to-player path.
+Foliage and spiderwebs fade around the camera and along the camera-to-player path in G1 and G2. A body-sized clear area removes overlapping layers, with soft edges that stop at the player. Enabled by default on Android; optional on desktop. Walls, terrain, characters, equipment and shadows stay unchanged.
 
 ```ini
 [ENGINE]
@@ -63,7 +63,7 @@ cameraObstructionFade=1
 cameraObstructionFadeDistance=180
 ```
 
-Set `cameraObstructionFade=0` to disable it. Distance is in Gothic units (100 = one meter), clamped to 50-500. The nearest quarter of that distance is fully transparent, then visibility increases smoothly. Alpha-tested leaves use fixed dithering; transparent webs retain their normal blending. Only recognized foliage/web texture families are eligible, so renamed mod textures may not fade. Path tracing does not use this effect.
+Set `cameraObstructionFade=0` to disable it. Distance controls the nearby-camera fade in Gothic units (100 = one meter), clamped to 50-500. The nearest quarter of that distance is fully transparent, then visibility increases smoothly. The player corridor follows the camera distance independently, with a 90 cm clear radius and a soft edge out to 120 cm. First-person, free and cutscene cameras use only the nearby fade. Alpha-tested leaves use fixed dithering; transparent webs retain their normal blending. Only recognized foliage/web texture families are eligible, so renamed mod textures may not fade. Path tracing does not use this effect.
 
 ## Shortcuts, audio and other preferences
 

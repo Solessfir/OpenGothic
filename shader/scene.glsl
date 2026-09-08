@@ -40,6 +40,8 @@ struct SceneDesc {
   float probeGridBias;
   float cameraFadeNear2;
   float cameraFadeFar2;
+  float cameraFadePadding;
+  vec4  cameraFadeTarget;
   };
 
 struct LightSource {

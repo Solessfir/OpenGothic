@@ -20,7 +20,7 @@ int main() {
     VulkanApi api{ApiFlags::Validation};
     Device device(api);
     auto pipeline=device.pipeline(device.shader("camera-obstruction.spv"));
-    std::array<std::array<float,2>,201> values{};
+    std::array<std::array<float,4>,201> values{};
     auto output=device.ssbo(Uninitialized,sizeof(values));
     auto cmd=device.commandBuffer();
     {
@@ -43,6 +43,11 @@ int main() {
       if(i<16) thresholds[i]=values[i][1];
       if(i>=16 && values[i][1]!=thresholds[i%16])
         throw std::runtime_error("Dither pattern is not periodic");
+      const double edge=(105.0*105.0-90.0*90.0)/(120.0*120.0-90.0*90.0);
+      const std::array<double,12> corridor={0,0,0,0,1,edge*edge*(3-2*edge),0.5,1,1,1,1,1};
+      for(size_t c=2;c<4;++c)
+        if(!std::isfinite(values[i][c]) || std::abs(values[i][c]-corridor[i%12])>0.00002)
+          throw std::runtime_error("Camera corridor differs from expected coverage or fades behind the player");
     }
     std::sort(thresholds.begin(),thresholds.end());
     for(size_t i=0;i<thresholds.size();++i)

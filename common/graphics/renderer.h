@@ -59,7 +59,7 @@ class Renderer final {
     Tempest::StorageBuffer& usesSsboInit(Tempest::StorageBuffer& ret, size_t size);
     Tempest::StorageBuffer& usesScratch(Tempest::StorageBuffer& ret, size_t size);
 
-    void prepareUniforms(WorldView& wview);
+    void prepareUniforms(WorldView& wview, const Camera& camera);
     void resetViewport(Tempest::Size size, Tempest::Size fullRes);
     void resetShadowmap();
     void resetSkyFog();

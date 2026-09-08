@@ -35,7 +35,7 @@ class SceneGlobals final {
     void setSky(const Sky& s);
     void setWorld(const WorldView& wview);
     void setUnderWater(bool w);
-    void setCameraObstructionFade(float distance);
+    void setCameraObstructionFade(float distance, const Tempest::Vec4& target);
 
     void setTime(uint64_t time);
     void commitUbo(uint8_t fId);
@@ -123,6 +123,8 @@ class SceneGlobals final {
       float                           probeGridBias = 3;
       float                           cameraFadeNear2 = 0;
       float                           cameraFadeFar2 = 0;
+      float                           cameraFadePadding = 0;
+      Tempest::Vec4                    cameraFadeTarget = {};
       };
 
     Tempest::UniformBuffer<UboGlobal> uboGlobalPf[Resources::MaxFramesInFlight][V_Count];

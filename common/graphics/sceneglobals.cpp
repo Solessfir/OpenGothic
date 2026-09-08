@@ -154,9 +154,10 @@ void SceneGlobals::setWorld(const WorldView &wview) {
   uboGlobalCpu.plPosY  = std::clamp(uboGlobalCpu.plPosY, 0.f, 1000.f);
   }
 
-void SceneGlobals::setCameraObstructionFade(float distance) {
+void SceneGlobals::setCameraObstructionFade(float distance, const Tempest::Vec4& target) {
   uboGlobalCpu.cameraFadeNear2 = distance*distance*0.0625f;
   uboGlobalCpu.cameraFadeFar2 = distance*distance;
+  uboGlobalCpu.cameraFadeTarget = distance>0 ? target : Tempest::Vec4();
   }
 
 void SceneGlobals::setUnderWater(bool w) {
@@ -184,6 +185,7 @@ void SceneGlobals::commitUbo(uint8_t fId) {
       // Camera visibility must not change the lighting or the shadows cast by foliage.
       ubo.cameraFadeNear2 = 0;
       ubo.cameraFadeFar2 = 0;
+      ubo.cameraFadeTarget = Tempest::Vec4();
       }
     if(V_Shadow0<=i && i<=V_ShadowLast)
       ubo.viewProject = uboGlobalCpu.viewShadow[i-V_Shadow0];
@@ -199,6 +201,7 @@ void SceneGlobals::commitUbo(uint8_t fId) {
 
 void SceneGlobals::prepareGlobals(Tempest::Encoder<Tempest::CommandBuffer>& cmd, uint8_t fId) {
   static_assert(sizeof(UboGlobal)%sizeof(uint32_t)==0);
+  static_assert(offsetof(UboGlobal,cameraFadeTarget)%16==0);
 
   cmd.setDebugMarker("Update globals");
   auto& pso = Shaders::inst().copyBuf;

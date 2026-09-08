@@ -10,6 +10,7 @@
 #include "ui/videowidget.h"
 #include "camera.h"
 #include "gothic.h"
+#include "world/objects/npc.h"
 #include "utils/string_frm.h"
 
 using namespace Tempest;
@@ -362,7 +363,7 @@ StorageBuffer& Renderer::usesScratch(Tempest::StorageBuffer& ret, size_t size) {
   return ret;
   }
 
-void Renderer::prepareUniforms(WorldView& wview) {
+void Renderer::prepareUniforms(WorldView& wview, const Camera& camera) {
   const Texture2d* sh[Resources::ShadowLayers] = {};
   for(size_t i=0; i<Resources::ShadowLayers; ++i)
     if(!shadowMap[i].isEmpty()) {
@@ -375,7 +376,15 @@ void Renderer::prepareUniforms(WorldView& wview) {
   wview.setGbuffer(textureCast<const Texture2d&>(gbufDiffuse), textureCast<const Texture2d&>(gbufNormal));
   wview.setSceneImages(textureCast<const Texture2d&>(sceneOpaque), textureCast<const Texture2d&>(sceneDepth), zbuffer);
   wview.setWindEnabled(settings.zWindEnabled, settings.windPeriod);
-  wview.setCameraObstructionFade(settings.pathTraceEnabled ? 0.f : settings.cameraObstructionDistance);
+  Vec4 fadeTarget = {};
+  const auto player = Gothic::inst().player();
+  if(player!=nullptr && !camera.isFirstPerson() && !camera.isCutscene() && !camera.isFree()) {
+    auto center = player->centerPosition();
+    camera.view().project(center);
+    // Clear the whole body, with a soft edge outside the central 90 cm radius.
+    fadeTarget = Vec4(center.x, center.y, center.z, 120.f);
+    }
+  wview.setCameraObstructionFade(settings.pathTraceEnabled ? 0.f : settings.cameraObstructionDistance, fadeTarget);
   }
 
 void Renderer::resetViewport(Tempest::Size res, Tempest::Size fullRes) {
@@ -694,7 +703,7 @@ void Renderer::draw(Tempest::Attachment& result, Encoder<CommandBuffer>& cmd, ui
     wview.updateFrustrum(frustrum);
     }
 
-  prepareUniforms(wview);
+  prepareUniforms(wview, camera);
   wview.preFrameUpdate(camera, tickCount, fId);
   wview.prepareGlobals(cmd,fId);
 
