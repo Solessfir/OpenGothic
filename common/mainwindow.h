@@ -1,4 +1,5 @@
 #pragma once
+#include "utils/radialinput.h"
 
 #include "camera.h"
 #include "resources.h"
@@ -184,6 +185,7 @@ class MainWindow : public Tempest::Window {
     uint32_t                  controllerTriggers=0;
     uint32_t                  wheelHeldMask=0;
     size_t                    wheelQuickSlot=size_t(-1);
+    RadialInput::StickSelector wheelStickInput;
     uint64_t                  controllerLastPoll=0;
     uint64_t                  controllerLookIdle=0;
     uint64_t                  controllerLastSwitch=0;

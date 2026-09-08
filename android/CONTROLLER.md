@@ -54,10 +54,12 @@ Ordinary A cannot pick up items with a weapon drawn.
 - A accepts; B backs out one level or skips a dialogue line.
 - Left stick/D-pad navigates items; left/right adjusts the selected slider or setting. Right stick left/right also adjusts values, but does nothing on other menu entries. Hold a direction to repeat.
 - Inventory: tap A to use/equip/transfer one item on release; hold A and press a D-pad direction to assign the highlighted owned item without using it. X drops; Y transfers a stack; LB/RB selects trade or chest panels.
+- Save menu: A overwrites an existing slot with its current name; Y edits the name. An empty slot still asks for a name.
 - Save/load menu: X requests deletion, A confirms, B cancels. Deletion has no undo.
 - Save-name entry uses the Android keyboard; press **Done**.
-- System wheel: hold Menu, select with the right stick, then release Menu to toggle FPS, the touch debug overlay or the HP/mana layout. B cancels; releasing without a selection also cancels.
-- Quick-slot wheel: hold an assigned D-pad direction, select with the right stick, then release the direction to replace that slot's item and use/draw it. Releasing the stick keeps your choice; B cancels. Opening and releasing without choosing also cancels. LB/RB changes pages.
+- System wheel: hold Menu, select with either stick, then release Menu to toggle FPS, the touch debug overlay or the HP/mana layout. B cancels; releasing without a selection also cancels.
+- Quick-slot wheel: hold an assigned D-pad direction, select with either stick, then release the direction to replace that slot's item and use/draw it. Releasing the stick keeps your choice; B cancels. Opening and releasing without choosing also cancels. LB/RB changes pages.
+- A stick already held when opening a wheel must be centered first, so running cannot accidentally select an item. A fresh tilt of the other stick takes over selection.
 - Up to eight items fit on one page. Larger collections use six items plus two page arrows, matching touch. Hold the stick over an arrow to turn a page; center it before selecting again.
 - The wheel uses the slot's category: weapons, magic, potions, food, or maps/documents. Only owned items meeting their use/equip conditions appear. The world keeps running while it is open.
 - Equipped items have a gold rim. Selecting a sheathed weapon draws it; selecting the weapon already in hand leaves it drawn.

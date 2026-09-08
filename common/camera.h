@@ -136,6 +136,7 @@ class Camera final {
 #if defined(__ANDROID__)
       float              range     = 3.f;
       float              elevation = 0.f;
+      bool               restoreFraming = false;
 #endif
       };
 

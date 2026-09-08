@@ -65,6 +65,10 @@ int main() {
       check(!has(b.update(lt,context,500),A::Block),"Holding LT does not repeat parry");
       }
     B b;
+    check(has(b.update(B::button("Y"),C::UI,0),A::RenameSave),"Y requests save-name editing in menus");
+    b.reset();
+    check(has(b.update(B::button("Y"),C::Inventory,0),A::TakeStack),"Inventory Y still transfers stacks, not save names");
+    b.reset();
     check(b.options.explorationModifier==lb,"LB is the exploration modifier");
     check(b.hint(A::Walk,C::Gameplay)=="None","Walk is analog, not a default toggle");
     check(has(b.update(rb,C::Inventory,0),A::RightPanel),"RB still switches inventory panels");

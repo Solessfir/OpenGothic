@@ -118,6 +118,7 @@ void Camera::load(Serialize &s, Npc* pl) {
   s.read(userRange);
 #if defined(__ANDROID__)
   inter.range=state.range;
+  inter.restoreFraming=true;
 #endif
   }
 
@@ -717,6 +718,16 @@ void Camera::tick(uint64_t dt) {
   // dst.spin = angleMod(dst.spin);
   // src.spin = angleMod(src.spin);
 
+#if defined(__ANDROID__)
+  if(inter.restoreFraming && camMarvinMod==M_Normal) {
+    // Resolve the loaded input angles and current gameplay preset before presenting a frame.
+    // A saved menu camera position must not visibly fly into the mobile framing after loading.
+    if(camMod==Camera::FirstPerson) tickFirstPerson(-1.f);
+    else tickThirdPerson(-1.f);
+    veloTrans=Vec3();
+    inter.restoreFraming=false;
+    }
+#endif
   auto prev = origin;
 
   switch (camMarvinMod) {

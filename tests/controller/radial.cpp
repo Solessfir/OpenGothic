@@ -10,6 +10,16 @@ void check(bool ok, const char* message) {
 int main() {
   try {
     using RadialInput::sector;
+    RadialInput::StickSelector sticks;
+    check(sticks.update(0,-1,0,0)==std::pair(0.f,0.f),"Opening while running must not select a wheel item");
+    check(sticks.update(0,-1,0,0)==std::pair(0.f,0.f),"Held movement remains blocked until centered");
+    check(sticks.update(0,-1,1,0)==std::pair(1.f,0.f),"Right stick can select while inherited movement stays blocked");
+    sticks.update(0,0,1,0);
+    check(sticks.update(-1,0,1,0)==std::pair(-1.f,0.f),"A fresh left-stick tilt takes selection from the right stick");
+    check(sticks.update(0,0,1,0)==std::pair(0.f,0.f),"Centering does not switch back to a stale held stick");
+    sticks.reset();
+    sticks.update(0,0,0,0);
+    check(sticks.update(0,-1,0,0)==std::pair(0.f,-1.f),"Left stick selects a newly opened system wheel");
     for(const auto origin : {std::pair{2200.f,160.f},std::pair{2200.f,720.f}}) {
       const auto [x,y]=origin;
       check(RadialInput::touchSector(x,y,x,y,2340,1080,8)==-1,"Holding the original position cancels");

@@ -105,6 +105,10 @@ void MainWindow::controllerAction(const GamepadBindings::Event& event) {
     }
   if(context==Context::Inventory) { inventory.controllerAction(int(action)); return; }
   if(context==Context::UI) {
+    if(rootMenu.isActive() && !video.isActive()) {
+      if(action==PadAction::Accept && pressed && rootMenu.overwriteSelectedSave()) return;
+      if(action==PadAction::RenameSave && pressed) { rootMenu.renameSelectedSave(); return; }
+      }
     if(action==PadAction::AdjustLeft || action==PadAction::AdjustRight) {
       if(rootMenu.isActive() && !video.isActive())
         rootMenu.adjustValue(action==PadAction::AdjustRight ? 1 : -1);
@@ -260,6 +264,7 @@ void MainWindow::tickGamepad() {
     controllerAxesBlocked=true;
     player.clearInput(); controllerBindings.reset(); controllerButtons=0; controllerTriggers=0;
     if(inventory.isWheelOpen()) inventory.close();
+    wheelStickInput.reset();
     wheelHeldMask=0;
     }
   controllerConnected=connected;
@@ -396,9 +401,10 @@ void MainWindow::tickGamepad() {
     };
   const auto left=deadZone(gp.leftStickX,gp.leftStickY), right=deadZone(gp.rightStickX,gp.rightStickY);
   if(inventory.isWheelOpen()) {
-    const auto stick=options.swapWheel?left:right;
-    inventory.wheelMove(stick.x,stick.y,now);
+    const auto stick=wheelStickInput.update(left.x,left.y,right.x,right.y);
+    inventory.wheelMove(stick.first,stick.second,now);
     }
+  else wheelStickInput.reset();
   const auto context=controllerContext();
   if(context==Context::UI || context==Context::Inventory || context==Context::EquipmentWheel || context==Context::Interaction ||
      Gothic::inst().isPause() || camera==nullptr || camera->isCutscene()) {

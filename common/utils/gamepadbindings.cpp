@@ -20,7 +20,7 @@ constexpr const char* actionNames[] = {
   "AdjustLeft", "AdjustRight", "SystemWheel",
   "QuickUp", "QuickDown", "QuickLeft", "QuickRight",
   "WheelUp", "WheelDown", "WheelLeft", "WheelRight",
-  "AssignUp", "AssignDown", "AssignLeft", "AssignRight"
+  "AssignUp", "AssignDown", "AssignLeft", "AssignRight", "RenameSave"
   };
 static_assert(std::size(actionNames)==size_t(Action::Count));
 std::string trim(std::string s) {
@@ -96,6 +96,7 @@ AttackForward=RT
 Accept=A
 Back=B,View,Menu
 DeleteSave=X
+RenameSave=Y
 Up=DpadUp,LeftStickUp
 Down=DpadDown,LeftStickDown
 Left=DpadLeft,LeftStickLeft
@@ -107,7 +108,6 @@ AdjustRight=RightStickRight
 PreviousPage=LB
 NextPage=RB
 Cancel=B
-SelectionStick=RightStick
 
 [Inventory]
 AssignUp=A+DpadUp
@@ -218,7 +218,6 @@ std::vector<std::string> GamepadBindings::load(std::istream& input) {
     auto backup=dst.bindings;
     bool valid=true;
     for(auto& [key,value]:values[dst.name]) {
-      if(key=="SelectionStick" && dst.name=="EquipmentWheel") continue;
       auto name=std::find(std::begin(actionNames),std::end(actionNames),key);
       if(name==std::end(actionNames)) {
         errors.push_back(dst.name+"/"+key+": unknown action"); valid=false; continue;
@@ -286,7 +285,6 @@ std::vector<std::string> GamepadBindings::load(std::istream& input) {
     }
   options.swapMovement=stick("Axes","MovementStick",options.swapMovement,"LeftStick");
   options.swapCamera=stick("Axes","CameraStick",options.swapCamera,"RightStick");
-  options.swapWheel=stick("EquipmentWheel","SelectionStick",options.swapWheel,"RightStick");
   options.deadZone=number("Axes","StickDeadZone",options.deadZone,0,0.8f);
   options.movementDeadZone=number("Axes","MovementDeadZone",options.movementDeadZone,0,0.8f);
   options.touchMovementDeadZone=number("Axes","TouchMovementDeadZone",options.touchMovementDeadZone,0,0.8f);

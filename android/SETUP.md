@@ -81,7 +81,7 @@ Outputs are in `build/android-setup/`:
 
 1. Transfer the APK and, in split mode, ZIP to any folder on your phone.
 2. Open the APK in the file manager and allow that source to install unknown apps.
-3. Launch the matching app: **Gothic**, **Gothic II Classic** or **Gothic II NotR**. For split mode, tap **Choose game archive** and select the ZIP.
+3. Launch the matching app: **Gothic**, **Gothic II Classic** or **Gothic II: NotR**. For split mode, tap **Choose game archive** and select the ZIP.
 4. Keep setup open until extraction completes. Gameplay starts in landscape afterward.
 
 Use the ZIP produced by the setup scripts, not an arbitrary zipped installation.
@@ -118,7 +118,7 @@ The apps have separate storage, so neither replaces the other's saves, settings 
 | --- | --- | --- |
 | Gothic 1 | `org.opengothic.gothic1` | Gothic, white G |
 | Gothic II Classic | `org.opengothic.gothic2` | Gothic II Classic, gold G |
-| Gothic II: Night of the Raven | `org.opengothic.gothic2notr` | Gothic II NotR, blue G |
+| Gothic II: Night of the Raven | `org.opengothic.gothic2notr` | Gothic II: NotR, blue G |
 
 All retain the internal `Gothic2` game-data directory name for compatibility with existing archives.
 ADB examples elsewhere in these docs use NotR's app ID.

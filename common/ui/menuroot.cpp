@@ -116,6 +116,14 @@ bool MenuRoot::canRequestDeleteSave() const {
   return current!=nullptr && current->canRequestDeleteSave();
   }
 
+bool MenuRoot::overwriteSelectedSave() {
+  return current!=nullptr && current->overwriteSelectedSave();
+  }
+
+void MenuRoot::renameSelectedSave() {
+  if(current!=nullptr) current->renameSelectedSave();
+  }
+
 void MenuRoot::setPlayer(const Npc &pl) {
   if(current!=nullptr)
     current->setPlayer(pl);

@@ -23,6 +23,7 @@ class GamepadBindings final {
       QuickUp, QuickDown, QuickLeft, QuickRight,
       WheelUp, WheelDown, WheelLeft, WheelRight,
       AssignUp, AssignDown, AssignLeft, AssignRight,
+      RenameSave,
       Count
       };
     enum class Phase { Press, Release, Repeat, Cancel };
@@ -43,7 +44,6 @@ class GamepadBindings final {
       float triggerRelease = 0.40f;
       bool swapMovement = false;
       bool swapCamera = false;
-      bool swapWheel = false;
       uint64_t holdMs = 400;
       uint64_t repeatDelayMs = 350;
       uint64_t repeatMs = 150;

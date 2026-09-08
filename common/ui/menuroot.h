@@ -24,6 +24,8 @@ class MenuRoot : public Tempest::Widget {
     bool isActive() const;
     void requestDeleteSave(std::string_view hint);
     bool canRequestDeleteSave() const;
+    bool overwriteSelectedSave();
+    void renameSelectedSave();
     void directionalInput(bool right, bool repeat=false, bool touchNavigation=true);
     bool canAdjustValue();
     void adjustValue(int steps);

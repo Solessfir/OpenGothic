@@ -4,8 +4,37 @@
 #include <algorithm>
 #include <numbers>
 #include <limits>
+#include <utility>
 
 namespace RadialInput {
+
+class StickSelector final {
+  public:
+    void reset() { *this=StickSelector(); }
+    std::pair<float,float> update(float lx,float ly,float rx,float ry) {
+      const float magnitude[]={lx*lx+ly*ly,rx*rx+ry*ry};
+      const bool held[]={magnitude[0]>=0.25f,magnitude[1]>=0.25f};
+      if(!initialized) {
+        for(int i=0;i<2;++i) { armed[i]=!held[i]; previous[i]=held[i]; }
+        initialized=true;
+        return {};
+        }
+      int next=-1;
+      for(int i=0;i<2;++i) {
+        if(!held[i]) armed[i]=true;
+        if(armed[i] && held[i] && !previous[i] && (next<0 || magnitude[i]>magnitude[next])) next=i;
+        previous[i]=held[i];
+        }
+      if(next>=0) active=next;
+      if(active<0 || !held[active]) return {};
+      return active==0 ? std::pair(lx,ly) : std::pair(rx,ry);
+      }
+  private:
+    bool initialized=false;
+    bool armed[2]={false,false};
+    bool previous[2]={false,false};
+    int active=-1;
+  };
 
 inline int sector(float x, float y, float inner, float outer, int count=8) {
   const float distance=std::hypot(x,y);

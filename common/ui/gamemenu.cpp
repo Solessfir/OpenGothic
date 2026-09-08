@@ -974,6 +974,30 @@ void GameMenu::execSaveGame(const GameMenu::Item& item) {
   Gothic::inst().save(fname,item.handle->text[0]);
   }
 
+GameMenu::Item* GameMenu::selectedSaveItem() {
+  if(pendingDelete!=nullptr || ctrlInput!=nullptr || !Gothic::inst().isInGameAndAlive() ||
+     Gothic::inst().checkLoading()!=Gothic::LoadState::Idle) return nullptr;
+  auto item=selectedItem();
+  if(item==nullptr || !isEnabled(item->handle) || saveSlotId(*item)==size_t(-1)) return nullptr;
+  for(const auto& action:item->handle->on_sel_action_s)
+    if(action=="SAVEGAME_SAVE") return item;
+  return nullptr;
+  }
+
+bool GameMenu::overwriteSelectedSave() {
+  auto item=selectedSaveItem();
+  if(item==nullptr || item->savHdr.version==0 ||
+     !FileUtil::exists(TextCodec::toUtf16(SaveSlot::path(".",saveSlotId(*item)).string()))) return false;
+  item->handle->text[0]=item->savHdr.name;
+  execSaveGame(*item);
+  owner.closeAll();
+  return true;
+  }
+
+void GameMenu::renameSelectedSave() {
+  if(selectedSaveItem()!=nullptr) onKeyboard(KeyCodec::ActionGeneric);
+  }
+
 bool GameMenu::execLoadGame(const GameMenu::Item &item) {
   const size_t id = saveSlotId(item);
   if(id==size_t(-1))

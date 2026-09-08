@@ -37,6 +37,8 @@ class GameMenu : public Tempest::Widget {
     bool canRequestDeleteSave() const;
     bool isDeletingSave() const { return pendingDelete!=nullptr; }
     bool closeNestedView();
+    bool overwriteSelectedSave();
+    void renameSelectedSave();
 
     KeyCodec::Action keyClose() const { return kClose; }
 
@@ -102,6 +104,7 @@ class GameMenu : public Tempest::Widget {
     void                                  journalInput(KeyCodec::Action key);
 
     Item*                                 selectedItem();
+    Item*                                 selectedSaveItem();
     Item*                                 selectedNextItem(Item* cur);
     Item*                                 selectedContentItem(Item* it);
     void                                  setSelection(int cur, int seek=1);
