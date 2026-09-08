@@ -297,6 +297,13 @@ void MainWindow::tickGamepad() {
       }
     if(touchMove==PointF())
       touchMovementBlocked = false;
+    if(touchPlayer!=nullptr && touchPlayer->interactive()!=nullptr && touchPlayer->interactive()->isLadder()) {
+      mobileUi.setAnalogMovement(true);
+      const auto raw=touchMovementBlocked ? PointF() : touchMove;
+      const auto axis=controllerBindings.movementAxis(0.f,raw.y,true);
+      player.setGamepadAxis(0.f,axis.second);
+      return;
+      }
     const bool swimming = touchPlayer!=nullptr && (touchPlayer->isSwim() || touchPlayer->isDive());
     const bool locked = !swimming && player.lockedTarget()!=nullptr;
     const bool classicAction = player.isClassicCombat() && player.isPressed(KeyCodec::ActionGeneric);
@@ -410,6 +417,14 @@ void MainWindow::tickGamepad() {
      Gothic::inst().isPause() || camera==nullptr || camera->isCutscene()) {
     controllerAxesBlocked=true;
     player.setGamepadAxis(0,0);
+    // Ladders consume vertical movement even though other interactions suppress analog steering.
+    auto pl=Gothic::inst().player();
+    if(context==Context::Interaction && !Gothic::inst().isPause() && camera!=nullptr && !camera->isCutscene() &&
+       pl!=nullptr && pl->interactive()!=nullptr && pl->interactive()->isLadder()) {
+      const float y=options.swapMovement ? gp.rightStickY : gp.leftStickY;
+      const auto axis=controllerBindings.movementAxis(0.f,y);
+      player.setGamepadAxis(0.f,axis.second);
+      }
     return;
     }
   if(controllerAxesBlocked) {

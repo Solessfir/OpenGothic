@@ -1464,10 +1464,10 @@ void PlayerControl::implMoveMobsi(Npc& pl, uint64_t /*dt*/) {
       inter->onKeyInput(KeyCodec::ActionGeneric);
       ctrl[KeyCodec::ActionGeneric] = false;
       }
-    else if(ctrl[KeyCodec::Forward]) {
+    else if(wantsToMoveForward()) {
       inter->onKeyInput(KeyCodec::Forward);
       }
-    else if(ctrl[KeyCodec::Back]) {
+    else if(wantsToMoveBackward()) {
       inter->onKeyInput(KeyCodec::Back);
       }
     }
