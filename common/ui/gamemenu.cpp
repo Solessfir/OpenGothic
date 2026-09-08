@@ -237,6 +237,42 @@ void GameMenu::initItems() {
       }
     updateItem(hItems[i]);
     }
+  addMissingQuickLoad();
+  }
+
+void GameMenu::addMissingQuickLoad() {
+  // Gothic 1's scripts omit slot zero. Reuse the load list's styling without modifying MENU.DAT.
+  if(Gothic::inst().version().game!=1)
+    return;
+  int first=-1, last=-1, end=0;
+  for(int i=0;i<zenkit::IMenu::item_count;++i) {
+    const auto& item=hItems[i];
+    if(item.handle==nullptr)
+      continue;
+    end=i+1;
+    if(item.handle->on_sel_action_s[0]!="SAVEGAME_LOAD")
+      continue;
+    const auto slot=saveSlotId(item);
+    if(slot==0)
+      return;
+    if(slot==size_t(-1))
+      continue;
+    if(first<0) first=i;
+    last=i;
+    }
+  if(first<0 || end==zenkit::IMenu::item_count)
+    return;
+
+  Item quick;
+  quick.name="MENUITEM_LOAD_SLOT0";
+  quick.handle=std::make_shared<zenkit::IMenuItem>(*hItems[first].handle);
+  quick.img=hItems[first].img;
+  quick.handle->text[0]="- Quick Save -";
+  const int spacing=last>first ? (hItems[last].handle->pos_y-hItems[first].handle->pos_y)/(last-first) : 300;
+  quick.handle->pos_y=hItems[last].handle->pos_y+spacing;
+  std::move_backward(hItems+last+1,hItems+end,hItems+end+1);
+  hItems[last+1]=std::move(quick);
+  updateItem(hItems[last+1]);
   }
 
 void GameMenu::paintEvent(PaintEvent &e) {
