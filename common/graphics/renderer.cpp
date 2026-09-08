@@ -127,6 +127,9 @@ void Renderer::setupSettings() {
   settings.zCloudShadowScale  = Gothic::settingsGetI("ENGINE","zCloudShadowScale") !=0;
   settings.ssaoHalfResolution = Gothic::settingsGetI("ENGINE","ssaoHalfResolution")!=0;
   settings.fogHalfResolution  = Gothic::settingsGetI("ENGINE","fogHalfResolution")==1;
+  const float fadeDistance = Gothic::settingsGetF("ENGINE","cameraObstructionFadeDistance");
+  settings.cameraObstructionDistance = Gothic::settingsGetI("ENGINE","cameraObstructionFade")!=0 && std::isfinite(fadeDistance)
+                                      ? std::clamp(fadeDistance,50.f,500.f) : 0.f;
   settings.zFogRadial         = Gothic::settingsGetI("RENDERER_D3D","zFogRadial")!=0;
   {
     // wind
@@ -372,6 +375,7 @@ void Renderer::prepareUniforms(WorldView& wview) {
   wview.setGbuffer(textureCast<const Texture2d&>(gbufDiffuse), textureCast<const Texture2d&>(gbufNormal));
   wview.setSceneImages(textureCast<const Texture2d&>(sceneOpaque), textureCast<const Texture2d&>(sceneDepth), zbuffer);
   wview.setWindEnabled(settings.zWindEnabled, settings.windPeriod);
+  wview.setCameraObstructionFade(settings.pathTraceEnabled ? 0.f : settings.cameraObstructionDistance);
   }
 
 void Renderer::resetViewport(Tempest::Size res, Tempest::Size fullRes) {

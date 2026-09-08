@@ -63,6 +63,8 @@ class DrawBuckets {
       BK_SKIN  = 0x2,
       BK_MORPH = 0x4,
       BK_WATER = 0x8,
+      BK_CAMERA_FADE = 0x10,
+      BK_FADE_MULTIPLY = 0x20,
       };
 
     struct BucketGpu final {

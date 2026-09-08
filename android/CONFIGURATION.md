@@ -53,6 +53,18 @@ UI scales automatically. In `Gothic2/System/SystemPack.ini`, set `[INTERFACE] Sc
 `1` is automatic, `0.85` smaller, `1.1` larger. Excessive values can clip menus.
 `Gothic.ini` `[GAME] invMaxColumns` adjusts inventory columns; `0` falls back to five.
 
+## Camera obstruction fading
+
+Nearby foliage and spiderwebs fade locally around the camera in G1 and G2. Enabled by default on Android; optional on desktop. Walls, terrain, characters, equipment and shadows stay unchanged. This does not make obstacles transparent along the entire camera-to-player path.
+
+```ini
+[ENGINE]
+cameraObstructionFade=1
+cameraObstructionFadeDistance=180
+```
+
+Set `cameraObstructionFade=0` to disable it. Distance is in Gothic units (100 = one meter), clamped to 50-500. The nearest quarter of that distance is fully transparent, then visibility increases smoothly. Alpha-tested leaves use fixed dithering; transparent webs retain their normal blending. Only recognized foliage/web texture families are eligible, so renamed mod textures may not fade. Path tracing does not use this effect.
+
 ## Shortcuts, audio and other preferences
 
 ```ini

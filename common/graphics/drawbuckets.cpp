@@ -147,6 +147,14 @@ bool DrawBuckets::commit(Encoder<CommandBuffer>& cmd, uint8_t fId) {
       bx.flags |= BK_SOLID;
     if(i.mat.alpha==Material::Water)
       bx.flags |= BK_WATER;
+    const bool canFade = i.mat.alpha==Material::AlphaTest || i.mat.alpha==Material::Transparent ||
+                         i.mat.alpha==Material::Multiply || i.mat.alpha==Material::Multiply2;
+    if(i.mat.cameraObstruction && canFade && !i.mat.isGhost && i.staticMesh!=nullptr &&
+       i.staticMesh->morph.anim==nullptr) {
+      bx.flags |= BK_CAMERA_FADE;
+      if(i.mat.alpha==Material::Multiply || i.mat.alpha==Material::Multiply2)
+        bx.flags |= BK_FADE_MULTIPLY;
+      }
     bucket.push_back(bx);
     }
 

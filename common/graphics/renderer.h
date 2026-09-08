@@ -135,6 +135,7 @@ class Renderer final {
       bool           zCloudShadowScale  = false;
       bool           ssaoHalfResolution = false;
       bool           fogHalfResolution  = false;
+      float          cameraObstructionDistance = 0;
       bool           zFogRadial         = false;
 
       bool           zWindEnabled       = false;

@@ -138,7 +138,10 @@ Gothic::Gothic() {
   defaults->set("GAME", "highlightMeleeFocus", 0);
   defaults->set("GAME", "useQuickSaveKeys",    1);
   defaults->set("GAME", "skipEmptyLoot",       1);
+  defaults->set("ENGINE", "cameraObstructionFade", 0);
+  defaults->set("ENGINE", "cameraObstructionFadeDistance", 180.f);
 #if defined(__ANDROID__)
+  defaults->set("ENGINE", "cameraObstructionFade", 1);
   defaults->set("GAME", "showFps",             0);
   defaults->set("GAME", "centerPlayerBars",    0);
   defaults->set("GAME", "useGothic1Controls",  0);

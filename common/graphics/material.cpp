@@ -1,4 +1,5 @@
 #include "material.h"
+#include "cameraobstruction.h"
 
 #include "utils/parser.h"
 #include "resources.h"
@@ -24,6 +25,7 @@ Material::Material(const zenkit::Material& m, bool enableAlphaTest) {
   loadFrames(m);
 
   alpha = loadAlphaFunc(m.alpha_func,m.group,m.color.a,tex,enableAlphaTest);
+  cameraObstruction = CameraObstruction::foliageTexture(m.texture);
   if(alpha==Water && m.name=="OWODWFALL_WATERFALL_01") {
     // NOTE: waterfall heuristics
     alpha = Solid;
@@ -52,6 +54,7 @@ Material::Material(const zenkit::VisualDecal& decal) {
 
   alpha        = loadAlphaFunc(decal.alpha_func, zenkit::MaterialGroup::UNDEFINED, decal.alpha_weight, tex, true);
   alphaWeight  = float(decal.alpha_weight)/255.f;
+  cameraObstruction = CameraObstruction::foliageTexture(decal.name);
   }
 
 Material::Material(const zenkit::IParticleEffect& src) {
@@ -70,6 +73,7 @@ bool Material::operator ==(const Material& other) const {
          texAniMapDirPeriod==other.texAniMapDirPeriod &&
          texAniFPSInv==other.texAniFPSInv &&
          isGhost==other.isGhost &&
+         cameraObstruction==other.cameraObstruction &&
          waveMaxAmplitude==other.waveMaxAmplitude &&
          envMapping==other.envMapping;
   }

@@ -12,6 +12,11 @@
 #include "lighting/shadow_sampling.glsl"
 #include "lighting/tonemapping.glsl"
 
+#if defined(MAT_UV) && !defined(SIMPLE_MAT) && !defined(WATER) && !defined(GHOST) && (MESH_TYPE!=T_PFX)
+#define CAMERA_OBSTRUCTION_FADE
+#include "camera_obstruction.glsl"
+#endif
+
 #if defined(MAT_VARYINGS)
 layout(location = 0) in flat uint bucketId;
 layout(location = 1) in Varyings  shInp;
@@ -335,6 +340,23 @@ void main() {
   t *= shInp.color;
 #endif
 
+#if defined(CAMERA_OBSTRUCTION_FADE)
+  float cameraVisibility = 1.0;
+  if(scene.cameraFadeFar2>0.0 && (bucket[bucketId].flags&BK_CAMERA_FADE)!=0u) {
+#  if defined(DEPTH_ONLY)
+    // Hi-Z must not hide geometry behind fading leaves.
+    // Shadow views disable camera fading in their scene uniforms.
+    discard;
+#  else
+    cameraVisibility = cameraObstructionVisibility(gl_FragCoord.xy,gl_FragCoord.z);
+#    if defined(ATEST)
+    if(cameraVisibility<cameraObstructionThreshold(ivec2(gl_FragCoord.xy)))
+      discard;
+#    endif
+#  endif
+    }
+#endif
+
 #if defined(GBUFFER)
   mainGBuffer(t);
 #elif defined(WATER)
@@ -345,6 +367,14 @@ void main() {
   mainEmissive(t);
 #elif defined(GHOST) && !defined(DEPTH_ONLY)
   mainGhost(t);
+#endif
+
+#if defined(CAMERA_OBSTRUCTION_FADE) && !defined(DEPTH_ONLY) && !defined(GBUFFER)
+  // Multiplicative webs need the blend mode's neutral color, not just zero alpha.
+  if((bucket[bucketId].flags&BK_FADE_MULTIPLY)!=0u)
+    outColor.rgb = mix(vec3(0.5),outColor.rgb,cameraVisibility);
+  else
+    outColor.a *= cameraVisibility;
 #endif
 
 #if DEBUG_DRAW && !defined(GBUFFER) && !defined(DEPTH_ONLY)

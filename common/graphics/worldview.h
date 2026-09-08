@@ -48,6 +48,7 @@ class WorldView {
     void setHiZ(const Tempest::Texture2d& hiZ);
     void setSceneImages(const Tempest::Texture2d& clr, const Tempest::Texture2d& depthAux, const Tempest::ZBuffer& depthNative);
     void setWindEnabled(bool enabled, uint64_t period);
+    void setCameraObstructionFade(float distance) { sGlobal.setCameraObstructionFade(distance); }
 
     void dbgLights      (DbgPainter& p) const;
 
