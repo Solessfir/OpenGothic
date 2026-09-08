@@ -17,7 +17,7 @@ import time
 import urllib.request
 import zipfile
 
-from game_package import child_ci, package, safe_preferences, sha256, validate_game, validate_save
+from game_package import child_ci, game_edition, package, safe_preferences, sha256, validate_game, validate_save
 
 ROOT = Path(__file__).resolve().parents[2]
 OUTPUT = ROOT / "build/android-setup"
@@ -277,10 +277,10 @@ def select_game(explicit):
     print("\nSearching Steam libraries, GOG and common Games directories...")
     found = discover_games()
     if found and ask("Use a discovered installation?"):
-        return choose(found)
+        return choose(found, lambda path: f"{game_edition(path)}: {path}")
     while True:
         try:
-            return validate_game(input("Gothic II: Night of the Raven installation path: ").strip().strip('"'))
+            return validate_game(input("Gothic 1 or Gothic II: Night of the Raven installation path: ").strip().strip('"'))
         except (ValueError, OSError) as error:
             print(error)
 
@@ -312,7 +312,7 @@ def optional_preferences(game):
 
 
 def optional_saves():
-    print("\nOnly OpenGothic save_slot_N.sav files are compatible, not original Gothic II savegame folders.")
+    print("\nOnly OpenGothic save_slot_N.sav files from the same game/mod are compatible, not original Gothic savegame folders.")
     if not ask("Include PC OpenGothic saves? Existing phone slots will be kept", False):
         return []
     folder = Path(input("PC OpenGothic save directory: ").strip().strip('"')).expanduser()
@@ -508,7 +508,7 @@ def install(sdk, apk, bundled, env):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--game", help="Gothic II: Night of the Raven installation directory")
+    parser.add_argument("--game", help="Gothic 1 or Gothic II: Night of the Raven installation directory")
     parser.add_argument("--jdk", help="Existing JDK 17 directory")
     parser.add_argument("--sdk", help="Existing or new Android SDK directory")
     parser.add_argument("--cache", default=str(Path.home() / ".cache/opengothic-android"), help="Portable tool cache")
@@ -542,6 +542,7 @@ def main(argv=None):
             return
     game = select_game(args.game)
     print(f"Selected installation (read only): {game}")
+    print(f"Game: {game_edition(game)}")
     if not ask("Package this legally owned installation for your own devices?"):
         raise RuntimeError("Game-data packaging cancelled")
     preferences = optional_preferences(game)

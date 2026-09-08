@@ -6,6 +6,7 @@ import io
 import os
 from pathlib import Path
 import re
+import struct
 import zipfile
 
 INDEX = "opengothic-private-v1.tsv"
@@ -38,10 +39,53 @@ def validate_game(root):
     data, work = child_ci(root, "Data"), child_ci(root, "_work")
     if not data or not data.is_dir() or not work or not work.is_dir():
         raise ValueError("Select the installation root containing Data and _work, not its System folder.")
-    names = {p.name.casefold() for p in data.iterdir()}
-    if not {"worlds.vdf", "worlds_addon.vdf"} <= names:
-        raise ValueError("Expected Data/Worlds.vdf and Worlds_Addon.vdf (Gothic II: Night of the Raven). Classic-only installs are not supported by these scripts.")
+    game_edition(root)
     return root
+
+
+def world_names(path):
+    """Read only the VDF catalog, using the header/entry layout in ZenKit's Vfs.cc."""
+    with path.open("rb") as source:
+        header = source.read(296)
+        signatures = (b"PSVDSC_V2.00\r\n\r\n", b"PSVDSC_V2.00\n\r\n\r", b"PSVDSC_V2.00\x1a\x1a\x1a\x1a")
+        if len(header) != 296 or header[256:272] not in signatures:
+            raise ValueError(f"Invalid world archive: {path}")
+        count, _, _, _, offset, _ = struct.unpack_from("<6I", header, 272)
+        offset = offset or 296
+        if offset < 296 or count > 1000000 or offset + count * 80 > path.stat().st_size:
+            raise ValueError(f"Invalid world catalog: {path}")
+        source.seek(offset)
+        names = set()
+        for _ in range(count):
+            entry = source.read(80)
+            if len(entry) != 80:
+                raise ValueError(f"Truncated world catalog: {path}")
+            if struct.unpack_from("<I", entry, 72)[0] & 0x80000000:
+                continue
+            name = entry[:64].split(b"\0", 1)[0].rstrip().upper()
+            if name.endswith(b".ZEN"):
+                names.add(name)
+        return names
+
+
+def game_edition(root):
+    data = child_ci(root, "Data")
+    worlds = child_ci(data, "Worlds.vdf") if data and data.is_dir() else None
+    if not worlds or not worlds.is_file():
+        raise ValueError("Expected Data/Worlds.vdf from Gothic 1 or Gothic II: Night of the Raven.")
+    names = world_names(worlds)
+    addon = child_ci(data, "Worlds_Addon.vdf")
+    if addon and addon.is_file():
+        names |= world_names(addon)
+    gothic1 = b"WORLD.ZEN" in names
+    gothic2 = b"NEWWORLD.ZEN" in names or b"ADDONWORLD.ZEN" in names
+    if gothic1 and gothic2:
+        raise ValueError("Gothic 1 and Gothic II worlds are mixed. Select a separate, clean installation.")
+    if gothic1:
+        return "Gothic 1"
+    if gothic2 and b"ADDONWORLD.ZEN" in names:
+        return "Gothic II: Night of the Raven"
+    raise ValueError("Expected Gothic 1 or Gothic II: Night of the Raven worlds. Classic Gothic II is not supported by these scripts.")
 
 
 def game_files(root):
@@ -61,6 +105,7 @@ def game_files(root):
             relative = path.relative_to(folder).as_posix()
             if any(c in relative for c in "\t\r\n\\:"):
                 raise ValueError(f"Unsupported asset filename: {path}")
+            # Keep the existing import path for both games so older packages and installations remain valid.
             result.append((f"Gothic2/{name}/{relative}", path))
     system = child_ci(root, "System")
     config = child_ci(system, "GothicGame.ini") if system else None

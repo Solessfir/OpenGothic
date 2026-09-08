@@ -1,6 +1,6 @@
 # Android setup
 
-Build and install using your legally owned **Gothic II: Night of the Raven** files.
+Build and install using your legally owned **Gothic 1** or **Gothic II: Night of the Raven** files.
 Do not redistribute game assets or APKs containing them.
 
 ## Package game files only
@@ -12,6 +12,8 @@ setup-android.bat --package-only --game "D:/Games/Gothic II"
 ```
 
 On Linux: `bash setup-android.sh --package-only --game "/path/to/Gothic II"`.
+For Gothic 1, use `setup-android.bat --package-only --game "D:/Games/Gothic"` (the same `--game` option works on Linux).
+The game is detected automatically from its world archives, independently of dialogue language.
 Omit `--game` to search common installation folders. No Android SDK, NDK or Java is needed for packaging.
 The script creates `build/android-setup/game-data.zip`. Copy it to your phone, select it in the app,
 and delete the transferred ZIP after the game starts.
@@ -95,9 +97,19 @@ For direct installation over Wi-Fi, see [wireless debugging](README.md#wireless-
 - Interrupted imports can be retried; completed matching files are reused.
 - Update with the same signing key. Back up `~/.android/debug.keystore` privately for builds on another PC.
 - **Uninstalling removes extracted assets, saves and settings.** An in-place APK update preserves them.
-- Windows executable plugins are not supported. Start with the base Night of the Raven installation.
+- Windows executable plugins are not supported. Start with an unmodified Gothic 1 or Night of the Raven installation.
 
 A bundled APK keeps both compressed and extracted assets. APK + ZIP avoids retaining the archive once the transferred ZIP is deleted.
+
+### Switching games
+
+The APK supports one active installation, stored in `Gothic2` for compatibility with existing packages.
+Do not import Gothic 1 over Gothic II, or merge their folders.
+Close the app, back up its entire external `files` directory, then move the active `Gothic2` directory and `save_slot_*.sav` files out of that directory before importing the other game.
+Keep each game's saves with its matching game files; they are not interchangeable.
+Settings may be retained, including the same touch/gamepad mappings and combat preference.
+Use the launcher icon's **Import files** shortcut to select the new archive.
+For switching installations, use an asset-free APK so a bundled archive does not restore the previous game.
 
 ### Signing
 
@@ -117,7 +129,7 @@ Do not copy a complete PC `Gothic.ini`. The scripts can import these supported p
 Graphics, resolution, paths, keyboard mappings and `SystemPack.ini` are not imported.
 Existing writable phone settings are never replaced. See [configuration](CONFIGURATION.md) for Android options.
 
-Only OpenGothic `save_slot_N.sav` saves transfer, not original Gothic II saves.
+Only OpenGothic `save_slot_N.sav` saves transfer, not original Gothic 1 or Gothic II saves.
 Use matching game/mod data and OpenGothic versions. Existing phone slots are not overwritten.
 
 Back up phone saves without rebuilding:

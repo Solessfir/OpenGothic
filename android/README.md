@@ -1,13 +1,13 @@
 # OpenGothic for Android
 
-Native Android port of OpenGothic for Gothic II: Night of the Raven.
+Native Android port of OpenGothic for Gothic 1 and Gothic II: Night of the Raven.
 Requires an ARM64 device with Vulkan 1.1 and a legally owned game installation.
 The normal APK contains no game files.
 
 ## Don't care - let me play
 
 1. Download `OpenGothic-arm64.apk` from [Releases](https://github.com/Solessfir/OpenGothic/releases) and install it on your phone.
-2. [Run the packaging script](SETUP.md#package-game-files-only) on your computer, pointing it at your Gothic II installation folder. Copy the resulting `game-data.zip` to any folder on your phone.
+2. [Run the packaging script](SETUP.md#package-game-files-only) on your computer, pointing it at your Gothic 1 or Gothic II: Night of the Raven installation folder. Copy the resulting `game-data.zip` to any folder on your phone.
 3. Open the app, tap **Choose game archive**, and select the archive.
 4. Wait for the import to finish and the game to start. You can then delete the ZIP from your phone.
 
@@ -110,12 +110,14 @@ For a direct ADB copy, launch once, close the app, and copy your installation:
 ```
 
 `Gothic2` must directly contain `Data`, `_work` and `System` (or `system`).
+The same folder is used for Gothic 1; the game is detected from its world files, not the folder name or language.
+Use one installation at a time and do not mix Gothic 1 and Gothic II assets or saves; see [switching games](SETUP.md#switching-games).
 If your device restricts direct access, use the archive importer.
 Windows plugins such as Union DLLs do not run on Android.
 
 ## Transfer saves from PC
 
-Only **OpenGothic** `save_slot_N.sav` files transfer; original Gothic II saves cannot be converted by renaming.
+Only **OpenGothic** `save_slot_N.sav` files transfer; original Gothic 1 or Gothic II saves cannot be converted by renaming.
 Use matching OpenGothic versions and game/mod data. Keep backups until the imported save loads successfully.
 
 PC saves are in OpenGothic's working directory, usually beside `log.txt`.

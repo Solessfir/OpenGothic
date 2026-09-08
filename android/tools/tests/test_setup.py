@@ -3,6 +3,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import struct
 import sys
 import tempfile
 import unittest
@@ -15,6 +16,11 @@ import setup_android as setup
 
 
 class SetupTests(unittest.TestCase):
+    def world_archive(self, name, worlds, signature=b"PSVDSC_V2.00\n\r\n\r"):
+        entries = b"".join(world.encode().ljust(64, b" ") + struct.pack("<4I", 0, 0, 0x40000000, 0) for world in worlds)
+        header = bytes(256) + signature + struct.pack("<6I", len(worlds), len(worlds), 0, 296 + len(entries), 296, 80)
+        (self.game / "Data" / name).write_bytes(header + entries)
+
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
@@ -22,8 +28,8 @@ class SetupTests(unittest.TestCase):
         self.game = self.base / "Gothic II"
         for folder in ("Data", "_work/Data", "system", "Saves"):
             (self.game / folder).mkdir(parents=True)
-        for name in ("Worlds.vdf", "Worlds_Addon.vdf"):
-            (self.game / "Data" / name).write_bytes(b"test data")
+        self.world_archive("Worlds.vdf", ["NEWWORLD.ZEN"])
+        self.world_archive("Worlds_Addon.vdf", ["ADDONWORLD.ZEN"])
         (self.game / "system/Gothic.ini").write_text("[VIDEO]\nzVidResFullscreenX=9999\n[GAME]\nusePotionKeys=1\nmouseSensitivity=0.7\nuseQuickSaveKeys=0\n[ENGINE]\nzMaxFPS=144\n[SOUND]\nmusicVolume=0.4\n")
         (self.game / "system/SystemPack.ini").write_text("[INTERFACE]\nScale=0.01\n")
         (self.game / "system/Gothic2.exe").write_bytes(b"not an asset")
@@ -113,6 +119,37 @@ class SetupTests(unittest.TestCase):
     def test_missing_addon(self):
         (self.game / "Data/Worlds_Addon.vdf").unlink()
         with self.assertRaisesRegex(ValueError, "Night of the Raven"):
+            assets.validate_game(self.game)
+
+    def test_gothic1_packaging_and_detection(self):
+        (self.game / "Data/Worlds_Addon.vdf").unlink()
+        self.world_archive("Worlds.vdf", ["WORLD.ZEN"], b"PSVDSC_V2.00\r\n\r\n")
+        self.assertEqual(assets.validate_game(self.game), self.game.resolve())
+        self.assertEqual(assets.game_edition(self.game), "Gothic 1")
+        output = self.base / "gothic1.zip"
+        assets.package(self.game, output, progress=lambda _: None)
+        with zipfile.ZipFile(output) as archive:
+            self.assertIn("Gothic2/Data/Worlds.vdf", archive.namelist())
+            self.assertNotIn("Gothic2/Data/Worlds_Addon.vdf", archive.namelist())
+
+    def test_edition_does_not_depend_on_dialogue_filenames(self):
+        for name in ("OU.BIN", "OU.DAT"):
+            (self.game / "_work/Data" / name).write_bytes(b"dialogue")
+            self.assertEqual(assets.game_edition(self.game), "Gothic II: Night of the Raven")
+
+    def test_mixed_editions_rejected(self):
+        self.world_archive("Worlds.vdf", ["WORLD.ZEN"])
+        with self.assertRaisesRegex(ValueError, "mixed"):
+            assets.validate_game(self.game)
+
+    def test_invalid_world_archive_rejected(self):
+        (self.game / "Data/Worlds.vdf").write_bytes(b"not a VDF")
+        with self.assertRaisesRegex(ValueError, "Invalid world archive"):
+            assets.validate_game(self.game)
+        self.world_archive("Worlds.vdf", ["WORLD.ZEN"])
+        path = self.game / "Data/Worlds.vdf"
+        path.write_bytes(path.read_bytes()[:-1])
+        with self.assertRaisesRegex(ValueError, "Invalid world catalog"):
             assets.validate_game(self.game)
 
     def test_bundled_chunks_use_game_data_archive(self):
