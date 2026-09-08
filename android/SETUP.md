@@ -3,7 +3,20 @@
 Build and install using your legally owned **Gothic II: Night of the Raven** files.
 Do not redistribute game assets or APKs containing them.
 
-## Run the scripts
+## Package game files only
+
+Already have the APK? Clone this branch and run the following on your computer:
+
+```bat
+setup-android.bat --package-only --game "D:/Games/Gothic II"
+```
+
+On Linux: `bash setup-android.sh --package-only --game "/path/to/Gothic II"`.
+Omit `--game` to search common installation folders. No Android SDK, NDK or Java is needed for packaging.
+The script creates `build/android-setup/game-data.zip`. Copy it to your phone, select it in the app,
+and delete the transferred ZIP after the game starts.
+
+## Build and install from source
 
 Clone this Android branch with Git, then run from the repository root:
 
@@ -51,15 +64,15 @@ Outputs are in `build/android-setup/`:
 | `*-native-symbols.zip`, `*-mapping.txt` | Release crash symbols; keep with the matching APK |
 | `phone-saves-*` | Optional save backups |
 
-1. Transfer the APK and, in split mode, ZIP to the phone's Downloads folder.
+1. Transfer the APK and, in split mode, ZIP to any folder on your phone.
 2. Open the APK in the file manager and allow that source to install unknown apps.
-3. Launch **Gothic II**. For split mode, tap **Choose game-data.zip** and select the ZIP.
+3. Launch **Gothic II**. For split mode, tap **Choose game archive** and select the ZIP.
 4. Keep setup open until extraction completes. Gameplay starts in landscape afterward.
 
 Use the ZIP produced by the setup scripts, not an arbitrary zipped installation.
 ZArchiver is unnecessary; the app imports through Android's document picker.
 If a bundled APK is rejected or too large, rerun with `--split`.
-After successful import, delete the transferred files from Downloads to reclaim space.
+After successful import, delete the transferred APK and ZIP from your phone to reclaim space.
 
 To import into an existing installation, quit the game and long-press its launcher icon → **Import files**.
 If the launcher lacks shortcuts:
@@ -79,7 +92,7 @@ For direct installation over Wi-Fi, see [wireless debugging](README.md#wireless-
 - **Uninstalling removes extracted assets, saves and settings.** An in-place APK update preserves them.
 - Windows executable plugins are not supported. Start with the base Night of the Raven installation.
 
-A bundled APK keeps both compressed and extracted assets. APK + ZIP avoids retaining the archive once Downloads is cleaned up.
+A bundled APK keeps both compressed and extracted assets. APK + ZIP avoids retaining the archive once the transferred ZIP is deleted.
 
 ### Signing
 

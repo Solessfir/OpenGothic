@@ -5,11 +5,11 @@
     <string name="setup_brand">OpenGothic</string>
     <string name="setup_title">Add your game files</string>
     <string name="setup_description">Gothic II: Night of the Raven\nChoose the archive created by the setup scripts on your computer.</string>
-    <string name="setup_choose">Choose game-data.zip</string>
+    <string name="setup_choose">Choose game archive</string>
     <string name="setup_retry">Check copied or bundled files</string>
     <string name="setup_retry_error">Retry setup</string>
-    <string name="setup_waiting">Select game-data.zip from Downloads to get started.</string>
-    <string name="setup_import_existing">Select game-data.zip from Downloads. Quit the game before importing a different installation.</string>
+    <string name="setup_waiting">Select your game archive to get started.</string>
+    <string name="setup_import_existing">Select your game archive. Quit the game before importing a different installation.</string>
     <string name="setup_preserved">Existing saves and settings are kept. Completed files are reused if an import is interrupted.</string>
     <string name="setup_working_title">Preparing game files</string>
     <string name="setup_working_description">Keep this screen open. The game will start when the files are ready.</string>

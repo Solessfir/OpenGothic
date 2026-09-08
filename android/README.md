@@ -6,9 +6,13 @@ The normal APK contains no game files.
 
 ## Don't care - let me play
 
-Clone this branch, run `setup-android.bat` on Windows or `bash setup-android.sh` on Linux, and follow the prompts.
-The scripts install missing tools, find your game files, build the APK and help install it on your phone.
-Press Enter for the default choices. Keep your Gothic II installation available on the computer.
+1. Download `OpenGothic-arm64.apk` from [Releases](https://github.com/Solessfir/OpenGothic/releases) and install it on your phone.
+2. [Create `game-data.zip`](SETUP.md#package-game-files-only) from your own Gothic II installation and copy it to any folder on your phone.
+3. Open the app, tap **Choose game archive**, and select the archive.
+4. Wait for the import to finish and the game to start. You can then delete the ZIP from your phone.
+
+Use an archive made by the setup scripts, not an arbitrary zipped game folder. No USB is needed.
+To build the APK yourself instead, run `setup-android.bat` on Windows or `bash setup-android.sh` on Linux and follow the prompts.
 
 - [Setup options and installation without USB](SETUP.md)
 - [Touch controls](TOUCH.md)
