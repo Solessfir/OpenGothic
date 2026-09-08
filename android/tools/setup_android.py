@@ -200,13 +200,13 @@ def toolchain(args):
         if missing:
             raise RuntimeError("SDK packages still missing: " + ", ".join(missing))
     # An existing local.properties overrides ANDROID_HOME in Gradle. Never rewrite it silently.
-    properties = ROOT / "android/local.properties"
+    properties = ROOT / "build/android/OpenGothic/local.properties"
     if properties.exists():
         match = re.search(r"^sdk\.dir\s*=\s*(.+)$", properties.read_text(), re.MULTILINE)
         if match:
             configured = match[1].strip().replace("\\:", ":").replace("\\\\", "\\")
             if Path(configured).resolve() != sdk.resolve():
-                raise RuntimeError(f"android/local.properties selects a different SDK ({configured}). Use --sdk with that path or edit the file yourself.")
+                raise RuntimeError(f"{properties} selects a different SDK ({configured}). Use --sdk with that path or edit the file yourself.")
     return sdk, env
 
 
@@ -375,14 +375,21 @@ def build(sdk, env, bundled, build_type="release"):
     print(f"\nBuilding {build_type} ARM64 APK" + (" with native ThinLTO and Java shrinking." if build_type == "release" else " with debugger support."))
     if bundled:
         stage_chunks()
-    wrapper = ROOT / "android" / ("gradlew.bat" if WINDOWS else "gradlew")
+    cmake_bin = sdk / "cmake/3.22.1/bin"
+    build_root = ROOT / "build/android"
+    run([cmake_bin / ("cmake.exe" if WINDOWS else "cmake"), "-S", ROOT / "android",
+         "-B", build_root, "-G", "Ninja",
+         f"-DCMAKE_MAKE_PROGRAM={cmake_bin / ('ninja.exe' if WINDOWS else 'ninja')}",
+         f"-DTEMPEST_ANDROID_BUILD_TYPE={variant}"], env=env)
+    project = build_root / "OpenGothic"
+    wrapper = project / ("gradlew.bat" if WINDOWS else "gradlew")
     command = [wrapper] if WINDOWS else ["sh", wrapper]
-    command += ["-p", ROOT / "android", "--no-daemon", f"assemble{variant}", f"lint{variant}", "--max-workers=2",
+    command += ["-p", project, "--no-daemon", f"assemble{variant}", f"lint{variant}", "--max-workers=2",
                 "-Dorg.gradle.jvmargs=-Xmx3g -Dfile.encoding=UTF-8"]
     if bundled:
         command.append(f"-PprivateGameAssets={OUTPUT / 'assets'}")
     run(command, env=env)
-    outputs = ROOT / "android/app/build/outputs"
+    outputs = project / "app/build/outputs"
     apk = outputs / f"apk/{build_type}/app-{build_type}.apk"
     inspect_apk(apk, bundled)
     build_tools = sdk / "build-tools/35.0.0"

@@ -39,7 +39,7 @@ class SetupTests(unittest.TestCase):
         for build_type in ("release", "debug"):
             for bundled in (False, True):
                 with self.subTest(build_type=build_type, bundled=bundled):
-                    outputs = self.base / "android/app/build/outputs"
+                    outputs = self.base / "build/android/OpenGothic/app/build/outputs"
                     apk = outputs / f"apk/{build_type}/app-{build_type}.apk"
                     apk.parent.mkdir(parents=True, exist_ok=True)
                     with zipfile.ZipFile(apk, "w") as archive:
@@ -61,8 +61,9 @@ class SetupTests(unittest.TestCase):
                         args = {} if build_type == "release" else {"build_type": "debug"}
                         destination = setup.build(self.base / "sdk", {}, bundled, **args)
                     variant = build_type.capitalize()
-                    self.assertIn(f"assemble{variant}", calls.call_args_list[0].args[0])
-                    self.assertIn(f"lint{variant}", calls.call_args_list[0].args[0])
+                    self.assertIn(f"-DTEMPEST_ANDROID_BUILD_TYPE={variant}", calls.call_args_list[0].args[0])
+                    self.assertIn(f"assemble{variant}", calls.call_args_list[1].args[0])
+                    self.assertIn(f"lint{variant}", calls.call_args_list[1].args[0])
                     self.assertEqual(stage.call_count, int(bundled))
                     self.assertEqual("-debug-" in destination.name, build_type == "debug")
                     self.assertEqual("-with-data-" in destination.name, bundled)

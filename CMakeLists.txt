@@ -220,10 +220,8 @@ if(WIN32)
 endif()
 target_link_libraries(Gothic2Notr PRIVATE OpenGothic)
 if(ANDROID)
-  target_link_options(Gothic2Notr PRIVATE
-    "-Wl,-u,ANativeActivity_onCreate"
-    "-Wl,-u,android_main"
-    "-Wl,-z,max-page-size=16384")
+  include(lib/Tempest/Engine/cmake/TempestAndroid.cmake)
+  tempest_android_native_target(Gothic2Notr)
 endif()
 
 # editor

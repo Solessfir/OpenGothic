@@ -9,22 +9,23 @@ Review logs/traces before sharing: they may contain personal paths, device ident
 From the repository root:
 
 ```powershell
-./android/gradlew.bat -p android --no-daemon assembleDebug lintDebug
-./android/gradlew.bat -p android --no-daemon assembleRelease lintRelease
+cmake -S android -B build/android -G Ninja
+cmake --build build/android --target OpenGothic-apk
 cmake -S tests/controller -B build/controller-tests
 cmake --build build/controller-tests --config Release
 ctest --test-dir build/controller-tests -C Release --output-on-failure
 python -m unittest discover -s android/tools/tests -v
 ```
 
-Set `JAVA_HOME` to enable the host Java importer tests. On Linux use `bash android/gradlew` and `python3`.
+Set `JAVA_HOME` to enable the host Java importer tests. On Linux use `python3`.
+Add `-DTEMPEST_ANDROID_BUILD_TYPE=Debug` when configuring to check the debug variant.
 Separate suites cover [rendering](../../tests/rendering/README.md) and [worker completion](../../tests/workers/README.md).
 Compilation/tests do not replace device checks for controls, audio, lifecycle, imports and save/load.
 
 ## Inspect the APK
 
 ```powershell
-$apk = 'android/app/build/outputs/apk/release/app-release.apk'
+$apk = 'build/android/OpenGothic/app/build/outputs/apk/release/app-release.apk'
 & "$env:ANDROID_HOME/build-tools/35.0.0/apksigner.bat" verify --verbose $apk
 & "$env:ANDROID_HOME/build-tools/35.0.0/aapt2.exe" dump badging $apk
 & "$env:JAVA_HOME/bin/jar.exe" tf $apk
@@ -35,9 +36,9 @@ Expect only `arm64-v8a` native libraries. A normal asset-free build must not con
 including after a bundled build. Never upload game assets, signing keys or personal test data.
 
 Release must not report `application-debuggable`. Native compile/link commands under
-`android/app/.cxx/Release/` should use `-O3`, `-DNDEBUG` and `-flto=thin`.
-Keep `android/app/build/outputs/native-debug-symbols/release/native-debug-symbols.zip` and
-`android/app/build/outputs/mapping/release/mapping.txt` with each release for crash analysis.
+`build/android/OpenGothic/app/.cxx/Release/` should use `-O3`, `-DNDEBUG` and `-flto=thin`.
+Keep `build/android/OpenGothic/app/build/outputs/native-debug-symbols/release/native-debug-symbols.zip` and
+`build/android/OpenGothic/app/build/outputs/mapping/release/mapping.txt` with each release for crash analysis.
 The setup scripts copy them beside the APK. Debug symbols are stripped from the packaged native library.
 
 ## GPU timings
