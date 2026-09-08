@@ -469,16 +469,19 @@ Rect TouchInput::buttonRect(size_t index) const {
   // Hit testing and the optional debug overlay use exactly the same bounds.
   const int left = w()*LookBoundaryPercent/100;
   const int width = w()-left;
+  constexpr int menuHeightPercent = 23;
+  const int jumpTop = h()*(2*menuHeightPercent)/100;
+  const int attackTop = h()*64/100;
   if(index<2) {
-    const int top=h()*int(index)*20/100;
-    const int bottom=h()*int(index+1)*20/100;
+    const int top=h()*int(index)*menuHeightPercent/100;
+    const int bottom=h()*int(index+1)*menuHeightPercent/100;
     return Rect(left,top,width,bottom-top);
     }
   if(index==4)
-    return Rect(left,h()*70/100,width,h()-h()*70/100);
-  const int sideWidth=std::min(width,h()-h()*70/100);
-  return Rect(index==2 ? left-sideWidth : left,h()*40/100,
-              index==2 ? sideWidth : width,h()*70/100-h()*40/100);
+    return Rect(left,attackTop,width,h()-attackTop);
+  const int sideWidth=std::min(width,h()*30/100);
+  return Rect(index==2 ? left-sideWidth : left,jumpTop,
+              index==2 ? sideWidth : width,attackTop-jumpTop);
   }
 
 bool TouchInput::blockVisible() const {
@@ -488,8 +491,8 @@ bool TouchInput::blockVisible() const {
 Rect TouchInput::blockRect() const {
   // Keep Block beside Attack, with a shared top edge and enough room for a thumb.
   const auto attack = buttonRect(4);
-  const int width = std::min(attack.w,attack.h);
-  return Rect(attack.x-width,attack.y,width,attack.h);
+  const auto jump = buttonRect(2);
+  return Rect(jump.x,attack.y,jump.w,attack.h);
   }
 
 void TouchInput::drawBlock(Painter& p) const {

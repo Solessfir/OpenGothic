@@ -20,10 +20,10 @@ Set `Gamepad.ini` `[Controller] Enabled=0` to use touch while it is connected.
 
 | Screen height | Left | Right edge |
 | --- | --- | --- |
-| Top 20% | Camera | Back/menu |
-| 20-40% | Camera | Inventory |
-| 40-70% | Jump | Draw/sheathe |
-| Bottom 30% | Block when available | Use/attack or menu accept |
+| Top 23% | Camera | Back/menu |
+| 23-46% | Camera | Inventory |
+| 46-64% | Jump | Draw/sheathe |
+| Bottom 36% | Block when available | Use/attack or menu accept |
 
 The right column occupies the rightmost 16% of the screen. Jump sits directly above Block, beside Draw.
 In modern melee controls, **Block** sits directly left of Use/Attack. Outside melee combat, its space remains part of the camera area.
