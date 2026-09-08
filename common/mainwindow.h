@@ -99,6 +99,7 @@ class MainWindow : public Tempest::Window {
     void processMouse(Tempest::MouseEvent& event, bool enable);
     void tickMouse(uint64_t dt);
     void tickGamepad();
+    void applySystemWheelSelection(size_t selected);
     GamepadBindings::Context controllerContext() const;
     void controllerAction(const GamepadBindings::Event& event);
     void controllerUiKey(Tempest::Event::KeyType key, bool repeat, bool touchNavigation=false);

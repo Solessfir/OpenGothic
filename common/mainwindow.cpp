@@ -441,6 +441,14 @@ void MainWindow::tickMouse(uint64_t dt) {
   }
 
 
+void MainWindow::applySystemWheelSelection(size_t selected) {
+  if(selected>=3) return;
+  const auto section=selected==1 ? "DEBUG" : "GAME";
+  const auto setting=selected==0 ? "showFps" : (selected==1 ? "touchControls" : "centerPlayerBars");
+  Gothic::settingsSetI(section,setting,!Gothic::settingsGetI(section,setting));
+  Gothic::flushSettings();
+  }
+
 #if defined(__MOBILE_PLATFORM__)
 bool MainWindow::onTouchWheel(TouchInput::Command command, TouchInput::WheelPhase phase, Point pos) {
   using Phase=TouchInput::WheelPhase;
@@ -482,10 +490,7 @@ bool MainWindow::onTouchWheel(TouchInput::Command command, TouchInput::WheelPhas
     player.controllerEquip(selected);
     }
   else if(command==TouchInput::Command::Back) {
-    const auto section=selected==1 ? "DEBUG" : "GAME";
-    const auto setting=selected==0 ? "showFps" : (selected==1 ? "touchControls" : "centerPlayerBars");
-    Gothic::settingsSetI(section,setting,!Gothic::settingsGetI(section,setting));
-    Gothic::flushSettings();
+    applySystemWheelSelection(selected);
     }
   else {
     const auto action=selected==0 ? KeyCodec::Status : KeyCodec::Log;

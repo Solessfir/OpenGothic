@@ -13,7 +13,8 @@ Physical volume buttons remain Android media controls.
 | R3 | Toggle target lock with a weapon drawn |
 | L3 / LB+L3 | Sneak / walk toggle |
 | A / B / X / Y | Interact/accept / back/skip dialogue / jump / journal |
-| Menu / View | Pause / inventory |
+| Menu: tap / hold | Pause / System wheel |
+| View | Inventory |
 | D-pad Up: tap / hold | Draw/sheathe / equipment wheel |
 | D-pad Down | Map |
 | D-pad Left / Right | Health / mana potion |
@@ -53,6 +54,7 @@ Ordinary A cannot pick up items with a weapon drawn.
 - Inventory: A uses/equips/transfers one item; X drops; Y transfers a stack; LB/RB selects trade or chest panels.
 - Save/load menu: X requests deletion, A confirms, B cancels. Deletion has no undo.
 - Save-name entry uses the Android keyboard; press **Done**.
+- System wheel: hold Menu, select with the right stick, then release Menu to toggle FPS, the touch debug overlay or the HP/mana layout. B cancels; releasing without a selection also cancels.
 - Equipment wheel: hold D-pad Up, select with the right stick, release Up to equip/draw. Releasing the stick keeps your choice; press B to cancel. Opening and releasing without choosing also cancels. LB/RB changes pages.
 - Up to eight items fit on one page. Larger collections use six items plus two page arrows, matching touch. Hold the stick over an arrow to turn a page; center it before selecting again.
 - Only owned, usable weapons and assigned spells appear in the wheel. The world keeps running while it is open.
@@ -81,6 +83,7 @@ Updates preserve the file; missing entries inherit defaults. Restart after editi
 ```ini
 [Gameplay]
 Walk=RB+L3
+SystemWheel=Hold:Menu
 
 [UI]
 AdjustLeft=RightStickLeft

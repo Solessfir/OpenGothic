@@ -209,6 +209,35 @@ int main() {
     check(b.options.triggerRelease<b.options.triggerPress,"Invalid thresholds restore valid defaults");
     b.reset();
     auto menu=B::button("Menu");
+    for(auto context:{C::Gameplay,C::ClassicMelee,C::ModernMelee,C::Ranged}) {
+      B system;
+      check(system.update(menu,context,0).empty(),"Menu waits to distinguish tap from hold");
+      check(has(system.update(0,context,100),A::Pause),"Tapping Menu pauses");
+      system.update(menu,context,200);
+      check(!has(system.update(menu,context,599),A::SystemWheel),"System wheel respects the hold threshold");
+      events=system.update(menu,context,600);
+      check(has(events,A::SystemWheel) && !has(events,A::Pause),"Holding Menu opens System without pausing");
+      check(!has(system.update(0,context,601),A::Pause),"System wheel release never opens the pause menu");
+      system.reset();
+      system.update(lb,context,0);
+      check(has(system.update(lb|menu,context,1),A::QuickSave),"LB+Menu still saves immediately");
+      check(!has(system.update(lb|menu,context,500),A::SystemWheel),"Holding quicksave does not open System");
+      system.update(menu,context,501);
+      check(!has(system.update(menu,context,1000),A::SystemWheel),"Releasing LB does not turn quicksave into System");
+      }
+    B system;
+    system.update(menu,C::Gameplay,0);
+    check(!has(system.update(menu,C::UI,500),A::SystemWheel),"Opening another UI cancels the pending System hold");
+    system.reset();
+    check(has(system.update(menu,C::UI,0),A::Back),"Menu still backs out immediately inside menus");
+    std::istringstream noSystem("[Gameplay]\nSystemWheel=None\n");
+    check(system.load(noSystem).empty(),"System wheel can be unbound");
+    check(has(system.update(menu,C::Gameplay,0),A::Pause),"Unbinding System restores immediate Menu activation");
+    std::istringstream remapSystem("[Gameplay]\nSystemWheel=Hold:View\n");
+    check(system.load(remapSystem).empty(),"System wheel can be remapped");
+    auto view=B::button("View");
+    system.update(view,C::Gameplay,0);
+    check(has(system.update(view,C::Gameplay,400),A::SystemWheel),"Remapped System hold opens the wheel");
     b.update(lb,C::Gameplay,0);
     events=b.update(lb|menu,C::Gameplay,1);
     check(has(events,A::QuickSave) && !has(events,A::Pause),"Quicksave consumes Menu");

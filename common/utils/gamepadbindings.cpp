@@ -17,7 +17,7 @@ constexpr const char* actionNames[] = {
   "AttackRight", "Block", "Finish", "Accept", "Up", "Down", "Left", "Right",
   "PreviousPage", "NextPage", "Cancel", "LeftPanel", "RightPanel", "TakeStack", "Drop",
   "Spell3", "Spell4", "Spell5", "Spell6", "Spell7", "Spell8", "Spell9", "Spell10", "DeleteSave",
-  "AdjustLeft", "AdjustRight"
+  "AdjustLeft", "AdjustRight", "SystemWheel"
   };
 static_assert(std::size(actionNames)==size_t(Action::Count));
 std::string trim(std::string s) {
@@ -52,6 +52,7 @@ Jump=X
 Journal=Y,LB+DpadRight
 Inventory=View
 Pause=Menu
+SystemWheel=Hold:Menu
 Sneak=L3
 Walk=LB+L3
 LockTarget=R3

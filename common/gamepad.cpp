@@ -151,14 +151,16 @@ void MainWindow::controllerAction(const GamepadBindings::Event& event) {
       if(Gothic::settingsGetI("GAME","useQuickSaveKeys")) gothic.quickLoad();
       break;
     case PadAction::Inventory: player.clearInput(); inventory.open(*pl); break;
+    case PadAction::SystemWheel:
     case PadAction::EquipmentWheel: {
       player.clearInput();
-      inventory.openWheel(*pl);
+      inventory.openWheel(*pl,action==PadAction::SystemWheel ? InventoryMenu::WheelKind::System : InventoryMenu::WheelKind::Equipment);
       if(inventory.isWheelOpen()) {
         wheelHeldMask=event.mask;
         const auto& b=controllerBindings;
-        inventory.setWheelPageHint(b.hint(PadAction::PreviousPage,Context::EquipmentWheel)+" / "+
-                                  b.hint(PadAction::NextPage,Context::EquipmentWheel)+": pages");
+        if(action==PadAction::EquipmentWheel)
+          inventory.setWheelPageHint(b.hint(PadAction::PreviousPage,Context::EquipmentWheel)+" / "+
+                                    b.hint(PadAction::NextPage,Context::EquipmentWheel)+": pages");
         }
       break;
       }
@@ -322,9 +324,13 @@ void MainWindow::tickGamepad() {
       }
     if(inventory.isWheelOpen() && (controllerButtons&wheelHeldMask)!=wheelHeldMask) {
       const auto selected=inventory.wheelSelection();
+      const auto kind=inventory.currentWheelKind();
       inventory.close(); wheelHeldMask=0;
       player.clearInput(); controllerBindings.reset(controllerButtons);
-      if(selected!=size_t(-1)) player.controllerEquip(selected);
+      if(selected!=size_t(-1)) {
+        if(kind==InventoryMenu::WheelKind::System) applySystemWheelSelection(selected);
+        else if(kind==InventoryMenu::WheelKind::Equipment) player.controllerEquip(selected);
+        }
       return;
       }
     auto events=controllerBindings.update(controllerButtons,context,now);

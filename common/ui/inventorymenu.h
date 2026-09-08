@@ -61,6 +61,7 @@ class InventoryMenu : public Tempest::Widget {
     void  controllerAction(int action);
     void  openWheel(Npc& pl, WheelKind kind=WheelKind::Equipment);
     bool  isWheelOpen() const { return wheelActive; }
+    WheelKind currentWheelKind() const { return wheelKind; }
     void  wheelMove(float x, float y, uint64_t now);
     void  wheelPage(int direction);
     size_t wheelSelection() const;
