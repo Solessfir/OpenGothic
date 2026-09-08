@@ -1,0 +1,19 @@
+#version 450
+#extension GL_GOOGLE_include_directive : enable
+#include "scene.glsl"
+
+SceneDesc scene;
+#include "materials/camera_obstruction.glsl"
+
+layout(local_size_x=1) in;
+layout(binding=0,std430) buffer Output { vec2 values[]; };
+
+void main() {
+  uint id=gl_GlobalInvocationID.x;
+  scene.screenResInv=vec2(1);
+  scene.projectInv=mat4(1);
+  scene.cameraFadeNear2=45.0*45.0;
+  scene.cameraFadeFar2=180.0*180.0;
+  values[id]=vec2(cameraObstructionVisibility(vec2(0.5),float(id)),
+                  cameraObstructionThreshold(ivec2(id&3u,(id>>2u)&3u)));
+  }

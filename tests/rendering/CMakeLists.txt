@@ -11,6 +11,17 @@ add_test(NAME camera-obstruction-materials COMMAND camera-obstruction-tests)
 set(RENDERING_TEST_TEMPEST_LIBRARY "" CACHE FILEPATH "Optional built shared Tempest import library for GPU comparisons")
 if(RENDERING_TEST_TEMPEST_LIBRARY)
   find_program(GLSLANG_VALIDATOR glslangValidator HINTS "$ENV{VULKAN_SDK}/Bin" REQUIRED)
+  add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/camera-obstruction.spv"
+    COMMAND "${GLSLANG_VALIDATOR}" -V -I${CMAKE_CURRENT_SOURCE_DIR}/../../shader
+            "${CMAKE_CURRENT_SOURCE_DIR}/camera_obstruction.comp" -o "${CMAKE_CURRENT_BINARY_DIR}/camera-obstruction.spv"
+    DEPENDS camera_obstruction.comp ../../shader/scene.glsl ../../shader/materials/camera_obstruction.glsl
+    VERBATIM)
+  add_executable(camera-obstruction-gpu-tests camera_obstruction_gpu.cpp "${CMAKE_CURRENT_BINARY_DIR}/camera-obstruction.spv")
+  target_compile_features(camera-obstruction-gpu-tests PRIVATE cxx_std_20)
+  target_include_directories(camera-obstruction-gpu-tests PRIVATE ../../lib/Tempest/Engine/include)
+  target_link_libraries(camera-obstruction-gpu-tests PRIVATE "${RENDERING_TEST_TEMPEST_LIBRARY}")
+  add_test(NAME camera-obstruction-vulkan COMMAND camera-obstruction-gpu-tests)
+  set_tests_properties(camera-obstruction-vulkan PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}" TIMEOUT 60)
   add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/hdr-output.spv"
     COMMAND "${GLSLANG_VALIDATOR}" -V -I${CMAKE_CURRENT_SOURCE_DIR}/../../shader
             "${CMAKE_CURRENT_SOURCE_DIR}/hdr_output.comp" -o "${CMAKE_CURRENT_BINARY_DIR}/hdr-output.spv"
