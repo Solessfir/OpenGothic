@@ -17,7 +17,10 @@ constexpr const char* actionNames[] = {
   "AttackRight", "Block", "Finish", "Accept", "Up", "Down", "Left", "Right",
   "PreviousPage", "NextPage", "Cancel", "LeftPanel", "RightPanel", "TakeStack", "Drop",
   "Spell3", "Spell4", "Spell5", "Spell6", "Spell7", "Spell8", "Spell9", "Spell10", "DeleteSave",
-  "AdjustLeft", "AdjustRight", "SystemWheel"
+  "AdjustLeft", "AdjustRight", "SystemWheel",
+  "QuickUp", "QuickDown", "QuickLeft", "QuickRight",
+  "WheelUp", "WheelDown", "WheelLeft", "WheelRight",
+  "AssignUp", "AssignDown", "AssignLeft", "AssignRight"
   };
 static_assert(std::size(actionNames)==size_t(Action::Count));
 std::string trim(std::string s) {
@@ -37,9 +40,8 @@ std::string GamepadBindings::defaults() {
 ; Xbox names: L3/R3 mean pressing the sticks. None unbinds an action.
 ; Chords use +, alternatives use commas, and Hold: delays an action until held.
 [Controller]
-Version=1
 Enabled=1
-ExplorationModifier=LT
+ExplorationModifier=LB
 HoldMs=400
 RepeatDelayMs=350
 RepeatMs=150
@@ -54,13 +56,21 @@ Inventory=View
 Pause=Menu
 SystemWheel=Hold:Menu
 Sneak=L3
-Walk=LB+L3
+Walk=None
 LockTarget=R3
-DrawSheathe=DpadUp
-EquipmentWheel=Hold:DpadUp
-Map=DpadDown
-HealthPotion=DpadLeft
-ManaPotion=DpadRight
+DrawSheathe=RB
+EquipmentWheel=None
+Map=None
+HealthPotion=None
+ManaPotion=None
+QuickUp=DpadUp
+QuickDown=DpadDown
+QuickLeft=DpadLeft
+QuickRight=DpadRight
+WheelUp=Hold:DpadUp
+WheelDown=Hold:DpadDown
+WheelLeft=Hold:DpadLeft
+WheelRight=Hold:DpadRight
 CharacterStats=LB+DpadLeft
 FirstPerson=LB+DpadUp
 LookBehind=LB+DpadDown
@@ -71,12 +81,12 @@ QuickLoad=LB+View
 AttackForward=Y
 AttackLeft=X
 AttackRight=B
-Block=A
+Block=A,LT
 Finish=None
 
 [ModernMelee]
 AttackForward=RT
-Block=RB
+Block=LT
 Finish=None
 
 [Ranged]
@@ -100,6 +110,10 @@ Cancel=B
 SelectionStick=RightStick
 
 [Inventory]
+AssignUp=A+DpadUp
+AssignDown=A+DpadDown
+AssignLeft=A+DpadLeft
+AssignRight=A+DpadRight
 LeftPanel=LB
 RightPanel=RB
 TakeStack=Y
@@ -261,7 +275,6 @@ std::vector<std::string> GamepadBindings::load(std::istream& input) {
     return fallback;
     };
   options.enabled=number("Controller","Enabled",options.enabled?1.f:0.f,0,1)!=0;
-  number("Controller","Version",1,1,1);
   options.cameraAssist=number("Controller","CameraAssist",options.cameraAssist?1.f:0.f,0,1)!=0;
   options.holdMs=uint64_t(number("Controller","HoldMs",float(options.holdMs),150,2000));
   options.repeatDelayMs=uint64_t(number("Controller","RepeatDelayMs",float(options.repeatDelayMs),100,2000));
@@ -307,7 +320,7 @@ std::vector<std::string> GamepadBindings::load(std::istream& input) {
     }
   for(auto& [sec,v]:values) {
     std::string_view allowed;
-    if(sec=="Controller") allowed="|Version|Enabled|ExplorationModifier|HoldMs|RepeatDelayMs|RepeatMs|CameraAssist|";
+    if(sec=="Controller") allowed="|Enabled|ExplorationModifier|HoldMs|RepeatDelayMs|RepeatMs|CameraAssist|";
     if(sec=="Axes") allowed="|MovementStick|CameraStick|StickDeadZone|MovementDeadZone|TouchMovementDeadZone|MovementExponent|MovementTurnSpeed|TouchTurnSpeed|WalkThreshold|TouchWalkThreshold|WalkHysteresis|TriggerPressThreshold|TriggerReleaseThreshold|";
     if(sec=="TargetLock") allowed="|SwitchThreshold|SwitchResetThreshold|SwitchCooldownMs|CameraSmoothingSeconds|";
     if(sec=="Combat") allowed="|MeleeAssist|MeleeAssistMaxAngle|MeleeAssistMaxDistance|MeleeFocusRangeScale|";
@@ -425,7 +438,7 @@ std::vector<GamepadBindings::Event> GamepadBindings::update(uint32_t buttons,Con
         } else out.push_back({p.binding.action,Phase::Release,p.binding.mask});
       p={}; blocked|=buttons&bit;
       }
-    if(p.active && p.pending && now-p.started>=options.holdMs) {
+    if(p.active && p.pending && p.hold.mask!=0 && now-p.started>=options.holdMs) {
       p.binding=p.hold; p.pending=false;
       out.push_back({p.binding.action,Phase::Press,p.binding.mask});
       }
@@ -451,8 +464,21 @@ std::vector<GamepadBindings::Event> GamepadBindings::update(uint32_t buttons,Con
     if(ambiguous) { blocked|=bit; continue; }
     for(auto& b:available) if(b.mask==best->mask && b.trigger==bit && b.hold) hold=&b;
     p.binding=*best; p.started=now; p.repeat=now+options.repeatDelayMs; p.active=true;
-    p.pending=hold!=nullptr;
+    // Inventory actions used as assignment modifiers execute on release, unless a chord consumes them.
+    const bool assignmentModifier=context==Context::Inventory &&
+      std::any_of(available.begin(),available.end(),[&](const Binding& b) {
+        return b.action>=Action::AssignUp && b.action<=Action::AssignRight && (b.mask&bit)!=0 && b.trigger!=bit;
+        });
+    p.pending=hold!=nullptr || assignmentModifier;
     if(hold) p.hold=*hold;
+    // A chord consumes a pending modifier tap, including if the modifier is released first.
+    for(size_t m=0;m<presses.size();++m) {
+      auto& modifier=presses[m];
+      if(m!=i && modifier.active && modifier.pending && ((best->mask^bit)&(1u<<m))!=0) {
+        modifier={};
+        blocked|=1u<<m;
+        }
+      }
     if(!p.pending) out.push_back({p.binding.action,Phase::Press,p.binding.mask});
     }
   previous=buttons;

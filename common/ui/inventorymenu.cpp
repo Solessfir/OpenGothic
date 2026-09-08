@@ -3,6 +3,7 @@
 
 #include <Tempest/Painter>
 #include <Tempest/SoundEffect>
+#include <Tempest/Application>
 
 #include <algorithm>
 #include <limits>
@@ -689,6 +690,11 @@ void InventoryMenu::drawSlot(Painter &p, DrawPass pass, const Inventory::Iterato
     } else {
     auto fnt = Resources::font(scale);
 
+    if(it->clsId()==assignmentItem && assignmentDirection>=0 && Application::tickCount()<assignmentUntil) {
+      const auto label=QuickSlots::directions[assignmentDirection];
+      fnt.drawText(p,x,y+fnt.pixelSize(),slotSize().w,fnt.pixelSize(),label,AlignHCenter);
+      }
+
     if(it.count()>1) {
       string_frm vint(int(it.count()));
       auto sz = fnt.textSize(vint);
@@ -804,6 +810,18 @@ void InventoryMenu::draw(Tempest::Encoder<CommandBuffer>& cmd) {
 void InventoryMenu::controllerAction(int action) {
   using A=GamepadBindings::Action;
   if(player==nullptr || state==State::Closed || state==State::LockPicking) return;
+  if(A(action)>=A::AssignUp && A(action)<=A::AssignRight) {
+    if(!activePage().is(&player->inventory())) return;
+    const auto item=activePage().get(activePageSel().sel);
+    const size_t direction=size_t(action-int(A::AssignUp));
+    if(item.isValid() && QuickSlots::assign(*player,direction,*item)) {
+      assignmentItem=item->clsId();
+      assignmentDirection=int(direction);
+      assignmentUntil=Application::tickCount()+1500;
+      update();
+      }
+    return;
+    }
   switch(A(action)) {
     case A::Back: close(); return;
     case A::Up: moveUp(); break;
@@ -835,6 +853,7 @@ void InventoryMenu::controllerAction(int action) {
   }
 
 void InventoryMenu::openWheel(Npc& pl, WheelKind kind) {
+  wheelFilter=QuickSlots::Kind::Empty;
   const bool utilityMenu=kind!=WheelKind::Equipment;
   if(pl.isDown() || pl.isMonster() || pl.interactive()!=nullptr) return;
   if(!utilityMenu && (!pl.canSwitchWeapon() || !pl.isAiQueueEmpty())) return;
@@ -853,6 +872,21 @@ void InventoryMenu::openWheel(Npc& pl, WheelKind kind) {
   wheelHoverPage=0;
   wheelPageArmed=true;
   wheelPageHint.clear();
+  update();
+  }
+
+void InventoryMenu::openQuickWheel(Npc& pl,size_t slot) {
+  const auto category=QuickSlots::kind(slot);
+  if(category==QuickSlots::Kind::Empty) return;
+  openWheel(pl);
+  if(!wheelActive) return;
+  wheelFilter=category;
+  wheelItems.clear();
+  for(auto it=pl.inventory().iterator(Inventory::T_Inventory);it.isValid();++it) {
+    if(QuickSlots::kind(*it)!=category || !it->checkCond(pl)) continue;
+    if(std::find(wheelItems.begin(),wheelItems.end(),it->clsId())!=wheelItems.end()) continue;
+    wheelItems.push_back(it->clsId());
+    }
   update();
   }
 
@@ -1038,11 +1072,12 @@ void InventoryMenu::drawWheel(Painter& p,DrawPass pass) {
     font.drawText(p,int(cx)-centerWidth/2,int(cy)+line/2,centerWidth,line,centerLabel,AlignHCenter);
     auto item=utilityMenu ? nullptr : player->getItem(wheelSelection());
     const auto pages=std::max<size_t>(1,(wheelItems.size()+wheelPageSize()-1)/wheelPageSize());
-    string_frm pagedTitle("Equipment ",wheelPageId+1," / ",pages);
+    const auto categoryTitle=wheelFilter==QuickSlots::Kind::Empty ? std::string_view("Equipment") : QuickSlots::title(wheelFilter);
+    string_frm pagedTitle(categoryTitle," ",wheelPageId+1," / ",pages);
     const std::string_view title=wheelKind==WheelKind::System ? "System" :
-                                 (wheelKind==WheelKind::Character ? "Character" : (pages>1 ? pagedTitle.c_str() : "Equipment"));
+                                 (wheelKind==WheelKind::Character ? "Character" : (pages>1 ? std::string_view(pagedTitle.c_str()) : categoryTitle));
     font.drawText(p,footerLeft,int(cy-layout.outer)-pad,footerWidth,line,title,AlignHCenter);
-    const std::string_view name=item ? item->description() : (wheelItems.empty() && !utilityMenu ? "No equipment" : "");
+    const std::string_view name=item ? item->description() : (wheelItems.empty() && !utilityMenu ? "No usable items" : "");
     string_frm itemLabel(name,item && item->isEquipped() ? " (Equipped)" : "");
     font.drawText(p,footerLeft+pad,footerTop+line,footerWidth-2*pad,2*line,itemLabel.c_str(),AlignHCenter);
     if(pages>1) {

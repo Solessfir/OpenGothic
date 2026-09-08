@@ -14,13 +14,12 @@ Physical volume buttons remain Android media controls.
 | Left stick | Up moves forward, down steps backward; 8:30/3:30 turns in place, upper diagonals move forward while steering; light tilt walks, firm tilt runs |
 | Right stick | Camera; while locked, vertical look and horizontal target switching |
 | R3 | Toggle target lock with a weapon drawn |
-| L3 / LB+L3 | Sneak / walk toggle |
+| L3 | Sneak |
 | A / B / X / Y | Interact/accept / back/skip dialogue / jump / journal |
 | Menu: tap / hold | Pause / System wheel |
 | View | Inventory |
-| D-pad Up: tap / hold | Draw/sheathe / equipment wheel |
-| D-pad Down | Map |
-| D-pad Left / Right | Health / mana potion |
+| RB | Draw/sheathe the current weapon |
+| D-pad direction: tap / hold | Use the assigned quick slot / open its category wheel |
 | LB+D-pad Up | First person |
 | LB+D-pad Down, hold | Look behind |
 | LB+D-pad Left / Right | Character stats / journal |
@@ -36,8 +35,8 @@ The target name gains `(locked)`. Sheathing, a downed target or leaving focus ra
 
 | Context | Controls |
 | --- | --- |
-| Classic melee | Y forward attack; X left; B right; A timed parry |
-| Gothic II melee | RT attack; RB timed parry |
+| Classic melee | Y forward attack; X left; B right; A or LT timed parry |
+| Gothic II melee | RT attack; LT timed parry |
 | Bow/crossbow | Tap RT for one shot after aiming; hold for repeat fire |
 | Spell | RT cast; hold for spells that invest mana |
 | Finisher | Hold Y (classic) or RT (Gothic II) over an unconscious NPC in finishing range |
@@ -46,23 +45,33 @@ A finisher requires a drawn one- or two-handed melee weapon. Release early to ca
 Against a standing target, attacks remain immediate. With no melee target, tap to swing on release; a long hold does nothing.
 Parry buttons request one attempt per press, not continuous protection.
 
-Hold LT to restore exploration face buttons during classic combat.
-LT+A sheathes, then interacts with the same eligible target; without a target it only sheathes.
+Hold LB to restore exploration face buttons during classic combat.
+LB+A sheathes, then interacts with the same eligible target; without a target it only sheathes.
 Ordinary A cannot pick up items with a weapon drawn.
 
 ## Menus, inventory and wheels
 
 - A accepts; B backs out one level or skips a dialogue line.
 - Left stick/D-pad navigates items; left/right adjusts the selected slider or setting. Right stick left/right also adjusts values, but does nothing on other menu entries. Hold a direction to repeat.
-- Inventory: A uses/equips/transfers one item; X drops; Y transfers a stack; LB/RB selects trade or chest panels.
+- Inventory: tap A to use/equip/transfer one item on release; hold A and press a D-pad direction to assign the highlighted owned item without using it. X drops; Y transfers a stack; LB/RB selects trade or chest panels.
 - Save/load menu: X requests deletion, A confirms, B cancels. Deletion has no undo.
 - Save-name entry uses the Android keyboard; press **Done**.
 - System wheel: hold Menu, select with the right stick, then release Menu to toggle FPS, the touch debug overlay or the HP/mana layout. B cancels; releasing without a selection also cancels.
-- Equipment wheel: hold D-pad Up, select with the right stick, release Up to equip/draw. Releasing the stick keeps your choice; press B to cancel. Opening and releasing without choosing also cancels. LB/RB changes pages.
+- Quick-slot wheel: hold an assigned D-pad direction, select with the right stick, then release the direction to replace that slot's item and use/draw it. Releasing the stick keeps your choice; B cancels. Opening and releasing without choosing also cancels. LB/RB changes pages.
 - Up to eight items fit on one page. Larger collections use six items plus two page arrows, matching touch. Hold the stick over an arrow to turn a page; center it before selecting again.
-- Only owned, usable weapons and assigned spells appear in the wheel. The world keeps running while it is open.
+- The wheel uses the slot's category: weapons, magic, potions, food, or maps/documents. Only owned items meeting their use/equip conditions appear. The world keeps running while it is open.
 - Equipped items have a gold rim. Selecting a sheathed weapon draws it; selecting the weapon already in hand leaves it drawn.
 - After closing menus or reconnecting, release buttons and center sticks before moving.
+
+### Quick slots
+
+All four directions start empty. In inventory, hold A first, then press the direction to assign; a brief direction label confirms it. D-pad alone still navigates and repeats when held.
+Weapons draw on use. Magic is readied without casting; an unassigned spell takes a free numbered spell slot, or replaces slot 3 if all eight are occupied. Teleport and other charging spells still require holding Attack to cast.
+Maps keep their individual identities, so different directions can open different owned maps.
+When an assigned standard health/mana potion runs out, the slot switches to an available standard potion of the same type, starting with the smallest tier. Permanent-stat potions and unknown/modded potion families are never substituted automatically.
+Food, potions and documents use their normal scripts; sheathe first. Quick potions respect `usePotionKeys`.
+Assignments are stored by item script name in Gothic.ini's `[QuickSlots]` section, independently for each app and shared across that app's saves. Loading an older save does not restore old assignments or create missing items. Clear a direction's value to unassign it.
+Touch remains separate: two-finger left/right swipes use health/mana potions, and holding Draw opens the equipment wheel.
 
 Assign a selected spell/rune from personal inventory:
 
@@ -85,7 +94,7 @@ Updates preserve the file; missing entries inherit defaults. Restart after editi
 
 ```ini
 [Gameplay]
-Walk=RB+L3
+DrawSheathe=RB
 SystemWheel=Hold:Menu
 
 [UI]
@@ -101,7 +110,8 @@ CameraAssist=0
 - Combat sections override Gameplay; Inventory overrides UI. Removing an override exposes its underlying binding.
 - Menus/wheels do not inherit gameplay shortcuts. The most specific chord wins; conflicting assignments are reported in `log.txt`.
 - `[Controller] Enabled=0` disables gamepad handling and restores touch controls.
-- `[Controller] HoldMs=400` sets the default hold threshold. `ExplorationModifier=LT` selects the exploration modifier.
+- `[Controller] HoldMs=400` sets the default hold threshold. `ExplorationModifier=LB` selects the exploration modifier.
+- `QuickUp/Down/Left/Right`, `WheelUp/Down/Left/Right`, and inventory `AssignUp/Down/Left/Right` can be rebound independently.
 
 See [complete defaults and supported option names](../common/utils/gamepadbindings.cpp).
 Desktop keyboard/mouse bindings are separate; this port does not add a Windows gamepad backend.
@@ -126,7 +136,7 @@ These entries are in `Gamepad.ini`, not `Gothic.ini`:
 
 Mouse speed controls the camera, not movement. Forward movement still uses Gothic's walk/run animations.
 Left-stick turning scales with stick deflection, up to `MovementTurnSpeed` at full input.
-Locked sidesteps avoid automatic low-stick walking; explicit walk and sneak remain available.
+Locked sidesteps avoid automatic low-stick walking. Walking uses stick pressure; there is no default walk-toggle shortcut.
 
 Automatic focus range uses `PERC_DIST_MONSTER_ACTIVE_MAX` (15 metres in standard Gothic II), falling back to doubled focus range if absent/invalid.
 It affects melee names/health and locking, not attack reach, item pickup or enemy AI.

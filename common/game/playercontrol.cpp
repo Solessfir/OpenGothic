@@ -1023,8 +1023,17 @@ void PlayerControl::implMove(uint64_t dt) {
           if(pl.currentMeleeWeapon()==item) wctrl[WeaponMele]=true;
           if(pl.currentRangedWeapon()==item) wctrl[WeaponBow]=true;
           }
-        else for(uint8_t i=0;i<8;++i)
-          if(pl.inventory().currentSpell(i)==item) wctrl[Weapon3+i]=true;
+        else if(item->isSpellOrRune()) {
+          // Quick slots may select a scroll/rune that has no numbered spell slot yet.
+          if(!item->isEquipped()) {
+            uint8_t slot=3;
+            for(uint8_t i=0;i<8;++i)
+              if(pl.inventory().currentSpell(i)==nullptr) { slot=uint8_t(3+i); break; }
+            pl.useItem(id,slot,false);
+            }
+          for(uint8_t i=0;i<8;++i)
+            if(pl.inventory().currentSpell(i)==item) wctrl[Weapon3+i]=true;
+          }
         }
       }
     if(wctrl[WeaponClose]) {

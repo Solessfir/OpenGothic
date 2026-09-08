@@ -6,6 +6,7 @@
 
 #include "graphics/inventoryrenderer.h"
 #include "game/inventory.h"
+#include "game/quickslots.h"
 
 class Npc;
 class Item;
@@ -60,6 +61,7 @@ class InventoryMenu : public Tempest::Widget {
     void  paintNumOverlay(Tempest::PaintEvent& e);
     void  controllerAction(int action);
     void  openWheel(Npc& pl, WheelKind kind=WheelKind::Equipment);
+    void  openQuickWheel(Npc& pl, size_t slot);
     bool  isWheelOpen() const { return wheelActive; }
     WheelKind currentWheelKind() const { return wheelKind; }
     void  wheelMove(float x, float y, uint64_t now);
@@ -126,6 +128,10 @@ class InventoryMenu : public Tempest::Widget {
     int                       wheelSelected = -1;
     std::vector<size_t>        wheelItems;
     std::string               wheelPageHint;
+    QuickSlots::Kind          wheelFilter = QuickSlots::Kind::Empty;
+    size_t                    assignmentItem = size_t(-1);
+    int                       assignmentDirection = -1;
+    uint64_t                  assignmentUntil = 0;
     void                      drawWheel(Tempest::Painter& p, DrawPass pass);
     size_t                    wheelPageSize() const;
     void                      selectWheelSector(int selected, uint64_t now);

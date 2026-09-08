@@ -20,13 +20,16 @@ class GamepadBindings final {
       PreviousPage, NextPage, Cancel, LeftPanel, RightPanel, TakeStack, Drop,
       Spell3, Spell4, Spell5, Spell6, Spell7, Spell8, Spell9, Spell10,
       DeleteSave, AdjustLeft, AdjustRight, SystemWheel,
+      QuickUp, QuickDown, QuickLeft, QuickRight,
+      WheelUp, WheelDown, WheelLeft, WheelRight,
+      AssignUp, AssignDown, AssignLeft, AssignRight,
       Count
       };
     enum class Phase { Press, Release, Repeat, Cancel };
     struct Event { Action action; Phase phase; uint32_t mask; };
     struct Options {
       bool enabled = true;
-      uint32_t explorationModifier = 1u<<14;
+      uint32_t explorationModifier = 1u<<4;
       float deadZone = 0.20f;
       float movementDeadZone = 0.28f;
       float touchMovementDeadZone = 0.15f;

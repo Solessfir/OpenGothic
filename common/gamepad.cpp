@@ -3,6 +3,8 @@
 #include "utils/cameramath.h"
 #include "world/objects/npc.h"
 #include "world/objects/interactive.h"
+#include "world/objects/item.h"
+#include "game/quickslots.h"
 #include <Tempest/Application>
 #include <cmath>
 
@@ -10,6 +12,23 @@ using namespace Tempest;
 using PadAction=GamepadBindings::Action;
 using Context=GamepadBindings::Context;
 using Phase=GamepadBindings::Phase;
+
+void MainWindow::controllerQuickSlot(size_t slot) {
+  auto pl=Gothic::inst().player();
+  if(pl==nullptr || pl->isDown() || pl->isMonster() || pl->isAiBusy() || pl->interactive()!=nullptr ||
+     pl->isSwim() || pl->isDive()) return;
+  auto item=QuickSlots::resolve(*pl,slot);
+  if(item==nullptr || !item->checkCond(*pl)) return;
+  const auto category=QuickSlots::kind(*item);
+  if(category==QuickSlots::Kind::Weapons || category==QuickSlots::Kind::Magic) {
+    player.controllerEquip(item->clsId());
+    return;
+    }
+  // Consumables and documents retain their normal scripted use restrictions.
+  if(pl->weaponState()!=WeaponState::NoWeapon || !pl->canSwitchWeapon()) return;
+  if(category==QuickSlots::Kind::Potions && !Gothic::settingsGetI("GAME","usePotionKeys")) return;
+  pl->useItem(item->clsId());
+  }
 
 Context MainWindow::controllerContext() const {
   if(video.isActive() || rootMenu.isActive() || chapter.isActive() || document.isActive() || console.isActive()) return Context::UI;
@@ -124,6 +143,23 @@ void MainWindow::controllerAction(const GamepadBindings::Event& event) {
     return;
     }
   if(repeat) return;
+  if(action>=PadAction::QuickUp && action<=PadAction::QuickRight) {
+    controllerQuickSlot(size_t(action)-size_t(PadAction::QuickUp));
+    return;
+    }
+  if(action>=PadAction::WheelUp && action<=PadAction::WheelRight) {
+    const auto slot=size_t(action)-size_t(PadAction::WheelUp);
+    if(QuickSlots::kind(slot)==QuickSlots::Kind::Empty) return;
+    player.clearInput();
+    inventory.openQuickWheel(*pl,slot);
+    if(inventory.isWheelOpen()) {
+      wheelQuickSlot=slot;
+      wheelHeldMask=event.mask;
+      inventory.setWheelPageHint(controllerBindings.hint(PadAction::PreviousPage,Context::EquipmentWheel)+" / "+
+                                controllerBindings.hint(PadAction::NextPage,Context::EquipmentWheel)+": pages");
+      }
+    return;
+    }
   switch(action) {
     case PadAction::Interact: player.controllerInteract(controllerExploration); break;
     case PadAction::Back:
@@ -156,6 +192,7 @@ void MainWindow::controllerAction(const GamepadBindings::Event& event) {
       player.clearInput();
       inventory.openWheel(*pl,action==PadAction::SystemWheel ? InventoryMenu::WheelKind::System : InventoryMenu::WheelKind::Equipment);
       if(inventory.isWheelOpen()) {
+        wheelQuickSlot=size_t(-1);
         wheelHeldMask=event.mask;
         const auto& b=controllerBindings;
         if(action==PadAction::EquipmentWheel)
@@ -325,11 +362,20 @@ void MainWindow::tickGamepad() {
     if(inventory.isWheelOpen() && (controllerButtons&wheelHeldMask)!=wheelHeldMask) {
       const auto selected=inventory.wheelSelection();
       const auto kind=inventory.currentWheelKind();
+      const auto quickSlot=wheelQuickSlot;
+      wheelQuickSlot=size_t(-1);
       inventory.close(); wheelHeldMask=0;
       player.clearInput(); controllerBindings.reset(controllerButtons);
       if(selected!=size_t(-1)) {
         if(kind==InventoryMenu::WheelKind::System) applySystemWheelSelection(selected);
-        else if(kind==InventoryMenu::WheelKind::Equipment) player.controllerEquip(selected);
+        else if(kind==InventoryMenu::WheelKind::Equipment) {
+          if(quickSlot<4) {
+            auto pl=Gothic::inst().player();
+            auto item=pl!=nullptr ? pl->getItem(selected) : nullptr;
+            if(item!=nullptr && QuickSlots::assign(*pl,quickSlot,*item)) controllerQuickSlot(quickSlot);
+            }
+          else player.controllerEquip(selected);
+          }
         }
       return;
       }
