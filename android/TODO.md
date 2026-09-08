@@ -17,7 +17,8 @@
 - Consider LT for draw/sheathe, but first resolve conflicts with its existing exploration modifier and inventory spell-slot chords.
 - Revisit two-finger potion swipes and D-pad actions together after the three game editions are set up; the current proposal keeps health/mana swipes independent of assignments.
 
-## Upstream Android PRs
+## Small upstream OpenGothic build PR
 
-- Submit the Android backend, CMake packaging helper and minimal example together as one Tempest PR.
-- Follow with the OpenGothic build integration after Tempest review, without unrelated gameplay or UI changes.
+- After the Tempest Android changes are accepted upstream, extract a small PR for Try/OpenGothic containing only the Android build setup and integration with Tempest's CMake packaging helper.
+- This integration already works in this fork; the task is to prepare it for upstream review, not merge the entire Android branch.
+- Keep touch/gamepad controls, the game-data importer, UI and gameplay changes separate. The build-only PR would not provide this fork's full Android experience.
