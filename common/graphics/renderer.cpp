@@ -381,8 +381,8 @@ void Renderer::prepareUniforms(WorldView& wview, const Camera& camera) {
   if(player!=nullptr && !camera.isFirstPerson() && !camera.isCutscene() && !camera.isFree()) {
     auto center = player->centerPosition();
     camera.view().project(center);
-    // Clear the whole body, with a soft edge outside the central 90 cm radius.
-    fadeTarget = Vec4(center.x, center.y, center.z, 120.f);
+    // Keep a 90 cm clear core, followed by a 90 cm soft edge.
+    fadeTarget = Vec4(center.x, center.y, center.z, 180.f);
     }
   wview.setCameraObstructionFade(settings.pathTraceEnabled ? 0.f : settings.cameraObstructionDistance, fadeTarget);
   }

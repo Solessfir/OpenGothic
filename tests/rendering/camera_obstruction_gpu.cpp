@@ -43,7 +43,7 @@ int main() {
       if(i<16) thresholds[i]=values[i][1];
       if(i>=16 && values[i][1]!=thresholds[i%16])
         throw std::runtime_error("Dither pattern is not periodic");
-      const double edge=(105.0*105.0-90.0*90.0)/(120.0*120.0-90.0*90.0);
+      const double edge=(135.0*135.0-90.0*90.0)/(180.0*180.0-90.0*90.0);
       const std::array<double,12> corridor={0,0,0,0,1,edge*edge*(3-2*edge),0.5,1,1,1,1,1};
       for(size_t c=2;c<4;++c)
         if(!std::isfinite(values[i][c]) || std::abs(values[i][c]-corridor[i%12])>0.00002)

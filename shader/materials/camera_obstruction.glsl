@@ -14,9 +14,9 @@ float cameraObstructionVisibilityAt(vec3 viewPos) {
     if(t>0.0 && t<1.0) {
       // Every layer in the corridor shares a fully clear core, not cumulative partial opacity.
       vec3 offset = viewPos-target*t;
-      float radial = smoothstep(radius*radius*0.5625,radius*radius,dot(offset,offset));
+      float radial = smoothstep(radius*radius*0.25,radius*radius,dot(offset,offset));
       // Close the corridor on the camera side of the player, never beyond them.
-      float endFade = 1.0-smoothstep(0.0,20.0,(1.0-t)*sqrt(length2));
+      float endFade = 1.0-smoothstep(0.0,60.0,(1.0-t)*sqrt(length2));
       visibility = min(visibility,max(radial,endFade));
       }
     }
