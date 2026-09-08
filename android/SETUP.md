@@ -16,6 +16,11 @@ Omit `--game` to search common installation folders. No Android SDK, NDK or Java
 The script creates `build/android-setup/game-data.zip`. Copy it to your phone, select it in the app,
 and delete the transferred ZIP after the game starts.
 
+Select the installation root containing `Data`, `_work` and `System`, not just the `Data` folder.
+The script packages `Data`, `_work`, and `System/GothicGame.ini` when present, plus an index the importer requires.
+Windows executables and DLLs are excluded. Saves and selected preferences are optional.
+`game-data.zip` is only the output filename; renaming it is fine, but manually creating a ZIP is not supported.
+
 ## Build and install from source
 
 Clone this Android branch with Git, then run from the repository root:
