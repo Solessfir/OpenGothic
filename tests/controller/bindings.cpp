@@ -25,6 +25,15 @@ int main() {
     check(overlayHint(b,A::SystemWheel,C::Gameplay)=="Hold:Menu","Overlay keeps hold actions distinct from taps");
     check(overlayHint(b,A::AssignLeft,C::Inventory)=="A+DpadLeft","Inventory overlay includes assignment chords");
     check(overlayHint(b,A::AdjustLeft,C::UI)=="RightStickLeft","Menu overlay includes slider controls");
+    for(const auto& hint:b.hints(C::Inventory)) {
+      if(hint.action==A::AssignLeft) check(hint.group==B::HintGroup::QuickSlots,"Assignments appear in the quick-slot group");
+      if(hint.action==A::Spell3) check(hint.group==B::HintGroup::Spells,"Spell bindings have a separate group");
+      if(hint.action==A::Up) check(hint.group==B::HintGroup::Movement,"Menu navigation stays together");
+      }
+    for(const auto& hint:b.hints(C::ModernMelee)) {
+      if(hint.action==A::AttackForward) check(hint.group==B::HintGroup::Actions,"Combat actions stay together");
+      if(hint.action==A::QuickSave) check(hint.group==B::HintGroup::Shortcuts,"Quicksave belongs to shortcuts");
+      }
     B remappedOverlay;
     std::istringstream overlayConfig("[ModernMelee]\nAttackForward=RB\nBlock=None\n");
     check(remappedOverlay.load(overlayConfig).empty(),"Overlay test remapping loads");

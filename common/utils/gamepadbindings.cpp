@@ -385,8 +385,23 @@ std::vector<GamepadBindings::Hint> GamepadBindings::hints(Context context) const
   std::vector<Hint> result;
   for(const auto& b:bindings(context)) {
     auto found=std::find_if(result.begin(),result.end(),[&](const Hint& hint){ return hint.action==b.action; });
-    if(found==result.end())
-      result.push_back({b.action,b.text,actionLabels[size_t(b.action)]});
+    if(found==result.end()) {
+      auto group=HintGroup::Actions;
+      const auto action=b.action;
+      if(action>=Action::QuickUp && action<=Action::AssignRight)
+        group=HintGroup::QuickSlots;
+      else if(action>=Action::Spell3 && action<=Action::Spell10)
+        group=HintGroup::Spells;
+      else if((action>=Action::Up && action<=Action::Right) || action==Action::Jump || action==Action::Walk ||
+              action==Action::Sneak || action==Action::FirstPerson || action==Action::LookBehind ||
+              action==Action::AdjustLeft || action==Action::AdjustRight)
+        group=HintGroup::Movement;
+      else if(action==Action::Journal || action==Action::Inventory || action==Action::Pause || action==Action::SystemWheel ||
+              action==Action::QuickSave || action==Action::QuickLoad || action==Action::CharacterStats ||
+              action==Action::Map || action==Action::HealthPotion || action==Action::ManaPotion)
+        group=HintGroup::Shortcuts;
+      result.push_back({action,b.text,actionLabels[size_t(action)],group});
+      }
     else
       found->keys+=" / "+b.text;
     }

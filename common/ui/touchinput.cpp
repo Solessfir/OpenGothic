@@ -43,76 +43,86 @@ void TouchInput::paintEvent(Tempest::PaintEvent& e) {
   Painter p(e);
   if(blockVisible())
     drawBlock(p);
-  const auto gold = Color(0.843f,0.761f,0.631f,0.75f);
+  const auto gold = Color(0.843f,0.761f,0.631f,0.28f);
   const auto active = Color(1.f,0.85f,0.4f,0.95f);
-  const float scale = std::min(Gothic::interfaceScale(this),float(h())/480.f);
+  const float scale = std::min(Gothic::interfaceScale(this),float(h())/720.f);
   const auto& font = Resources::font(scale);
+  const auto& detail = Resources::font(scale*0.82f);
   const int pad = std::max(8,int(12*scale));
   const int line = font.pixelSize();
   const int moveEnd = w()/2;
   const int lookEnd = (w()*LookBoundaryPercent)/100;
   const auto actionRect = buttonRect(4);
-  p.setPen(Pen(gold,Painter::Alpha,2.f));
+  p.setPen(Pen(gold,Painter::Alpha,std::max(1.f,scale)));
   p.setBrush(gold);
-  p.drawLine(moveEnd,0,moveEnd,h());
+  const int hudTop=h()-int(64.f*scale);
+  p.drawLine(moveEnd,0,moveEnd,hudTop);
   p.drawLine(lookEnd,0,lookEnd,actionRect.y);
   p.drawLine(actionRect.x,actionRect.y,lookEnd,actionRect.y);
-  p.drawLine(actionRect.x,actionRect.y,actionRect.x,h());
+  p.drawLine(actionRect.x,actionRect.y,actionRect.x,hudTop);
 
   auto label = [&](int x,int y,int width,std::string_view text) {
-    font.drawText(p,x,y,width,3*line,text,AlignHCenter);
-    };
-  auto legend = [&](int x,int y,int width,std::string_view text) {
-    if(x==pad) {
-      x += debugLeftInset;
-      width = std::max(1,width-debugLeftInset);
-      }
-    font.drawText(p,x,y,width,2*line,text,AlignLeft);
+    font.drawTextShadow(p,x,y,width,2*line,text,AlignHCenter);
     };
   const int leftWidth=moveEnd-2*pad, rightX=moveEnd+pad, rightWidth=lookEnd-moveEnd-2*pad;
-  legend(pad,2*line,leftWidth,uiActive ? "MENU NAVIGATION" : "MOVE / TURN");
-  legend(rightX,2*line,rightWidth,uiActive ? (menuAdjustment ? "ADJUST VALUE" : "MENU NAVIGATION") : "CAMERA DRAG");
-  legend(pad,4*line,leftWidth,!touchEnabled ? "Touch debug: gamepad active" :
-         (uiActive ? "Touch debug: menu" : (classicCombat ? "Touch debug: Gothic 1" : "Touch debug: Gothic 2")));
+  const int baseline=pad+line;
+  font.drawTextShadow(p,pad+debugLeftInset,baseline,std::max(1,leftWidth-debugLeftInset),line,uiActive ? "NAVIGATE" : "MOVE / TURN");
+  font.drawTextShadow(p,rightX,baseline,rightWidth,line,uiActive ? (menuAdjustment ? "ADJUST VALUE" : "NAVIGATE") : "LOOK");
+  detail.drawTextShadow(p,pad,baseline+2*line,leftWidth,line,
+                        uiActive ? "Touch controls / Menus" : (classicCombat ? "Touch controls / Classic combat" : "Touch controls / Modern combat"));
+  if(!uiActive)
+    detail.drawTextShadow(p,rightX,baseline+2*line,rightWidth,line,"Drag to move the camera");
+  else
+    detail.drawTextShadow(p,rightX,baseline+2*line,rightWidth,2*line,
+                          menuAdjustment ? "Drag left / right" : "Right: accept / Left: back");
+  int legendY=baseline+5*line;
+  auto legend=[&](std::string_view text,bool heading=false) {
+    const auto& f=heading ? font : detail;
+    f.drawTextShadow(p,pad,legendY,leftWidth,2*line,text);
+    legendY+=f.textSize(leftWidth,text).h+std::max(4,int(6.f*scale));
+    };
   if(!touchEnabled)
-    legend(pad,6*line,leftWidth,"Gameplay touch off; keyboard available");
+    legend("Gamepad active / Keyboard available");
   else if(uiActive) {
-    legend(pad,6*line,leftWidth,"Up / down: select    Left: back");
-    legend(rightX,4*line,rightWidth,menuAdjustment ? "Drag left / right to adjust" : "Right: accept    Left: back");
-    if(saveDeleteEnabled)
-      legend(pad,8*line,leftWidth,"3-finger tap anywhere: delete save");
+    legend("NAVIGATION",true);
+    legend("Up / down: select");
+    legend("Left: back / Right: accept");
+    if(saveDeleteEnabled) legend("3-finger tap: delete save");
     }
   else if(gesturesEnabled) {
-    legend(pad,6*line,leftWidth,"2 fingers: down = sneak; up = stand");
-    legend(pad,8*line,leftWidth,"Anywhere: 3-finger save; 4-finger load");
-    legend(rightX,4*line,rightWidth,"2 fingers up: first person");
-    legend(rightX,6*line,rightWidth,"2 fingers down + hold: look behind");
-    legend(rightX,8*line,rightWidth,"2 fingers left: health potion");
-    legend(rightX,10*line,rightWidth,"2 fingers right: mana potion");
-    legend(rightX,12*line,rightWidth,"Potion swipes work anywhere");
+    legend("GESTURES",true);
+    legend("Left side: 2 fingers down / up - sneak / stand");
+    legend("Right side: 2 fingers up - first person");
+    legend("Right side: 2 fingers down + hold - look behind");
+    legend("Anywhere: 2 fingers left / right - health / mana");
+    legend("Anywhere: 3-finger tap - save / 4-finger tap - load");
     if(classicCombat) {
-      legend(pad,10*line,leftWidth,"Hold ACTION: up / sides = attack");
-      legend(pad,12*line,leftWidth,"Block: pull straight down past 65%");
+      legendY+=line;
+      legend("CLASSIC COMBAT",true);
+      legend("Hold Action + movement up / sides: attack");
+      legend("Hold Action + pull straight down: block");
       }
     }
 
-  const char* names[] = {"BACK / MENU","INVENTORY","JUMP","DRAW / SHEATHE",
-                        uiActive ? "ACCEPT" : (classicCombat ? "HOLD ACTION" : "USE / ATTACK")};
+  const char* names[] = {"Back / Menu","Inventory","Jump","Draw / Sheathe",
+                        uiActive ? "Accept" : (classicCombat ? "Action" : "Use / Attack")};
   for(int i=0;i<5;++i) {
     const auto rect = buttonRect(size_t(i));
     bool pressed = false;
     for(const auto& [id,touch]:touches)
       pressed |= touch.role==Role::Button && touch.command==Buttons[i];
-    p.setBrush(pressed ? Color(0.8f,0.6f,0.2f,0.32f) : Color(0.04f,0.03f,0.02f,0.18f));
-    p.drawRect(rect);
+    if(pressed) {
+      p.setBrush(Color(0.8f,0.6f,0.2f,0.18f));
+      p.drawRect(rect);
+      }
     p.setBrush(gold);
     p.drawLine(rect.x,rect.y,w(),rect.y);
-    label(rect.x+pad,rect.y+rect.h/2-line,rect.w-2*pad,names[i]);
+    label(rect.x+pad,rect.y+rect.h/2,rect.w-2*pad,names[i]);
     if(i==4 && canLock && touchEnabled && !uiActive)
-      label(rect.x+pad,rect.y+rect.h/2+line,rect.w-2*pad,targetLocked ? "DRAG: UNLOCK" : "DRAG: LOCK");
+      detail.drawTextShadow(p,rect.x+pad,rect.y+rect.h/2+line,rect.w-2*pad,2*line,targetLocked ? "Drag: unlock" : "Drag: lock",AlignHCenter);
     if((i==0 || i==1 || i==3) && touchEnabled && !uiActive)
-      label(rect.x+pad,rect.y+rect.h/2+line,rect.w-2*pad,
-            i==0 ? "HOLD: SYSTEM" : (i==1 ? "HOLD: CHARACTER" : "HOLD: EQUIPMENT"));
+      detail.drawTextShadow(p,rect.x+pad,rect.y+rect.h/2+line,rect.w-2*pad,2*line,
+                           i==0 ? "Hold: System" : (i==1 ? "Hold: Character" : "Hold: Equipment"),AlignHCenter);
     }
 
   auto cross = [&](Point pos,int radius) {
@@ -145,8 +155,6 @@ void TouchInput::paintEvent(Tempest::PaintEvent& e) {
         p.drawLine(touch.anchor.x+topWidth,touch.anchor.y+top,touch.anchor.x+bottomWidth,touch.anchor.y+radius);
         p.drawLine(touch.anchor.x-bottomWidth,touch.anchor.y+radius,touch.anchor.x+bottomWidth,touch.anchor.y+radius);
         }
-      label(touch.anchor.x-radius,touch.anchor.y+radius+pad,2*radius,
-            "Inner box: menu / classic attack threshold");
       }
     }
   }
@@ -469,9 +477,11 @@ Rect TouchInput::blockRect() const {
 void TouchInput::drawBlock(Painter& p) const {
   const auto rect = blockRect();
   const bool pressed = blockPointer>=0;
-  p.setBrush(pressed ? Color(0.45f,0.30f,0.08f,0.6f) : Color(0.025f,0.02f,0.015f,0.4f));
-  p.drawRect(rect);
-  const auto gold = pressed ? Color(1.f,0.85f,0.4f,1.f) : Color(0.843f,0.761f,0.631f,0.9f);
+  if(pressed) {
+    p.setBrush(Color(0.8f,0.6f,0.2f,0.18f));
+    p.drawRect(rect);
+    }
+  const auto gold = pressed ? Color(1.f,0.85f,0.4f,0.8f) : Color(0.843f,0.761f,0.631f,0.28f);
   p.setBrush(gold);
   p.setPen(Pen(gold,Painter::Alpha,2.f));
   p.drawLine(rect.x,rect.y,rect.x+rect.w,rect.y);
@@ -479,9 +489,9 @@ void TouchInput::drawBlock(Painter& p) const {
   p.drawLine(rect.x+rect.w,rect.y+rect.h,rect.x,rect.y+rect.h);
   p.drawLine(rect.x,rect.y+rect.h,rect.x,rect.y);
 
-  const float scale = std::min(Gothic::interfaceScale(this),float(h())/480.f);
+  const float scale = std::min(Gothic::interfaceScale(this),float(h())/720.f);
   const auto& font = Resources::font(scale);
-  font.drawText(p,rect.x,rect.y+rect.h/2-font.pixelSize(),rect.w,font.pixelSize()*2,"BLOCK",AlignHCenter);
+  font.drawTextShadow(p,rect.x,rect.y+(rect.h+font.pixelSize())/2,rect.w,font.pixelSize(),"Block",AlignHCenter);
   }
 
 void TouchInput::tick() {

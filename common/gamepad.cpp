@@ -22,19 +22,42 @@ void MainWindow::updateControllerOverlay() {
   const int key=enabled ? int(context)*2+int(player.isClassicCombat()) : -1;
   if(key==controllerOverlayContext) return;
   controllerOverlayContext=key;
-  controllerOverlayLines.clear();
+  for(auto& group:controllerOverlayGroups) group.lines.clear();
   if(enabled) {
     constexpr const char* names[]={"Exploration","Classic combat","Modern combat","Bow / magic","Menus","Inventory","Radial wheel","Interaction"};
-    controllerOverlayTitle=std::string("Gamepad controls: ")+names[size_t(context)];
+    controllerOverlayTitle=std::string("CONTROLS / ")+names[size_t(context)];
+    const bool navigation=context==Context::UI || context==Context::Inventory || context==Context::EquipmentWheel;
+    const char* titles[]={navigation ? "NAVIGATION" : "MOVEMENT","ACTIONS","SHORTCUTS","QUICK SLOTS","SPELL SLOTS"};
+    for(size_t i=0;i<controllerOverlayGroups.size();++i) controllerOverlayGroups[i].title=titles[i];
+    auto& movement=controllerOverlayGroups[size_t(GamepadBindings::HintGroup::Movement)].lines;
     const auto& options=controllerBindings.options;
     if(context==Context::EquipmentWheel)
-      controllerOverlayLines.push_back("Either stick: Select; release wheel button to apply");
+      movement={"Either stick: Select","Release held button: Apply"};
     else if(context!=Context::UI && context!=Context::Inventory && context!=Context::Interaction) {
-      controllerOverlayLines.push_back(std::string(options.swapMovement ? "Right stick" : "Left stick")+": Move / turn; small input walks");
-      controllerOverlayLines.push_back(std::string(options.swapCamera ? "Left stick" : "Right stick")+": Camera / switch locked target");
+      movement.push_back(std::string(options.swapMovement ? "RS" : "LS")+": Move / turn (light input walks)");
+      movement.push_back(std::string(options.swapCamera ? "LS" : "RS")+": Look / change locked target");
       }
-    for(const auto& hint:controllerBindings.hints(context))
-      controllerOverlayLines.push_back(hint.keys+": "+std::string(hint.label));
+    for(const auto& hint:controllerBindings.hints(context)) {
+      auto keys=hint.keys;
+      auto replace=[&](std::string_view from,std::string_view to) {
+        size_t at=0;
+        while((at=keys.find(from,at))!=std::string::npos) {
+          keys.replace(at,from.size(),to);
+          at+=to.size();
+          }
+        };
+      replace("Hold:","Hold ");
+      replace("LeftStick","LS ");
+      replace("RightStick","RS ");
+      replace("Dpad","D-pad ");
+      replace("+"," + ");
+      auto label=std::string(hint.label);
+      if(hint.action>=PadAction::AssignUp && hint.action<=PadAction::AssignRight) {
+        keys="Hold "+keys;
+        label=label.substr(0,label.find(" ("));
+        }
+      controllerOverlayGroups[size_t(hint.group)].lines.push_back(keys+": "+label);
+      }
     }
   update();
 #endif
@@ -42,27 +65,45 @@ void MainWindow::updateControllerOverlay() {
 
 void MainWindow::paintControllerOverlay(PaintEvent& event,int top) {
 #if defined(__ANDROID__)
-  if(controllerOverlayLines.empty()) return;
+  if(controllerOverlayContext<0) return;
   const int pad=std::max(12,int(16.f*uiScale()));
-  const int columnWidth=std::max(1,(w()-3*pad)/2);
-  const int rows=int((controllerOverlayLines.size()+1)/2);
+  // Side columns leave the middle third clear; the lower fifth stays available for the HUD.
+  const int columnWidth=std::max(1,(w()-2*pad)*32/100);
+  constexpr int columns[]={0,1,0,1,1};
+  int rowCounts[2]={};
+  for(size_t i=0;i<controllerOverlayGroups.size();++i)
+    if(!controllerOverlayGroups[i].lines.empty()) rowCounts[columns[i]]+=int(controllerOverlayGroups[i].lines.size())+3;
+  const int rows=std::max(rowCounts[0],rowCounts[1]);
   float scale=std::min(std::max(uiScale(),1.f),float(h())/720.f);
-  const auto& initialFont=Resources::font(scale);
+  const auto& initialFont=Resources::font(scale*0.82f);
   int widest=1;
-  for(const auto& text:controllerOverlayLines)
-    widest=std::max(widest,initialFont.textSize(text).w);
+  for(const auto& group:controllerOverlayGroups)
+    for(const auto& text:group.lines) widest=std::max(widest,initialFont.textSize(text).w);
   const float widthFit=std::min(1.f,float(columnWidth)/float(widest));
-  const float heightFit=std::min(1.f,float(std::max(1,h()-top-3*pad))/float((rows+2)*(initialFont.pixelSize()+6)));
+  const float heightFit=std::min(1.f,float(std::max(1,h()*4/5-top-3*pad))/float((rows+2)*(initialFont.pixelSize()+6)));
   scale*=std::min(widthFit,heightFit);
-  const auto& font=Resources::font(scale);
-  const int line=font.pixelSize()+std::max(3,int(6.f*scale));
-  const int baseline=top+pad+font.pixelSize();
+  const auto& heading=Resources::font(scale);
+  const auto& font=Resources::font(scale*0.82f);
+  const int line=font.pixelSize()+std::max(4,int(6.f*scale));
+  const int baseline=top+pad+heading.pixelSize();
   Painter painter(event);
-  font.drawText(painter,pad,baseline,controllerOverlayTitle);
-  for(size_t i=0;i<controllerOverlayLines.size();++i) {
-    const int column=int(i)/rows;
-    const int row=int(i)%rows;
-    font.drawText(painter,pad+column*(columnWidth+pad),baseline+(row+2)*line,controllerOverlayLines[i]);
+  heading.drawTextShadow(painter,pad,baseline,w()-2*pad,heading.pixelSize(),controllerOverlayTitle);
+  int row[2]={3,3};
+  for(size_t i=0;i<controllerOverlayGroups.size();++i) {
+    const auto& group=controllerOverlayGroups[i];
+    if(group.lines.empty()) continue;
+    const int column=columns[i];
+    const int x=column==0 ? pad : w()-pad-columnWidth;
+    int y=baseline+row[column]*line;
+    heading.drawTextShadow(painter,x,y,columnWidth,heading.pixelSize(),group.title);
+    painter.setPen(Pen(Color(0.843f,0.761f,0.631f,0.25f),Painter::Alpha,1.f));
+    painter.drawLine(x,y+line/3,x+columnWidth,y+line/3);
+    y+=2*line;
+    for(const auto& text:group.lines) {
+      font.drawTextShadow(painter,x,y,columnWidth,font.pixelSize(),text);
+      y+=line;
+      }
+    row[column]+=int(group.lines.size())+3;
     }
 #else
   (void)event;

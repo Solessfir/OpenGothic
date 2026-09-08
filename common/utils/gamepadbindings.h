@@ -63,7 +63,8 @@ class GamepadBindings final {
     static std::string defaults();
     static uint32_t button(std::string_view name);
     std::string hint(Action action, Context context) const;
-    struct Hint { Action action; std::string keys; std::string_view label; };
+    enum class HintGroup { Movement, Actions, Shortcuts, QuickSlots, Spells };
+    struct Hint { Action action; std::string keys; std::string_view label; HintGroup group; };
     std::vector<Hint> hints(Context context) const;
     std::vector<Event> update(uint32_t buttons, Context context, uint64_t now);
     void reset(uint32_t held = 0);

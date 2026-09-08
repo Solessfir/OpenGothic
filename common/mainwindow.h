@@ -196,7 +196,11 @@ class MainWindow : public Tempest::Window {
     bool                      controllerDisconnectPending=false;
     int                       controllerOverlayContext=-1;
     std::string               controllerOverlayTitle;
-    std::vector<std::string>  controllerOverlayLines;
+    struct ControllerGuideGroup {
+      std::string title;
+      std::vector<std::string> lines;
+      };
+    std::array<ControllerGuideGroup,5> controllerOverlayGroups;
 #endif
 #if defined(__MOBILE_PLATFORM__)
     TouchInput                mobileUi;
