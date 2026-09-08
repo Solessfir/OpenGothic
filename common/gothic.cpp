@@ -20,6 +20,7 @@
 #include "graphics/shaders.h"
 
 #include "utils/fileutil.h"
+#include "utils/gamedetection.h"
 #include "utils/inifile.h"
 
 #include "commandline.h"
@@ -219,8 +220,6 @@ Gothic::Gothic() {
   defaults->set("KEYS", "keyShowMap",     "3200");
   }
 
-  detectGothicVersion();
-
   std::u16string_view mod = CommandLine::inst().modPath();
   if(!mod.empty()){
     modFile.reset(new IniFile(mod));
@@ -253,12 +252,14 @@ Gothic::Gothic() {
   */
   Resources::loadVdfs(modvdfs, modFilter);
   Resources::mountWork(Gothic::nestedPath({u"_work"}, Dir::FT_Dir));
+  detectGothicVersion();
 
   if(wrldDef.empty()) {
     if(version().game==2)
       wrldDef = "newworld.zen"; else
       wrldDef = "world.zen";
     }
+  Log::i("Default world = ",wrldDef);
 
   if(plDef.empty())
     plDef = "PC_HERO";
@@ -918,16 +919,19 @@ void Gothic::detectGothicVersion() {
   if(baseIniFile->has("GAME","useGothic1Controls"))
     score[2]++;
 
-  if(score[1]>score[2])
-    vinfo.game = 1; else
-    vinfo.game = 2;
-
-  if(vinfo.game==2) {
-    vinfo.patch = baseIniFile->getI("GAME","PATCHVERSION");
-    }
+  GameDetection::Evidence evidence;
+  evidence.gothic1Score = score[1];
+  evidence.gothic2Score = score[2];
+  evidence.gothic1World = Resources::hasFile("WORLD.ZEN");
+  evidence.gothic2World = Resources::hasFile("NEWWORLD.ZEN");
+  evidence.addonWorld = Resources::hasFile("ADDONWORLD.ZEN");
+  evidence.hasPatch = baseIniFile->has("GAME","PATCHVERSION");
+  evidence.patch = baseIniFile->getI("GAME","PATCHVERSION");
+  vinfo = GameDetection::detect(evidence);
 
   if(CommandLine::inst().doForceG1()) {
     vinfo.game = 1;
+    vinfo.patch = 0;
     }
   else if(CommandLine::inst().doForceG2()) {
     vinfo.game  = 2;
@@ -937,6 +941,7 @@ void Gothic::detectGothicVersion() {
     vinfo.game  = 2;
     vinfo.patch = 5;
     }
+  Log::i("Game version = Gothic ",int(vinfo.game),", patch = ",vinfo.patch);
   }
 
 void Gothic::setupSettings() {
