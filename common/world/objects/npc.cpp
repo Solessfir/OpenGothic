@@ -2683,6 +2683,7 @@ void Npc::nextAiAction(AiQueue& queue, uint64_t dt) {
       if(isPlayer()) {
         updateTransform();
         Gothic::inst().camera()->reset(this);
+        Feedback::gameplay(Feedback::Effect::Teleport);
         }
       }
       break;
@@ -3176,6 +3177,9 @@ void Npc::commitSpell() {
 
   const int32_t splId = active->spellId();
   const auto&   spl   = owner.script().spellDesc(splId);
+
+  if(isPlayer() && !owner.script().isTeleportSpell(splId))
+    Feedback::gameplay(Feedback::Effect::Cast);
 
   if(owner.version().game==2)
     owner.script().invokeSpell(*this,currentTarget,*active);
@@ -3900,6 +3904,7 @@ Npc::BeginCastResult Npc::beginCastSpell() {
   // castLevel        = CS_Invest_0;
   currentSpellCast = active->clsId();
   castNextTime     = owner.tickCount();
+  castFeedbackTime = 0;
   hnpc->aivar[88]  = 0; // HACK: clear AIV_SpellLevel
   manaInvested     = 0;
 
@@ -3966,6 +3971,8 @@ bool Npc::tickCast(uint64_t dt) {
       }
     castLevel    = CastState(int(castLevel) + int(CS_Emit_0) - int(CS_Cast_0));
     castNextTime = 0;
+    if(isPlayer() && active!=nullptr && owner.script().isTeleportSpell(active->spellId()))
+      Feedback::spellCharge(1.f);
     return true;
     }
 
@@ -3987,6 +3994,13 @@ bool Npc::tickCast(uint64_t dt) {
 
   if(bodyStateMasked()!=BS_CASTING)
     return true;
+
+  if(isPlayer() && owner.script().isTeleportSpell(active->spellId())) {
+    // This is a tactile ramp, not an estimate of the script's remaining cast time.
+    // Finite pulses stop naturally when casting is interrupted or the game pauses.
+    castFeedbackTime=std::min<uint64_t>(castFeedbackTime+dt,2000);
+    Feedback::spellCharge(float(castFeedbackTime)/2000.f);
+    }
 
   if(owner.tickCount()<castNextTime)
     return true;
@@ -4098,6 +4112,8 @@ bool Npc::shootBow(Interactive* focOverride) {
     return false;
 
   auto& b = owner.shootBullet(*itm,*this,currentTarget,focOverride);
+  if(isPlayer())
+    Feedback::gameplay(Feedback::Effect::Shoot);
 
   invent.delItem(size_t(munition),1,*this);
   b.setOrigin(this);

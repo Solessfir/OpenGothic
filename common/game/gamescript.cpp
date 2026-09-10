@@ -868,6 +868,11 @@ const VisualFx* GameScript::spellVfx(int32_t splId) {
   return Gothic::inst().loadVisualFx(name);
   }
 
+bool GameScript::isTeleportSpell(int32_t splId) const {
+  // Spell IDs and animation letters differ between Gothic 1 and Gothic 2.
+  return spellFxInstanceNames->get_string(uint16_t(splId))=="Teleport";
+  }
+
 std::vector<GameScript::DlgChoice> GameScript::dialogChoices(std::shared_ptr<zenkit::INpc> player,
                                                              std::shared_ptr<zenkit::INpc> hnpc,
                                                              const std::vector<uint32_t>& except,

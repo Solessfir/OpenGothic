@@ -31,6 +31,21 @@ int main() {
     check(h.next(Effect::Damage,1000).duration==0,"Off suppresses every effect");
     h.setEnabled(true);
     check(h.next(Effect::Confirm,1001).duration!=0,"Re-enabling allows confirmation immediately");
+    check(h.charge(0.f,1002).duration==0,"Charging cannot interrupt confirmation");
+    const auto low=h.charge(0.f,1200);
+    check(low.gamepad && low.duration>0,"Charging respects the selected feedback device");
+    check(h.charge(1.f,1201).duration==0,"Charging is limited to four pulses per second");
+    const auto high=h.charge(1.f,1450);
+    check(high.strength>low.strength && high.duration>low.duration,"Teleport charging grows stronger");
+    const auto teleport=h.next(Effect::Teleport,1451);
+    check(teleport.strength>high.strength,"Actual teleport overrides charging with a stronger pulse");
+    check(h.charge(1.f,1452).duration==0,"Charging cannot interrupt teleport feedback");
+    const auto shot=h.next(Effect::Shoot,1700);
+    check(shot.duration>0 && shot.strength<teleport.strength,"Arrow release has its own lighter pulse");
+    check(h.next(Effect::Hit,1701).duration>0,"A landed hit takes priority over firing feedback");
+    check(h.next(Effect::Cast,1900).duration>0,"Spell emission has feedback");
+    h.setEnabled(false);
+    check(h.charge(1.f,3000).duration==0 && h.next(Effect::Teleport,3000).duration==0,"Off suppresses charging and teleportation");
     std::cout << "Haptic policy tests passed\n";
     }
   catch(const std::exception& error) {

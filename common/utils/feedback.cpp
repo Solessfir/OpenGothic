@@ -44,3 +44,17 @@ void Feedback::gameplay(Effect effect) {
   (void)effect;
 #endif
   }
+
+void Feedback::spellCharge(float intensity) {
+#if defined(__ANDROID__)
+  auto& gothic=Gothic::inst();
+  if(gothic.checkLoading()!=Gothic::LoadState::Idle || gothic.isPause() || !gothic.isInGame())
+    return;
+  std::lock_guard<std::mutex> lock(feedbackMutex);
+  const auto pulse=policy.charge(intensity,Tempest::Application::tickCount());
+  if(pulse.duration!=0)
+    Tempest::SystemApi::vibrate(pulse.duration,pulse.strength,pulse.gamepad);
+#else
+  (void)intensity;
+#endif
+  }

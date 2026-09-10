@@ -38,7 +38,7 @@ HDR expands highlight range without brightening dark shadows. Screenshots may no
 
 ## Vibration
 
-`[GAME] vibration=1` enables light feedback for navigation, stronger confirmation and lockpicking mistakes, and distinct pulses for landed hits and damage taken. Set it to `0`, or toggle Vibration in the System wheel, to disable both touch and controller feedback. Phone feedback respects Android's touch-vibration setting. Controller rumble requires support from the controller and its Android driver; unsupported controllers stay silent rather than vibrating the phone.
+`[GAME] vibration=1` enables feedback for menu, inventory and dialogue navigation, confirmation, lockpicking mistakes, bow shots, spell casts, landed hits and damage taken. Teleport charging builds from light pulses to stronger feedback when you teleport. Set it to `0`, or toggle Vibration in the System wheel, to disable both touch and controller feedback. Phone feedback respects Android's touch-vibration setting. Controller rumble requires support from the controller and its Android driver; unsupported controllers stay silent rather than vibrating the phone.
 
 ## Camera and interface
 
