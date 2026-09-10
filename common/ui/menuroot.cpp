@@ -3,6 +3,7 @@
 #include <Tempest/Log>
 
 #include "ui/gamemenu.h"
+#include "utils/feedback.h"
 #include "gothic.h"
 
 using namespace Tempest;
@@ -107,6 +108,20 @@ bool MenuRoot::isActive() const {
   return current!=nullptr;
   }
 
+void MenuRoot::navigateBack() {
+  if(current==nullptr)
+    return;
+  if(current->closeNestedView()) {
+    Feedback::play(Feedback::Effect::Confirm);
+    return;
+    }
+  if(menuStack.empty() && !Gothic::inst().isInGame() &&
+     Gothic::inst().checkLoading()==Gothic::LoadState::Idle)
+    return;
+  Feedback::play(Feedback::Effect::Confirm);
+  popMenu();
+  }
+
 void MenuRoot::requestDeleteSave(std::string_view hint) {
   if(current!=nullptr)
     current->requestDeleteSave(hint);
@@ -146,7 +161,7 @@ bool MenuRoot::hasVersionLine() const {
 void MenuRoot::mouseDownEvent(MouseEvent& event) {
   if(current!=nullptr) {
     if(event.button==Event::ButtonRight) {
-      if(!current->closeNestedView()) popMenu();
+      navigateBack();
       } else {
       // A stray screen tap must not confirm permanent deletion.
       if(!current->isDeletingSave())
@@ -180,7 +195,7 @@ void MenuRoot::directionalInput(bool right, bool repeat, bool touchNavigation) {
   // A held direction must not repeatedly enter or close several menu levels.
   if(repeat || !touchNavigation) return;
   if(right) current->onKeyboard(KeyCodec::ActionGeneric);
-  else if(!current->closeNestedView()) popMenu();
+  else navigateBack();
   }
 
 bool MenuRoot::canAdjustValue() {
@@ -245,7 +260,7 @@ void MenuRoot::keyDownEvent(KeyEvent &e) {
     else if(e.key==Event::K_Delete)
       current->onKeyboard(KeyCodec::K_Del);
     else if(e.key==Event::K_ESCAPE || keyCodec.tr(e)==current->keyClose()) {
-      if(!current->closeNestedView()) popMenu();
+      navigateBack();
       }
     }
   }

@@ -388,6 +388,7 @@ void DialogMenu::startTrade() {
 
 void DialogMenu::skipPhrase() {
   if(current.time>0) {
+    Feedback::play(Feedback::Effect::Confirm);
     if(pl!=nullptr)
       pl->setAiOutputBarrier(0,false);
     if(other!=nullptr)

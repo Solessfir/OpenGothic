@@ -45,6 +45,7 @@ class MenuRoot : public Tempest::Widget {
 
   private:
     void initSettings();
+    void navigateBack();
 
     std::unique_ptr<zenkit::DaedalusVm>    vm;
     int32_t                                vmLang = -1;
