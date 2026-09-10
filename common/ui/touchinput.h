@@ -57,6 +57,7 @@ class TouchInput : public Tempest::Widget {
     void            setDebugLeftInset(int inset);
     void            setDebugSafeArea(Tempest::Rect area);
     void            setMenuAdjustment(bool enabled);
+    void            setLockPicking(bool enabled);
     void            setDebugContext(bool classicCombat, bool uiActive, bool canLock, bool locked, bool canBlock);
     void            tick();
     Tempest::PointF movementAxis() const;
@@ -142,6 +143,7 @@ class TouchInput : public Tempest::Widget {
     bool            classicCombat = true;
     bool            classicAction = false;
     bool            uiActive = false;
+    bool            lockPicking = false;
     bool            canLock = false;
     bool            targetLocked = false;
     bool            canBlock = false;

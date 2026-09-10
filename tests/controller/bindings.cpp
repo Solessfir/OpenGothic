@@ -15,6 +15,17 @@ bool has(const std::vector<B::Event>& events,A action,P phase=P::Press) {
 int main() {
   try {
     B b;
+    for(const auto& [name,action]:{std::pair("DpadLeft",A::Left),std::pair("DpadRight",A::Right),
+                                 std::pair("LeftStickLeft",A::Left),std::pair("LeftStickRight",A::Right),
+                                 std::pair("B",A::Back),std::pair("DpadDown",A::Down)}) {
+      B picking;
+      const auto button=B::button(name);
+      const auto pressed=picking.update(button,C::Interaction,0);
+      check(has(pressed,action),"Lockpicking receives dedicated direction/back actions");
+      check(!has(pressed,A::QuickLeft) && !has(pressed,A::QuickRight),"Lockpicking never uses quick slots");
+      check(has(picking.update(0,C::Interaction,1),action,P::Release),"Lockpicking releases each deliberate turn");
+      check(has(picking.update(button,C::Interaction,2),action),"Repeated directions work after releasing");
+      }
     auto overlayHint=[](const B& bindings,A action,C context) {
       for(const auto& hint:bindings.hints(context)) if(hint.action==action) return hint.keys;
       return std::string("None");

@@ -1,4 +1,5 @@
 #include "mainwindow.h"
+#include "utils/feedback.h"
 #include "gothic.h"
 #include "utils/cameramath.h"
 #include "utils/gthfont.h"
@@ -342,6 +343,7 @@ void MainWindow::tickGamepad() {
     controllerDisconnectPending = Gothic::inst().isInGame() || Gothic::inst().checkLoading()!=Gothic::LoadState::Idle;
   controllerWasPresent = gp.connected && options.enabled;
   const bool connected=gp.connected && options.enabled && controllerFocused;
+  Feedback::setGamepad(connected);
   mobileUi.setTouchEnabled(!connected && controllerFocused);
   if(touchWheelOwned && (!inventory.isWheelOpen() || Gothic::inst().isPause() ||
      Gothic::inst().checkLoading()!=Gothic::LoadState::Idle || rootMenu.isActive() ||
@@ -363,6 +365,7 @@ void MainWindow::tickGamepad() {
                            (touchWeapon==WeaponState::Fist || touchWeapon==WeaponState::W1H || touchWeapon==WeaponState::W2H) &&
                            !Gothic::inst().isPause() && Gothic::inst().checkLoading()==Gothic::LoadState::Idle);
   mobileUi.setMenuAdjustment(rootMenu.canAdjustValue() && !video.isActive());
+  mobileUi.setLockPicking(inventory.isOpen()==InventoryMenu::State::LockPicking);
   mobileUi.setSaveDeleteEnabled(rootMenu.canRequestDeleteSave() && !video.isActive() && !chapter.isActive() &&
                                !document.isActive() && !dialogs.isActive() && !inventory.isActive() && !console.isActive());
   mobileUi.tick();
@@ -489,6 +492,7 @@ void MainWindow::tickGamepad() {
       if(selected!=size_t(-1)) {
         if(kind==InventoryMenu::WheelKind::System) applySystemWheelSelection(selected);
         else if(kind==InventoryMenu::WheelKind::Equipment) {
+          Feedback::play(Feedback::Effect::Confirm);
           if(quickSlot<4) {
             auto pl=Gothic::inst().player();
             auto item=pl!=nullptr ? pl->getItem(selected) : nullptr;

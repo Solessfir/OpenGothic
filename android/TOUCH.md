@@ -55,7 +55,7 @@ Focus range is not attack reach or guaranteed safety; see [targeting settings](C
 
 - Hold **Draw** to open equipment selection.
 - Hold **Inventory** for Stats (up) / Journal (down).
-- Hold **Back/menu** for FPS (up), touch-debug overlay (right), Classic/Centered HUD (down), or Classic/Modern combat (left). Choices are saved separately for each game; Classic HUD is the default. Combat changes apply immediately to touch and gamepad in both games and share the `useGothic1Controls` setting with Gothic II's options menu.
+- Hold **Back/menu** for FPS, touch-debug overlay, Classic/Centered HUD, Classic/Modern combat, or Vibration. Choices are saved separately for each game; Classic HUD is the default. Combat changes apply immediately to touch and gamepad in both games and share the `useGothic1Controls` setting with Gothic II's options menu.
 - Opening the System wheel with a gamepad replaces touch debug with a gamepad controls overlay. The two overlay preferences are saved separately and only shown for the active input method.
 - Keep the same finger down, drag a little toward a choice, then release to apply.
 - Release without selecting, or return to the finger's starting point, to cancel.
@@ -82,6 +82,8 @@ Shortcuts require [useQuickSaveKeys/usePotionKeys](CONFIGURATION.md#shortcuts-au
 sneak requires the learned skill.
 
 ## Menus and saves
+
+Lockpicking: open the locked chest, then flick the left movement area left/right to turn the pick. Return to neutral between turns. Pull down or tap Back to stop picking.
 
 Saving and quicksaving are disabled while dead, so they cannot overwrite a slot with a dead character.
 

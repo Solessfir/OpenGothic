@@ -147,6 +147,7 @@ Gothic::Gothic() {
 #if defined(__ANDROID__)
   defaults->set("ENGINE", "cameraObstructionFade", 1);
   defaults->set("GAME", "showFps",             0);
+  defaults->set("GAME", "vibration",           1);
   defaults->set("GAME", "centerPlayerBars",    0);
   defaults->set("GAME", "useGothic1Controls",  0);
   defaults->set("GAME", "usePotionKeys",      1);

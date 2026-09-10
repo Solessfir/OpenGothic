@@ -1,4 +1,5 @@
 #include "playercontrol.h"
+#include "utils/feedback.h"
 
 #include <cmath>
 #include <algorithm>
@@ -1499,6 +1500,7 @@ void PlayerControl::processPickLock(Npc& pl, Interactive& inter, KeyCodec::Actio
     }
 
   if(pickLockProgress<cmp.size() && std::toupper(cmp[pickLockProgress])!=ch) {
+    Feedback::play(Feedback::Effect::Reject);
     pickLockProgress = 0;
     const int32_t dex = Gothic::inst().version().game==2 ? pl.attribute(ATR_DEXTERITY) : (100 - pl.talentValue(TALENT_PICKLOCK));
     if(dex<=int32_t(script.rand(100)))  {
@@ -1514,11 +1516,13 @@ void PlayerControl::processPickLock(Npc& pl, Interactive& inter, KeyCodec::Actio
     } else {
     pickLockProgress++;
     if(pickLockProgress>=cmp.size()) {
+      Feedback::play(Feedback::Effect::Confirm);
       script.invokePickLock(pl,1,1);
       inter.setAsCracked(true);
       pickLockProgress = 0;
       } else {
       script.invokePickLock(pl,1,0);
+      Feedback::play(Feedback::Effect::Navigate);
       }
     }
   }

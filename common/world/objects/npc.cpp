@@ -1,4 +1,5 @@
 #include "npc.h"
+#include "utils/feedback.h"
 
 #include <Tempest/Matrix4x4>
 #include <Tempest/Log>
@@ -1248,6 +1249,7 @@ void Npc::changeAttribute(Attribute a, int32_t val, bool allowUnconscious) {
       return;
     }
 
+  const auto previous=hnpc->attribute[a];
   hnpc->attribute[a]+=val;
   if(hnpc->attribute[a]<0)
     hnpc->attribute[a]=0;
@@ -1260,6 +1262,8 @@ void Npc::changeAttribute(Attribute a, int32_t val, bool allowUnconscious) {
     invent.invalidateCond(*this);
 
   if(a==ATR_HITPOINTS) {
+    if(isPlayer() && hnpc->attribute[a]<previous)
+      Feedback::gameplay(Feedback::Effect::Damage);
     checkHealth(true,allowUnconscious);
     if(aiPolicy==NpcProcessPolicy::AiFar || aiPolicy==NpcProcessPolicy::AiFar2)
       aiState.started = true;
@@ -2110,7 +2114,10 @@ void Npc::takeDamage(Npc& other, const Bullet* b, const CollideMask bMask, int32
 
   if(hitResult.value>0) {
     currentOther = &other;
+    const auto previous=attribute(ATR_HITPOINTS);
     changeAttribute(ATR_HITPOINTS,-hitResult.value,dontKill);
+    if(other.isPlayer() && attribute(ATR_HITPOINTS)<previous)
+      Feedback::gameplay(Feedback::Effect::Hit);
 
     if(bMask&(COLL_APPLYVICTIMSTATE|COLL_DOEVERYTHING)) {
       owner.sendPassivePerc(*this,other,*this,PERC_ASSESSOTHERSDAMAGE);

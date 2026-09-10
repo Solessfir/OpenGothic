@@ -24,8 +24,7 @@ Both scripts detect installed games and ask which edition to install.
 - [Gamepad controls and remapping](CONTROLLER.md)
 - [Graphics, camera, UI size and other settings](CONFIGURATION.md)
 
-Android defaults include landscape gameplay, 75% render resolution, half-resolution SSAO/fog,
-automatic HDR where supported, and a 60 FPS cap. These are configurable; ray tracing and mesh shaders are off.
+Android defaults include landscape gameplay, full render resolution, half-resolution SSAO/fog, automatic HDR where supported, and a 60 FPS cap. Video settings include a 50-100% resolution slider and fog, SSAO and shadow quality controls; ray tracing and mesh shaders are off.
 Audio pauses in the background, gameplay keeps the screen awake, and volume buttons control media volume.
 
 **Update rather than uninstall:** uninstalling also removes game files, settings and saves.

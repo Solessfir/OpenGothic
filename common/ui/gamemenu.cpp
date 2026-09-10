@@ -1,4 +1,5 @@
 #include "gamemenu.h"
+#include "utils/feedback.h"
 
 #include <Tempest/Painter>
 #include <Tempest/Log>
@@ -244,8 +245,11 @@ void GameMenu::initItems() {
 void GameMenu::initAndroidVideo() {
 #if defined(__ANDROID__)
   const Item* resolution=nullptr;
+  const Texture2d* sliderBackground=nullptr;
   for(const auto& item:hItems)
     if(item.name=="MENUITEM_VID_RESOLUTION_CHOICE") resolution=&item;
+  for(const auto& item:hItems)
+    if(item.name=="MENUITEM_VID_BRIGHTNESS_SLIDER") sliderBackground=item.img;
   if(resolution==nullptr) return;
   const auto font=resolution->handle->fontname;
   // Keep the original Gothic menu background and fonts, without editing either game's scripts.
@@ -282,6 +286,10 @@ void GameMenu::initAndroidVideo() {
                    row.values[0]==0 ? zenkit::MenuItemType::SLIDER : zenkit::MenuItemType::CHOICEBOX,true);
     item.handle->on_chg_set_option_section=row.section;
     item.handle->on_chg_set_option=row.option;
+    if(item.handle->type==zenkit::MenuItemType::SLIDER) {
+      item.img=sliderBackground;
+      item.handle->dim_y=600;
+      }
     updateItem(item);
     y+=650;
     }
@@ -518,6 +526,7 @@ void GameMenu::drawSlider(Painter& p, Item& it, int x, int y, int sw, int sh) {
   if(it.name=="ANDROID_SCALE") {
     v=(std::clamp(v,50.f,100.f)-50.f)/50.f;
     getTextFont(it).drawText(p,x+sw+8,y+getTextFont(it).pixelSize(),string_frm(Gothic::settingsGetI(sec,opt),"%"));
+    p.setBrush(*slider);
     }
   int   dx = int(float(sw-w)*std::max(0.f,std::min(v,1.f)));
   p.drawRect(x+dx,y+(sh-h)/2,w,h,
@@ -842,6 +851,8 @@ void GameMenu::setSelection(int desired, int seek) {
 
     auto& it=hItems[cur].handle;
     if(isSelectable(it) && isEnabled(it)){
+      if(curItem!=cur && curItem!=uint32_t(-1))
+        Feedback::play(Feedback::Effect::Navigate);
       curItem=cur;
       for(size_t i=0;i<zenkit::IMenuItem::select_action_count;++i)
         if(it->on_sel_action[i]==int(zenkit::MenuItemSelectAction::EXECUTE_COMMANDS))
@@ -911,6 +922,7 @@ bool GameMenu::isHidden(const std::shared_ptr<zenkit::IMenuItem>& item) {
   }
 
 void GameMenu::exec(Item &p, int slideDx, KeyCodec::Action hint) {
+  Feedback::play(slideDx==0 ? Feedback::Effect::Confirm : Feedback::Effect::Navigate);
   auto* it = &p;
   while(it!=nullptr) {
     if(it==&p)
@@ -1045,6 +1057,10 @@ void GameMenu::execChgOption(Item &item, int slideDx) {
     updateItem(item);
     item.value=std::clamp(item.value+slideDx,0,3);
     Gothic::settingsSetI(sec,opt,values[item.value]);
+    return;
+    }
+  if((item.name=="ANDROID_FOG" || item.name=="ANDROID_SSAO") && slideDx==0) {
+    Gothic::settingsSetI(sec,opt,!Gothic::settingsGetI(sec,opt));
     return;
     }
 

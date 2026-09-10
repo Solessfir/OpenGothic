@@ -1,4 +1,5 @@
 #include "mainwindow.h"
+#include "utils/feedback.h"
 
 #include <Tempest/Except>
 #include <Tempest/CpuTrace>
@@ -442,16 +443,18 @@ void MainWindow::tickMouse(uint64_t dt) {
 
 
 void MainWindow::applySystemWheelSelection(size_t selected,bool touch) {
-  const char* settings[]={"showFps",touch ? "touchControls" : "gamepadControls","centerPlayerBars","useGothic1Controls"};
+  const char* settings[]={"showFps",touch ? "touchControls" : "gamepadControls","centerPlayerBars","useGothic1Controls","vibration"};
   if(selected>=std::size(settings)) return;
   const auto section=selected==1 ? "DEBUG" : "GAME";
   const auto setting=settings[selected];
   Gothic::settingsSetI(section,setting,!Gothic::settingsGetI(section,setting));
   Gothic::flushSettings();
+  Feedback::play(Feedback::Effect::Confirm);
   }
 
 #if defined(__MOBILE_PLATFORM__)
 bool MainWindow::onTouchWheel(TouchInput::Command command, TouchInput::WheelPhase phase, Point pos) {
+  if(phase==TouchInput::WheelPhase::Begin) Feedback::setGamepad(false);
   using Phase=TouchInput::WheelPhase;
   auto& gothic=Gothic::inst();
   auto pl=gothic.player();
@@ -488,6 +491,7 @@ bool MainWindow::onTouchWheel(TouchInput::Command command, TouchInput::WheelPhas
      gothic.checkLoading()!=Gothic::LoadState::Idle || rootMenu.isActive() || video.isActive() ||
      chapter.isActive() || document.isActive() || dialogs.isActive() || console.isActive()) return true;
   if(command==TouchInput::Command::Weapon) {
+    Feedback::play(Feedback::Effect::Confirm);
     player.controllerEquip(selected);
     }
   else if(command==TouchInput::Command::Back) {
@@ -502,6 +506,7 @@ bool MainWindow::onTouchWheel(TouchInput::Command command, TouchInput::WheelPhas
   }
 
 void MainWindow::onTouchCommand(TouchInput::Command command, bool pressed) {
+  if(pressed) Feedback::setGamepad(false);
   Event::KeyType key = Event::K_NoKey;
   const bool uiActive = video.isActive() || rootMenu.isActive() || chapter.isActive() ||
                         document.isActive() || dialogs.isActive() || inventory.isActive();
@@ -687,6 +692,7 @@ void MainWindow::onSettings() {
     }
 #endif
   CpuTrace::setEnabled(Gothic::settingsGetI("DEBUG", "cpuProfile")!=0);
+  Feedback::setEnabled(Gothic::settingsGetI("GAME", "vibration")!=0);
   const bool gpuProfiling = Gothic::settingsGetI("DEBUG", "gpuProfile")!=0;
   if(profileGpu!=gpuProfiling) {
     profileGpu = gpuProfiling;

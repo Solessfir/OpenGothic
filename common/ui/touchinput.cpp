@@ -29,6 +29,12 @@ void TouchInput::setMenuAdjustment(bool enabled) {
   update();
   }
 
+void TouchInput::setLockPicking(bool enabled) {
+  if(lockPicking==enabled) return;
+  lockPicking=enabled;
+  update();
+  }
+
 void TouchInput::setDebugLeftInset(int inset) {
   if(debugLeftInset==inset)
     return;
@@ -78,7 +84,7 @@ void TouchInput::paintEvent(Tempest::PaintEvent& e) {
     detail.drawTextShadow(p,rightX,baseline+2*line,rightWidth,line,"Drag to move the camera");
   else
     detail.drawTextShadow(p,rightX,baseline+2*line,rightWidth,2*line,
-                          menuAdjustment ? "Drag left / right" : "Right: accept / Left: back");
+                          lockPicking ? "Left / right: turn pick" : (menuAdjustment ? "Drag left / right" : "Right: accept / Left: back"));
   int legendY=baseline+5*line;
   auto legend=[&](std::string_view text,bool heading=false) {
     const auto& f=heading ? font : detail;
@@ -87,6 +93,12 @@ void TouchInput::paintEvent(Tempest::PaintEvent& e) {
     };
   if(!touchEnabled)
     legend("Gamepad active / Keyboard available");
+  else if(lockPicking) {
+    legend("LOCKPICKING",true);
+    legend("Left / right: turn pick");
+    legend("Center between turns");
+    legend("Down / Back: stop picking");
+    }
   else if(uiActive) {
     legend("NAVIGATION",true);
     legend("Up / down: select");

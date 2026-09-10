@@ -51,13 +51,15 @@ Ordinary A cannot pick up items with a weapon drawn.
 
 ## Menus, inventory and wheels
 
+Lockpicking uses left/right on the D-pad or left stick, one turn per press. Release or center between turns. B or down stops picking. No attack hold is needed.
+
 - A accepts; B backs out one level or skips a dialogue line.
 - Left stick/D-pad navigates items; left/right adjusts the selected slider or setting. Right stick left/right also adjusts values, but does nothing on other menu entries. Hold a direction to repeat.
 - Inventory: tap A to use/equip/transfer one item on release; hold A and press a D-pad direction to assign the highlighted owned item without using it. X drops; Y transfers a stack; LB/RB selects trade or chest panels.
 - Save menu: A overwrites an existing slot with its current name; Y edits the name. An empty slot still asks for a name.
 - Save/load menu: X requests deletion, A confirms, B cancels. Deletion has no undo.
 - Save-name entry uses the Android keyboard; press **Done**.
-- System wheel: hold Menu, select with either stick, then release Menu to toggle FPS (up), the gamepad controls overlay (right), the HP/mana layout (down), or Classic/Modern combat (left). The overlay shows your current bindings, including remaps, and changes with combat, inventory and menu context. Combat changes apply immediately to touch and gamepad in both games and use the same `useGothic1Controls` setting as Gothic II's options menu. B cancels; releasing without a selection also cancels.
+- System wheel: hold Menu, select with either stick, then release Menu to toggle FPS, the gamepad controls overlay, the HP/mana layout, Classic/Modern combat, or Vibration. The overlay shows your current bindings, including remaps, and changes with combat, inventory and menu context. Combat changes apply immediately to touch and gamepad in both games and use the same `useGothic1Controls` setting as Gothic II's options menu. B cancels; releasing without a selection also cancels.
 - Quick-slot wheel: hold an assigned D-pad direction, select with either stick, then release the direction to replace that slot's item and use/draw it. Releasing the stick keeps your choice; B cancels. Opening and releasing without choosing also cancels. LB/RB changes pages.
 - A stick already held when opening a wheel must be centered first, so running cannot accidentally select an item. A fresh tilt of the other stick takes over selection.
 - Up to eight items fit on one page. Larger collections use six items plus two page arrows, matching touch. Hold the stick over an arrow to turn a page; center it before selecting again.

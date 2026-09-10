@@ -1,4 +1,5 @@
 #include "inventorymenu.h"
+#include "utils/feedback.h"
 #include "utils/radialinput.h"
 
 #include <Tempest/Painter>
@@ -267,29 +268,39 @@ void InventoryMenu::processMove(KeyEvent& e) {
 
 void InventoryMenu::moveLeft(bool usePage) {
   auto& sel = activePageSel();
+  const auto oldPage=page;
+  const auto oldSelection=sel.sel;
 
   if(usePage && sel.sel%columsCount==0 && page>0)
     page--;
   else if(sel.sel>0)
     sel.sel--;
+  if(page!=oldPage || sel.sel!=oldSelection)
+    Feedback::play(Feedback::Effect::Navigate);
   }
 
 void InventoryMenu::moveRight(bool usePage) {
   auto&        pg     = activePage();
   auto&        sel    = activePageSel();
   const size_t pCount = pagesCount();
+  const auto oldPage=page;
+  const auto oldSelection=sel.sel;
 
   if(usePage && ((sel.sel+1u)%columsCount==0 || sel.sel+1u==pg.size() || pg.size()==0) && page+1u<pCount)
     page++;
   else if(sel.sel+1<pg.size())
     sel.sel++;
+  if(page!=oldPage || sel.sel!=oldSelection)
+    Feedback::play(Feedback::Effect::Navigate);
   }
 
 void InventoryMenu::moveUp() {
   auto& sel = activePageSel();
 
-  if(sel.sel>=columsCount)
+  if(sel.sel>=columsCount) {
     sel.sel -= columsCount;
+    Feedback::play(Feedback::Effect::Navigate);
+    }
   else
     moveLeft(false);
   }
@@ -298,8 +309,10 @@ void InventoryMenu::moveDown() {
   auto& pg  = activePage();
   auto& sel = activePageSel();
 
-  if(sel.sel+columsCount<pg.size())
+  if(sel.sel+columsCount<pg.size()) {
     sel.sel += columsCount;
+    Feedback::play(Feedback::Effect::Navigate);
+    }
   else
     moveRight(false);
   }
@@ -503,6 +516,8 @@ void InventoryMenu::onItemAction(uint8_t slotHint) {
   auto it = page.get(sel.sel);
   if(!it.isValid())
     return;
+
+  Feedback::play(Feedback::Effect::Confirm);
 
   if(state==State::Equip) {
     const size_t clsId = it->clsId();
@@ -899,7 +914,7 @@ size_t InventoryMenu::wheelPageSize() const {
 size_t InventoryMenu::wheelSectorCount() const {
   // Paged wheels keep their navigation arrows in the same two sectors.
   if(wheelPageSize()==6) return 8;
-  if(wheelKind==WheelKind::System) return 4;
+  if(wheelKind==WheelKind::System) return 5;
   if(wheelKind==WheelKind::Character) return 2;
   return std::min(wheelPageSize(),wheelItems.size()-std::min(wheelItems.size(),wheelPageId*wheelPageSize()));
   }
@@ -954,6 +969,7 @@ void InventoryMenu::selectWheelSector(int selected, uint64_t now) {
     }
   wheelHoverPage=0;
   if(!wheelCentered) return;
+  const auto previous=wheelSelected;
   wheelSelected=selected;
   if(wheelKind!=WheelKind::Equipment) {
     if(selected<0 || size_t(selected)>=wheelSectorCount()) wheelSelected=-1;
@@ -961,6 +977,8 @@ void InventoryMenu::selectWheelSector(int selected, uint64_t now) {
   else if(wheelPageId*wheelPageSize()+size_t(selected)>=wheelItems.size()) {
     wheelSelected=-1;
     }
+  if(wheelSelected>=0 && wheelSelected!=previous)
+    Feedback::play(Feedback::Effect::Navigate);
   update();
   }
 
@@ -1064,7 +1082,8 @@ void InventoryMenu::drawWheel(Painter& p,DrawPass pass) {
           (Gothic::settingsGetI("DEBUG","gamepadControls")!=0 ? "Gamepad controls\nOn" : "Gamepad controls\nOff");
       const auto hudLabel=Gothic::settingsGetI("GAME","centerPlayerBars")!=0 ? "HUD\nCentered" : "HUD\nClassic";
       const auto combatLabel=Gothic::settingsGetI("GAME","useGothic1Controls")!=0 ? "Combat\nClassic" : "Combat\nModern";
-      const char* systemLabels[]={fpsLabel,debugLabel,hudLabel,combatLabel};
+      const auto vibrationLabel=Gothic::settingsGetI("GAME","vibration")!=0 ? "Vibration\nOn" : "Vibration\nOff";
+      const char* systemLabels[]={fpsLabel,debugLabel,hudLabel,combatLabel,vibrationLabel};
       const auto label=wheelKind==WheelKind::System ? systemLabels[i] :
                        (wheelKind==WheelKind::Character ? (i==0 ? "Stats" : "Journal") : (i==6 ? "<" : ">"));
       const bool twoLines=wheelKind==WheelKind::System && i!=0;

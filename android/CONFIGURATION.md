@@ -17,12 +17,14 @@ Controller bindings and movement options use a separate [Gamepad.ini](CONTROLLER
 
 ## Graphics and FPS
 
+Options > Video settings offers resolution in 5% steps, half-resolution fog/SSAO, shadow resolution, brightness, contrast and gamma. Changes apply immediately. UI and text always use full resolution. Existing resolution choices are preserved when updating.
+
 | File section / key | Android default | Options |
 | --- | --- | --- |
-| `[INTERNAL] vidResIndex` | `1` | `0`: native, `1`: 75%, `2`: 50% scene resolution; UI stays full-resolution |
+| `[ENGINE] renderScale` | `100` | Scene resolution percentage, `50` to `100` |
 | `[ENGINE] ssaoHalfResolution` | `1` | `0`: full-resolution ambient occlusion |
 | `[ENGINE] fogHalfResolution` | `1` | `0`: original fog-lighting quality |
-| `[ENGINE] shadowMapResolution` | `1024` | `1536` or `2048` increases shadow detail and cost |
+| `[ENGINE] shadowMapResolution` | `1024` | `512` reduces cost; `1536` or `2048` increases shadow detail and cost |
 | `[ENGINE] zMaxFPS` | `60` | `30` reduces power/heat; `0` uncaps gameplay |
 | `[VIDEO] displayMode` | `auto` | Lowercase `sdr` forces SDR; `hdr` requests HDR with SDR fallback |
 | `[GAME] showFps` | `0` | `1` shows the text-only FPS counter; also toggle it by holding Back/menu and selecting FPS |
@@ -33,6 +35,10 @@ Menus are capped at at most 60 FPS.
 
 Automatic HDR requires a compatible HDR display and Vulkan surface; unsupported devices fall back to SDR.
 HDR expands highlight range without brightening dark shadows. Screenshots may not match the display's HDR appearance.
+
+## Vibration
+
+`[GAME] vibration=1` enables light feedback for navigation, stronger confirmation and lockpicking mistakes, and distinct pulses for landed hits and damage taken. Set it to `0`, or toggle Vibration in the System wheel, to disable both touch and controller feedback. Phone feedback respects Android's touch-vibration setting. Controller rumble requires support from the controller and its Android driver; unsupported controllers stay silent rather than vibrating the phone.
 
 ## Camera and interface
 
