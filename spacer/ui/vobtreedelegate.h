@@ -9,12 +9,14 @@ class VobTreeDelegate : public Tempest::ListDelegate {
     VobTreeDelegate(WorldEdit& world);
 
     void             setVob(const WorldEdit::Vob* vob);
+    void             update();
 
     size_t           size() const override;
     Tempest::Widget* createView(size_t position) override;
     void             removeView(Tempest::Widget* w, size_t /*position*/) override;
+    Tempest::Widget* update    (Tempest::Widget* w, size_t position ) override;
 
-    Tempest::Signal<void(WorldEdit::Vob&)> onVobSelected;
+    Tempest::Signal<void(WorldEdit::Vob*)> onVobSelected;
 
   private:
     struct Item {
