@@ -658,6 +658,7 @@ void GameMenu::showQuest() {
     content->scroll=0;
     content->handle->text[0]=std::move(text);
     curItem=uint32_t(content-hItems);
+    Feedback::play(Feedback::Effect::Confirm);
     update();
     return;
     }
