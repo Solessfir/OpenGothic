@@ -252,6 +252,21 @@ void GameMenu::initAndroidVideo() {
     if(item.name=="MENUITEM_VID_BRIGHTNESS_SLIDER") sliderBackground=item.img;
   if(resolution==nullptr) return;
   const auto font=resolution->handle->fontname;
+  auto labelFont=font;
+  auto titleFont=font;
+  auto backFont=font;
+  std::string titleText="VIDEO SETTINGS", backText="BACK";
+  for(const auto& item:hItems) {
+    if(item.name=="MENUITEM_VID_RESOLUTION") labelFont=item.handle->fontname;
+    if(item.name=="MENUITEM_VID_HEADLINE") {
+      titleFont=item.handle->fontname;
+      titleText=item.handle->text[0];
+      }
+    if(item.name=="MENUITEM_VID_BACK") {
+      backFont=item.handle->fontname;
+      backText=item.handle->text[0];
+      }
+    }
   // Keep the original Gothic menu background and fonts, without editing either game's scripts.
   for(auto& item:hItems) item=Item();
   size_t index=0;
@@ -267,22 +282,26 @@ void GameMenu::initAndroidVideo() {
     h.flags=selectable ? zenkit::MenuItemFlag::SELECTABLE : zenkit::MenuItemFlag(0);
     return item;
     };
-  auto& title=add("ANDROID_VIDEO_TITLE","Video settings",1000,400,6200,zenkit::MenuItemType::TEXT,false);
+  auto& title=add("ANDROID_VIDEO_TITLE",titleText.c_str(),1000,750,6200,zenkit::MenuItemType::TEXT,false);
+  title.handle->fontname=titleFont;
+  title.handle->dim_y=650;
   title.handle->flags=zenkit::MenuItemFlag::CENTERED;
   struct Row { const char* name; const char* label; const char* values; const char* section; const char* option; };
   const Row rows[]={
     {"ANDROID_SCALE","Resolution","","ENGINE","renderScale"},
-    {"ANDROID_FOG","Half-resolution fog","Off|On","ENGINE","fogHalfResolution"},
-    {"ANDROID_SSAO","Half-resolution SSAO","Off|On","ENGINE","ssaoHalfResolution"},
-    {"ANDROID_SHADOWS","Shadow resolution","512|1024|1536|2048","ENGINE","shadowMapResolution"},
+    {"ANDROID_FOG","Half-res fog","Off|On","ENGINE","fogHalfResolution"},
+    {"ANDROID_SSAO","Half-res SSAO","Off|On","ENGINE","ssaoHalfResolution"},
+    {"ANDROID_SHADOWS","Shadows","512|1024|1536|2048","ENGINE","shadowMapResolution"},
     {"ANDROID_BRIGHTNESS","Brightness","","VIDEO","zVidBrightness"},
     {"ANDROID_CONTRAST","Contrast","","VIDEO","zVidContrast"},
     {"ANDROID_GAMMA","Gamma","","VIDEO","zVidGamma"},
     };
-  int y=1400;
+  int y=1850;
   for(const auto& row:rows) {
     const std::string labelName=std::string(row.name)+"_LABEL";
     auto& label=add(labelName.c_str(),row.label,1000,y,3700,zenkit::MenuItemType::TEXT,false);
+    label.handle->fontname=labelFont;
+    label.handle->dim_y=600;
     label.handle->user_string[0]=row.name;
     auto& item=add(row.name,row.values,4800,y,2200,
                    row.values[0]==0 ? zenkit::MenuItemType::SLIDER : zenkit::MenuItemType::CHOICEBOX,true);
@@ -292,10 +311,16 @@ void GameMenu::initAndroidVideo() {
       item.img=sliderBackground;
       item.handle->dim_y=600;
       }
+    else {
+      // Original Gothic choice values sit slightly below the larger label's top edge.
+      item.handle->pos_y+=120;
+      }
     updateItem(item);
     y+=650;
     }
-  auto& back=add("ANDROID_VIDEO_BACK","Back",1000,6800,6200,zenkit::MenuItemType::TEXT,true);
+  auto& back=add("ANDROID_VIDEO_BACK",backText.c_str(),1000,6800,6200,zenkit::MenuItemType::TEXT,true);
+  back.handle->fontname=backFont;
+  back.handle->dim_y=650;
   back.handle->flags=back.handle->flags | zenkit::MenuItemFlag::CENTERED;
   back.handle->on_sel_action[0]=int(zenkit::MenuItemSelectAction::BACK);
 #endif
