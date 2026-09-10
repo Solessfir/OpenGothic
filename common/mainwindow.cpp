@@ -513,12 +513,18 @@ void MainWindow::onTouchCommand(TouchInput::Command command, bool pressed) {
   if(inventory.isOpen()==InventoryMenu::State::LockPicking && !rootMenu.isActive() && !dialogs.isActive()) {
     // Lock turns are interaction actions, not inventory navigation or remappable keyboard keys.
     if(pressed) {
+      auto action=KeyCodec::Idle;
       if(command==TouchInput::Command::Left)
-        player.onKeyPressed(KeyCodec::Left,Event::K_NoKey,KeyCodec::Mapping::Secondary);
+        action=KeyCodec::Left;
       else if(command==TouchInput::Command::Right)
-        player.onKeyPressed(KeyCodec::Right,Event::K_NoKey,KeyCodec::Mapping::Secondary);
+        action=KeyCodec::Right;
       else if(command==TouchInput::Command::Back || command==TouchInput::Command::Down)
-        player.onKeyPressed(KeyCodec::Back,Event::K_NoKey,KeyCodec::Mapping::Secondary);
+        action=KeyCodec::Back;
+      if(action!=KeyCodec::Idle) {
+        player.onKeyPressed(action,Event::K_NoKey,KeyCodec::Mapping::Secondary);
+        // Picking is immediate; do not leave movement held when the chest opens or picking ends.
+        player.releaseControllerKey(action,true);
+        }
       }
     return;
     }
