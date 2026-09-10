@@ -514,17 +514,6 @@ void GameMenu::drawItem(Painter& p, Item& hItem) {
   }
 
 void GameMenu::drawSlider(Painter& p, Item& it, int x, int y, int sw, int sh) {
-  if(selectionIncludes(it)) {
-    p.pushState();
-    const int border=std::max(1,int(Gothic::interfaceScale(this)));
-    const int pad=2*border;
-    p.setBrush(Color(0.95f,0.78f,0.42f,0.9f));
-    p.drawRect(x-pad,y-pad,sw+2*pad,border);
-    p.drawRect(x-pad,y+sh+pad-border,sw+2*pad,border);
-    p.drawRect(x-pad,y-pad,border,sh+2*pad);
-    p.drawRect(x+sw+pad-border,y-pad,border,sh+2*pad);
-    p.popState();
-    }
   float k = float(sh/2)/float(slider->h());
   int w = int(float(slider->w())*k);
   int h = int(float(slider->h())*k);
