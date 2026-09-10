@@ -112,13 +112,13 @@ void MenuRoot::navigateBack() {
   if(current==nullptr)
     return;
   if(current->closeNestedView()) {
-    Feedback::play(Feedback::Effect::Confirm);
+    Feedback::play(Feedback::Effect::Navigate);
     return;
     }
   if(menuStack.empty() && !Gothic::inst().isInGame() &&
      Gothic::inst().checkLoading()==Gothic::LoadState::Idle)
     return;
-  Feedback::play(Feedback::Effect::Confirm);
+  Feedback::play(Feedback::Effect::Navigate);
   popMenu();
   }
 
