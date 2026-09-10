@@ -109,6 +109,7 @@ class GameMenu : public Tempest::Widget {
     Item*                                 selectedContentItem(Item* it);
     void                                  setSelection(int cur, int seek=1);
     void                                  initItems();
+    void                                  initAndroidVideo();
     void                                  addMissingQuickLoad();
     void                                  getText(const Item &it, std::vector<char>& out);
     const GthFont&                        getTextFont(const Item &it);

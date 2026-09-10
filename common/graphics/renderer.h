@@ -152,6 +152,7 @@ class Renderer final {
       float          moonSize           = 0;
 
       float          vidResIndex        = 0;
+      float          renderScale        = 1;
 
       float          vsmMipBias         = 0.25; //TODO: set to lower, eventually
       } settings;

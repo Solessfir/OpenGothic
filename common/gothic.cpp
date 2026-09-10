@@ -112,12 +112,16 @@ Gothic::Gothic() {
   baseIniFile.reset(new IniFile(nestedPath({u"system",u"Gothic.ini"},Dir::FT_File)));
   iniFile    .reset(new IniFile(u"Gothic.ini"));
 #if defined(__ANDROID__)
-  constexpr int defaultResolutionIndex = 1; // 75% scene resolution
+  constexpr int defaultResolutionIndex = 0; // native scene resolution
   constexpr int defaultSsaoHalfResolution = 1;
   constexpr int defaultFogHalfResolution = 1;
   // Copied PC settings commonly request uncapped rendering; Android starts with a writable 60 FPS preference.
   if(!iniFile->has("ENGINE", "zMaxFPS"))
     iniFile->set("ENGINE", "zMaxFPS", 60);
+  if(!iniFile->has("ENGINE", "renderScale")) {
+    const int legacy=iniFile->has("INTERNAL","vidResIndex") ? iniFile->getI("INTERNAL","vidResIndex") : 0;
+    iniFile->set("ENGINE","renderScale",legacy==0 ? 100 : (legacy==1 ? 75 : 50));
+    }
 #else
   constexpr int defaultResolutionIndex = 0; // native scene resolution
   constexpr int defaultSsaoHalfResolution = 0;
@@ -148,6 +152,7 @@ Gothic::Gothic() {
   defaults->set("GAME", "usePotionKeys",      1);
   defaults->set("GAME", "mouseSensitivity",   0.53f);
   defaults->set("ENGINE", "shadowMapResolution", 1024);
+  defaults->set("ENGINE", "renderScale", 100);
 #endif
 
   defaults->set("GAME", "animatedWindows",     1);

@@ -114,6 +114,7 @@ Renderer::~Renderer() {
 void Renderer::setupSettings() {
   const int shadowResolution = Gothic::settingsGetI("ENGINE", "shadowMapResolution");
   switch(shadowResolution) {
+    case 512:
     case 1024:
     case 1536:
     case 2048:
@@ -157,6 +158,11 @@ void Renderer::setupSettings() {
     settings.moonSize = 400;
 
   settings.vidResIndex = Gothic::inst().settingsGetF("INTERNAL","vidResIndex");
+  settings.renderScale = settings.vidResIndex==0 ? 1.f : (settings.vidResIndex==1 ? 0.75f : 0.5f);
+#if defined(__ANDROID__)
+  settings.renderScale = float(std::clamp(Gothic::settingsGetI("ENGINE","renderScale"),50,100))/100.f;
+  settings.vidResIndex = settings.renderScale==1.f ? 0 : 1;
+#endif
   settings.aaEnabled   = (Gothic::options().aaPreset>0) && (settings.vidResIndex==0);
 
   // direct lighting
@@ -2809,18 +2815,11 @@ Tempest::Attachment Renderer::screenshoot(uint8_t frameId) {
   }
 
 float Renderer::internalResolutionScale() const {
-  if(settings.vidResIndex==0)
-    return 1;
-  if(settings.vidResIndex==1)
-    return 0.75;
-  return 0.5;
+  return settings.renderScale;
   }
 
 Size Renderer::internalResolution(Tempest::Size src) const {
-  if(settings.vidResIndex==0)
-     return src;
-  if(settings.vidResIndex==1)
-    return Size(3*src.w/4, 3*src.h/4);
-  return Size(src.w/2, src.h/2);
+  return Size(std::max(1,int(float(src.w)*settings.renderScale)),
+              std::max(1,int(float(src.h)*settings.renderScale)));
   }
 
