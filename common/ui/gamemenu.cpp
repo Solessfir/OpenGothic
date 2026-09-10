@@ -281,7 +281,9 @@ void GameMenu::initAndroidVideo() {
     };
   int y=1400;
   for(const auto& row:rows) {
-    add(row.label,row.label,1000,y,3700,zenkit::MenuItemType::TEXT,false);
+    const string_frm labelName(row.name,"_LABEL");
+    auto& label=add(labelName.c_str(),row.label,1000,y,3700,zenkit::MenuItemType::TEXT,false);
+    label.handle->user_string[0]=row.name;
     auto& item=add(row.name,row.values,4800,y,2200,
                    row.values[0]==0 ? zenkit::MenuItemType::SLIDER : zenkit::MenuItemType::CHOICEBOX,true);
     item.handle->on_chg_set_option_section=row.section;
@@ -512,6 +514,17 @@ void GameMenu::drawItem(Painter& p, Item& hItem) {
   }
 
 void GameMenu::drawSlider(Painter& p, Item& it, int x, int y, int sw, int sh) {
+  if(selectionIncludes(it)) {
+    p.pushState();
+    const int border=std::max(1,int(Gothic::interfaceScale(this)));
+    const int pad=2*border;
+    p.setBrush(Color(0.95f,0.78f,0.42f,0.9f));
+    p.drawRect(x-pad,y-pad,sw+2*pad,border);
+    p.drawRect(x-pad,y+sh+pad-border,sw+2*pad,border);
+    p.drawRect(x-pad,y-pad,border,sh+2*pad);
+    p.drawRect(x+sw+pad-border,y-pad,border,sh+2*pad);
+    p.popState();
+    }
   float k = float(sh/2)/float(slider->h());
   int w = int(float(slider->w())*k);
   int h = int(float(slider->h())*k);
@@ -882,12 +895,28 @@ void GameMenu::getText(const Item& it, std::vector<char> &out) {
     }
   }
 
+bool GameMenu::selectionIncludes(const Item& item) {
+  auto* first=selectedItem();
+  if(first==nullptr) return false;
+  if(item.name.starts_with("ANDROID_") && item.handle->user_string[0]==first->name)
+    return true;
+  // Original menus select a label and link its slider through an EFFECTS chain.
+  auto* current=first;
+  for(size_t count=0;current!=nullptr && count<zenkit::IMenu::item_count;++count) {
+    if(current==&item) return true;
+    if(!(current->handle->flags & zenkit::MenuItemFlag::EFFECTS)) return false;
+    current=selectedNextItem(current);
+    if(current==first) break;
+    }
+  return false;
+  }
+
 const GthFont& GameMenu::getTextFont(const GameMenu::Item &it) {
   const float scale = Gothic::interfaceScale(this);
   GthFont ret;
   if(!isEnabled(it.handle))
     return Resources::font(it.handle->fontname, Resources::FontType::Disabled, scale);
-  if(&it==selectedItem())
+  if(selectionIncludes(it))
     return Resources::font(it.handle->fontname, Resources::FontType::Hi, scale);
   return Resources::font(it.handle->fontname, Resources::FontType::Normal, scale);
   }

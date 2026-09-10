@@ -104,6 +104,7 @@ class GameMenu : public Tempest::Widget {
     void                                  journalInput(KeyCodec::Action key);
 
     Item*                                 selectedItem();
+    bool                                  selectionIncludes(const Item& item);
     Item*                                 selectedSaveItem();
     Item*                                 selectedNextItem(Item* cur);
     Item*                                 selectedContentItem(Item* it);
