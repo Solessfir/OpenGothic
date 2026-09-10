@@ -505,6 +505,18 @@ void MainWindow::onTouchCommand(TouchInput::Command command, bool pressed) {
   Event::KeyType key = Event::K_NoKey;
   const bool uiActive = video.isActive() || rootMenu.isActive() || chapter.isActive() ||
                         document.isActive() || dialogs.isActive() || inventory.isActive();
+  if(inventory.isOpen()==InventoryMenu::State::LockPicking && !rootMenu.isActive() && !dialogs.isActive()) {
+    // Lock turns are interaction actions, not inventory navigation or remappable keyboard keys.
+    if(pressed) {
+      if(command==TouchInput::Command::Left)
+        player.onKeyPressed(KeyCodec::Left,Event::K_NoKey,KeyCodec::Mapping::Secondary);
+      else if(command==TouchInput::Command::Right)
+        player.onKeyPressed(KeyCodec::Right,Event::K_NoKey,KeyCodec::Mapping::Secondary);
+      else if(command==TouchInput::Command::Back || command==TouchInput::Command::Down)
+        player.onKeyPressed(KeyCodec::Back,Event::K_NoKey,KeyCodec::Mapping::Secondary);
+      }
+    return;
+    }
   if(command==TouchInput::Command::DeleteSave) {
     if(pressed && rootMenu.canRequestDeleteSave() && !video.isActive() && !chapter.isActive() &&
        !document.isActive() && !dialogs.isActive() && !inventory.isActive() && !console.isActive())

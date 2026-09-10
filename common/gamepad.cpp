@@ -243,6 +243,8 @@ void MainWindow::controllerAction(const GamepadBindings::Event& event) {
   if(pl==nullptr || world==nullptr || gothic.isPause() || world->isCutsceneLock() || (camera && camera->isCutscene())) return;
   auto key=[&](KeyCodec::Action a) { player.onKeyPressed(a,Event::K_NoKey,KeyCodec::Mapping::Secondary); };
   if(context==Context::Interaction) {
+    // Each deliberate press turns the lock once; holding a direction must not consume the combination.
+    if(repeat && inventory.isOpen()==InventoryMenu::State::LockPicking) return;
     if(action==PadAction::Up) key(KeyCodec::Forward);
     if(action==PadAction::Down || action==PadAction::Back) key(KeyCodec::Back);
     if(action==PadAction::Left) { key(KeyCodec::Left); player.releaseControllerKey(KeyCodec::Left); }
