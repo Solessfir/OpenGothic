@@ -59,7 +59,7 @@ class InventoryMenu : public Tempest::Widget {
     void  tick(uint64_t dt);
     void  draw(Tempest::Encoder<Tempest::CommandBuffer>& cmd);
     void  paintNumOverlay(Tempest::PaintEvent& e);
-    void  controllerAction(int action);
+    void  controllerAction(int action, bool repeat=false);
     void  openWheel(Npc& pl, WheelKind kind=WheelKind::Equipment);
     void  openQuickWheel(Npc& pl, size_t slot);
     bool  isWheelOpen() const { return wheelActive; }
@@ -111,6 +111,8 @@ class InventoryMenu : public Tempest::Widget {
     uint8_t                   page       =0;
     Tempest::Timer            takeTimer;
     size_t                    takeCount  =0;
+    size_t                    controllerDropItem = size_t(-1);
+    size_t                    controllerDropCell = size_t(-1);
     LootMode                  lootMode   =LootMode::Normal;
     InventoryRenderer         renderer;
 

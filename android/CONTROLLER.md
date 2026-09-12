@@ -56,7 +56,7 @@ Lockpicking uses left/right on the D-pad or left stick, one turn per press. Rele
 
 - A accepts; B backs out one level or skips a dialogue line.
 - Left stick/D-pad navigates items; left/right adjusts the selected slider or setting. Right stick left/right also adjusts values, but does nothing on other menu entries. Hold a direction to repeat.
-- Inventory: tap A to use/equip/transfer one item on release; hold A and press a D-pad direction to assign the highlighted owned item without using it. X drops one item. Y drops the full stack in your own inventory, or transfers a stack when looting, trading or using a chest. LB/RB selects trade or chest panels.
+- Inventory: tap A to use/equip/transfer one item on release; hold A and press a D-pad direction to assign the highlighted owned item without using it. X drops one item; hold to keep dropping from the same stack. Y drops the full stack in your own inventory, or transfers a stack when looting, trading or using a chest. LB/RB selects trade or chest panels.
 - Save menu: A overwrites an existing slot with its current name; Y edits the name. An empty slot still asks for a name.
 - Save/load menu: X requests deletion, A confirms, B cancels. Deletion has no undo.
 - Save-name entry uses the Android keyboard; press **Done**.

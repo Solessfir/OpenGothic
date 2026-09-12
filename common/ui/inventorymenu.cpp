@@ -823,8 +823,9 @@ void InventoryMenu::draw(Tempest::Encoder<CommandBuffer>& cmd) {
   renderer.draw(cmd);
   }
 
-void InventoryMenu::controllerAction(int action) {
+void InventoryMenu::controllerAction(int action, bool repeat) {
   using A=GamepadBindings::Action;
+  if(A(action)!=A::Drop || !repeat) controllerDropItem=size_t(-1);
   if(player==nullptr || state==State::Closed || state==State::LockPicking) return;
   if(A(action)>=A::AssignUp && A(action)<=A::AssignRight) {
     if(!activePage().is(&player->inventory())) return;
@@ -857,6 +858,12 @@ void InventoryMenu::controllerAction(int action) {
       if(!activePage().is(&player->inventory())) break;
       auto it=activePage().get(activePageSel().sel);
       if(it.isValid()) {
+        if(repeat && (controllerDropItem!=it->clsId() || controllerDropCell!=activePageSel().sel)) {
+          controllerDropItem=size_t(-1);
+          break;
+          }
+        controllerDropItem=it->clsId();
+        controllerDropCell=activePageSel().sel;
         player->dropItem(it->clsId(),1);
         Feedback::play(Feedback::Effect::Confirm);
         }

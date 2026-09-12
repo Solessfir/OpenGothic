@@ -19,8 +19,11 @@ int main() {
       B drop;
       const auto x=B::button("X");
       check(has(drop.update(x,C::Inventory,0),A::Drop),"X immediately drops one item");
-      auto held=drop.update(x,C::Inventory,2000);
-      check(!has(held,A::Drop) && !has(held,A::TakeStack),"Holding X neither repeats nor drops a stack");
+      check(drop.update(x,C::Inventory,349).empty(),"Dropping waits for the initial repeat delay");
+      check(has(drop.update(x,C::Inventory,350),A::Drop,P::Repeat),"Holding X repeats dropping one item");
+      check(drop.update(x,C::Inventory,499).empty(),"Dropping respects the repeat interval");
+      auto held=drop.update(x,C::Inventory,500);
+      check(has(held,A::Drop,P::Repeat) && !has(held,A::TakeStack),"Holding X keeps dropping singles, not a stack");
       check(!has(drop.update(0,C::Inventory,2100),A::Drop),"Releasing X does not drop another item");
       const auto y=B::button("Y");
       auto stack=drop.update(y,C::Inventory,2200);
@@ -32,6 +35,8 @@ int main() {
       check(has(takeover,A::TakeStack) && !has(takeover,A::Drop),"Taking over with Y does not replay X held before touch input");
       drop.update(0,C::Inventory,4300);
       check(has(drop.update(x,C::Inventory,4400),A::Drop),"An old held button works after release and a fresh press");
+      check(!has(drop.update(x,C::UI,4800),A::Drop,P::Repeat),"Leaving inventory cancels held dropping");
+      check(!has(drop.update(x,C::Inventory,5200),A::Drop,P::Repeat),"Reopening inventory requires a fresh drop press");
     }
     for(const auto& [name,action]:{std::pair("DpadLeft",A::Left),std::pair("DpadRight",A::Right),
                                  std::pair("LeftStickLeft",A::Left),std::pair("LeftStickRight",A::Right),

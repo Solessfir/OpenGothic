@@ -209,7 +209,7 @@ void MainWindow::controllerAction(const GamepadBindings::Event& event) {
     if(action==PadAction::Cancel) { inventory.close(); wheelHeldMask=0; player.clearInput(); }
     return;
     }
-  if(context==Context::Inventory) { inventory.controllerAction(int(action)); return; }
+  if(context==Context::Inventory) { inventory.controllerAction(int(action),repeat); return; }
   if(context==Context::UI) {
     if(rootMenu.isActive() && !video.isActive()) {
       if(action==PadAction::Accept && pressed && rootMenu.overwriteSelectedSave()) return;

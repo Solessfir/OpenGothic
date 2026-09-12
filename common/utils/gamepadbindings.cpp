@@ -45,7 +45,7 @@ std::string trim(std::string s) {
   }
 bool repeatable(Action a) {
   return a==Action::Up || a==Action::Down || a==Action::Left || a==Action::Right ||
-         a==Action::AdjustLeft || a==Action::AdjustRight;
+         a==Action::AdjustLeft || a==Action::AdjustRight || a==Action::Drop;
   }
 }
 
