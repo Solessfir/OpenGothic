@@ -150,6 +150,24 @@ GameMenu::GameMenu(MenuRoot &owner, KeyCodec& keyCodec, zenkit::DaedalusVm& vm, 
   setPosition(int(infoX*float(w())),int(infoY*float(h())));
 
   setSelection(Gothic::inst().isInGameAndAlive() ? menu->default_ingame : menu->default_outgame);
+  int newestSave=-1;
+  auto newestTime=std::filesystem::file_time_type::min();
+  for(int i=0;i<zenkit::IMenu::item_count;++i) {
+    const auto& item=hItems[i];
+    if(!isSelectable(item.handle) || !isEnabled(item.handle) || item.savHdr.version==0 ||
+       item.handle->on_sel_action_s[0]!="SAVEGAME_LOAD") continue;
+    const auto id=saveSlotId(item);
+    if(id==size_t(-1)) continue;
+    const auto path=SaveSlot::path(".",id);
+    std::error_code error;
+    if(!std::filesystem::is_regular_file(std::filesystem::symlink_status(path,error))) continue;
+    const auto time=std::filesystem::last_write_time(path,error);
+    if(!error && (newestSave<0 || time>newestTime)) {
+      newestSave=i;
+      newestTime=time;
+      }
+    }
+  if(newestSave>=0) setSelection(newestSave);
   // Prefer an existing save at startup or after death; preserve the living player's pause-menu default.
   if(menuSection==Gothic::inst().menuMain() && !Gothic::inst().isInGameAndAlive()) {
     for(int i=0;i<zenkit::IMenu::item_count;++i) {
