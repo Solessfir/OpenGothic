@@ -47,7 +47,7 @@ Parry buttons request one attempt per press, not continuous protection.
 
 Hold LB to restore exploration face buttons during classic combat.
 LB+A sheathes, then interacts with the same eligible target; without a target it only sheathes.
-Ordinary A cannot pick up items with a weapon drawn.
+Ordinary A cannot pick up items with a weapon drawn. Hold A while unarmed to keep picking up nearby loose items; this does not repeatedly open bodies, chests or conversations.
 
 ## Menus, inventory and wheels
 
@@ -55,7 +55,7 @@ Lockpicking uses left/right on the D-pad or left stick, one turn per press. Rele
 
 - A accepts; B backs out one level or skips a dialogue line.
 - Left stick/D-pad navigates items; left/right adjusts the selected slider or setting. Right stick left/right also adjusts values, but does nothing on other menu entries. Hold a direction to repeat.
-- Inventory: tap A to use/equip/transfer one item on release; hold A and press a D-pad direction to assign the highlighted owned item without using it. X drops; Y transfers a stack; LB/RB selects trade or chest panels.
+- Inventory: tap A to use/equip/transfer one item on release; hold A and press a D-pad direction to assign the highlighted owned item without using it. Tap X to drop one item, hold X to drop its full stack; Y transfers a stack; LB/RB selects trade or chest panels.
 - Save menu: A overwrites an existing slot with its current name; Y edits the name. An empty slot still asks for a name.
 - Save/load menu: X requests deletion, A confirms, B cancels. Deletion has no undo.
 - Save-name entry uses the Android keyboard; press **Done**.
@@ -66,6 +66,8 @@ Lockpicking uses left/right on the D-pad or left stick, one turn per press. Rele
 - The wheel uses the slot's category: weapons, magic, potions, food, or maps/documents. Only owned items meeting their use/equip conditions appear. The world keeps running while it is open.
 - Equipped items have a gold rim. Selecting a sheathed weapon draws it; selecting the weapon already in hand leaves it drawn.
 - After closing menus or reconnecting, release buttons and center sticks before moving.
+
+Quicksaving during gameplay preserves held stick movement. For optional rotating saves, see [quicksave history](CONFIGURATION.md#quicksave-history).
 
 ### Quick slots
 

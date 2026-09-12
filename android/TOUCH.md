@@ -30,6 +30,8 @@ In modern melee controls, **Block** sits directly left of Use/Attack. Outside me
 Guide text and FPS stay clear of the phone's camera cutout; the game view and touch regions still use the full screen.
 You can move and look with separate fingers.
 
+Hold Use while unarmed to keep picking up nearby loose items. Quicksaving during gameplay preserves held movement.
+
 ## Combat and target lock
 
 **Modern controls** (`[GAME] useGothic1Controls=0`): tap Use/Attack to strike and Block for one timed parry.
@@ -89,7 +91,7 @@ Saving and quicksaving are disabled while dead, so they cannot overwrite a slot 
 
 Drag on either stick area: up/down selects, right accepts, left goes back.
 When a slider or setting value is selected, drag horizontally in the right-side camera area to adjust it.
-The left side remains available for selection; inventory grids use all directions for item selection.
+The left side remains available for selection; inventory grids use all directions for item selection and repeat while held.
 Use/Attack accepts; Back closes one level, including journal descriptions.
 Release the movement finger before resuming gameplay.
 
