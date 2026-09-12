@@ -304,17 +304,25 @@ void GameMenu::initAndroidOptions() {
       }
     }
 
-  if(auto graphics=find("MENUITEM_OPT_GRAPHICS")) {
-    if(auto video=find("MENUITEM_OPT_VIDEO")) {
-      const int y=graphics->handle->pos_y;
-      const int spacing=video->handle->pos_y-y;
+  for(auto name:{"MENUITEM_OPT_GRAPHICS", "MENUITEM_OPT_CONTROLS"}) {
+    auto category=find(name);
+    if(category==nullptr) continue;
+    const int y=category->handle->pos_y;
+    int nextY=0;
+    for(const auto& item:hItems) {
+      if(item.handle==nullptr || item.name=="MENUITEM_OPT_BACK") continue;
+      const int rowY=item.handle->pos_y;
+      if(rowY>y && (nextY==0 || rowY<nextY)) nextY=rowY;
+      }
+    if(nextY>y) {
+      const int spacing=nextY-y;
       for(auto& item:hItems) {
         if(item.handle==nullptr || item.handle->pos_y<=y || item.name=="MENUITEM_OPT_BACK") continue;
         item.handle=std::make_shared<zenkit::IMenuItem>(*item.handle);
         item.handle->pos_y-=spacing;
         }
       }
-    *graphics=Item();
+    *category=Item();
     }
   // These original audio controls have no equivalent in the current backend.
   // Remove both halves of each row so neither navigation nor EFFECTS chains can reach them.
