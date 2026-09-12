@@ -47,7 +47,7 @@ class GameSession final {
 
     Camera&      camera()       { return     *cam; }
 
-    auto         loadSound(const Tempest::Sound& raw) -> Tempest::SoundEffect;
+    auto         loadSound(const Tempest::Sound& raw, bool voice=false) -> Tempest::SoundEffect;
     auto         loadSound(const SoundFx&        fx, bool& looped)  -> Tempest::SoundEffect;
 
     Npc*         player();
@@ -92,6 +92,7 @@ class GameSession final {
     auto         findStorage(std::string_view name) -> const WorldStateStorage&;
 
     Tempest::SoundDevice           sound;
+    Tempest::SoundDevice           voice;
 
     std::unique_ptr<Camera>        cam;
     std::unique_ptr<GameScript>    vm;

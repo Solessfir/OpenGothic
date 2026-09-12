@@ -323,19 +323,19 @@ def optional_preferences(game):
 
 
 def optional_saves():
-    print("\nOnly OpenGothic save_slot_N.sav files from the same game/mod are compatible, not original Gothic savegame folders.")
+    print("\nOnly OpenGothic save_slot_N.sav and save_quick_N.sav files from the same game/mod are compatible, not original Gothic savegame folders.")
     if not ask("Include PC OpenGothic saves? Existing phone slots will be kept", False):
         return []
     folder = Path(input("PC OpenGothic save directory: ").strip().strip('"')).expanduser()
-    saves = sorted(folder.glob("save_slot_*.sav"))
+    saves = sorted([*folder.glob("save_slot_*.sav"), *folder.glob("save_quick_*.sav")])
     if not saves:
         raise ValueError("No OpenGothic saves found in that directory")
     for save in saves:
         validate_save(save)
     print("Available slots: " + ", ".join(p.name for p in saves))
-    selection = input("Slot numbers separated by spaces, or Enter for all: ").split()
+    selection = input("Save filenames or manual slot numbers separated by spaces, or Enter for all: ").split()
     if selection:
-        selected = {f"save_slot_{int(number)}.sav" for number in selection}
+        selected = {f"save_slot_{name}.sav" if name.isdecimal() else name for name in selection}
         if not selected <= {p.name for p in saves}:
             raise ValueError("A selected save slot does not exist")
         saves = [p for p in saves if p.name in selected]
@@ -464,7 +464,7 @@ def backup_saves(adb, serial, edition="gothic2notr"):
     prefix = [adb, "-s", serial]
     run([*prefix, "shell", "am", "force-stop", app])
     listing = run([*prefix, "shell", "ls", phone], capture=True)
-    slots = [line.strip() for line in listing.stdout.splitlines() if re.fullmatch(r"save_slot_[0-9]+\.sav", line.strip())]
+    slots = [line.strip() for line in listing.stdout.splitlines() if re.fullmatch(r"save_(?:slot_[0-9]+|quick_(?:[1-9]|1[0-9]|20))\.sav", line.strip())]
     if not slots:
         print("No OpenGothic saves found on this phone.")
         return

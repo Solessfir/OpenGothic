@@ -142,7 +142,7 @@ Do not copy a complete PC `Gothic.ini`. The scripts can import these supported p
 Graphics, resolution, paths, keyboard mappings and `SystemPack.ini` are not imported.
 Existing writable phone settings are never replaced. See [configuration](CONFIGURATION.md) for Android options.
 
-Only OpenGothic `save_slot_N.sav` saves transfer, not original Gothic 1 or Gothic II saves.
+Only OpenGothic `save_slot_N.sav` and `save_quick_N.sav` saves transfer, not original Gothic 1 or Gothic II saves.
 Use matching game/mod data and OpenGothic versions. Existing phone slots are not overwritten.
 
 Back up phone saves without rebuilding:

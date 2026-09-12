@@ -240,6 +240,110 @@ void GameMenu::initItems() {
     }
   addMissingQuickLoad();
   initAndroidVideo();
+  initAndroidOptions();
+  quickLoadItem=nullptr;
+  for(auto& item:hItems)
+    if(item.handle!=nullptr && item.name=="MENUITEM_LOAD_SLOT0") quickLoadItem=&item;
+  refreshQuickLoad();
+  }
+
+void GameMenu::refreshQuickLoad() {
+  if(quickLoadItem==nullptr) return;
+  quickLoadSlots=SaveSlot::quickSlots(".");
+  quickLoadItem->name="MENUITEM_LOAD_SLOT"+std::to_string(quickLoadSlots.empty() ? 0 : quickLoadSlots.front());
+  updateItem(*quickLoadItem);
+  }
+
+void GameMenu::initAndroidOptions() {
+#if defined(__ANDROID__)
+  auto find=[&](std::string_view name) -> Item* {
+    for(auto& item:hItems) if(item.name==name && item.handle!=nullptr) return &item;
+    return nullptr;
+    };
+  auto voiceLabel=find("MENUITEM_AUDIO_SPEEKER");
+  auto voiceSlider=find("MENUITEM_AUDIO_SPEEKER_CHOICE");
+  auto sourceSlider=find("MENUITEM_AUDIO_SFXVOL_SLIDER");
+  if(voiceLabel!=nullptr && voiceSlider!=nullptr && sourceSlider!=nullptr) {
+    // Android routes audio itself and does not use Gothic's speaker configuration.
+    if(Gothic::settingsGetS("SOUND","voiceVolume").empty())
+      Gothic::settingsSetF("SOUND","voiceVolume",Gothic::settingsVoiceVolume());
+    voiceLabel->handle=std::make_shared<zenkit::IMenuItem>(*voiceLabel->handle);
+    voiceLabel->handle->text[0]="Dialogue volume";
+    voiceLabel->handle->text[1]="Adjust spoken dialogue independently of sound effects.";
+    const int y=voiceSlider->handle->pos_y;
+    voiceSlider->handle=std::make_shared<zenkit::IMenuItem>(*sourceSlider->handle);
+    voiceSlider->handle->pos_y=y;
+    voiceSlider->handle->on_chg_set_option="voiceVolume";
+    voiceSlider->img=sourceSlider->img;
+    updateItem(*voiceSlider);
+    }
+
+  auto back=find("MENUITEM_GAME_BACK");
+  auto sourceLabel=find("MENUITEM_GAME_SUB_TITLES");
+  auto sourceChoice=find("MENUITEM_GAME_SUB_TITLES_CHOICE");
+  if(back==nullptr || sourceLabel==nullptr || sourceChoice==nullptr) return;
+  size_t end=0;
+  for(size_t i=0;i<std::size(hItems);++i) if(hItems[i].handle!=nullptr) end=i+1;
+  if(end+2>std::size(hItems)) return;
+  Item label, choice;
+  label.name="ANDROID_QUICKSAVES_LABEL";
+  label.handle=std::make_shared<zenkit::IMenuItem>();
+  label.handle->fontname=sourceLabel->handle->fontname;
+  label.handle->pos_x=sourceLabel->handle->pos_x;
+  label.handle->dim_x=sourceLabel->handle->dim_x;
+  label.handle->dim_y=600;
+  label.handle->text[0]="Quicksave slots";
+  label.handle->user_string[0]="ANDROID_QUICKSAVES";
+  label.handle->type=zenkit::MenuItemType::TEXT;
+  choice.name="ANDROID_QUICKSAVES";
+  choice.handle=std::make_shared<zenkit::IMenuItem>();
+  choice.handle->fontname=sourceChoice->handle->fontname;
+  choice.handle->pos_x=sourceChoice->handle->pos_x;
+  choice.handle->dim_x=sourceChoice->handle->dim_x;
+  choice.handle->dim_y=600;
+  choice.handle->type=zenkit::MenuItemType::CHOICEBOX;
+  choice.handle->flags=zenkit::MenuItemFlag::SELECTABLE;
+  choice.handle->on_chg_set_option_section="GAME";
+  choice.handle->on_chg_set_option="quickSaveSlots";
+  choice.handle->text[0]="0 (single)";
+  for(int i=1;i<=20;++i) choice.handle->text[0]+="|"+std::to_string(i);
+  choice.handle->text[1]="0: one quicksave. 1-20: rotate through separate quicksave slots.";
+
+  std::vector<int> rows;
+  std::vector<std::pair<int,int>> positions;
+  for(auto& item:hItems) {
+    int y=item.handle==nullptr ? 0 : item.handle->pos_y;
+    int offset=0;
+    if(item.name.ends_with("_CHOICE") || item.name.ends_with("_SLIDER")) {
+      if(auto label=find(std::string_view(item.name).substr(0,item.name.size()-7))) {
+        offset=y-label->handle->pos_y;
+        y=label->handle->pos_y;
+        }
+      }
+    positions.emplace_back(y,offset);
+    if(item.handle!=nullptr && item.name!="MENUITEM_GAME_HEADLINE" && &item!=back)
+      rows.push_back(y);
+    }
+  std::sort(rows.begin(),rows.end());
+  rows.erase(std::unique(rows.begin(),rows.end()),rows.end());
+  const int step=4500/int(rows.size()+1);
+  for(auto& item:hItems) {
+    if(item.handle==nullptr || item.name=="MENUITEM_GAME_HEADLINE") continue;
+    item.handle=std::make_shared<zenkit::IMenuItem>(*item.handle);
+    if(&item==back) item.handle->pos_y=7000;
+    else {
+      const auto [y,offset]=positions[size_t(&item-hItems)];
+      item.handle->pos_y=1700+int(std::lower_bound(rows.begin(),rows.end(),y)-rows.begin())*step+offset;
+      }
+    }
+  label.handle->pos_y=1700+int(rows.size())*step;
+  choice.handle->pos_y=label.handle->pos_y;
+  const size_t index=size_t(back-hItems);
+  std::move_backward(hItems+index,hItems+end,hItems+end+2);
+  hItems[index]=std::move(label);
+  hItems[index+1]=std::move(choice);
+  updateItem(hItems[index+1]);
+#endif
   }
 
 void GameMenu::initAndroidVideo() {
@@ -697,6 +801,7 @@ bool GameMenu::adjustsHorizontally() {
 bool GameMenu::canAdjustValue() {
   if(journalList!=nullptr || pendingDelete!=nullptr || ctrlInput!=nullptr) return false;
   auto first=selectedItem();
+  if(first==quickLoadItem && quickLoadSlots.size()>1) return true;
   auto item=first;
   // Gothic can select a text label whose EFFECTS chain contains the actual slider.
   for(int count=0; item!=nullptr && count<zenkit::IMenu::item_count; ++count) {
@@ -735,6 +840,7 @@ void GameMenu::onKeyboard(KeyCodec::Action key) {
         pendingDelete->savPriview = Pixmap();
         pendingDelete->handle->text[0] = "---";
         pendingDelete=nullptr;
+        refreshQuickLoad();
         updateSavThumb(*selectedItem());
         }
       else {
@@ -989,6 +1095,16 @@ void GameMenu::exec(Item &p, int slideDx, KeyCodec::Action hint) {
   }
 
 void GameMenu::execSingle(Item &it, int slideDx, KeyCodec::Action hint) {
+  if(&it==quickLoadItem && slideDx!=0) {
+    if(quickLoadSlots.empty()) return;
+    const auto current=std::find(quickLoadSlots.begin(),quickLoadSlots.end(),saveSlotId(it));
+    const int index=int(current-quickLoadSlots.begin());
+    const int next=std::clamp(index+slideDx,0,int(quickLoadSlots.size())-1);
+    it.name="MENUITEM_LOAD_SLOT"+std::to_string(quickLoadSlots[size_t(next)]);
+    updateItem(it);
+    updateSavThumb(it);
+    return;
+    }
   auto& item          = it.handle;
   auto& onSelAction   = item->on_sel_action;
   auto& onSelAction_S = item->on_sel_action_s;
@@ -1097,6 +1213,12 @@ void GameMenu::execChgOption(Item &item, int slideDx) {
     if(slideDx!=0) Gothic::settingsSetI(sec,opt,std::clamp(Gothic::settingsGetI(sec,opt)+slideDx*5,50,100));
     return;
     }
+  if(item.name=="ANDROID_QUICKSAVES") {
+    const int count=std::clamp(Gothic::settingsGetI(sec,opt),0,20);
+    Gothic::settingsSetI(sec,opt,slideDx==0 ? (count+1)%21 : std::clamp(count+slideDx,0,20));
+    updateItem(item);
+    return;
+    }
   if(item.name=="ANDROID_FPS") {
     constexpr int values[]={30,60,0};
     updateItem(item);
@@ -1147,7 +1269,7 @@ void GameMenu::execSaveGame(const GameMenu::Item& item) {
   if(id==size_t(-1))
     return;
 
-  string_frm fname("save_slot_",int(id),".sav");
+  const auto fname=SaveSlot::path(".",id).string();
   Gothic::inst().save(fname,item.handle->text[0]);
   }
 
@@ -1180,7 +1302,7 @@ bool GameMenu::execLoadGame(const GameMenu::Item &item) {
   if(id==size_t(-1))
     return false;
 
-  string_frm fname("save_slot_",int(id),".sav");
+  const auto fname=SaveSlot::path(".",id).string();
   if(!FileUtil::exists(TextCodec::toUtf16(fname.c_str())))
     return false;
   Gothic::inst().load(fname);
@@ -1229,6 +1351,8 @@ void GameMenu::execCommands(std::string str, bool isClick, KeyCodec::Action hint
 void GameMenu::updateItem(GameMenu::Item &item) {
   auto& it   = item.handle;
   item.value = Gothic::settingsGetI(it->on_chg_set_option_section, it->on_chg_set_option);
+  if(item.name=="ANDROID_QUICKSAVES")
+    item.value=std::clamp(item.value,0,20);
   if(item.name=="ANDROID_FPS") {
     const int limit=Gothic::settingsFpsLimit();
     item.value=limit==30 ? 0 : (limit==60 ? 1 : (limit==0 ? 2 : 3));
@@ -1252,8 +1376,7 @@ void GameMenu::updateSavTitle(GameMenu::Item& sel) {
   if(id==size_t(-1))
     return;
 
-  char fname[64]={};
-  std::snprintf(fname,sizeof(fname)-1,"save_slot_%d.sav",int(id));
+  const auto fname=SaveSlot::path(".",id).string();
 
   if(!FileUtil::exists(TextCodec::toUtf16(fname))) {
     sel.handle->text[0] = "---";
@@ -1269,6 +1392,11 @@ void GameMenu::updateSavTitle(GameMenu::Item& sel) {
     if(id!=0 || sel.handle->text[0].empty())
       sel.handle->text[0] = hdr.name;
     sel.savHdr = std::move(hdr);
+    if(&sel==quickLoadItem && quickLoadSlots.size()>1) {
+      const auto index=std::find(quickLoadSlots.begin(),quickLoadSlots.end(),id)-quickLoadSlots.begin();
+      sel.handle->text[0]="Quick save "+std::to_string(index+1)+"/"+std::to_string(quickLoadSlots.size());
+      sel.handle->text[1]="Left / Right: browse quicksaves. Accept: load.";
+      }
 
     if(reader.setEntry("priview.png"))
       reader.read(sel.savPriview); // legacy
@@ -1317,8 +1445,7 @@ bool GameMenu::implUpdateSavThumb(GameMenu::Item& sel) {
   if(id==size_t(-1))
     return false;
 
-  char fname[64]={};
-  std::snprintf(fname,sizeof(fname)-1,"save_slot_%d.sav",int(id));
+  const auto fname=SaveSlot::path(".",id).string();
 
   if(!FileUtil::exists(TextCodec::toUtf16(fname)))
     return false;

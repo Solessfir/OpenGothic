@@ -38,6 +38,35 @@ int main() {
     fs::remove(SaveSlot::path(directory,2));
     fs::remove(SaveSlot::path(directory,3));
     check(!SaveSlot::hasAny(directory),"Removing the last save clears the load preference");
+    check(SaveSlot::nextQuickSlot(directory,0)==0,"Zero keeps the original quicksave path");
+    check(SaveSlot::nextQuickSlot(directory,-1)==0,"Negative counts use the original quicksave");
+    check(SaveSlot::path(directory,SaveSlot::QuickFirst).filename()=="save_quick_1.sav","Rotating slots have separate filenames");
+    check(SaveSlot::quickSlots(directory).empty(),"No quicksave history on a fresh installation");
+    const auto now=fs::file_time_type::clock::now();
+    for(size_t i=0;i<SaveSlot::QuickCount;++i) {
+      const auto slot=SaveSlot::QuickFirst+i;
+      check(SaveSlot::nextQuickSlot(directory,25)==slot,"Rotation fills unused slots and caps the count at twenty");
+      std::ofstream(SaveSlot::path(directory,slot)) << "rotating quicksave";
+      fs::last_write_time(SaveSlot::path(directory,slot),now+std::chrono::seconds(i));
+      }
+    check(SaveSlot::hasAny(directory),"Rotating saves alone enable the load preference");
+    check(SaveSlot::nextQuickSlot(directory,20)==SaveSlot::QuickFirst,"A full rotation overwrites its oldest save");
+    fs::last_write_time(SaveSlot::path(directory,SaveSlot::QuickFirst),now+std::chrono::seconds(30));
+    check(SaveSlot::nextQuickSlot(directory,20)==SaveSlot::QuickFirst+1,"Rotation advances after a save");
+    check(SaveSlot::nextQuickSlot(directory,1)==SaveSlot::QuickFirst,"Reducing the count uses only enabled slots");
+    auto history=SaveSlot::quickSlots(directory);
+    check(history.size()==20 && history.front()==SaveSlot::QuickFirst,"Older disabled slots remain browsable, newest first");
+    std::ofstream(SaveSlot::path(directory,0)) << "legacy quicksave";
+    fs::last_write_time(SaveSlot::path(directory,0),now+std::chrono::seconds(31));
+    check(SaveSlot::quickSlots(directory).front()==0,"Legacy quicksave joins the same chronological history");
+    fs::remove(SaveSlot::path(directory,0));
+    check(SaveSlot::remove(directory,SaveSlot::QuickFirst,error),"Rotating quicksaves can be deleted");
+    fs::create_directory(SaveSlot::path(directory,SaveSlot::QuickFirst));
+    check(SaveSlot::nextQuickSlot(directory,1)==size_t(-1),"Rotation never overwrites a directory");
+    check(SaveSlot::quickSlots(directory).size()==19,"Directories are excluded from quicksave history");
+    fs::remove(SaveSlot::path(directory,SaveSlot::QuickFirst));
+    for(size_t i=1;i<SaveSlot::QuickCount;++i)
+      fs::remove(SaveSlot::path(directory,SaveSlot::QuickFirst+i));
     fs::remove(directory/"save_slot_1.sav.bak");
     fs::remove(directory/"save_slot_.sav");
     fs::remove(directory/"save_slot_test.sav");

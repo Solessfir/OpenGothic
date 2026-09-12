@@ -37,6 +37,14 @@ Menus are capped at at most 60 FPS.
 Automatic HDR requires a compatible HDR display and Vulkan surface; unsupported devices fall back to SDR.
 HDR expands highlight range without brightening dark shadows. Screenshots may not match the display's HDR appearance.
 
+## Quicksave history
+
+Options > Game settings > Quicksave slots controls `[GAME] quickSaveSlots`: `0` keeps the original single quicksave; `1` to `20` rotates through separate slots without replacing manual saves. Quickload uses the newest quicksave. In Load Game, select the quicksave row and use left/right to browse retained saves. Reducing the count keeps older files until you delete them.
+
+## Dialogue volume
+
+Options > Audio > Dialogue volume adjusts speech separately from effects and music. `[SOUND] voiceVolume` accepts `0.0` to `1.0`; without an override it follows the existing sound volume. Disabling sound still mutes both voices and effects.
+
 ## Vibration
 
 `[GAME] vibration=1` enables feedback for menu, inventory and dialogue navigation, confirmation, lockpicking mistakes, bow shots, spell casts, landed hits and damage taken. Teleport charging builds from light pulses to stronger feedback when you teleport. Set it to `0`, or toggle Vibration in the System wheel, to disable both touch and controller feedback. Phone feedback respects Android's touch-vibration setting. Controller rumble requires support from the controller and its Android driver; unsupported controllers stay silent rather than vibrating the phone.

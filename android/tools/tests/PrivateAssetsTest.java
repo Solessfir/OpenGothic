@@ -81,6 +81,13 @@ public class PrivateAssetsTest {
         extract(archive("save_slot_1.sav", "other save".getBytes(StandardCharsets.UTF_8), false), root, marker);
         if (!java.util.Arrays.equals(Files.readAllBytes(root.resolve("save_slot_1.sav")), data)) throw new AssertionError("Overwrote save");
         Files.delete(marker);
+        extract(archive("save_quick_20.sav", data, false), root, marker);
+        Files.delete(marker);
+        extract(archive("save_quick_20.sav", "other save".getBytes(StandardCharsets.UTF_8), false), root, marker);
+        if (!java.util.Arrays.equals(Files.readAllBytes(root.resolve("save_quick_20.sav")), data)) throw new AssertionError("Overwrote rotating quicksave");
+        Files.delete(marker);
+        fails(archive("save_quick_21.sav", data, false), root, marker);
+        fails(archive("save_quick_0.sav", data, false), root, marker);
         Files.write(root.resolve("Gothic2/Data/resume.vdf.og-extract-part"), new byte[3]);
         extract(archive("Gothic2/Data/resume.vdf", data, false), root, marker);
         if (!java.util.Arrays.equals(Files.readAllBytes(root.resolve("Gothic2/Data/resume.vdf")), data)) throw new AssertionError("Failed to resume");

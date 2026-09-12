@@ -108,7 +108,7 @@ class Gothic final {
 
     void         emitGlobalSound(std::string_view   sfx);
     void         emitGlobalSound(const SoundFx*     sfx);
-    void         emitGlobalSound(const Tempest::Sound& sfx);
+    void         emitGlobalSound(const Tempest::Sound& sfx, bool voice=false);
 
     void         emitGlobalSoundWav(std::string_view wav);
 
@@ -212,6 +212,7 @@ class Gothic final {
     static float                          settingsGetF(std::string_view sec, std::string_view name);
     static void                           settingsSetF(std::string_view sec, std::string_view name, float val);
     static float                          settingsSoundVolume();
+    static float                          settingsVoiceVolume();
     static int                            settingsFpsLimit();
     static void                           flushSettings();
 
@@ -253,6 +254,7 @@ class Gothic final {
 
     std::mutex                              syncSnd;
     Tempest::SoundDevice                    sndDev;
+    Tempest::SoundDevice                    voiceDev;
     std::unordered_map<std::string,SoundFx> sndFxCache;
     std::unordered_map<std::string,SoundFx> sndWavCache;
     std::vector<Tempest::SoundEffect>       sndStorage;

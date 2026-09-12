@@ -56,7 +56,7 @@ public final class PrivateAssets {
         }
         boolean allowed = path.startsWith("Gothic2/Data/") || path.startsWith("Gothic2/_work/") ||
                 path.equals("Gothic2/System/GothicGame.ini") || path.equals("Gothic.ini") ||
-                path.matches("save_slot_[0-9]+\\.sav");
+                path.matches("save_(?:slot_[0-9]+|quick_(?:[1-9]|1[0-9]|20))\\.sav");
         if (!allowed) throw new IOException("Unexpected archive path: " + path);
         File target = new File(root, path);
         if (!target.getCanonicalPath().startsWith(root.getCanonicalPath() + File.separator)) {

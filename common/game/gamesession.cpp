@@ -229,6 +229,7 @@ void GameSession::save(Serialize &fout, std::string_view name, const Pixmap& scr
 void GameSession::setupSettings() {
   const float soundVolume = Gothic::settingsSoundVolume();
   sound.setGlobalVolume(soundVolume);
+  voice.setGlobalVolume(Gothic::settingsVoiceVolume());
   }
 
 void GameSession::setWorld(std::unique_ptr<World> &&w) {
@@ -267,9 +268,9 @@ WorldView *GameSession::view() const {
   return nullptr;
   }
 
-Tempest::SoundEffect GameSession::loadSound(const Tempest::Sound &raw) {
+Tempest::SoundEffect GameSession::loadSound(const Tempest::Sound &raw, bool speech) {
   try {
-    return sound.load(raw);
+    return (speech ? voice : sound).load(raw);
     }
   catch(std::bad_alloc&) {
     Tempest::Log::d("Exceeding OpenAL source limit");
@@ -296,6 +297,8 @@ Npc* GameSession::player() {
 void GameSession::updateListenerPos(const Camera::ListenerPos& lpos) {
   sound.setListenerPosition (lpos.pos);
   sound.setListenerDirection(lpos.front, lpos.up);
+  voice.setListenerPosition(lpos.pos);
+  voice.setListenerDirection(lpos.front,lpos.up);
   }
 
 void GameSession::setTime(gtime t) {

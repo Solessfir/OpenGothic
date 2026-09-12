@@ -83,6 +83,8 @@ class GameMenu : public Tempest::Widget {
     Item                                  hItems[zenkit::IMenu::item_count];
     Item*                                 ctrlInput = nullptr;
     Item*                                 pendingDelete = nullptr;
+    Item*                                 quickLoadItem = nullptr;
+    std::vector<size_t>                    quickLoadSlots;
     Item*                                 journalList = nullptr;
     Item*                                 journalContent = nullptr;
     uint32_t                              journalCategory = 0;
@@ -111,6 +113,8 @@ class GameMenu : public Tempest::Widget {
     void                                  setSelection(int cur, int seek=1);
     void                                  initItems();
     void                                  initAndroidVideo();
+    void                                  initAndroidOptions();
+    void                                  refreshQuickLoad();
     void                                  addMissingQuickLoad();
     void                                  getText(const Item &it, std::vector<char>& out);
     const GthFont&                        getTextFont(const Item &it);

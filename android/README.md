@@ -125,13 +125,13 @@ Windows plugins such as Union DLLs do not run on Android.
 
 ## Transfer saves from PC
 
-Only **OpenGothic** `save_slot_N.sav` files transfer; original Gothic 1 or Gothic II saves cannot be converted by renaming.
+Only **OpenGothic** `save_slot_N.sav` and `save_quick_N.sav` files transfer; original Gothic 1 or Gothic II saves cannot be converted by renaming.
 Use matching OpenGothic versions and game/mod data. Keep backups until the imported save loads successfully.
 
 PC saves are in OpenGothic's working directory, usually beside `log.txt`.
 Android saves are in `/sdcard/Android/data/org.opengothic.gothic2notr/files/`, not its `Gothic2` subfolder.
 For Gothic 1 or Classic, substitute the corresponding app ID from the [edition table](SETUP.md#game-editions-and-storage).
-Slot `0` is the quicksave. Close both games and choose an empty destination slot:
+Slot `0` is the original single quicksave; `save_quick_1.sav` through `save_quick_20.sav` hold optional rotating quicksaves. Close both games and choose an empty destination slot:
 
 ```powershell
 $pcSave = 'C:/Path/To/OpenGothic/save_slot_1.sav'

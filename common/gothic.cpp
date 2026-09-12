@@ -22,6 +22,7 @@
 #include "utils/fileutil.h"
 #include "utils/gamedetection.h"
 #include "utils/inifile.h"
+#include "utils/saveslot.h"
 
 #include "commandline.h"
 #include "mainwindow.h"
@@ -460,8 +461,8 @@ void Gothic::emitGlobalSound(const SoundFx *sfx) {
     }
   }
 
-void Gothic::emitGlobalSound(const Tempest::Sound &sfx) {
-  auto s = sndDev.load(sfx);
+void Gothic::emitGlobalSound(const Tempest::Sound &sfx, bool voice) {
+  auto s = (voice ? voiceDev : sndDev).load(sfx);
   s.play();
 
   for(size_t i=0;i<sndStorage.size();){
@@ -659,11 +660,18 @@ void Gothic::updateAnimation(uint64_t dt) {
   }
 
 void Gothic::quickSave() {
-  save("save_slot_0.sav","Quick save");
+  if(checkLoading()!=LoadState::Idle || !isInGameAndAlive()) return;
+  const auto slot=SaveSlot::nextQuickSlot(".",settingsGetI("GAME","quickSaveSlots"));
+  if(slot==size_t(-1)) {
+    onPrint("No writable quicksave slot");
+    return;
+    }
+  save(SaveSlot::path(".",slot).string(),"Quick save");
   }
 
 void Gothic::quickLoad() {
-  load("save_slot_0.sav");
+  const auto slots=SaveSlot::quickSlots(".");
+  load(SaveSlot::path(".",slots.empty() ? 0 : slots.front()).string());
   }
 
 void Gothic::save(std::string_view slot, std::string_view name) {
@@ -919,6 +927,12 @@ int Gothic::settingsFpsLimit() {
   return legacy>0 ? legacy : std::max(0,settingsGetI("ENGINE", "zMaxFPS"));
   }
 
+float Gothic::settingsVoiceVolume() {
+  if(settingsGetI("SOUND","soundEnabled")==0) return 0.f;
+  if(settingsGetS("SOUND","voiceVolume").empty()) return settingsSoundVolume();
+  return std::clamp(settingsGetF("SOUND","voiceVolume"),0.f,1.f);
+  }
+
 void Gothic::flushSettings() {
   instance->iniFile->flush();
   }
@@ -972,6 +986,7 @@ void Gothic::setupSettings() {
 
   const float soundVolume = settingsSoundVolume();
   sndDev.setGlobalVolume(soundVolume);
+  voiceDev.setGlobalVolume(settingsVoiceVolume());
 
   auto ord  = Gothic::settingsGetS("GAME","invCatOrder");
   while(!ord.empty()) {

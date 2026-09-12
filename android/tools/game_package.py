@@ -161,7 +161,7 @@ def safe_preferences(path):
 
 
 def validate_save(path):
-    if not re.fullmatch(r"save_slot_[0-9]+\.sav", Path(path).name):
+    if not re.fullmatch(r"save_(?:slot_[0-9]+|quick_(?:[1-9]|1[0-9]|20))\.sav", Path(path).name):
         raise ValueError(f"Not an OpenGothic slot filename: {path}")
     try:
         with zipfile.ZipFile(path) as archive:

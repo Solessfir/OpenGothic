@@ -127,6 +127,22 @@ class SetupTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             assets.validate_save(save)
 
+    def test_rotating_quicksave_archive(self):
+        saves = []
+        for number in (1, 20):
+            save = self.base / f"save_quick_{number}.sav"
+            with zipfile.ZipFile(save, "w") as archive:
+                archive.writestr("header", b"OpenGothic/Save\x00" + b"\x37\x00")
+            saves.append(save)
+        output = self.base / "rotating-saves.zip"
+        assets.package(self.game, output, saves=saves, progress=lambda _: None)
+        with zipfile.ZipFile(output) as archive:
+            for save in saves:
+                self.assertIn(save.name, archive.namelist())
+        for name in ("save_quick_0.sav", "save_quick_21.sav", "save_quick_no.sav"):
+            with self.assertRaises(ValueError):
+                assets.validate_save(self.base / name)
+
     def test_gothic2_classic(self):
         (self.game / "Data/Worlds_Addon.vdf").unlink()
         self.assertEqual(assets.validate_game(self.game), self.game.resolve())
