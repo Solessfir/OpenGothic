@@ -20,7 +20,7 @@ constexpr const char* actionNames[] = {
   "AdjustLeft", "AdjustRight", "SystemWheel",
   "QuickUp", "QuickDown", "QuickLeft", "QuickRight",
   "WheelUp", "WheelDown", "WheelLeft", "WheelRight",
-  "AssignUp", "AssignDown", "AssignLeft", "AssignRight", "RenameSave"
+  "AssignUp", "AssignDown", "AssignLeft", "AssignRight", "RenameSave", "DropStack"
   };
 static_assert(std::size(actionNames)==size_t(Action::Count));
 constexpr const char* actionLabels[] = {
@@ -34,7 +34,7 @@ constexpr const char* actionLabels[] = {
   "Quick slot up", "Quick slot down", "Quick slot left", "Quick slot right",
   "Up slot wheel", "Down slot wheel", "Left slot wheel", "Right slot wheel",
   "Assign up (hold modifier first)", "Assign down (hold modifier first)",
-  "Assign left (hold modifier first)", "Assign right (hold modifier first)", "Rename save"
+  "Assign left (hold modifier first)", "Assign right (hold modifier first)", "Rename save", "Drop full stack"
   };
 static_assert(std::size(actionLabels)==size_t(Action::Count));
 std::string trim(std::string s) {
@@ -132,6 +132,7 @@ LeftPanel=LB
 RightPanel=RB
 TakeStack=Y
 Drop=X
+DropStack=Hold:X
 Spell3=LT+DpadUp
 Spell4=LT+DpadRight
 Spell5=LT+DpadDown

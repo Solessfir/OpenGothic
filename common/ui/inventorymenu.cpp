@@ -853,10 +853,15 @@ void InventoryMenu::controllerAction(int action) {
         lootMode=LootMode::Stack; onTakeStuff(); lootMode=LootMode::Normal;
         }
       break;
-    case A::Drop: {
+    case A::Drop:
+    case A::DropStack: {
       if(!activePage().is(&player->inventory())) break;
       auto it=activePage().get(activePageSel().sel);
-      if(it.isValid()) player->dropItem(it->clsId(),1);
+      if(it.isValid()) {
+        const auto count=A(action)==A::DropStack ? it.count() : 1;
+        player->dropItem(it->clsId(),count);
+        Feedback::play(Feedback::Effect::Confirm);
+        }
       break;
       }
     default:

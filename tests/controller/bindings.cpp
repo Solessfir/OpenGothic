@@ -15,6 +15,19 @@ bool has(const std::vector<B::Event>& events,A action,P phase=P::Press) {
 int main() {
   try {
     B b;
+    {
+      B drop;
+      const auto x=B::button("X");
+      check(!has(drop.update(x,C::Inventory,0),A::Drop),"Dropping waits to distinguish tap from hold");
+      check(has(drop.update(0,C::Inventory,100),A::Drop),"Tapping X drops one item");
+      drop.update(x,C::Inventory,200);
+      auto held=drop.update(x,C::Inventory,200+drop.options.holdMs);
+      check(has(held,A::DropStack) && !has(held,A::Drop),"Holding X drops only the full stack");
+      check(!has(drop.update(x,C::Inventory,2000),A::DropStack),"Stack dropping does not repeat");
+      check(!has(drop.update(0,C::Inventory,2100),A::Drop),"Releasing a stack drop does not drop another item");
+      drop.update(x,C::Inventory,2200);
+      check(!has(drop.update(x,C::Gameplay,2600),A::DropStack),"Closing inventory cancels a pending drop");
+    }
     for(const auto& [name,action]:{std::pair("DpadLeft",A::Left),std::pair("DpadRight",A::Right),
                                  std::pair("LeftStickLeft",A::Left),std::pair("LeftStickRight",A::Right),
                                  std::pair("B",A::Back),std::pair("DpadDown",A::Down)}) {
@@ -158,7 +171,8 @@ int main() {
     check(has(b.update(x,C::UI,0),A::DeleteSave),"UI X requests save deletion");
     check(!has(b.update(x,C::UI,1000),A::DeleteSave),"Holding X does not repeat deletion");
     b.reset();
-    auto drop=b.update(x,C::Inventory,0);
+    b.update(x,C::Inventory,0);
+    auto drop=b.update(0,C::Inventory,100);
     check(has(drop,A::Drop) && !has(drop,A::DeleteSave),"Inventory X drops without deleting saves");
     b.reset();
     check(!has(b.update(x,C::Gameplay,0),A::DeleteSave),"Gameplay never requests save deletion");
