@@ -100,6 +100,8 @@ Serialize::~Serialize() noexcept(false) {
     }
   else if(fout!=nullptr && !finished)
     mz_zip_writer_end(&impl);
+  if(fin!=nullptr && !finished)
+    mz_zip_reader_end(&impl);
   }
 
 void Serialize::finish() {
@@ -113,6 +115,8 @@ void Serialize::finish() {
     mz_zip_writer_end(&impl);
     //Tempest::Log::d("save time = ", Tempest::Application::tickCount()-time0);
     }
+  if(fin!=nullptr)
+    mz_zip_reader_end(&impl);
   if(SaveLoadProfile::enabled() && profileEntries>100) {
     Tempest::Log::i("[SaveLoad] archive ", fout ? "write" : snapshot ? "snapshot" : "read", " entries=", profileEntries,
                    " raw-bytes=", profileBytes, " zip-inclusive-ms=", double(profileZip)/1000000.0,

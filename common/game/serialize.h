@@ -47,7 +47,8 @@ class Serialize {
     Serialize(Tempest::ODevice& fout);
     Serialize(Tempest::IDevice&  fin);
     Serialize(SaveSnapshot& snapshot);
-    Serialize(Serialize&&)=default;
+    // ZIP callbacks retain this object's address.
+    Serialize(Serialize&&)=delete;
     ~Serialize() noexcept(false);
     void finish();
 
