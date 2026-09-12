@@ -45,7 +45,8 @@ class Serialize {
       };
     Serialize(Tempest::ODevice& fout);
     Serialize(Tempest::IDevice&  fin);
-    Serialize(Serialize&&)=default;
+    // ZIP callbacks retain this object's address.
+    Serialize(Serialize&&)=delete;
     ~Serialize();
 
     uint16_t version()              const { return wldVer; }

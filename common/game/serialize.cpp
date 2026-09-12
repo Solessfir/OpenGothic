@@ -1,4 +1,6 @@
 #include "serialize.h"
+#include "utils/zipdirectory.h"
+#include "utils/zipextract.h"
 
 #include <cstring>
 
@@ -76,6 +78,8 @@ Serialize::Serialize(Tempest::IDevice& fin) : fin(&fin) {
   }
 
 Serialize::~Serialize() {
+  if(fin!=nullptr)
+    mz_zip_reader_end(&impl);
   closeEntry();
   if(fout!=nullptr) {
     mz_zip_writer_finalize_archive(&impl);
@@ -134,10 +138,7 @@ bool Serialize::implSetEntry(std::string_view fname) {
   if(fin!=nullptr) {
     mz_uint32 id = mz_uint32(-1);
     if(mz_zip_reader_locate_file_v2(&impl, entryName.c_str(), nullptr, 0, &id)) {
-      mz_zip_archive_file_stat stat = {};
-      mz_zip_reader_file_stat(&impl,id,&stat);
-      entryBuf.resize(size_t(stat.m_uncomp_size));
-      mz_zip_reader_extract_file_to_mem(&impl,entryName.c_str(),entryBuf.data(),entryBuf.size(),0);
+      ZipExtract::entry(impl, id, entryBuf);
       } else {
       entryBuf.clear();
       }
@@ -148,20 +149,7 @@ bool Serialize::implSetEntry(std::string_view fname) {
   }
 
 uint32_t Serialize::implDirectorySize(std::string_view e) {
-  // Get and print information about each file in the archive.
-  uint32_t cnt = 0;
-  for(mz_uint i = 0; i<mz_zip_reader_get_num_files(&impl); i++) {
-    mz_zip_archive_file_stat stat = {};
-    if(!mz_zip_reader_file_stat(&impl, i, &stat))
-      throw std::runtime_error("unable to locate entry in game archive");
-    auto len = std::strlen(stat.m_filename);
-    if(len>e.size() && std::memcmp(e.data(),stat.m_filename,e.size())==0) {
-      auto sep = std::strchr(stat.m_filename+e.size(),'/');
-      if(sep==nullptr || (sep+1)==(stat.m_filename+len))
-        ++cnt;
-      }
-    }
-  return cnt;
+  return ZipDirectory::size(impl, e);
   }
 
 void Serialize::writeBytes(const void* buf, size_t sz) {
