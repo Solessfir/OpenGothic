@@ -297,5 +297,11 @@ class Serialize {
     uint64_t                 readOffset = 0;
     Tempest::ODevice*        fout      = nullptr;
     Tempest::IDevice*        fin       = nullptr;
+    uint64_t profileIo = 0;
+    uint64_t profileZip = 0;
+    uint64_t profileLookup = 0;
+    uint64_t profileDirectory = 0;
+    uint64_t profileEntries = 0;
+    uint64_t profileBytes = 0;
   };
 

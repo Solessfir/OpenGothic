@@ -1,4 +1,5 @@
 #include "mainwindow.h"
+#include "utils/saveloadprofile.h"
 #include "utils/feedback.h"
 
 #include <Tempest/Except>
@@ -1442,15 +1443,19 @@ void MainWindow::startGame(std::string_view slot) {
   }
 
 void MainWindow::loadGame(std::string_view slot) {
+  SaveLoadProfile::begin("load/request-to-ready");
+  SaveLoadProfile::Timer time("load/main-thread-preparation");
   if(Gothic::inst().checkLoading()==Gothic::LoadState::Idle) {
     setGameImpl(nullptr);
     }
 
   Gothic::inst().setBenchmarkMode(Benchmark::None);
   Gothic::inst().startLoad("LOADING.TGA",[slot=std::string(slot)](std::unique_ptr<GameSession>&& game){
+    SaveLoadProfile::Timer time("load/worker-total");
     game = nullptr; // clear world-memory now
     Tempest::RFile file(slot);
     Serialize      s(file);
+    time.step("load/old-session-destruction-and-archive-open");
     std::unique_ptr<GameSession> w(new GameSession(s));
     return w;
     });
@@ -1467,7 +1472,10 @@ void MainWindow::saveGame(std::string_view slot, std::string_view name) {
   if(auto w = Gothic::inst().world(); w!=nullptr && w->currentCs()!=nullptr)
     return;
 
+  SaveLoadProfile::Timer time("save/main-thread-preparation");
+  SaveLoadProfile::begin("save/request-to-ready");
   auto tex  = renderer.screenshoot(cmdId);
+  time.step("save/screenshot-acquire");
   auto lres = Attachment();
 
   static int32_t kThumbW = 800;
@@ -1493,9 +1501,12 @@ void MainWindow::saveGame(std::string_view slot, std::string_view name) {
     }
 
   auto& thumb = lres.isEmpty() ? tex : lres;
+  time.step("save/thumbnail-downscale-and-wait");
   auto  pm    = device.readPixels(textureCast<const Texture2d&>(thumb));
+  time.step("save/thumbnail-readback");
 
   Gothic::inst().startSave(std::move(textureCast<Texture2d&>(tex)),[slot=std::string(slot),name=std::string(name),pm](std::unique_ptr<GameSession>&& game){
+    SaveLoadProfile::Timer time("save/worker-total");
     if(!game)
       return std::move(game);
 
@@ -1530,6 +1541,7 @@ void MainWindow::onStartLoading() {
   }
 
 void MainWindow::onWorldLoaded() {
+  SaveLoadProfile::Timer time("finish/main-thread-total");
 #if defined(__ANDROID__)
   framePacer.reset();
 #endif
@@ -1548,6 +1560,7 @@ void MainWindow::onWorldLoaded() {
   dialogs  .onWorldChanged();
 
   device.waitIdle();
+  time.step("finish/reset-input-and-gpu-wait");
   for(auto& c:commands)
     c = device.commandBuffer();
 
@@ -1555,6 +1568,7 @@ void MainWindow::onWorldLoaded() {
     c->setViewport(uint32_t(w()),uint32_t(h()));
 
   renderer.onWorldChanged();
+  time.step("finish/command-buffers-and-renderer-reset");
 
   if(auto pl = Gothic::inst().player())
     rootMenu.setPlayer(*pl);

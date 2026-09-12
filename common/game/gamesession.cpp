@@ -1,4 +1,5 @@
 #include "gamesession.h"
+#include "utils/saveloadprofile.h"
 #include "savegameheader.h"
 
 #include <Tempest/Log>
@@ -117,6 +118,7 @@ GameSession::GameSession(std::string file) {
   }
 
 GameSession::GameSession(Serialize &fin) {
+  SaveLoadProfile::Timer time("load/session-total");
   Gothic::inst().setLoadingProgress(0);
   setupSettings();
 
@@ -140,14 +142,18 @@ GameSession::GameSession(Serialize &fin) {
   fin.read(ticks,wrldTime,wrldTimePart,wname);
 
   cam.reset(new Camera());
+  time.step("load/header-and-visited-worlds");
   vm.reset(new GameScript(*this));
   vm->initDialogs();
+  time.step("load/script-construction");
 
   if(true) {
     setWorld(std::unique_ptr<World>(new World(*this,wname,false,[&](int v){
       Gothic::inst().setLoadingProgress(int(v*0.55));
       })));
+    time.step("load/world-construction");
     wrld->load(fin);
+    time.step("load/world-state");
     }
 
   Gothic::inst().setLoadingProgress(70);
@@ -158,9 +164,11 @@ GameSession::GameSession(Serialize &fin) {
 
   fin.setEntry("game/quests");
   vm->loadQuests(fin);
+  time.step("load/perceptions-and-quests");
 
   fin.setEntry("game/daedalus");
   vm->loadVar(fin);
+  time.step("load/script-variables");
 
   if(auto hero = wrld->player())
     vm->setInstanceNPC("HERO",*hero);
@@ -169,6 +177,7 @@ GameSession::GameSession(Serialize &fin) {
   // Reconnect those without replaying gameplay initialization or resetting NPC routines.
   if(vm->usesMemoryExtensions())
     vm->getVm().call_function("MEM_InitAll");
+  time.step("load/ikarus-rebind");
 
   fin.setEntry("game/camera");
   cam->load(fin,wrld->player());
@@ -179,6 +188,7 @@ GameSession::~GameSession() {
   }
 
 void GameSession::save(Serialize &fout, std::string_view name, const Pixmap& screen) {
+  SaveLoadProfile::Timer time("save/session-total");
   SaveGameHeader hdr;
   hdr.version   = Serialize::Version::Current;
   hdr.name      = name;
@@ -203,6 +213,7 @@ void GameSession::save(Serialize &fout, std::string_view name, const Pixmap& scr
 
   fout.setEntry("preview.jpg");
   fout.write(std::tie(screen,"jpg"));
+  time.step("save/header-and-preview");
 
   fout.setEntry("game/session");
   fout.write(ticks,wrldTime,wrldTimePart,wrld->name());
@@ -216,8 +227,10 @@ void GameSession::save(Serialize &fout, std::string_view name, const Pixmap& scr
     i.save(fout);
     }
   Gothic::inst().setLoadingProgress(25);
+  time.step("save/session-and-visited-worlds");
 
   wrld->save(fout);
+  time.step("save/world-state");
   Gothic::inst().setLoadingProgress(60);
 
   fout.setEntry("game/perc");
@@ -225,9 +238,11 @@ void GameSession::save(Serialize &fout, std::string_view name, const Pixmap& scr
 
   fout.setEntry("game/quests");
   vm->saveQuests(fout);
+  time.step("save/perceptions-and-quests");
 
   fout.setEntry("game/daedalus");
   vm->saveVar(fout);
+  time.step("save/script-variables");
   Gothic::inst().setLoadingProgress(80);
   }
 

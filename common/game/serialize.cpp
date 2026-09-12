@@ -1,4 +1,5 @@
 #include "serialize.h"
+#include "utils/saveloadprofile.h"
 
 #include <cstring>
 
@@ -14,6 +15,7 @@
 
 size_t Serialize::writeFunc(void* pOpaque, uint64_t file_ofs, const void* pBuf, size_t n) {
   auto& self = *reinterpret_cast<Serialize*>(pOpaque);
+  SaveLoadProfile::Accumulate time(self.profileIo);
   file_ofs += mz_zip_get_archive_file_start_offset(&self.impl);
   if(file_ofs!=self.curOffset) {
     self.impl.m_last_error = MZ_ZIP_FILE_SEEK_FAILED;
@@ -26,6 +28,7 @@ size_t Serialize::writeFunc(void* pOpaque, uint64_t file_ofs, const void* pBuf, 
 
 size_t Serialize::readFunc(void* pOpaque, uint64_t file_ofs, void* pBuf, size_t n) {
   auto& self = *reinterpret_cast<Serialize*>(pOpaque);
+  SaveLoadProfile::Accumulate time(self.profileIo);
   file_ofs += mz_zip_get_archive_file_start_offset(&self.impl);
   if(self.curOffset<file_ofs) {
     size_t diff = size_t(file_ofs-self.curOffset);
@@ -78,9 +81,17 @@ Serialize::Serialize(Tempest::IDevice& fin) : fin(&fin) {
 Serialize::~Serialize() {
   closeEntry();
   if(fout!=nullptr) {
+    SaveLoadProfile::Timer time("save/zip-finalize");
     mz_zip_writer_finalize_archive(&impl);
     mz_zip_writer_end(&impl);
     //Tempest::Log::d("save time = ", Tempest::Application::tickCount()-time0);
+    }
+  if(SaveLoadProfile::enabled() && profileEntries>100) {
+    Tempest::Log::i("[SaveLoad] archive ", fout ? "write" : "read", " entries=", profileEntries,
+                   " raw-bytes=", profileBytes, " zip-inclusive-ms=", double(profileZip)/1000000.0,
+                   " io-ms=", double(profileIo)/1000000.0,
+                   " lookup-ms=", double(profileLookup)/1000000.0,
+                   " directory-ms=", double(profileDirectory)/1000000.0);
     }
   }
 
@@ -97,6 +108,9 @@ void Serialize::closeEntry() {
     return;
 
   mz_uint level  = entryBuf.size()>256 ? MZ_BEST_SPEED : MZ_NO_COMPRESSION;
+  SaveLoadProfile::Accumulate time(profileZip);
+  ++profileEntries;
+  profileBytes += entryBuf.size();
   mz_bool status = mz_zip_writer_add_mem(&impl, entryName.c_str(), entryBuf.data(), entryBuf.size(), level);
   entryBuf .clear();
   entryName.clear();
@@ -133,10 +147,16 @@ bool Serialize::implSetEntry(std::string_view fname) {
     }
   if(fin!=nullptr) {
     mz_uint32 id = mz_uint32(-1);
-    if(mz_zip_reader_locate_file_v2(&impl, entryName.c_str(), nullptr, 0, &id)) {
+    const auto lookupStart = SaveLoadProfile::now();
+    const bool found = mz_zip_reader_locate_file_v2(&impl, entryName.c_str(), nullptr, 0, &id)!=0;
+    profileLookup += SaveLoadProfile::now()-lookupStart;
+    if(found) {
+      SaveLoadProfile::Accumulate time(profileZip);
       mz_zip_archive_file_stat stat = {};
       mz_zip_reader_file_stat(&impl,id,&stat);
       entryBuf.resize(size_t(stat.m_uncomp_size));
+      ++profileEntries;
+      profileBytes += entryBuf.size();
       mz_zip_reader_extract_file_to_mem(&impl,entryName.c_str(),entryBuf.data(),entryBuf.size(),0);
       } else {
       entryBuf.clear();
@@ -148,6 +168,7 @@ bool Serialize::implSetEntry(std::string_view fname) {
   }
 
 uint32_t Serialize::implDirectorySize(std::string_view e) {
+  SaveLoadProfile::Accumulate time(profileDirectory);
   // Get and print information about each file in the archive.
   uint32_t cnt = 0;
   for(mz_uint i = 0; i<mz_zip_reader_get_num_files(&impl); i++) {
@@ -277,6 +298,7 @@ void Serialize::implWrite(const Tempest::Pixmap& p) {
   }
 
 void Serialize::implWrite(const Tempest::Pixmap& p, const char* ext) {
+  SaveLoadProfile::Timer time("save/preview-encode");
   std::vector<uint8_t> tmp;
   tmp.reserve(4*1024*1024);
   Tempest::MemWriter w{tmp};

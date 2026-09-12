@@ -1,4 +1,5 @@
 #include "gothic.h"
+#include "utils/saveloadprofile.h"
 
 #include <Tempest/Log>
 #include <Tempest/TextCodec>
@@ -553,12 +554,14 @@ bool Gothic::finishLoading() {
   if(state!=LoadState::Finalize && state!=LoadState::FailedLoad && state!=LoadState::FailedSave)
     return false;
   if(loadingFlag.compare_exchange_strong(state,LoadState::Idle)){
+    SaveLoadProfile::Timer time("finish/total");
     loaderTh.join();
     if(pendingGame!=nullptr)
       game = std::move(pendingGame);
     saveTex = Texture2d();
     loadTex = Texture2d();
     onWorldLoaded();
+    SaveLoadProfile::finish();
     return true;
     }
   return false;

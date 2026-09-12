@@ -1,4 +1,5 @@
 #include "world.h"
+#include "utils/saveloadprofile.h"
 
 #include <functional>
 #include <future>
@@ -66,6 +67,7 @@ const char* materialTag(zenkit::MaterialGroup src) {
 
 World::World(GameSession& game, std::string_view file, bool startup, std::function<void(int)> loadProgress)
   :wname(std::move(file)), game(game), wsound(game,*this), wobj(*this) {
+  SaveLoadProfile::Timer time("load/world-build-total");
   const auto* entry = Resources::vdfsIndex().find(wname);
 
   if(entry == nullptr) {
@@ -77,16 +79,19 @@ World::World(GameSession& game, std::string_view file, bool startup, std::functi
     zenkit::World world;
     world.load(buf.get(), version().game == 1 ? zenkit::GameVersion::GOTHIC_1
                                               : zenkit::GameVersion::GOTHIC_2);
+    time.step("load/world-zen-parse");
 
     loadProgress(20);
     auto& worldMesh = world.world_mesh;
 
     auto wdynamicFut = std::async(std::launch::async, [&]() {
       Workers::setThreadName("Loading: BVH thread");
+      SaveLoadProfile::Timer time("load/collision-build-parallel");
       return std::unique_ptr<DynamicWorld>(new DynamicWorld(this,worldMesh));
       });
     auto wviewFut = std::async(std::launch::async, [&]() {
       Workers::setThreadName("Loading: PackedMesh thread");
+      SaveLoadProfile::Timer time("load/visual-build-parallel");
       PackedMesh vmesh(worldMesh,PackedMesh::PK_VisualLnd);
       return std::unique_ptr<WorldView>(new WorldView(vmesh, wname));
       });
@@ -106,6 +111,7 @@ World::World(GameSession& game, std::string_view file, bool startup, std::functi
     loadProgress(60);
 
     wdynamic = wdynamicFut.get();
+    time.step("load/mesh-jobs-and-bsp");
     loadProgress(70);
 
     globFx.reset(new GlobalEffects(*this));
@@ -114,6 +120,7 @@ World::World(GameSession& game, std::string_view file, bool startup, std::functi
       wobj.addRoot(vob,startup);
 
     wmatrix->buildIndex();
+    time.step("load/vobs-and-waypoints");
     loadProgress(100);
     }
   catch(...) {
