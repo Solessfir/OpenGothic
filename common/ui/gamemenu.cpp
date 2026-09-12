@@ -1441,6 +1441,8 @@ void GameMenu::updateSavTitle(GameMenu::Item& sel) {
   if(id==size_t(-1))
     return;
 
+  // Include the just-finished save when choosing the newest slot and preview.
+  Gothic::inst().finishSave(true);
   const auto fname=SaveSlot::path(".",id).string();
 
   if(!FileUtil::exists(TextCodec::toUtf16(fname))) {
