@@ -275,6 +275,28 @@ void GameMenu::initAndroidOptions() {
     voiceSlider->handle->on_chg_set_option="voiceVolume";
     voiceSlider->img=sourceSlider->img;
     updateItem(*voiceSlider);
+    auto music=find("MENUITEM_AUDIO_MUSIC");
+    auto musicChoice=find("MENUITEM_AUDIO_MUSIC_CHOICE");
+    auto provider=find("MENUITEM_AUDIO_PROVIDER");
+    auto providerChoice=find("MENUITEM_AUDIO_PROVIDER_CHOICE");
+    if(music!=nullptr && musicChoice==music+1 && provider==music+2 &&
+       providerChoice==music+3 && voiceLabel==music+4 && voiceSlider==music+5) {
+      // Keep the script's row spacing and choice offsets while grouping the volume sliders.
+      const int musicY=music->handle->pos_y;
+      const int providerY=provider->handle->pos_y;
+      const int voiceY=voiceLabel->handle->pos_y;
+      auto moveRow=[](Item& label, Item& choice, int y) {
+        const int offset=choice.handle->pos_y-label.handle->pos_y;
+        label.handle=std::make_shared<zenkit::IMenuItem>(*label.handle);
+        choice.handle=std::make_shared<zenkit::IMenuItem>(*choice.handle);
+        label.handle->pos_y=y;
+        choice.handle->pos_y=y+offset;
+        };
+      moveRow(*music,*musicChoice,providerY);
+      moveRow(*provider,*providerChoice,voiceY);
+      moveRow(*voiceLabel,*voiceSlider,musicY);
+      std::rotate(music,voiceLabel,voiceSlider+1);
+      }
     if(auto effects=find("MENUITEM_AUDIO_SFXVOL")) {
       effects->handle=std::make_shared<zenkit::IMenuItem>(*effects->handle);
       effects->handle->text[0]="Sound effects";
