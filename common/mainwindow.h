@@ -183,6 +183,7 @@ class MainWindow : public Tempest::Window {
     bool                      controllerExploration=false;
     bool                      controllerFocused=true;
     bool                      controllerAxesBlocked=true;
+    bool                      resumeAnalogAfterSave=false;
     uint32_t                  controllerButtons=0;
     uint32_t                  controllerTriggers=0;
     uint32_t                  wheelHeldMask=0;

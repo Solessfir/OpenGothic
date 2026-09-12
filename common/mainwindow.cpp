@@ -910,6 +910,7 @@ void MainWindow::focusEvent(FocusEvent &event) {
   framePacer.reset();
   controllerFocused=event.in;
   if(!event.in) {
+    resumeAnalogAfterSave=false;
     clearInput();
     controllerBindings.reset(controllerButtons);
     if(inventory.isWheelOpen()) inventory.close();
@@ -1518,6 +1519,9 @@ void MainWindow::onVideo(std::string_view fname) {
 void MainWindow::onStartLoading() {
 #if defined(__ANDROID__)
   framePacer.reset();
+  resumeAnalogAfterSave=Gothic::inst().checkLoading()==Gothic::LoadState::Saving &&
+                        controllerFocused && !rootMenu.isActive() && !inventory.isActive() &&
+                        !document.isActive() && !dialogs.isActive();
 #endif
   player   .clearInput();
   inventory.onWorldChanged();
@@ -1558,6 +1562,15 @@ void MainWindow::onWorldLoaded() {
     pl->multSpeed(1.f);
   lastTick = Application::tickCount();
   player.clearFocus();
+#if defined(__ANDROID__)
+  if(resumeAnalogAfterSave && controllerFocused && !controllerDisconnectPending) {
+    // Resample the current sticks/fingers; never replay a saved axis after its release.
+    controllerAxesBlocked=false;
+    touchMovementBlocked=false;
+    controllerBindings.reset(controllerButtons);
+    }
+  resumeAnalogAfterSave=false;
+#endif
   }
 
 void MainWindow::onSessionExit() {
