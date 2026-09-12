@@ -187,6 +187,7 @@ void PlayerControl::onKeyPressed(KeyCodec::Action a, Tempest::KeyEvent::KeyType 
     }
 
   if(a==KeyCodec::ActionGeneric) {
+    pickupHeld=ws==WeaponState::NoWeapon;
     FocusAction fk = ActGeneric;
     if(this->wantsToMoveForward())
       fk = ActMove;
@@ -219,6 +220,7 @@ void PlayerControl::onKeyPressed(KeyCodec::Action a, Tempest::KeyEvent::KeyType 
   }
 
 void PlayerControl::onKeyReleased(KeyCodec::Action a, KeyCodec::Mapping mapping) {
+  if(a==KeyCodec::ActionGeneric) pickupHeld=false;
   ctrl[a] = false;
 
   handleMovementAction(KeyCodec::ActionMapping{a, mapping}, false);
@@ -575,6 +577,12 @@ void PlayerControl::tickFocus() {
       }
     }
 
+  if(pickupHeld && !ctrl[Action::ActionGeneric] && w!=nullptr && pl!=nullptr &&
+     pl->weaponState()==WeaponState::NoWeapon && !pl->isDown() && canInteract()) {
+    // Only repeat loose-item pickup, never conversations or opening containers.
+    const auto nearby=w->findFocus(Focus());
+    if(nearby.item!=nullptr) interact(*nearby.item);
+    }
   if(!ctrl[Action::ActionGeneric])
     return;
 
@@ -586,7 +594,9 @@ void PlayerControl::tickFocus() {
     clearInput();
     }
   else if(focus.item!=nullptr && interact(*focus.item)) {
+    const bool held=pickupHeld;
     clearInput();
+    pickupHeld=held;
     }
 
   if(focus.npc)
@@ -767,6 +777,7 @@ void PlayerControl::clearMovementInput() {
   }
 
 void PlayerControl::clearInput() {
+  pickupHeld=false;
   touchAnalogMovement=false;
   touchTurn=0;
   controllerFinisher=nullptr;

@@ -189,6 +189,7 @@ void MainWindow::controllerAction(const GamepadBindings::Event& event) {
   const bool released=event.phase==Phase::Release || event.phase==Phase::Cancel;
   const auto context=controllerContext();
   if(released) {
+    if(action==PadAction::Interact) player.setPickupHeld(false);
     const bool cancel=event.phase==Phase::Cancel;
     if(action==PadAction::AttackForward) player.controllerCombat(0,false,cancel);
     if(action==PadAction::AttackLeft) player.controllerCombat(2,false,cancel);
@@ -272,7 +273,10 @@ void MainWindow::controllerAction(const GamepadBindings::Event& event) {
     return;
     }
   switch(action) {
-    case PadAction::Interact: player.controllerInteract(controllerExploration); break;
+    case PadAction::Interact:
+      player.setPickupHeld(pl->weaponState()==WeaponState::NoWeapon);
+      player.controllerInteract(controllerExploration);
+      break;
     case PadAction::Back:
       if(pl->interactive()!=nullptr) key(KeyCodec::Back);
       break;

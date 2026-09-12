@@ -35,6 +35,7 @@ class PlayerControl final {
     void  setMeleeAssist(bool enabled, float maxAngle, float maxDistance);
     void  releaseControllerKey(KeyCodec::Action action, bool cancel=false);
     void  controllerInteract(bool sheath);
+    void  setPickupHeld(bool held) { pickupHeld=held; }
     void  controllerEquip(size_t item, bool toggleDraw=false);
     void  toggleTargetLock();
     void  switchControllerTarget(bool right);
@@ -162,6 +163,7 @@ class PlayerControl final {
     WeaponAction   wctrlLast = WeaponAction::WeaponMele; //!< Reminder for weapon toggle.
 
     bool           cacheFocus=false;
+    bool           pickupHeld=false;
     Focus          currentFocus;
     float          rotMouse=0;
     float          rotMouseY=0;
