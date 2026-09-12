@@ -1,5 +1,6 @@
 #include "serialize.h"
 #include "utils/saveloadprofile.h"
+#include "utils/zipdirectory.h"
 
 #include <cstring>
 
@@ -169,20 +170,7 @@ bool Serialize::implSetEntry(std::string_view fname) {
 
 uint32_t Serialize::implDirectorySize(std::string_view e) {
   SaveLoadProfile::Accumulate time(profileDirectory);
-  // Get and print information about each file in the archive.
-  uint32_t cnt = 0;
-  for(mz_uint i = 0; i<mz_zip_reader_get_num_files(&impl); i++) {
-    mz_zip_archive_file_stat stat = {};
-    if(!mz_zip_reader_file_stat(&impl, i, &stat))
-      throw std::runtime_error("unable to locate entry in game archive");
-    auto len = std::strlen(stat.m_filename);
-    if(len>e.size() && std::memcmp(e.data(),stat.m_filename,e.size())==0) {
-      auto sep = std::strchr(stat.m_filename+e.size(),'/');
-      if(sep==nullptr || (sep+1)==(stat.m_filename+len))
-        ++cnt;
-      }
-    }
-  return cnt;
+  return ZipDirectory::size(impl, e);
   }
 
 void Serialize::writeBytes(const void* buf, size_t sz) {
