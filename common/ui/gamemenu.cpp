@@ -304,33 +304,32 @@ void GameMenu::initAndroidOptions() {
       }
     }
 
-  for(auto name:{"MENUITEM_OPT_GRAPHICS", "MENUITEM_OPT_CONTROLS"}) {
-    auto category=find(name);
-    if(category==nullptr) continue;
-    const int y=category->handle->pos_y;
+  auto removeRow=[&](std::string_view name) {
+    auto label=find(name);
+    if(label==nullptr) return;
+    const int y=label->handle->pos_y;
+    *label=Item();
+    // Remove the linked value too, keeping it out of navigation and EFFECTS chains.
+    if(auto choice=find(std::string(name)+"_CHOICE")) *choice=Item();
     int nextY=0;
     for(const auto& item:hItems) {
-      if(item.handle==nullptr || item.name=="MENUITEM_OPT_BACK") continue;
+      if(item.handle==nullptr || item.name.ends_with("_BACK")) continue;
       const int rowY=item.handle->pos_y;
       if(rowY>y && (nextY==0 || rowY<nextY)) nextY=rowY;
       }
     if(nextY>y) {
       const int spacing=nextY-y;
       for(auto& item:hItems) {
-        if(item.handle==nullptr || item.handle->pos_y<=y || item.name=="MENUITEM_OPT_BACK") continue;
+        if(item.handle==nullptr || item.handle->pos_y<=y || item.name.ends_with("_BACK")) continue;
         item.handle=std::make_shared<zenkit::IMenuItem>(*item.handle);
         item.handle->pos_y-=spacing;
         }
       }
-    *category=Item();
-    }
-  // These original audio controls have no equivalent in the current backend.
-  // Remove both halves of each row so neither navigation nor EFFECTS chains can reach them.
-  for(auto name:{"MENUITEM_AUDIO_REVERB", "MENUITEM_AUDIO_REVERB_CHOICE",
-                 "MENUITEM_AUDIO_REVERB_SPEECH", "MENUITEM_AUDIO_REVERB_SPEECH_CHOICE",
-                 "MENUITEM_AUDIO_SAMPLERATE", "MENUITEM_AUDIO_SAMPLERATE_CHOICE"}) {
-    if(auto item=find(name)) *item=Item();
-    }
+    };
+  for(auto name:{"MENUITEM_OPT_GRAPHICS", "MENUITEM_OPT_CONTROLS", "MENUITEM_PERF",
+                 "MENUITEM_AUDIO_REVERB", "MENUITEM_AUDIO_REVERB_SPEECH", "MENUITEM_AUDIO_SAMPLERATE",
+                 "MENUITEM_EXT_FFT", "MENUITEM_EXT_WATERFADE", "MENUITEM_EXT_AMBIENTPFX"})
+    removeRow(name);
 
   auto back=find("MENUITEM_GAME_BACK");
   auto sourceLabel=find("MENUITEM_GAME_SUB_TITLES");

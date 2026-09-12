@@ -100,9 +100,9 @@ Other supported preferences include:
 - `[GAME] subTitles`, `subTitlesPlayer`: dialogue subtitles.
 - `[SOUND] soundEnabled`, `musicEnabled`, `soundVolume`, `musicVolume`: enable flags and volumes (0–1).
 - `[VIDEO] zVidBrightness`, `zVidContrast`, `zVidGamma`: image adjustments.
-- Extended graphics menu: Cloud Shadows controls SSAO; Radial Fog controls sunshafts; Reflections controls screen-space reflections.
+- Extended graphics menu: Wind controls object swaying; Cloud Shadows controls SSAO; Radial Fog controls fog quality and sunshafts; Reflections controls screen-space reflections. Inactive water waves, water fading and Ambient FX options are hidden.
 
-Android hides the inactive Visual Settings category and the unused reverb and sample-rate controls. Use Video Settings for supported graphics options. Sound provider selects the OpenGothic or GothicKit music backend, not an Android audio driver.
+Android hides the inactive Visual Settings category, Performance/Quality presets and unused reverb and sample-rate controls. Use Video Settings for supported graphics options. Sound provider selects the OpenGothic or GothicKit music backend, not an Android audio driver.
 
 ## Optional diagnostics
 
