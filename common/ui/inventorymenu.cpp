@@ -849,17 +849,15 @@ void InventoryMenu::controllerAction(int action) {
     case A::RightPanel: if(pagesCount()==2) page=1; break;
     case A::Accept: onItemAction(Item::NSLOT); takeTimer.stop(); takeCount=0; break;
     case A::TakeStack:
-      if(state==State::Chest || state==State::Trade || state==State::Ransack) {
+      if(state==State::Chest || state==State::Trade || state==State::Ransack || state==State::Equip) {
         lootMode=LootMode::Stack; onTakeStuff(); lootMode=LootMode::Normal;
         }
       break;
-    case A::Drop:
-    case A::DropStack: {
+    case A::Drop: {
       if(!activePage().is(&player->inventory())) break;
       auto it=activePage().get(activePageSel().sel);
       if(it.isValid()) {
-        const auto count=A(action)==A::DropStack ? it.count() : 1;
-        player->dropItem(it->clsId(),count);
+        player->dropItem(it->clsId(),1);
         Feedback::play(Feedback::Effect::Confirm);
         }
       break;

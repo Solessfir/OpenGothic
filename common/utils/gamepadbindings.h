@@ -23,7 +23,7 @@ class GamepadBindings final {
       QuickUp, QuickDown, QuickLeft, QuickRight,
       WheelUp, WheelDown, WheelLeft, WheelRight,
       AssignUp, AssignDown, AssignLeft, AssignRight,
-      RenameSave, DropStack,
+      RenameSave,
       Count
       };
     enum class Phase { Press, Release, Repeat, Cancel };

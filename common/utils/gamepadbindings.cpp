@@ -20,7 +20,7 @@ constexpr const char* actionNames[] = {
   "AdjustLeft", "AdjustRight", "SystemWheel",
   "QuickUp", "QuickDown", "QuickLeft", "QuickRight",
   "WheelUp", "WheelDown", "WheelLeft", "WheelRight",
-  "AssignUp", "AssignDown", "AssignLeft", "AssignRight", "RenameSave", "DropStack"
+  "AssignUp", "AssignDown", "AssignLeft", "AssignRight", "RenameSave"
   };
 static_assert(std::size(actionNames)==size_t(Action::Count));
 constexpr const char* actionLabels[] = {
@@ -28,13 +28,13 @@ constexpr const char* actionLabels[] = {
   "Draw / sheathe", "Equipment wheel", "Map", "Health potion", "Mana potion", "Character stats",
   "First person", "Look behind", "Quicksave", "Quickload", "Attack", "Attack left",
   "Attack right", "Block", "Finishing blow", "Accept / use", "Up", "Down", "Left", "Right",
-  "Previous page", "Next page", "Cancel", "Left inventory pane", "Right inventory pane", "Transfer stack", "Drop item",
+  "Previous page", "Next page", "Cancel", "Left inventory pane", "Right inventory pane", "Transfer / drop stack", "Drop item",
   "Spell slot 3", "Spell slot 4", "Spell slot 5", "Spell slot 6", "Spell slot 7", "Spell slot 8", "Spell slot 9", "Spell slot 10",
   "Delete save", "Decrease slider", "Increase slider", "System wheel",
   "Quick slot up", "Quick slot down", "Quick slot left", "Quick slot right",
   "Up slot wheel", "Down slot wheel", "Left slot wheel", "Right slot wheel",
   "Assign up (hold modifier first)", "Assign down (hold modifier first)",
-  "Assign left (hold modifier first)", "Assign right (hold modifier first)", "Rename save", "Drop full stack"
+  "Assign left (hold modifier first)", "Assign right (hold modifier first)", "Rename save"
   };
 static_assert(std::size(actionLabels)==size_t(Action::Count));
 std::string trim(std::string s) {
@@ -132,7 +132,6 @@ LeftPanel=LB
 RightPanel=RB
 TakeStack=Y
 Drop=X
-DropStack=Hold:X
 Spell3=LT+DpadUp
 Spell4=LT+DpadRight
 Spell5=LT+DpadDown

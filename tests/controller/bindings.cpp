@@ -18,15 +18,15 @@ int main() {
     {
       B drop;
       const auto x=B::button("X");
-      check(!has(drop.update(x,C::Inventory,0),A::Drop),"Dropping waits to distinguish tap from hold");
-      check(has(drop.update(0,C::Inventory,100),A::Drop),"Tapping X drops one item");
-      drop.update(x,C::Inventory,200);
-      auto held=drop.update(x,C::Inventory,200+drop.options.holdMs);
-      check(has(held,A::DropStack) && !has(held,A::Drop),"Holding X drops only the full stack");
-      check(!has(drop.update(x,C::Inventory,2000),A::DropStack),"Stack dropping does not repeat");
-      check(!has(drop.update(0,C::Inventory,2100),A::Drop),"Releasing a stack drop does not drop another item");
-      drop.update(x,C::Inventory,2200);
-      check(!has(drop.update(x,C::Gameplay,2600),A::DropStack),"Closing inventory cancels a pending drop");
+      check(has(drop.update(x,C::Inventory,0),A::Drop),"X immediately drops one item");
+      auto held=drop.update(x,C::Inventory,2000);
+      check(!has(held,A::Drop) && !has(held,A::TakeStack),"Holding X neither repeats nor drops a stack");
+      check(!has(drop.update(0,C::Inventory,2100),A::Drop),"Releasing X does not drop another item");
+      const auto y=B::button("Y");
+      auto stack=drop.update(y,C::Inventory,2200);
+      check(has(stack,A::TakeStack) && !has(stack,A::Drop),"Y invokes the context-sensitive stack action");
+      check(!has(drop.update(y,C::Inventory,4000),A::TakeStack),"Holding Y does not act on the next stack");
+      check(!has(drop.update(0,C::Inventory,4100),A::TakeStack),"Releasing Y does not act on another stack");
     }
     for(const auto& [name,action]:{std::pair("DpadLeft",A::Left),std::pair("DpadRight",A::Right),
                                  std::pair("LeftStickLeft",A::Left),std::pair("LeftStickRight",A::Right),
@@ -171,8 +171,7 @@ int main() {
     check(has(b.update(x,C::UI,0),A::DeleteSave),"UI X requests save deletion");
     check(!has(b.update(x,C::UI,1000),A::DeleteSave),"Holding X does not repeat deletion");
     b.reset();
-    b.update(x,C::Inventory,0);
-    auto drop=b.update(0,C::Inventory,100);
+    auto drop=b.update(x,C::Inventory,0);
     check(has(drop,A::Drop) && !has(drop,A::DeleteSave),"Inventory X drops without deleting saves");
     b.reset();
     check(!has(b.update(x,C::Gameplay,0),A::DeleteSave),"Gameplay never requests save deletion");
