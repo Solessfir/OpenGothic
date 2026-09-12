@@ -27,6 +27,11 @@ int main() {
       check(has(stack,A::TakeStack) && !has(stack,A::Drop),"Y invokes the context-sensitive stack action");
       check(!has(drop.update(y,C::Inventory,4000),A::TakeStack),"Holding Y does not act on the next stack");
       check(!has(drop.update(0,C::Inventory,4100),A::TakeStack),"Releasing Y does not act on another stack");
+      drop.reset(x);
+      auto takeover=drop.update(x|y,C::Inventory,4200);
+      check(has(takeover,A::TakeStack) && !has(takeover,A::Drop),"Taking over with Y does not replay X held before touch input");
+      drop.update(0,C::Inventory,4300);
+      check(has(drop.update(x,C::Inventory,4400),A::Drop),"An old held button works after release and a fresh press");
     }
     for(const auto& [name,action]:{std::pair("DpadLeft",A::Left),std::pair("DpadRight",A::Right),
                                  std::pair("LeftStickLeft",A::Left),std::pair("LeftStickRight",A::Right),

@@ -333,6 +333,35 @@ void MainWindow::controllerAction(const GamepadBindings::Event& event) {
 #endif
   }
 
+#if defined(__ANDROID__)
+void MainWindow::setControllerInput(bool enabled) {
+  if(controllerConnected==enabled) return;
+  // Cancel the previous device's held actions and wheel without applying a selection.
+  mobileUi.setTouchEnabled(false);
+  mobileUi.setTouchEnabled(controllerFocused);
+  if(inventory.isWheelOpen()) inventory.close();
+  player.clearInput(true);
+  touchHeldAction.reset();
+  touchTapRelease.reset();
+  touchWheelOwned=false;
+  if(!enabled) controllerBindings.reset(controllerButtons);
+  controllerButtons=0;
+  controllerTriggers=0;
+  wheelHeldMask=0;
+  wheelQuickSlot=size_t(-1);
+  wheelStickInput.reset();
+  controllerAxesBlocked=false;
+  touchMovementBlocked=false;
+  controllerLookIdle=0;
+  touchLookIdle=0;
+  dMouse=Point();
+  controllerConnected=enabled;
+  Feedback::setGamepad(enabled);
+  mobileUi.setDebugOverlay(!enabled && Gothic::settingsGetI("DEBUG","touchControls")!=0);
+  updateControllerOverlay();
+  }
+#endif
+
 void MainWindow::tickGamepad() {
 #if defined(__ANDROID__)
   const auto now=Application::tickCount();
@@ -346,9 +375,36 @@ void MainWindow::tickGamepad() {
   if(controllerWasPresent && !gp.connected)
     controllerDisconnectPending = Gothic::inst().isInGame() || Gothic::inst().checkLoading()!=Gothic::LoadState::Idle;
   controllerWasPresent = gp.connected && options.enabled;
-  const bool connected=gp.connected && options.enabled && controllerFocused;
+  const bool available=gp.connected && options.enabled && controllerFocused;
+  auto activity=[&](const auto& sample) {
+    return controllerActivity.update(available,sample.buttons,sample.leftStickX,sample.leftStickY,
+                                     sample.rightStickX,sample.rightStickY,sample.leftTrigger,sample.rightTrigger,
+                                     options.deadZone,options.triggerPress,options.triggerRelease);
+    };
+  bool fresh=false;
+  for(const auto& sample:gp.changes) fresh=activity(sample) || fresh;
+  fresh=activity(gp) || fresh;
+  if(!available) setControllerInput(false);
+  else if(fresh && !gp.overflow) setControllerInput(true);
+  const bool connected=available && controllerConnected;
+  if(!connected) {
+    // Remember held controls without dispatching them while touch owns input.
+    // A later takeover must not replay an old attack, menu action or inventory drop.
+    uint32_t held=gp.buttons;
+    if(gp.leftTrigger>options.triggerRelease) held|=1u<<14;
+    if(gp.rightTrigger>options.triggerRelease) held|=1u<<15;
+    auto directions=[&](float x,float y,int shift) {
+      if(y< -0.55f) held|=1u<<shift;
+      if(y> 0.55f) held|=1u<<(shift+1);
+      if(x< -0.55f) held|=1u<<(shift+2);
+      if(x> 0.55f) held|=1u<<(shift+3);
+      };
+    directions(gp.leftStickX,gp.leftStickY,16);
+    directions(gp.rightStickX,gp.rightStickY,20);
+    controllerBindings.reset(available ? held : 0);
+    }
   Feedback::setGamepad(connected);
-  mobileUi.setTouchEnabled(!connected && controllerFocused);
+  mobileUi.setTouchEnabled(controllerFocused);
   if(touchWheelOwned && (!inventory.isWheelOpen() || Gothic::inst().isPause() ||
      Gothic::inst().checkLoading()!=Gothic::LoadState::Idle || rootMenu.isActive() ||
      dialogs.isActive() || video.isActive() || chapter.isActive() || document.isActive() || console.isActive()))
@@ -375,14 +431,6 @@ void MainWindow::tickGamepad() {
   mobileUi.setSaveDeleteEnabled(rootMenu.canRequestDeleteSave() && !video.isActive() && !chapter.isActive() &&
                                !document.isActive() && !dialogs.isActive() && !inventory.isActive() && !console.isActive());
   mobileUi.tick();
-  if(!connected && controllerConnected) {
-    controllerAxesBlocked=true;
-    player.clearInput(); controllerBindings.reset(); controllerButtons=0; controllerTriggers=0;
-    if(inventory.isWheelOpen()) inventory.close();
-    wheelStickInput.reset();
-    wheelHeldMask=0;
-    }
-  controllerConnected=connected;
   mobileUi.setDebugOverlay(!connected && Gothic::settingsGetI("DEBUG","touchControls")!=0);
   updateControllerOverlay();
   if(controllerDisconnectPending && controllerFocused && Gothic::inst().checkLoading()==Gothic::LoadState::Idle) {

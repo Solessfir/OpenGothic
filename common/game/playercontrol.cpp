@@ -776,7 +776,7 @@ void PlayerControl::clearMovementInput() {
     }
   }
 
-void PlayerControl::clearInput() {
+void PlayerControl::clearInput(bool preserveTarget) {
   pickupHeld=false;
   touchAnalogMovement=false;
   touchTurn=0;
@@ -799,7 +799,7 @@ void PlayerControl::clearInput() {
   controllerDirectional=false;
   controllerGroundStrafe=false;
   gamepadLX=0; gamepadLY=0;
-  controllerTarget=nullptr;
+  if(!preserveTarget) controllerTarget=nullptr;
   pendingInteractionUntil=0;
   movement.reset();
   std::memset(ctrl, 0,sizeof(ctrl));

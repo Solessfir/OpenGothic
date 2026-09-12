@@ -1,4 +1,6 @@
 #pragma once
+
+#include "utils/gamepadactivity.h"
 #include "utils/radialinput.h"
 
 #include "camera.h"
@@ -179,6 +181,8 @@ class MainWindow : public Tempest::Window {
 #if defined(__ANDROID__)
     Tempest::Timer            controllerTimer;
     GamepadBindings           controllerBindings;
+    GamepadActivity           controllerActivity;
+    void                      setControllerInput(bool enabled);
     bool                      controllerConnected=false;
     bool                      controllerExploration=false;
     bool                      controllerFocused=true;

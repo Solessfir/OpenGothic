@@ -51,6 +51,7 @@ MainWindow::MainWindow(Device& device)
   Gothic::inst().onSettingsChanged.bind(this,&MainWindow::onSettings);
   onSettings();
 #if defined(__ANDROID__)
+  mobileUi.onTouchStarted=[this] { setControllerInput(false); };
   if(!std::filesystem::exists("Gamepad.ini")) {
     std::ofstream file("Gamepad.ini");
     file<<GamepadBindings::defaults();

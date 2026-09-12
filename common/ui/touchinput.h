@@ -49,6 +49,7 @@ class TouchInput : public Tempest::Widget {
     void            mouseUpEvent(Tempest::MouseEvent& e) override;
 
     void            setTouchEnabled(bool enabled);
+    std::function<void()> onTouchStarted;
     void            setGesturesEnabled(bool enabled);
     void            setSaveDeleteEnabled(bool enabled);
     void            setAnalogMovement(bool enabled);

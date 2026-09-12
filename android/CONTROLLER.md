@@ -5,6 +5,7 @@ Storage examples use NotR's app ID; substitute your [edition's ID](SETUP.md#game
 
 Xbox button names are used below: L3/R3 click the sticks; Menu/View are Start/Select.
 Only the first connected controller is active. Disconnecting it pauses gameplay; reconnecting does not resume automatically.
+Touch stays available while connected. A screen touch takes over; a new button press or tilt from a centered stick switches back to gamepad. Switching cancels held actions and open wheels without applying their selection, and preserves target lock.
 Physical volume buttons remain Android media controls.
 
 ## Movement and shortcuts

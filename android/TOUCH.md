@@ -7,8 +7,8 @@ Touch controls are invisible during normal play. Hold **Back/menu**, drag lower-
 You can also set `Gothic.ini` `[DEBUG] touchControls=1` to show it, or `0` to hide it.
 See [editing settings](CONFIGURATION.md#editing-settings).
 
-A connected, enabled gamepad takes over gameplay input; the Android keyboard remains available.
-Set `Gamepad.ini` `[Controller] Enabled=0` to use touch while it is connected.
+Touch remains available with a gamepad connected. Touch the screen to take over; press a gamepad button or tilt a centered stick to switch back. Switching cancels the previous input's held actions and any open wheel, but keeps target lock. Controls overlays and vibration follow the active input.
+An already-held stick or button cannot take control back until released and used again. `Gamepad.ini` `[Controller] Enabled=0` disables gamepad input entirely.
 
 ## Layout
 

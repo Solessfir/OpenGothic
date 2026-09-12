@@ -195,6 +195,8 @@ void TouchInput::mouseDownEvent(Tempest::MouseEvent& e) {
     return;
     }
 
+  if(onTouchStarted) onTouchStarted();
+
   Touch touch;
   touch.anchor = e.pos();
   touch.last   = e.pos();
