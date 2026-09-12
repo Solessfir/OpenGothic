@@ -498,9 +498,7 @@ void GameMenu::initAndroidVideo() {
   }
 
 void GameMenu::addMissingQuickLoad() {
-  // Gothic 1's scripts omit slot zero. Reuse the load list's styling without modifying MENU.DAT.
-  if(Gothic::inst().version().game!=1)
-    return;
+  // Gothic 1 and some mods omit slot zero. Reuse the load list's styling without modifying MENU.DAT.
   int first=-1, last=-1, end=0;
   for(int i=0;i<zenkit::IMenu::item_count;++i) {
     const auto& item=hItems[i];
