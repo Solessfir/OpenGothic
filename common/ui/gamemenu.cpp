@@ -304,6 +304,26 @@ void GameMenu::initAndroidOptions() {
       }
     }
 
+  if(auto graphics=find("MENUITEM_OPT_GRAPHICS")) {
+    if(auto video=find("MENUITEM_OPT_VIDEO")) {
+      const int y=graphics->handle->pos_y;
+      const int spacing=video->handle->pos_y-y;
+      for(auto& item:hItems) {
+        if(item.handle==nullptr || item.handle->pos_y<=y || item.name=="MENUITEM_OPT_BACK") continue;
+        item.handle=std::make_shared<zenkit::IMenuItem>(*item.handle);
+        item.handle->pos_y-=spacing;
+        }
+      }
+    *graphics=Item();
+    }
+  // These original audio controls have no equivalent in the current backend.
+  // Remove both halves of each row so neither navigation nor EFFECTS chains can reach them.
+  for(auto name:{"MENUITEM_AUDIO_REVERB", "MENUITEM_AUDIO_REVERB_CHOICE",
+                 "MENUITEM_AUDIO_REVERB_SPEECH", "MENUITEM_AUDIO_REVERB_SPEECH_CHOICE",
+                 "MENUITEM_AUDIO_SAMPLERATE", "MENUITEM_AUDIO_SAMPLERATE_CHOICE"}) {
+    if(auto item=find(name)) *item=Item();
+    }
+
   auto back=find("MENUITEM_GAME_BACK");
   auto sourceLabel=find("MENUITEM_GAME_SUB_TITLES");
   auto sourceChoice=find("MENUITEM_GAME_SUB_TITLES_CHOICE");

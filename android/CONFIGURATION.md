@@ -102,8 +102,7 @@ Other supported preferences include:
 - `[VIDEO] zVidBrightness`, `zVidContrast`, `zVidGamma`: image adjustments.
 - Extended graphics menu: Cloud Shadows controls SSAO; Radial Fog controls sunshafts; Reflections controls screen-space reflections.
 
-Original Windows driver/audio-provider options and cache-size tweaks do not configure Android equivalents.
-Original `sightValue`, `modelDetail` and `zVobFarClipZScale` are not supported distance/detail controls here.
+Android hides the inactive Visual Settings category and the unused reverb and sample-rate controls. Use Video Settings for supported graphics options. Sound provider selects the OpenGothic or GothicKit music backend, not an Android audio driver.
 
 ## Optional diagnostics
 
