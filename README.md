@@ -77,7 +77,7 @@ Supported systems are:
 Install the Android APK from [Releases](https://github.com/Solessfir/OpenGothic/releases), then select your `game-data.zip` in the app.
 See [the quick start](android/README.md#dont-care---let-me-play) for preparing the archive from your own installation.
 To build from source, run `setup-android.bat` on Windows or `bash setup-android.sh` on Linux.
-You need legally owned Gothic 1, Gothic II Classic or Gothic II: Night of the Raven files and an ARM64 Vulkan 1.1 Android device.
+You need legally owned Gothic 1, Gothic II Classic, Gothic II: Night of the Raven or Archolos files and an ARM64 Vulkan 1.1 Android device.
 Each edition has its own APK and storage; the setup scripts detect installed games and ask which one to use.
 Use clean game files without Union or Windows DLL plugins, which are unsupported and can break the game.
 See [the Android guide](android/README.md) for installation, touch/gamepad controls, settings and save transfer.

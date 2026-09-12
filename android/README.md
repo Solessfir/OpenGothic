@@ -1,6 +1,6 @@
 # OpenGothic for Android
 
-Native Android port of OpenGothic for Gothic 1, Gothic II Classic and Gothic II: Night of the Raven.
+Native Android port of OpenGothic for Gothic 1, Gothic II Classic, Gothic II: Night of the Raven and Archolos.
 Requires an ARM64 device with Vulkan 1.1 and a legally owned game installation.
 The normal APK contains no game files.
 
@@ -12,12 +12,14 @@ The normal APK contains no game files.
 4. Wait for the import to finish and the game to start. You can then delete the ZIP from your phone.
 
 The script collects the required files and adds an import index. Zipping only `Data`, or manually zipping the installation, will not work. No USB is needed.
-All three apps can be installed together, with separate game files, saves and settings.
+The game apps can be installed together, with separate game files, saves and settings.
 
 Use a clean installation without Union or Windows DLL plugins: they are unsupported, and their script/asset changes can break the game.
 Classic needs actual Classic files; removing NotR's addon archives or selecting a different APK does not convert the installation.
 To build the APK yourself instead, run `setup-android.bat` on Windows or `bash setup-android.sh` on Linux and follow the prompts.
 Both scripts detect installed games and ask which edition to install.
+
+Archolos is also available as a separate build. Select **The Chronicles of Myrtana: Archolos** in the setup script, using its Steam installation. Packaging preserves the installed text language and voice DLC; choose these in Steam before packaging. Mod compatibility is incomplete, so issues may still occur beyond the opening scene.
 
 - [Setup options and installation without USB](SETUP.md)
 - [Touch controls](TOUCH.md)
@@ -52,6 +54,7 @@ $env:ANDROID_SDK_ROOT = $env:ANDROID_HOME
 Output: `build/android/OpenGothic/app/build/outputs/apk/release/app-release.apk` (ARM64, no Gothic assets).
 NotR is the default build.
 For Gothic 1, configure with `-B build/android-g1 -DOPENGOTHIC_ANDROID_GAME=gothic1`; for Classic, use `-B build/android-g2-classic -DOPENGOTHIC_ANDROID_GAME=gothic2`.
+For Archolos, use `-B build/android-archolos -DOPENGOTHIC_ANDROID_GAME=archolos`.
 Build that directory instead; its APK is under `OpenGothic/app/build/outputs/apk/release/app-release.apk`.
 The setup scripts copy APKs into `build/android-setup` using the edition-specific names above.
 On Linux, set `JAVA_HOME`/`ANDROID_HOME`, then use `cmake -S android -B build/android -G Ninja`

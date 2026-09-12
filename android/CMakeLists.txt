@@ -3,8 +3,8 @@ project(OpenGothicAndroid LANGUAGES NONE)
 
 # This project only generates packaging files. Gradle builds the native root project.
 include(../lib/Tempest/Engine/cmake/TempestAndroid.cmake)
-set(OPENGOTHIC_ANDROID_GAME "gothic2notr" CACHE STRING "Launcher edition: gothic1, gothic2 or gothic2notr")
-set_property(CACHE OPENGOTHIC_ANDROID_GAME PROPERTY STRINGS gothic1 gothic2 gothic2notr)
+set(OPENGOTHIC_ANDROID_GAME "gothic2notr" CACHE STRING "Launcher edition: gothic1, gothic2, gothic2notr or archolos")
+set_property(CACHE OPENGOTHIC_ANDROID_GAME PROPERTY STRINGS gothic1 gothic2 gothic2notr archolos)
 if(OPENGOTHIC_ANDROID_GAME STREQUAL "gothic1" OR OPENGOTHIC_ANDROID_GAME STREQUAL "1")
   set(OPENGOTHIC_APPLICATION_ID org.opengothic.gothic1)
   set(OPENGOTHIC_APP_NAME "Gothic")
@@ -17,8 +17,12 @@ elseif(OPENGOTHIC_ANDROID_GAME STREQUAL "gothic2notr" OR OPENGOTHIC_ANDROID_GAME
   set(OPENGOTHIC_APPLICATION_ID org.opengothic.gothic2notr)
   set(OPENGOTHIC_APP_NAME "Gothic II: NotR")
   set(OPENGOTHIC_ICON_COLOR "#739FD7")
+elseif(OPENGOTHIC_ANDROID_GAME STREQUAL "archolos")
+  set(OPENGOTHIC_APPLICATION_ID org.opengothic.archolos)
+  set(OPENGOTHIC_APP_NAME "Archolos")
+  set(OPENGOTHIC_ICON_COLOR "#80B89D")
 else()
-  message(FATAL_ERROR "OPENGOTHIC_ANDROID_GAME must be gothic1, gothic2 or gothic2notr")
+  message(FATAL_ERROR "OPENGOTHIC_ANDROID_GAME must be gothic1, gothic2, gothic2notr or archolos")
 endif()
 
 # Each launcher has its own Android identity and storage, but shares the engine and UI sources.

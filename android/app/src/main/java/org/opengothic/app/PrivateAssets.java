@@ -55,7 +55,8 @@ public final class PrivateAssets {
             throw new IOException("Unsafe archive path: " + path);
         }
         boolean allowed = path.startsWith("Gothic2/Data/") || path.startsWith("Gothic2/_work/") ||
-                path.equals("Gothic2/System/GothicGame.ini") || path.equals("Gothic.ini") ||
+                path.equals("Gothic2/System/GothicGame.ini") ||
+                path.equals("Gothic2/System/TheChroniclesOfMyrtana.ini") || path.equals("Gothic.ini") ||
                 path.matches("save_(?:slot_[0-9]+|quick_(?:[1-9]|1[0-9]|20))\\.sav");
         if (!allowed) throw new IOException("Unexpected archive path: " + path);
         File target = new File(root, path);

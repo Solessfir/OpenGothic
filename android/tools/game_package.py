@@ -70,6 +70,15 @@ def world_names(path):
 
 def game_edition(root):
     data = child_ci(root, "Data")
+    archolos = child_ci(data, "KM_Worlds.mod") if data and data.is_dir() else None
+    if archolos and archolos.is_file():
+        if b"ARCHOLOS_MAINLAND.ZEN" not in world_names(archolos):
+            raise ValueError("Archolos is missing its starting world. Verify the installation in Steam.")
+        system = child_ci(root, "System")
+        config = child_ci(system, "TheChroniclesOfMyrtana.ini") if system and system.is_dir() else None
+        if not config or not config.is_file():
+            raise ValueError("Archolos is missing System/TheChroniclesOfMyrtana.ini. Verify the installation in Steam.")
+        return "The Chronicles of Myrtana: Archolos"
     worlds = child_ci(data, "Worlds.vdf") if data and data.is_dir() else None
     if not worlds or not worlds.is_file():
         raise ValueError("Expected Data/Worlds.vdf from Gothic 1, Gothic II Classic or Night of the Raven.")
@@ -124,11 +133,12 @@ def game_files(root):
             # Keep the existing import path for both games so older packages and installations remain valid.
             result.append((f"Gothic2/{name}/{relative}", path))
     system = child_ci(root, "System")
-    config = child_ci(system, "GothicGame.ini") if system else None
-    if config and config.is_file():
-        if config.is_symlink() or not config.resolve().is_relative_to(root):
-            raise ValueError(f"System configuration must be inside the installation: {config}")
-        result.append(("Gothic2/System/GothicGame.ini", config))
+    for name in ("GothicGame.ini", "TheChroniclesOfMyrtana.ini"):
+        config = child_ci(system, name) if system else None
+        if config and config.is_file():
+            if config.is_symlink() or not config.resolve().is_relative_to(root):
+                raise ValueError(f"System configuration must be inside the installation: {config}")
+            result.append((f"Gothic2/System/{name}", config))
     # No executables, Saves, SystemPack.ini or desktop Gothic.ini are copied.
     return result
 

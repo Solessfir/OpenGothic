@@ -28,6 +28,10 @@ EDITIONS = {"gothic1": "org.opengothic.gothic1", "gothic2": "org.opengothic.goth
 EDITION_NAMES = {"gothic1": "Gothic 1", "gothic2": "Gothic II Classic", "gothic2notr": "Gothic II: Night of the Raven"}
 BUILD_DIRS = {"gothic1": "build/android-g1", "gothic2": "build/android-g2-classic", "gothic2notr": "build/android"}
 APK_NAMES = {"gothic1": "OpenGothic-Gothic1", "gothic2": "OpenGothic-Gothic2-Classic", "gothic2notr": "OpenGothic-Gothic2-NotR"}
+EDITIONS["archolos"] = "org.opengothic.archolos"
+EDITION_NAMES["archolos"] = "The Chronicles of Myrtana: Archolos"
+BUILD_DIRS["archolos"] = "build/android-archolos"
+APK_NAMES["archolos"] = "OpenGothic-Archolos"
 LOCK = json.loads(Path(__file__).with_name("toolchain.json").read_text())
 
 
@@ -265,7 +269,7 @@ def discover_games():
         if not root.is_dir():
             continue
         candidates.append(root)
-        candidates += [p for p in root.iterdir() if p.is_dir() and "gothic" in p.name.lower()]
+        candidates += [p for p in root.iterdir() if p.is_dir() and any(name in p.name.lower() for name in ("gothic", "myrtana", "archolos"))]
     found = set()
     for candidate in candidates:
         try:

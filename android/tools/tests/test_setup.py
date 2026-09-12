@@ -17,6 +17,27 @@ import setup_android as setup
 
 
 class SetupTests(unittest.TestCase):
+    def test_archolos_packaging_keeps_launcher_and_installed_languages(self):
+        self.world_archive("KM_Worlds.mod", ["ARCHOLOS_MAINLAND.ZEN"])
+        (self.game / "Data/Worlds.vdf").write_bytes(b"")
+        system = self.game / "System"
+        system.mkdir(exist_ok=True)
+        config = system / "TheChroniclesOfMyrtana.ini"
+        config.write_text("[SETTINGS]\nWorld=ARCHOLOS_MAINLAND.ZEN\n")
+        for name in ("KM_ScriptsRU.mod", "KM_LocalizationRU.mod", "KM_Speech1RU.mod", "KM_Speech1PL.mod"):
+            (self.game / "Data" / name).write_bytes(b"language fixture")
+        self.assertEqual(assets.game_edition(self.game), setup.EDITION_NAMES["archolos"])
+        self.assertEqual(setup.select_game(self.game, "archolos"), self.game.resolve())
+        files = dict(assets.game_files(self.game))
+        self.assertEqual(files["Gothic2/System/TheChroniclesOfMyrtana.ini"], config.resolve())
+        for name in ("KM_ScriptsRU.mod", "KM_LocalizationRU.mod", "KM_Speech1RU.mod", "KM_Speech1PL.mod"):
+            self.assertIn("Gothic2/Data/" + name, files)
+        with self.assertRaises(ValueError):
+            setup.select_game(self.game, "gothic2notr")
+        config.unlink()
+        with self.assertRaisesRegex(ValueError, "TheChroniclesOfMyrtana.ini"):
+            assets.game_edition(self.game)
+
     def world_archive(self, name, worlds, signature=b"PSVDSC_V2.00\n\r\n\r"):
         entries = b"".join(world.encode().ljust(64, b" ") + struct.pack("<4I", 0, 0, 0x40000000, 0) for world in worlds)
         header = bytes(256) + signature + struct.pack("<6I", len(worlds), len(worlds), 0, 296 + len(entries), 296, 80)

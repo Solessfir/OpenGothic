@@ -183,6 +183,15 @@ CommandLine::CommandLine(int argc, const char** argv) {
   gscript   = nestedPath({u"_work",u"Data",u"Scripts",   u"_compiled"},Dir::FT_Dir);
   gcutscene = nestedPath({u"_work",u"Data",u"Scripts",   u"content",u"CUTSCENE"},Dir::FT_Dir);
 
+#if defined(__ANDROID__)
+  // Archolos ships its starting world in a separate launcher INI and its scripts in .mod archives.
+  if(mod.empty() && FileUtil::exists(nestedPath({u"system",u"TheChroniclesOfMyrtana.ini"},Dir::FT_File))) {
+    mod = "TheChroniclesOfMyrtana.ini";
+    if(!forceG1 && !forceG2)
+      forceG2NR = true;
+    }
+#endif
+
   gmod    = TextCodec::toUtf16(mod);
   if(!gmod.empty())
     gmod = nestedPath({u"system",gmod.c_str()},Dir::FT_File);

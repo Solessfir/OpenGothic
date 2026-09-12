@@ -49,6 +49,10 @@ public class PrivateAssetsTest {
             return;
         }
         byte[] data = "test game data".getBytes(StandardCharsets.UTF_8);
+        String archolosConfig = "Gothic2/System/TheChroniclesOfMyrtana.ini";
+        extract(archive(archolosConfig, data, false), root, marker);
+        if (!java.util.Arrays.equals(Files.readAllBytes(root.resolve(archolosConfig)), data)) throw new AssertionError("Missing Archolos launcher config");
+        Files.delete(marker);
         String name = "Gothic2/Data/Worlds.vdf";
         byte[] zip = archive(name, data, false);
         extract(zip, root, marker);

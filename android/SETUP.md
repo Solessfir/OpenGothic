@@ -1,6 +1,6 @@
 # Android setup
 
-Build and install using your legally owned **Gothic 1**, **Gothic II Classic** or **Gothic II: Night of the Raven** files.
+Build and install using your legally owned **Gothic 1**, **Gothic II Classic**, **Gothic II: Night of the Raven** or **Archolos** files.
 Do not redistribute game assets or APKs containing them.
 Use a clean installation without Union or Windows DLL plugins; unsupported plugin-dependent scripts or modified assets can break startup or gameplay.
 Removing a plugin DLL alone does not undo its script/data changes.
@@ -24,6 +24,7 @@ and delete the transferred ZIP after the game starts.
 
 Select the installation root containing `Data`, `_work` and `System`, not just the `Data` folder.
 The script packages `Data`, `_work`, and `System/GothicGame.ini` when present, plus an index the importer requires.
+For Archolos it also includes `System/TheChroniclesOfMyrtana.ini`, its `.mod` archives and installed voice DLC. Set the text language and install the desired Polish or Russian voice DLC in Steam before packaging. Use `setup-android.bat --game "D:/Games/TheChroniclesOfMyrtana"` (or the same arguments with `bash setup-android.sh` on Linux). Archolos builds use `--edition archolos` and produce `OpenGothic-Archolos-arm64.apk`; its app ID is `org.opengothic.archolos`, with separate saves and settings.
 Windows executables and DLLs are excluded. Saves and selected preferences are optional.
 `game-data.zip` is only the output filename; renaming it is fine, but manually creating a ZIP is not supported.
 
