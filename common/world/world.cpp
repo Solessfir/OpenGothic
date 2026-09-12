@@ -1,4 +1,5 @@
 #include "world.h"
+#include "worlddata.h"
 #include "utils/saveloadprofile.h"
 
 #include <functional>
@@ -68,42 +69,31 @@ const char* materialTag(zenkit::MaterialGroup src) {
 World::World(GameSession& game, std::string_view file, bool startup, std::function<void(int)> loadProgress)
   :wname(std::move(file)), game(game), wsound(game,*this), wobj(*this) {
   SaveLoadProfile::Timer time("load/world-build-total");
-  const auto* entry = Resources::vdfsIndex().find(wname);
-
-  if(entry == nullptr) {
-    throw std::runtime_error("unable to open Zen-file: \"" + wname + "\"");
-    }
-
   try {
-    auto          buf = entry->open_read();
-    zenkit::World world;
-    world.load(buf.get(), version().game == 1 ? zenkit::GameVersion::GOTHIC_1
-                                              : zenkit::GameVersion::GOTHIC_2);
-    time.step("load/world-zen-parse");
+    const auto data = Resources::loadWorld(wname, version().game==1 ? zenkit::GameVersion::GOTHIC_1
+                                                                  : zenkit::GameVersion::GOTHIC_2);
+    const auto& world = data->world;
+    time.step("load/static-world-data");
 
     loadProgress(20);
-    auto& worldMesh = world.world_mesh;
-
     auto wdynamicFut = std::async(std::launch::async, [&]() {
       Workers::setThreadName("Loading: BVH thread");
-      SaveLoadProfile::Timer time("load/collision-build-parallel");
-      return std::unique_ptr<DynamicWorld>(new DynamicWorld(this,worldMesh));
+      SaveLoadProfile::Timer time("load/collision-instance");
+      return std::unique_ptr<DynamicWorld>(new DynamicWorld(this,data->landscape));
       });
     auto wviewFut = std::async(std::launch::async, [&]() {
       Workers::setThreadName("Loading: PackedMesh thread");
       SaveLoadProfile::Timer time("load/visual-build-parallel");
-      PackedMesh vmesh(worldMesh,PackedMesh::PK_VisualLnd);
-      return std::unique_ptr<WorldView>(new WorldView(vmesh, wname));
+      return std::unique_ptr<WorldView>(new WorldView(*data->visual, wname));
       });
 
     loadProgress(30);
 
     {
-      bsp.nodes             = std::move(world.world_bsp_tree.nodes);
-      bsp.sectors           = std::move(world.world_bsp_tree.sectors);
-      bsp.leaf_node_indices = std::move(world.world_bsp_tree.leaf_node_indices);
+      bsp.nodes             = world.world_bsp_tree.nodes;
+      bsp.sectors           = world.world_bsp_tree.sectors;
+      bsp.leaf_node_indices = world.world_bsp_tree.leaf_node_indices;
       bsp.sectorsData.resize(bsp.sectors.size());
-      world.world_bsp_tree  = zenkit::BspTree();
     }
     loadProgress(50);
 

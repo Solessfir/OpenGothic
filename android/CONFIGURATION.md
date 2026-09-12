@@ -39,6 +39,8 @@ HDR expands highlight range without brightening dark shadows. Screenshots may no
 
 ## Quicksave history
 
+Repeated loads reuse the current level's static mesh and collision data. `[ENGINE] worldCacheMiB=512` sets the estimated cache budget in MiB; lower it on memory-constrained devices, or use `0` to disable caching. Only one level is cached. NPCs, quests and scripts are still restored from each save, and the cache does not survive closing the app.
+
 Options > Game settings > Quicksave slots controls `[GAME] quickSaveSlots`: Default (`0` in the INI) keeps the original single quicksave; `1` to `20` rotates through separate slots without replacing manual saves. Quickload uses the newest quicksave. In Load Game, the quicksave row starts at the newest entry (for example, `3/3`); left browses older saves and right browses newer ones. Reducing the count keeps older files until you delete them.
 
 ## Dialogue volume
