@@ -20,7 +20,7 @@ elseif(OPENGOTHIC_ANDROID_GAME STREQUAL "gothic2notr" OR OPENGOTHIC_ANDROID_GAME
 elseif(OPENGOTHIC_ANDROID_GAME STREQUAL "archolos")
   set(OPENGOTHIC_APPLICATION_ID org.opengothic.archolos)
   set(OPENGOTHIC_APP_NAME "Archolos")
-  set(OPENGOTHIC_ICON_COLOR "#80B89D")
+  set(OPENGOTHIC_ICON_COLOR "#C65A50")
 else()
   message(FATAL_ERROR "OPENGOTHIC_ANDROID_GAME must be gothic1, gothic2, gothic2notr or archolos")
 endif()
