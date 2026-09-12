@@ -102,7 +102,7 @@ Other supported preferences include:
 - `[VIDEO] zVidBrightness`, `zVidContrast`, `zVidGamma`: image adjustments.
 - Extended graphics menu: Wind controls object swaying; Cloud Shadows controls SSAO; Radial Fog controls fog quality and sunshafts; Reflections controls screen-space reflections. Inactive water waves, water fading and Ambient FX options are hidden.
 
-Android hides the inactive Visual Settings category, Performance/Quality presets and unused reverb and sample-rate controls. Use Video Settings for supported graphics options. Sound provider selects the OpenGothic or GothicKit music backend, not an Android audio driver.
+Android hides the inactive Visual Settings category, Performance/Quality presets and unused reverb and sample-rate controls. Use Video Settings for supported graphics options. For music troubleshooting, `[INTERNAL] soundProviderIndex=0` selects OpenGothic (default), and `1` selects the experimental GothicKit backend; this setting is not shown in the menu.
 
 ## Optional diagnostics
 
