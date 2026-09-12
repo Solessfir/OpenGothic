@@ -61,7 +61,7 @@ UI scales automatically. In `Gothic2/System/SystemPack.ini`, set `[INTERFACE] Sc
 
 ## Camera obstruction fading
 
-Foliage and spiderwebs fade around the camera and along the camera-to-player path in G1 and G2. The corridor keeps about 20% visibility with soft edges and tapers off below the player's hips to preserve low plants. Only foliage immediately around the camera can disappear completely. Enabled by default on Android; optional on desktop. Walls, terrain, characters, equipment and shadows stay unchanged.
+Foliage, hanging cave roots and spiderwebs fade around the camera and along the camera-to-player path in G1 and G2. The corridor keeps about 20% visibility with soft edges and tapers off below the player's hips to preserve low plants. Only foliage immediately around the camera can disappear completely. Enabled by default on Android; optional on desktop. Walls, terrain, characters, equipment and shadows stay unchanged.
 
 ```ini
 [ENGINE]

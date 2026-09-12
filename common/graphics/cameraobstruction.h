@@ -15,6 +15,7 @@ inline bool foliageTexture(std::string_view texture) {
   // Do not match generic GRASS or TREE: terrain, roofs and bark use those names too.
   constexpr std::string_view families[]={
     "MOWOBUSH", "MOWOFERN", "MOWOREED", "MOWORICEPLANT", "MOWOTREETOP", "MOWOLIANA",
+    "MOWOROOT", "NW_NATURE_ROOT_", "NW_NATURE_ROOTS_",
     "OWDISPIDERWEB", "DECAL_MISC_SPIDERWEB", "OW_NATURE_BUSH_",
     "NW_MISC_GRASS_SPITZEN_", "NW_NATURE_FARN_", "NW_NATURE_GRASS_",
     "NW_NATURE_HOUSEGRASS_DECAL_", "NW_NATURE_LEAVE_", "NW_NATURE_LEAVES_", "NW_NATURE_BRANCH_",
