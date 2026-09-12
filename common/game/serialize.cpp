@@ -1,6 +1,7 @@
 #include "serialize.h"
 #include "utils/saveloadprofile.h"
 #include "utils/zipdirectory.h"
+#include "utils/zipextract.h"
 #include "utils/savesnapshot.h"
 #include <exception>
 
@@ -187,12 +188,9 @@ bool Serialize::implSetEntry(std::string_view fname) {
     profileLookup += SaveLoadProfile::now()-lookupStart;
     if(found) {
       SaveLoadProfile::Accumulate time(profileZip);
-      mz_zip_archive_file_stat stat = {};
-      mz_zip_reader_file_stat(&impl,id,&stat);
-      entryBuf.resize(size_t(stat.m_uncomp_size));
+      ZipExtract::entry(impl, id, entryBuf);
       ++profileEntries;
       profileBytes += entryBuf.size();
-      mz_zip_reader_extract_file_to_mem(&impl,entryName.c_str(),entryBuf.data(),entryBuf.size(),0);
       } else {
       entryBuf.clear();
       }
