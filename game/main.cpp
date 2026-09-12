@@ -46,6 +46,12 @@ std::string_view selectDevice(const Tempest::AbstractGraphicsApi& api) {
 
 std::unique_ptr<Tempest::AbstractGraphicsApi> mkApi(const CommandLine& g) {
   Tempest::ApiFlags flg = g.isValidationMode() ? Tempest::ApiFlags::Validation : Tempest::ApiFlags::NoFlags;
+#if defined(__ANDROID__)
+  // The diagnostic APK bundles the layer; the marker allows a controlled comparison without it.
+  const bool diagnosticValidation = !std::filesystem::exists("pipeline-no-validation");
+  flg = diagnosticValidation ? Tempest::ApiFlags::Validation : Tempest::ApiFlags::NoFlags;
+  Tempest::Log::e("[PipelineCapture] validation requested=", diagnosticValidation);
+#endif
   switch(g.graphicsApi()) {
     case CommandLine::DirectX12:
 #if defined(_MSC_VER)
