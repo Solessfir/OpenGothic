@@ -289,6 +289,7 @@ void GameMenu::initAndroidVideo() {
   struct Row { const char* name; const char* label; const char* values; const char* section; const char* option; };
   const Row rows[]={
     {"ANDROID_SCALE","Resolution","","ENGINE","renderScale"},
+    {"ANDROID_FPS","Frame rate","30 FPS|60 FPS|Unlocked","ENGINE","frameRateLimit"},
     {"ANDROID_FOG","Half-res fog","Off|On","ENGINE","fogHalfResolution"},
     {"ANDROID_SSAO","Half-res SSAO","Off|On","ENGINE","ssaoHalfResolution"},
     {"ANDROID_SHADOWS","Shadows","512|1024|1536|2048","ENGINE","shadowMapResolution"},
@@ -296,7 +297,7 @@ void GameMenu::initAndroidVideo() {
     {"ANDROID_CONTRAST","Contrast","","VIDEO","zVidContrast"},
     {"ANDROID_GAMMA","Gamma","","VIDEO","zVidGamma"},
     };
-  int y=1850;
+  int y=1650;
   for(const auto& row:rows) {
     const std::string labelName=std::string(row.name)+"_LABEL";
     auto& label=add(labelName.c_str(),row.label,1000,y,3700,zenkit::MenuItemType::TEXT,false);
@@ -316,9 +317,9 @@ void GameMenu::initAndroidVideo() {
       item.handle->pos_y+=120;
       }
     updateItem(item);
-    y+=650;
+    y+=625;
     }
-  auto& back=add("ANDROID_VIDEO_BACK",backText.c_str(),1000,6800,6200,zenkit::MenuItemType::TEXT,true);
+  auto& back=add("ANDROID_VIDEO_BACK",backText.c_str(),1000,7000,6200,zenkit::MenuItemType::TEXT,true);
   back.handle->fontname=backFont;
   back.handle->dim_y=650;
   back.handle->flags=back.handle->flags | zenkit::MenuItemFlag::CENTERED;
@@ -1096,6 +1097,19 @@ void GameMenu::execChgOption(Item &item, int slideDx) {
     if(slideDx!=0) Gothic::settingsSetI(sec,opt,std::clamp(Gothic::settingsGetI(sec,opt)+slideDx*5,50,100));
     return;
     }
+  if(item.name=="ANDROID_FPS") {
+    constexpr int values[]={30,60,0};
+    updateItem(item);
+    if(item.value==3)
+      item.value=slideDx<0 ? 2 : 0;
+    else if(slideDx==0)
+      item.value=(item.value+1)%3;
+    else
+      item.value=std::clamp(item.value+slideDx,0,2);
+    Gothic::settingsSetI(sec,opt,values[item.value]);
+    updateItem(item);
+    return;
+    }
   if(item.name=="ANDROID_SHADOWS") {
     constexpr int values[]={512,1024,1536,2048};
     updateItem(item);
@@ -1215,6 +1229,14 @@ void GameMenu::execCommands(std::string str, bool isClick, KeyCodec::Action hint
 void GameMenu::updateItem(GameMenu::Item &item) {
   auto& it   = item.handle;
   item.value = Gothic::settingsGetI(it->on_chg_set_option_section, it->on_chg_set_option);
+  if(item.name=="ANDROID_FPS") {
+    const int limit=Gothic::settingsFpsLimit();
+    item.value=limit==30 ? 0 : (limit==60 ? 1 : (limit==0 ? 2 : 3));
+    it->text[0]="30 FPS|60 FPS|Unlocked";
+    // Preserve and display custom legacy limits until the player chooses a preset.
+    if(item.value==3)
+      it->text[0]+="|"+std::to_string(limit)+" FPS";
+    }
   if(item.name=="ANDROID_SHADOWS") {
     const int size=item.value;
     item.value=size==512 ? 0 : (size==1024 ? 1 : (size==1536 ? 2 : 3));

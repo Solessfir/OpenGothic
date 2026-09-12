@@ -154,6 +154,7 @@ Gothic::Gothic() {
   defaults->set("GAME", "mouseSensitivity",   0.53f);
   defaults->set("ENGINE", "shadowMapResolution", 1024);
   defaults->set("ENGINE", "renderScale", 100);
+  defaults->set("ENGINE", "frameRateLimit", -1);
 #endif
 
   defaults->set("GAME", "animatedWindows",     1);
@@ -905,6 +906,17 @@ float Gothic::settingsSoundVolume() {
   const float soundVolume  = settingsGetF("SOUND","soundVolume");
 
   return soundEnabled ? soundVolume : 0.f;
+  }
+
+int Gothic::settingsFpsLimit() {
+#if defined(__ANDROID__)
+  // An explicit menu selection takes precedence over copied SystemPack settings.
+  const int selected = settingsGetI("ENGINE", "frameRateLimit");
+  if(selected>=0)
+    return selected;
+#endif
+  const int legacy = options().fpsLimit;
+  return legacy>0 ? legacy : std::max(0,settingsGetI("ENGINE", "zMaxFPS"));
   }
 
 void Gothic::flushSettings() {

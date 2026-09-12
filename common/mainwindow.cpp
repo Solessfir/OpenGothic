@@ -722,9 +722,7 @@ void MainWindow::onSettings() {
     update();
     }
 #endif
-  auto zMaxFps = Gothic::options().fpsLimit;
-  if(zMaxFps<=0)
-    zMaxFps = Gothic::inst().settingsGetI("ENGINE", "zMaxFps");
+  const auto zMaxFps = Gothic::settingsFpsLimit();
 #if defined(__ANDROID__)
   maxFps = uint32_t(std::max(0,zMaxFps));
 #else
