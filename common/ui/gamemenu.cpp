@@ -270,12 +270,16 @@ void GameMenu::initAndroidOptions() {
     voiceLabel->handle=std::make_shared<zenkit::IMenuItem>(*voiceLabel->handle);
     voiceLabel->handle->text[0]="Dialogue volume";
     voiceLabel->handle->text[1]="Adjust spoken dialogue independently of sound effects.";
-    const int y=voiceSlider->handle->pos_y;
     voiceSlider->handle=std::make_shared<zenkit::IMenuItem>(*sourceSlider->handle);
-    voiceSlider->handle->pos_y=y;
+    voiceSlider->handle->pos_y=voiceLabel->handle->pos_y;
     voiceSlider->handle->on_chg_set_option="voiceVolume";
     voiceSlider->img=sourceSlider->img;
     updateItem(*voiceSlider);
+    if(auto effects=find("MENUITEM_AUDIO_SFXVOL")) {
+      effects->handle=std::make_shared<zenkit::IMenuItem>(*effects->handle);
+      effects->handle->text[0]="Sound effects";
+      effects->handle->text[1]="Adjust sound effects independently of dialogue.";
+      }
     }
 
   auto back=find("MENUITEM_GAME_BACK");
@@ -287,27 +291,19 @@ void GameMenu::initAndroidOptions() {
   if(end+2>std::size(hItems)) return;
   Item label, choice;
   label.name="ANDROID_QUICKSAVES_LABEL";
-  label.handle=std::make_shared<zenkit::IMenuItem>();
-  label.handle->fontname=sourceLabel->handle->fontname;
-  label.handle->pos_x=sourceLabel->handle->pos_x;
-  label.handle->dim_x=sourceLabel->handle->dim_x;
-  label.handle->dim_y=600;
+  label.handle=std::make_shared<zenkit::IMenuItem>(*sourceLabel->handle);
+  label.img=sourceLabel->img;
   label.handle->text[0]="Quicksave slots";
-  label.handle->user_string[0]="ANDROID_QUICKSAVES";
-  label.handle->type=zenkit::MenuItemType::TEXT;
   choice.name="ANDROID_QUICKSAVES";
-  choice.handle=std::make_shared<zenkit::IMenuItem>();
-  choice.handle->fontname=sourceChoice->handle->fontname;
-  choice.handle->pos_x=sourceChoice->handle->pos_x;
-  choice.handle->dim_x=sourceChoice->handle->dim_x;
-  choice.handle->dim_y=600;
-  choice.handle->type=zenkit::MenuItemType::CHOICEBOX;
-  choice.handle->flags=zenkit::MenuItemFlag::SELECTABLE;
+  choice.handle=std::make_shared<zenkit::IMenuItem>(*sourceChoice->handle);
+  choice.img=sourceChoice->img;
+  const int choiceOffset=choice.handle->pos_y-label.handle->pos_y;
   choice.handle->on_chg_set_option_section="GAME";
   choice.handle->on_chg_set_option="quickSaveSlots";
   choice.handle->text[0]="0 (single)";
   for(int i=1;i<=20;++i) choice.handle->text[0]+="|"+std::to_string(i);
   choice.handle->text[1]="0: one quicksave. 1-20: rotate through separate quicksave slots.";
+  label.handle->text[1]=choice.handle->text[1];
 
   std::vector<int> rows;
   std::vector<std::pair<int,int>> positions;
@@ -337,7 +333,7 @@ void GameMenu::initAndroidOptions() {
       }
     }
   label.handle->pos_y=1700+int(rows.size())*step;
-  choice.handle->pos_y=label.handle->pos_y;
+  choice.handle->pos_y=label.handle->pos_y+choiceOffset;
   const size_t index=size_t(back-hItems);
   std::move_backward(hItems+index,hItems+end,hItems+end+2);
   hItems[index]=std::move(label);
