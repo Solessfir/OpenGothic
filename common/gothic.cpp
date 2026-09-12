@@ -1,5 +1,8 @@
 #include "gothic.h"
 #include "utils/saveloadprofile.h"
+#include "utils/savesnapshot.h"
+#include "game/serialize.h"
+#include <Tempest/File>
 
 #include <Tempest/Log>
 #include <Tempest/TextCodec>
@@ -291,6 +294,8 @@ Gothic::Gothic() {
   }
 
 Gothic::~Gothic() {
+  if(saveTask.valid())
+    saveTask.wait();
   instance = nullptr;
   }
 
@@ -560,6 +565,8 @@ bool Gothic::finishLoading() {
       game = std::move(pendingGame);
     saveTex = Texture2d();
     loadTex = Texture2d();
+    if(state==LoadState::FailedSave)
+      savePending = false;
     onWorldLoaded();
     SaveLoadProfile::finish();
     return true;
@@ -567,14 +574,85 @@ bool Gothic::finishLoading() {
   return false;
   }
 
-void Gothic::startSave(Tempest::Texture2d&& tex,
-                       const std::function<std::unique_ptr<GameSession>(std::unique_ptr<GameSession>&&)> f) {
+void Gothic::startSave(Tempest::Texture2d&& tex, std::string slot, std::string name, Tempest::Pixmap screen) {
+  if(savePending || checkLoading()!=LoadState::Idle)
+    return;
+  const auto destination = std::filesystem::absolute(std::filesystem::path(TextCodec::toUtf16(slot)));
+  savePending = true;
+  saveProfileStart = SaveLoadProfile::operationStart!=0 ? SaveLoadProfile::operationStart : SaveLoadProfile::now();
+  saveGameTick = game ? game->tickCount() : 0;
   saveTex = std::move(tex);
-  implStartLoadSave("",false,f);
+  onPrint("Saving...");
+  try {
+    implStartLoadSave("",false,[this,destination,name=std::move(name),screen=std::move(screen)](std::unique_ptr<GameSession>&& game) {
+      SaveLoadProfile::Timer time("save/snapshot-worker-total");
+      if(!game)
+        throw std::runtime_error("no game to save");
+      try {
+        SaveSnapshot snapshot;
+        {
+          Serialize serializer(snapshot);
+          game->save(serializer, name, screen);
+          serializer.finish();
+        }
+        if(SaveLoadProfile::enabled())
+          Log::i("[SaveLoad] snapshot payload bytes=", snapshot.byteSize());
+        // The background task owns bytes only, never references to the live game.
+        saveTask = std::async(std::launch::async, [destination,snapshot=std::move(snapshot)] {
+          Workers::setThreadName("Writing save");
+          SaveLoadProfile::Timer time("save/background-compress-and-write");
+          snapshot.write(destination);
+          });
+        return std::move(game);
+        }
+      catch(const SaveSnapshot::TooLarge&) {
+        Log::i("Save exceeds snapshot budget; using blocking save");
+        }
+      catch(const std::bad_alloc&) {
+        Log::i("Not enough memory for save snapshot; using blocking save");
+        }
+      // Very large saves still work without retaining an unbounded snapshot in RAM.
+      AtomicSave::replace(destination, [&](const std::filesystem::path& temporary) {
+        WFile file(temporary.u16string());
+        Serialize serializer(file);
+        game->save(serializer, name, screen);
+        serializer.finish();
+        if(!file.flush())
+          throw std::runtime_error("unable to flush save archive");
+        });
+      return std::move(game);
+      });
+    }
+  catch(...) {
+    savePending = false;
+    throw;
+    }
+  }
+
+void Gothic::finishSave(bool wait) {
+  // The capture thread publishes saveTask before releasing the loading state.
+  if(checkLoading()!=LoadState::Idle || !savePending)
+    return;
+  if(saveTask.valid() && !wait && saveTask.wait_for(std::chrono::seconds(0))!=std::future_status::ready)
+    return;
+  savePending = false;
+  try {
+    if(saveTask.valid())
+      saveTask.get();
+    SaveLoadProfile::report("save/request-to-committed", SaveLoadProfile::now()-saveProfileStart);
+    if(SaveLoadProfile::enabled() && game)
+      Log::i("[SaveLoad] game progressed during save ms=", game->tickCount()-saveGameTick);
+    onPrint("Game saved");
+    }
+  catch(const std::exception& error) {
+    Log::e("Unable to write save: ", error.what());
+    onPrint("Save failed. Existing saves were not changed.");
+    }
   }
 
 void Gothic::startLoad(std::string_view banner,
                        const std::function<std::unique_ptr<GameSession>(std::unique_ptr<GameSession>&&)> f) {
+  finishSave(true);
   implStartLoadSave(banner,true,f);
   }
 
@@ -641,8 +719,11 @@ void Gothic::implStartLoadSave(std::string_view banner,
 void Gothic::cancelLoading() {
   if(loadingFlag.load()!=LoadState::Idle){
     loaderTh.join();
+    if(loadingFlag.load()==LoadState::FailedSave)
+      savePending = false;
     loadingFlag.store(LoadState::Idle);
     }
+  finishSave(true);
   }
 
 void Gothic::tick(uint64_t dt) {
@@ -673,6 +754,7 @@ void Gothic::quickSave() {
   }
 
 void Gothic::quickLoad() {
+  finishSave(true);
   const auto slots=SaveSlot::quickSlots(".");
   load(SaveSlot::path(".",slots.empty() ? 0 : slots.front()).string());
   }

@@ -897,6 +897,7 @@ void GameMenu::onKeyboard(KeyCodec::Action key) {
       update();
       }
     else if(key==KeyCodec::ActionGeneric && Gothic::inst().checkLoading()==Gothic::LoadState::Idle) {
+      Gothic::inst().finishSave(true);
       std::error_code error;
       if(SaveSlot::remove(".",saveSlotId(*pendingDelete),error)) {
         Log::i("Deleted save slot ",saveSlotId(*pendingDelete));

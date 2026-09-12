@@ -1241,6 +1241,7 @@ void MainWindow::onMarvinKey() {
   }
 
 uint64_t MainWindow::tick() {
+  Gothic::inst().finishSave();
   auto time = Application::tickCount();
   auto dt   = time-lastTick;
   // NOTE: limit to ~200 FPS in game logic to avoid math issues
@@ -1443,6 +1444,7 @@ void MainWindow::startGame(std::string_view slot) {
   }
 
 void MainWindow::loadGame(std::string_view slot) {
+  Gothic::inst().finishSave(true);
   SaveLoadProfile::begin("load/request-to-ready");
   SaveLoadProfile::Timer time("load/main-thread-preparation");
   if(Gothic::inst().checkLoading()==Gothic::LoadState::Idle) {
@@ -1465,6 +1467,10 @@ void MainWindow::loadGame(std::string_view slot) {
   }
 
 void MainWindow::saveGame(std::string_view slot, std::string_view name) {
+  if(Gothic::inst().isSavePending()) {
+    Gothic::inst().onPrint("A save is still being written.");
+    return;
+    }
   if(!Gothic::inst().isInGameAndAlive())
     return;
   if(dialogs.isActive())
@@ -1505,19 +1511,7 @@ void MainWindow::saveGame(std::string_view slot, std::string_view name) {
   auto  pm    = device.readPixels(textureCast<const Texture2d&>(thumb));
   time.step("save/thumbnail-readback");
 
-  Gothic::inst().startSave(std::move(textureCast<Texture2d&>(tex)),[slot=std::string(slot),name=std::string(name),pm](std::unique_ptr<GameSession>&& game){
-    SaveLoadProfile::Timer time("save/worker-total");
-    if(!game)
-      return std::move(game);
-
-    Tempest::WFile f(slot);
-    Serialize      s(f);
-    game->save(s,name,pm);
-
-    // no print yet, because threading
-    // gothic.print("Game saved");
-    return std::move(game);
-    });
+  Gothic::inst().startSave(std::move(textureCast<Texture2d&>(tex)), std::string(slot), std::string(name), std::move(pm));
 
   update();
   }

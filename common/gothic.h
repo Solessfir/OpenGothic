@@ -3,6 +3,7 @@
 #include <string>
 #include <memory>
 #include <thread>
+#include <future>
 
 #include <Tempest/Signal>
 #include <Tempest/Dir>
@@ -151,7 +152,9 @@ class Gothic final {
     LoadState    checkLoading() const;
     bool         finishLoading();
     void         startLoad(std::string_view banner, const std::function<std::unique_ptr<GameSession>(std::unique_ptr<GameSession>&&)> f);
-    void         startSave(Tempest::Texture2d&& tex, const std::function<std::unique_ptr<GameSession>(std::unique_ptr<GameSession>&&)> f);
+    void         startSave(Tempest::Texture2d&& tex, std::string slot, std::string name, Tempest::Pixmap screen);
+    bool         isSavePending() const { return savePending; }
+    void         finishSave(bool wait = false);
     void         cancelLoading();
 
     void         tick(uint64_t dt);
@@ -243,6 +246,10 @@ class Gothic final {
     std::atomic_int                         loadProgress{0};
     std::thread                             loaderTh;
     std::atomic<LoadState>                  loadingFlag{LoadState::Idle};
+    std::future<void>                       saveTask;
+    bool                                    savePending = false;
+    uint64_t                                saveProfileStart = 0;
+    uint64_t                                saveGameTick = 0;
 
     std::unique_ptr<GameSession>            game, pendingGame;
     std::unique_ptr<FightAi>                fight;

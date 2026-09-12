@@ -29,6 +29,7 @@ class World;
 class FpLock;
 class ScriptFn;
 class SaveGameHeader;
+class SaveSnapshot;
 
 class Serialize {
   public:
@@ -45,8 +46,10 @@ class Serialize {
       };
     Serialize(Tempest::ODevice& fout);
     Serialize(Tempest::IDevice&  fin);
+    Serialize(SaveSnapshot& snapshot);
     Serialize(Serialize&&)=default;
-    ~Serialize();
+    ~Serialize() noexcept(false);
+    void finish();
 
     uint16_t version()              const { return wldVer; }
     void     setVersion(uint16_t v)       { wldVer = v;    }
@@ -297,6 +300,8 @@ class Serialize {
     uint64_t                 readOffset = 0;
     Tempest::ODevice*        fout      = nullptr;
     Tempest::IDevice*        fin       = nullptr;
+    SaveSnapshot*           snapshot  = nullptr;
+    bool                    finished  = false;
     uint64_t profileIo = 0;
     uint64_t profileZip = 0;
     uint64_t profileLookup = 0;
