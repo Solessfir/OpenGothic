@@ -300,9 +300,9 @@ void GameMenu::initAndroidOptions() {
   const int choiceOffset=choice.handle->pos_y-label.handle->pos_y;
   choice.handle->on_chg_set_option_section="GAME";
   choice.handle->on_chg_set_option="quickSaveSlots";
-  choice.handle->text[0]="0 (single)";
+  choice.handle->text[0]="Default";
   for(int i=1;i<=20;++i) choice.handle->text[0]+="|"+std::to_string(i);
-  choice.handle->text[1]="0: one quicksave. 1-20: rotate through separate quicksave slots.";
+  choice.handle->text[1]="Default: one quicksave. 1-20: rotate through separate quicksave slots.";
   label.handle->text[1]=choice.handle->text[1];
 
   std::vector<int> rows;

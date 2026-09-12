@@ -39,7 +39,7 @@ HDR expands highlight range without brightening dark shadows. Screenshots may no
 
 ## Quicksave history
 
-Options > Game settings > Quicksave slots controls `[GAME] quickSaveSlots`: `0` keeps the original single quicksave; `1` to `20` rotates through separate slots without replacing manual saves. Quickload uses the newest quicksave. In Load Game, select the quicksave row and use left/right to browse retained saves. Reducing the count keeps older files until you delete them.
+Options > Game settings > Quicksave slots controls `[GAME] quickSaveSlots`: Default (`0` in the INI) keeps the original single quicksave; `1` to `20` rotates through separate slots without replacing manual saves. Quickload uses the newest quicksave. In Load Game, select the quicksave row and use left/right to browse retained saves. Reducing the count keeps older files until you delete them.
 
 ## Dialogue volume
 
