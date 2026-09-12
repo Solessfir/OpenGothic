@@ -1292,8 +1292,12 @@ uint64_t MainWindow::tick() {
 
   if(dialogs.isActive())
     ;//clearInput();
-  if(document.isActive())
+  if(document.isActive()) {
+    // Scripted item use may open a document while still iterating the inventory.
+    // Close it here, after that call returns and before drawing the document.
+    if(inventory.isActive()) inventory.close();
     clearInput();
+    }
   tickMouse(dt);
   player.tickMove(dt);
 #if defined(__MOBILE_PLATFORM__)

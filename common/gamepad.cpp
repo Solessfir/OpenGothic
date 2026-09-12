@@ -366,6 +366,8 @@ void MainWindow::tickGamepad() {
                            !Gothic::inst().isPause() && Gothic::inst().checkLoading()==Gothic::LoadState::Idle);
   mobileUi.setMenuAdjustment(rootMenu.canAdjustValue() && !video.isActive());
   mobileUi.setLockPicking(inventory.isOpen()==InventoryMenu::State::LockPicking);
+  mobileUi.setInventoryNavigation(controllerContext()==Context::Inventory &&
+                                  Gothic::inst().checkLoading()==Gothic::LoadState::Idle);
   mobileUi.setSaveDeleteEnabled(rootMenu.canRequestDeleteSave() && !video.isActive() && !chapter.isActive() &&
                                !document.isActive() && !dialogs.isActive() && !inventory.isActive() && !console.isActive());
   mobileUi.tick();

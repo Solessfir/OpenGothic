@@ -528,6 +528,14 @@ void TouchInput::drawBlock(Painter& p) const {
 void TouchInput::tick() {
   const auto now = Application::tickCount();
   if(tapCaptured) return;
+  if(inventoryNavigation && uiActive && !analogMovement) {
+    for(size_t i=0;i<4;++i) {
+      if(directions[i] && now>=directionRepeat[i]) {
+        directionRepeat[i]=now+150;
+        command(Command(i),true);
+        }
+      }
+    }
   if(wheelPointer>=0) {
     auto& touch=touches.at(wheelPointer);
     moveWheel(touch,touch.last);
@@ -652,7 +660,14 @@ void TouchInput::setDirection(Command value, bool pressed) {
   if(id>=4 || directions[id]==pressed)
     return;
   directions[id] = pressed;
+  directionRepeat[id] = pressed ? Application::tickCount()+350 : 0;
   command(value,pressed);
+  }
+
+void TouchInput::setInventoryNavigation(bool enabled) {
+  if(inventoryNavigation==enabled) return;
+  inventoryNavigation=enabled;
+  for(auto& deadline:directionRepeat) deadline=Application::tickCount()+350;
   }
 
 void TouchInput::reset() {
