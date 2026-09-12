@@ -250,7 +250,9 @@ void GameMenu::initItems() {
 void GameMenu::refreshQuickLoad() {
   if(quickLoadItem==nullptr) return;
   quickLoadSlots=SaveSlot::quickSlots(".");
-  quickLoadItem->name="MENUITEM_LOAD_SLOT"+std::to_string(quickLoadSlots.empty() ? 0 : quickLoadSlots.front());
+  // Browse oldest to newest, starting with the latest save at the right end.
+  std::reverse(quickLoadSlots.begin(),quickLoadSlots.end());
+  quickLoadItem->name="MENUITEM_LOAD_SLOT"+std::to_string(quickLoadSlots.empty() ? 0 : quickLoadSlots.back());
   updateItem(*quickLoadItem);
   }
 
