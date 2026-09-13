@@ -45,6 +45,13 @@ static bool hasMeshShader() {
 
 static bool hasBindless() {
   const auto& p = Resources::device().properties();
+#if defined(__ANDROID__)
+  const std::string_view name = p.name;
+  if(name.find("Adreno")!=std::string_view::npos && name.find("610")!=std::string_view::npos) {
+    Log::i("Disabling bindless material shaders for ",name);
+    return false;
+    }
+#endif
   if(p.descriptors.nonUniformIndexing && p.descriptors.maxTexture>=65000 && p.descriptors.maxStorage>=65000)
     return true;
   return false;

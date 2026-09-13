@@ -19,7 +19,25 @@
 
 #if defined(MAT_VARYINGS)
 layout(location = 0) in flat uint bucketId;
+#if defined(FLAT_VARYINGS)
+#if defined(MAT_UV)
+layout(location = 1) in vec2 shUvInp;
+#endif
+#if defined(MAT_NORMAL)
+layout(location = 2) in vec3 shNormalInp;
+#endif
+#if defined(MAT_POSITION)
+layout(location = 3) in vec3 shPosInp;
+#endif
+#if defined(MAT_COLOR) && defined(MAT_POSITION)
+layout(location = 4) in vec4 shColorInp;
+#elif defined(MAT_COLOR)
+layout(location = 3) in vec4 shColorInp;
+#endif
+Varyings shInp;
+#else
 layout(location = 1) in Varyings  shInp;
+#endif
 #endif
 
 #if defined(VIRTUAL_SHADOW)
@@ -328,6 +346,20 @@ void mainWater(vec4 t) {
 #endif
 
 void main() {
+#if defined(FLAT_VARYINGS)
+#if defined(MAT_UV)
+  shInp.uv     = shUvInp;
+#endif
+#if defined(MAT_NORMAL)
+  shInp.normal = shNormalInp;
+#endif
+#if defined(MAT_POSITION)
+  shInp.pos    = shPosInp;
+#endif
+#if defined(MAT_COLOR)
+  shInp.color  = shColorInp;
+#endif
+#endif
 #if defined(MAT_UV)
   vec4 t = diffuseTex();
 #  if defined(ATEST)

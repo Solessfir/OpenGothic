@@ -617,8 +617,6 @@ const RenderPipeline* Shaders::materialPipeline(const Material& mat, DrawCommand
   if(typeVs==nullptr || typeFs==nullptr)
     return nullptr;
 
-  const char* bindless = bl ? "_bindless" : "_slot";
-
   materials.emplace_front();
   auto& b = materials.front();
   b.alpha        = alpha;
@@ -628,11 +626,26 @@ const RenderPipeline* Shaders::materialPipeline(const Material& mat, DrawCommand
   b.trivial      = trivial;
 
   auto& device = Resources::device();
-  if(mat.isTesselated() && device.properties().tesselationShader && t==DrawCommands::Landscape && true) {
-    auto shVs = GothicShader::get(string_frm("main_", vsTok, typeVs, bindless, ".vert.sprv"));
-    auto shTc = GothicShader::get(string_frm("main_", vsTok, typeVs, bindless, ".tesc.sprv"));
-    auto shTe = GothicShader::get(string_frm("main_", vsTok, typeVs, bindless, ".tese.sprv"));
-    auto shFs = GothicShader::get(string_frm("main_", fsTok, typeFs, bindless, ".frag.sprv"));
+  static const bool needsFlatVaryings = []() {
+#if defined(__ANDROID__)
+    const std::string_view name = Resources::device().properties().name;
+    const bool enabled = name.find("Adreno")!=std::string_view::npos && name.find("610")!=std::string_view::npos;
+    if(enabled)
+      Log::i("Using flattened material varyings for ",name);
+    return enabled;
+#else
+    return false;
+#endif
+    }();
+  const bool flatVaryings = needsFlatVaryings && !bl;
+  const char* shaderSuffix = flatVaryings ? "_flat_slot" : (bl ? "_bindless" : "_slot");
+  const char* pfxSuffix = flatVaryings ? "_flat" : "";
+
+  if(mat.isTesselated() && device.properties().tesselationShader && t==DrawCommands::Landscape && !flatVaryings) {
+    auto shVs = GothicShader::get(string_frm("main_", vsTok, typeVs, shaderSuffix, ".vert.sprv"));
+    auto shTc = GothicShader::get(string_frm("main_", vsTok, typeVs, shaderSuffix, ".tesc.sprv"));
+    auto shTe = GothicShader::get(string_frm("main_", vsTok, typeVs, shaderSuffix, ".tese.sprv"));
+    auto shFs = GothicShader::get(string_frm("main_", fsTok, typeFs, shaderSuffix, ".frag.sprv"));
 
     auto vs = device.shader(shVs.data,shVs.len);
     auto tc = device.shader(shTc.data,shTc.len);
@@ -640,25 +653,25 @@ const RenderPipeline* Shaders::materialPipeline(const Material& mat, DrawCommand
     auto fs = device.shader(shFs.data,shFs.len);
     b.pipeline = device.pipeline(Triangles, state, vs, tc, te, fs);
     }
-  else if(Gothic::options().doMeshShading && t!=DrawCommands::Pfx) {
-    auto shMs = GothicShader::get(string_frm("main_", vsTok, typeVs, bindless, ".mesh.sprv"));
-    auto shFs = GothicShader::get(string_frm("main_", fsTok, typeFs, bindless, ".frag.sprv"));
+  else if(Gothic::options().doMeshShading && t!=DrawCommands::Pfx && !flatVaryings) {
+    auto shMs = GothicShader::get(string_frm("main_", vsTok, typeVs, shaderSuffix, ".mesh.sprv"));
+    auto shFs = GothicShader::get(string_frm("main_", fsTok, typeFs, shaderSuffix, ".frag.sprv"));
 
     auto ms = device.shader(shMs.data,shMs.len);
     auto fs = device.shader(shFs.data,shFs.len);
     b.pipeline = device.pipeline(state, Shader(), ms, fs);
     }
   else if(t!=DrawCommands::Pfx) {
-    auto shVs = GothicShader::get(string_frm("main_", vsTok, typeVs, bindless, ".vert.sprv"));
-    auto shFs = GothicShader::get(string_frm("main_", fsTok, typeFs, bindless, ".frag.sprv"));
+    auto shVs = GothicShader::get(string_frm("main_", vsTok, typeVs, shaderSuffix, ".vert.sprv"));
+    auto shFs = GothicShader::get(string_frm("main_", fsTok, typeFs, shaderSuffix, ".frag.sprv"));
 
     auto vs = device.shader(shVs.data,shVs.len);
     auto fs = device.shader(shFs.data,shFs.len);
     b.pipeline = device.pipeline(Triangles, state, vs, fs);
     }
   else {
-    auto shVs = GothicShader::get(string_frm("main_", vsTok, typeVs, ".vert.sprv"));
-    auto shFs = GothicShader::get(string_frm("main_", fsTok, typeFs, ".frag.sprv"));
+    auto shVs = GothicShader::get(string_frm("main_", vsTok, typeVs, pfxSuffix, ".vert.sprv"));
+    auto shFs = GothicShader::get(string_frm("main_", fsTok, typeFs, pfxSuffix, ".frag.sprv"));
 
     auto vs = device.shader(shVs.data,shVs.len);
     auto fs = device.shader(shFs.data,shFs.len);
