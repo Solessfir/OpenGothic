@@ -19,11 +19,12 @@ class WorldEdit {
     ~WorldEdit();
 
     WorldView& view() { return *wview; }
+    const DynamicWorld& dynamic() const { return *physics; }
 
     class Vob {
       public:
-        Vob(uint64_t id):id(id){}
-        const uint64_t id;
+        Vob() { orig = std::make_shared<zenkit::VirtualObject>(); orig->type=zenkit::VirtualObjectType::zCVob; }
+        Vob(std::shared_ptr<zenkit::VirtualObject> vob);
 
         const zenkit::VirtualObject* get() const { return orig.get(); }
         const zenkit::VirtualObject& operator *  () const { return *orig; }
@@ -37,6 +38,8 @@ class WorldEdit {
         void insert(size_t i, std::unique_ptr<Vob> v);
 
         void setPosition(const Tempest::Vec3& pos);
+        void setVisual(WorldEdit& owner, std::string_view vis);
+        void setCollision(WorldEdit& owner, bool cd);
 
       private:
         void clearView();
@@ -51,6 +54,7 @@ class WorldEdit {
 
       friend class WorldEdit;
 
+      friend class CmdNewVob;
       friend class CmdDeleteVob;
 
       template<class Vob, class F>
@@ -60,35 +64,27 @@ class WorldEdit {
     const Vob& root() const { return rootVob; }
     Vob&       root() { return rootVob; }
 
-    Vob* rayQuery(const Tempest::Vec3 s, const Tempest::Vec3 e);
-    Vob* rayQuery(Tempest::Matrix4x4 view, Tempest::Matrix4x4 vp, Tempest::Point mpos, Tempest::Size wsize);
-
   private:
     void load(Vob& out, std::vector<std::shared_ptr<zenkit::VirtualObject>>& child);
-
-    void rayQueryLight(Tempest::Point mpos, Tempest::Size wsize, const Tempest::Matrix4x4& vp,
-                       const Tempest::Vec3& rayOrig, const Tempest::Vec3& rayDir,
-                       float& rayT, Vob*& ret, Vob& v);
-
-    Vob* validatePointer(const zenkit::VirtualObject* ptr, Vob& v);
 
     std::unique_ptr<DynamicWorld> physics;
     std::unique_ptr<WorldView>    wview;
     Vob                           rootVob {0};
-    size_t                        vobNextId = 1;
   };
 
-class CmdMoveVob : public Command::Action<WorldEdit> {
+class CmdNewVob : public Command::Action<WorldEdit> {
   public:
-    CmdMoveVob(WorldEdit::Vob* vob, Tempest::Vec3 pos);
+    CmdNewVob(WorldEdit::Vob* vob);
 
   private:
     void redo(WorldEdit& subj) override;
     void undo(WorldEdit& subj) override;
-    bool merge(const Action& prev) override;
 
-    WorldEdit::Vob* vob = nullptr;
-    Tempest::Vec3   pos, orig;
+    WorldEdit::Vob* findParent(WorldEdit::Vob& v, const WorldEdit::Vob* dst);
+
+    WorldEdit::Vob*                 vob    = nullptr;
+    WorldEdit::Vob*                 parent = nullptr;
+    std::unique_ptr<WorldEdit::Vob> stash;
   };
 
 class CmdDeleteVob : public Command::Action<WorldEdit> {
@@ -105,6 +101,19 @@ class CmdDeleteVob : public Command::Action<WorldEdit> {
     WorldEdit::Vob*                 parent = nullptr;
     size_t                          index  = 0;
     std::unique_ptr<WorldEdit::Vob> stash;
+  };
+
+class CmdMoveVob : public Command::Action<WorldEdit> {
+  public:
+    CmdMoveVob(WorldEdit::Vob* vob, Tempest::Vec3 pos);
+
+  private:
+    void redo(WorldEdit& subj) override;
+    void undo(WorldEdit& subj) override;
+    bool merge(const Action& prev) override;
+
+    WorldEdit::Vob* vob = nullptr;
+    Tempest::Vec3   pos, orig;
   };
 
 template<class Vob, class F>

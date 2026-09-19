@@ -542,7 +542,19 @@ void Npc::setProcessPolicy(NpcProcessPolicy t) {
   }
 
 void Npc::setWalkMode(WalkBit m) {
-  wlkMode = m;
+  //NOTE: other bits are situational, and should not be set directly
+  wlkMode = m & (WalkBit::WM_Run | WalkBit::WM_Walk | WalkBit::WM_Sneak);
+  }
+
+WalkBit Npc::walkMode() const {
+  auto wlk = wlkMode;
+  if(mvAlgo.isDive())
+    wlk = WalkBit::WM_Dive;
+  else if(mvAlgo.isSwim())
+    wlk = WalkBit::WM_Swim;
+  else if(mvAlgo.isInWater())
+    wlk = WalkBit::WM_Water;
+  return wlk;
   }
 
 bool Npc::isPlayer() const {
@@ -991,12 +1003,6 @@ const Animation::Sequence* Npc::setAnimAngGet(Anim a) {
 const Animation::Sequence* Npc::setAnimAngGet(Anim a, uint8_t comb) {
   auto st  = weaponState();
   auto wlk = walkMode();
-  if(mvAlgo.isDive())
-    wlk = WalkBit::WM_Dive;
-  else if(mvAlgo.isSwim())
-    wlk = WalkBit::WM_Swim;
-  else if(mvAlgo.isInWater())
-    wlk = WalkBit::WM_Water;
   return visual.startAnimAndGet(*this,a,comb,st,wlk);
   }
 
@@ -1037,12 +1043,6 @@ bool Npc::hasAnim(std::string_view scheme) const {
 bool Npc::hasAnim(Anim a) const {
   auto st  = weaponState();
   auto wlk = walkMode();
-  if(mvAlgo.isDive())
-    wlk = WalkBit::WM_Dive;
-  else if(mvAlgo.isSwim())
-    wlk = WalkBit::WM_Swim;
-  else if(mvAlgo.isInWater())
-    wlk = WalkBit::WM_Water;
   return visual.hasAnim(a,st,wlk);
   }
 
@@ -3816,10 +3816,7 @@ bool Npc::doAttack(Anim anim, BodyState bs) {
   if(bs==BS_PARADE && hasState(BS_PARADE))
     return false;
 
-  auto wlk = walkMode();
-  if(mvAlgo.isInWater())
-    wlk = WalkBit::WM_Water;
-
+  const auto wlk = walkMode();
   visual.setAnimRotate(*this,0);
   if(auto sq = visual.continueCombo(*this,anim,bs,weaponSt,wlk)) {
     (void)sq;

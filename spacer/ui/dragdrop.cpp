@@ -1,6 +1,7 @@
 #include "dragdrop.h"
 
 #include <Tempest/Layout>
+#include <cassert>
 
 using namespace Tempest;
 
@@ -26,6 +27,11 @@ size_t DropOverEvent::dropLocation() const {
   return dpos;
   }
 
+void DropOverEvent::setUiVisible(bool vis) {
+  if(dropable!=nullptr)
+    dropable->setVisible(vis);
+  }
+
 void DropOverEvent::setPosition(const Point& p) {
   mpos = p;
   }
@@ -38,6 +44,7 @@ void DragDrop::begin(MouseEvent &e, Tempest::Widget& w) {
   if(drItem!=nullptr)
     return;
 
+  assert(overlay==nullptr);
   overlay.reset(new Overlay());
   SystemApi::addOverlay(overlay.get());
 
@@ -58,6 +65,7 @@ void DragDrop::begin(MouseEvent &e, Tempest::Widget& w) {
 
 void DragDrop::drag(MouseEvent& e) {
   switch(state) {
+    case Idle: return;
     case PreDrag: {
       Point diff = e.pos()-dpos;
       if(diff.length()>15){
@@ -102,9 +110,11 @@ bool DragDrop::end(MouseEvent& e) {
       }
     }
 
-  if(mOwner!=nullptr && state!=PreDrag && !dropped){
+  if(mOwner!=nullptr && state!=PreDrag && !dropped) {
+    drItem->setVisible(true);
     mOwner->addWidget(drItem,mOwnerAt);
     }
+  state  = Idle;
   drItem = nullptr;
   mDrop  = nullptr;
   mOwner = nullptr;

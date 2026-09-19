@@ -14,6 +14,8 @@ class DropOverEvent : public Tempest::Event {
     void   setDropLocation(size_t pos);
     size_t dropLocation() const;
 
+    void setUiVisible(bool vis);
+
     void setPosition(const Tempest::Point& p);
     const Tempest::Point& pos() const;
 
@@ -52,6 +54,7 @@ class DragDrop {
     struct Overlay : Tempest::UiOverlay {
       };
     enum State:uint8_t {
+      Idle,
       PreDrag,
       Drag
       };
@@ -70,5 +73,5 @@ class DragDrop {
     Tempest::Widget*         mDrop    = nullptr;
     size_t                   mDropAt  = 0;
 
-    State                    state    = PreDrag;
+    State                    state    = Idle;
   };
