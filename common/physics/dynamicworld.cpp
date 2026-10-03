@@ -656,7 +656,6 @@ DynamicWorld::DynamicWorld(World* owner, std::shared_ptr<const Landscape> data) 
   bboxList  .reset(new BBoxList   (*this));
 
   if(owner!=nullptr) {
-    // The callback outlives this constructor, so retain the owner pointer by value.
     world->setItemHitCallback([owner](::Item& itm, zenkit::MaterialGroup mat, float impulse, float mass) {
       auto  snd = owner->addLandHitEffect(ItemMaterial(itm.handle().material),mat,itm.transform());
       float v   = impulse/mass;

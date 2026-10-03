@@ -6,6 +6,7 @@
 #include <exception>
 
 #include <cstring>
+#include <exception>
 
 #include "savegameheader.h"
 #include "world/world.h"
@@ -69,7 +70,8 @@ Serialize::Serialize(Tempest::ODevice& fout) : fout(&fout) {
   impl.m_pWrite           = Serialize::writeFunc;
   impl.m_pIO_opaque       = this;
   impl.m_zip_type         = MZ_ZIP_TYPE_USER;
-  mz_zip_writer_init_v2(&impl, 0, 0);
+  if(!mz_zip_writer_init_v2(&impl, 0, 0))
+    throw std::runtime_error("unable to create game archive");
   }
 
 Serialize::Serialize(Tempest::IDevice& fin) : fin(&fin) {
@@ -79,7 +81,8 @@ Serialize::Serialize(Tempest::IDevice& fin) : fin(&fin) {
   impl.m_pRead            = Serialize::readFunc;
   impl.m_pIO_opaque       = this;
   impl.m_zip_type         = MZ_ZIP_TYPE_USER;
-  mz_zip_reader_init(&impl, fin.size(), 0);
+  if(!mz_zip_reader_init(&impl, fin.size(), 0))
+    throw std::runtime_error("unable to read game archive");
   }
 
 Serialize::Serialize(SaveSnapshot& snapshot) : snapshot(&snapshot) {
@@ -110,7 +113,7 @@ void Serialize::finish() {
   closeEntry();
   if(fout!=nullptr) {
     SaveLoadProfile::Timer time("save/zip-finalize");
-    if(!mz_zip_writer_finalize_archive(&impl))
+    if(!mz_zip_writer_finalize_archive(&impl) || !fout->flush())
       throw std::runtime_error("unable to finalize save archive");
     mz_zip_writer_end(&impl);
     //Tempest::Log::d("save time = ", Tempest::Application::tickCount()-time0);

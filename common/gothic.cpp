@@ -625,8 +625,6 @@ void Gothic::startSave(Tempest::Texture2d&& tex, std::string slot, std::string n
         Serialize serializer(file);
         game->save(serializer, name, screen);
         serializer.finish();
-        if(!file.flush())
-          throw std::runtime_error("unable to flush save archive");
         });
       return std::move(game);
       });

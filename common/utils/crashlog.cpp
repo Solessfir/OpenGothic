@@ -154,7 +154,7 @@ void CrashLog::dumpStack(const char *sig, const char *extGpuLog) {
   fout.setf(std::ios::unitbuf);
   fout << "---crashlog(" <<  sig << ")---" << std::endl;
   writeSysInfo(fout);
-  tracebackGpu(std::cout, extGpuLog);
+  tracebackGpu(fout, extGpuLog);
 #if defined(__cpp_lib_stacktrace)
   tracebackStd(fout);
 #elif defined(__WINDOWS__)

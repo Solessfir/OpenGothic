@@ -242,4 +242,7 @@ if(NOT ANDROID)
 endif()
 
 # installation
-install(TARGETS ${PROJECT_NAME} DESTINATION bin)
+install(TARGETS Gothic2Notr DESTINATION bin)
+if(NOT ANDROID)
+  install(TARGETS Spacer DESTINATION bin)
+endif()
