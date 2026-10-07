@@ -20,7 +20,7 @@ file(GLOB_RECURSE GLSL_SOURCES
   "${CMAKE_SOURCE_DIR}/shader/*.glsl")
 
 # GLSL to SPIRV compiler
-find_program(GLSLANGVALIDATOR glslangValidator "/opt/homebrew/bin")
+find_program(GLSLANGVALIDATOR glslangValidator "/opt/homebrew/bin" NO_CMAKE_FIND_ROOT_PATH)
 if(NOT GLSLANGVALIDATOR AND ANDROID)
   file(GLOB NDK_GLSLANGVALIDATOR
     "${ANDROID_NDK}/shader-tools/*/glslangValidator"
@@ -34,7 +34,7 @@ if(NOT GLSLANGVALIDATOR AND ANDROID)
   find_program(GLSLANGVALIDATOR glslc
     "${ANDROID_NDK}/shader-tools/windows-x86_64"
     "${ANDROID_NDK}/shader-tools/linux-x86_64"
-    "${ANDROID_NDK}/shader-tools/darwin-x86_64")
+    "${ANDROID_NDK}/shader-tools/darwin-x86_64" NO_CMAKE_FIND_ROOT_PATH)
 endif()
 if(NOT GLSLANGVALIDATOR)
   message(FATAL_ERROR "glslangValidator required")

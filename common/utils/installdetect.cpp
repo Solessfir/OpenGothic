@@ -4,6 +4,10 @@
 #include <Tempest/SystemApi>
 #include <Tempest/TextCodec>
 
+#ifdef __ANDROID__
+#include <Tempest/AndroidApi>
+#endif
+
 #ifdef __WINDOWS__
 #include "windows.h"
 #include "shlobj.h"
@@ -46,6 +50,14 @@ std::u16string InstallDetect::detectG2() {
 #endif
 
   }
+
+#ifdef __ANDROID__
+std::filesystem::path InstallDetect::androidInternalDataPath() {
+  auto path = Tempest::AndroidApi::internalDataPath();
+  std::filesystem::create_directories(path);
+  return path;
+  }
+#endif
 
 std::u16string InstallDetect::detectG2(std::u16string pfiles) {
   if(pfiles.empty())

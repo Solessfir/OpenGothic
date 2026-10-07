@@ -2709,6 +2709,8 @@ void Npc::nextAiAction(AiQueue& queue, uint64_t dt) {
     case AI_DrawSpell: {
       if(canSwitchWeapon()) {
         const int32_t spell = act.i0;
+        if(!invent.hasSpell(spell))
+          break;
         if(drawSpell(spell))
           aiExpectedInvest = act.i1; else
           queue.pushFront(std::move(act));

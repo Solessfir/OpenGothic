@@ -111,7 +111,7 @@ endif()
 if(WIN32)
   target_link_libraries(${PROJECT_NAME} shlwapi DbgHelp)
 elseif(ANDROID)
-  target_link_libraries(${PROJECT_NAME} android log)
+  target_link_libraries(${PROJECT_NAME} android log dl)
 elseif(UNIX)
   target_link_libraries(${PROJECT_NAME} -lpthread -ldl)
 endif()
@@ -239,6 +239,13 @@ if(NOT ANDROID)
   target_sources(Spacer PRIVATE ${SPACER_SOURCES} spacer/main.cpp)
   target_include_directories(Spacer PRIVATE "spacer")
   target_link_libraries(Spacer PRIVATE OpenGothic SpacerAssets)
+endif()
+
+if(ANDROID)
+  add_android_apk(OpenGothic-apk
+    PACKAGE_NAME org.opengothic.app
+    CODE Gothic2Notr
+    MANIFEST android/AndroidManifest.xml)
 endif()
 
 # installation

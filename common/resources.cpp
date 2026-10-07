@@ -27,6 +27,7 @@
 #include "graphics/mesh/animation.h"
 #include "graphics/mesh/attachbinder.h"
 #include "graphics/material.h"
+#include "graphics/shaders.h"
 #include "dmusic/directmusic.h"
 #include "utils/fileext.h"
 #include "utils/gthfont.h"
@@ -136,7 +137,7 @@ void Resources::mountWork(const std::filesystem::path& path) {
 void Resources::loadVdfs(const std::vector<std::u16string>& modvdfs, bool modFilter) {
   inst->worldCache.reset();
   std::vector<Archive> archives;
-  inst->detectVdf(archives,Gothic::inst().nestedPath({u"Data"},Dir::FT_Dir));
+  inst->detectVdf(archives,Gothic::nestedPath({u"Data"},Dir::FT_Dir));
 
   // Remove all mod files, that are not listed in modvdfs
   if(modFilter) {
@@ -324,7 +325,7 @@ std::shared_ptr<const WorldData> Resources::loadWorld(std::string_view name, zen
   if(source==nullptr)
     throw std::runtime_error("unable to open Zen-file: " + std::string(name));
   const auto budget = size_t(std::clamp(Gothic::settingsGetI("ENGINE", "worldCacheMiB"),0,1024))*1024*1024;
-  const bool softwareRayTracing = Gothic::options().doSoftwareRT;
+  const bool softwareRayTracing = Shaders::options().doSoftwareRT;
   auto& cache = inst->worldCache;
   if(cache && cache->source==source && cache->version==version &&
      cache->softwareRayTracing==softwareRayTracing && cache->cacheBytes<=budget) {
