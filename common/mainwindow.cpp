@@ -805,7 +805,7 @@ void MainWindow::keyDownEvent(KeyEvent &event) {
   player.onKeyPressed(act,event.key,mapping);
 
   if(event.key==Event::K_F11) {
-    auto tex = renderer.screenshoot(cmdId);
+    auto tex = renderer.screenshoot(cmdId, Size(int(swapchain.w()),int(swapchain.h())));
     auto pm  = device.readPixels(textureCast<const Texture2d&>(tex));
     pm.save("dbg.png");
     }
@@ -1482,7 +1482,7 @@ void MainWindow::saveGame(std::string_view slot, std::string_view name) {
 
   SaveLoadProfile::Timer time("save/main-thread-preparation");
   SaveLoadProfile::begin("save/request-to-ready");
-  auto tex  = renderer.screenshoot(cmdId);
+  auto tex  = renderer.screenshoot(cmdId, Size(int(swapchain.w()),int(swapchain.h())));
   time.step("save/screenshot-acquire");
   auto lres = Attachment();
 
