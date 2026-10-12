@@ -14,7 +14,9 @@
 #include "shlwapi.h"
 #endif
 
+#include <cctype>
 #include <cstring>
+#include <fstream>
 #include "utils/fileutil.h"
 
 InstallDetect::InstallDetect() {
@@ -34,10 +36,11 @@ std::u16string InstallDetect::detectG2() {
     ret = detectG2(pfilesX86);
   return ret;
 #elif defined(__ANDROID__)
+  auto name = androidGame();
   auto game = appDir;
   if(!game.empty() && game.back()!=u'/')
     game.push_back(u'/');
-  game += u"Gothic2";
+  game += name.empty() ? u"Gothic2" : name;
   if(FileUtil::exists(game))
     return game;
   return u"";
@@ -92,5 +95,35 @@ std::u16string InstallDetect::applicationSupportDirectory() {
   if(path.empty())
     path = Tempest::AndroidApi::internalDataPath();
   return path.u16string();
+  }
+
+std::u16string InstallDetect::androidGame() {
+  std::ifstream file(std::filesystem::path(applicationSupportDirectory())/"game.txt");
+  std::string   name;
+  std::getline(file,name);
+  while(!name.empty() && std::isspace(uint8_t(name.back())))
+    name.pop_back();
+  // A plain folder name, never a path
+  if(name.empty() || name.size()>32 || name.find_first_not_of("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-")!=std::string::npos)
+    return u"";
+  return std::u16string(name.begin(),name.end());
+  }
+#endif
+
+#if defined(__IOS__) || defined(__ANDROID__)
+std::u16string InstallDetect::userDirectory() {
+  auto dir = applicationSupportDirectory();
+#if defined(__ANDROID__)
+  // Launcher games keep their saves and settings outside of the game data, so reinstalling a game keeps them
+  auto game = androidGame();
+  if(!game.empty() && !dir.empty()) {
+    auto user = std::filesystem::path(dir)/"User"/std::filesystem::path(game);
+    std::error_code ec;
+    std::filesystem::create_directories(user,ec);
+    if(!ec)
+      return user.u16string();
+    }
+#endif
+  return dir;
   }
 #endif
