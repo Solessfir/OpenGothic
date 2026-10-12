@@ -119,7 +119,7 @@ Sound WorldSound::addDlgSound(std::string_view s, const Tempest::Vec3& pos, floa
   if(snd.isEmpty())
     return Sound();
 
-  auto ret = implAddSound(game.loadSound(snd), pos, range);
+  auto ret = implAddSound(game.loadSound(snd,true), pos, range);
   if(ret.isEmpty())
     return Sound();
 
@@ -355,6 +355,6 @@ bool WorldSound::canSeeSource(const Tempest::Vec3& p) const {
 void WorldSound::aiOutput(const Tempest::Vec3& pos, std::string_view outputname) {
   if(isInListenerRange(pos,talkRange)){
     std::lock_guard<std::mutex> guard(sync);
-    Gothic::inst().emitGlobalSound(Resources::loadSoundBuffer(string_frm(outputname,".wav")));
+    Gothic::inst().emitGlobalSound(Resources::loadSoundBuffer(string_frm(outputname,".wav")),true);
     }
   }
