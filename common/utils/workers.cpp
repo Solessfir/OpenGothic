@@ -3,6 +3,7 @@
 
 #include <Tempest/Platform>
 #include <Tempest/Log>
+#include <Tempest/CpuTrace>
 
 #if defined(__WINDOWS__)
 #include <windows.h>
@@ -119,6 +120,7 @@ void Workers::threadFunc(size_t id) {
 
     if(!running) {
       taskDone.fetch_add(1);
+      taskDone.notify_one();
       return;
       }
 
@@ -130,12 +132,14 @@ void Workers::threadFunc(size_t id) {
       }
 
     taskDone.fetch_add(1);
+    taskDone.notify_one();
     // if(size_t(taskDone.fetch_add(1)+1)==taskCount)
     //   std::this_thread::yield();
     }
   }
 
 uint32_t Workers::taskLoop() {
+  CpuTrace trace("OpenGothic::worker tasks");
   uint32_t count = 0;
   while(true) {
     size_t b = size_t(progressIt.fetch_add(taskPerStep));
@@ -151,6 +155,7 @@ uint32_t Workers::taskLoop() {
   }
 
 void Workers::execWork(uint32_t& minElts) {
+  CpuTrace trace("OpenGothic::parallel work");
   if(workSize==0)
     return;
 
@@ -196,12 +201,15 @@ void Workers::execWork(uint32_t& minElts) {
     cnt = taskLoop(); (void)cnt;
     }
 
+  CpuTrace waitTrace("OpenGothic::worker wait");
   while(true) {
     int expect = int(taskCount);
-    if(taskDone.load()==expect) {
+    int completed = taskDone.load();
+    if(completed==expect) {
       taskDone.store(0);
       break;
       }
-    std::this_thread::yield();
+    // Waiting on the observed value also handles completion before this call.
+    taskDone.wait(completed);
     }
   }
