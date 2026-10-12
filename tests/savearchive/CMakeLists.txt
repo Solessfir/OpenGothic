@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.16)
+project(SaveArchiveTests LANGUAGES C CXX)
+enable_testing()
+add_executable(save-archive-tests main.cpp ../../lib/miniz/miniz.c)
+target_compile_features(save-archive-tests PRIVATE cxx_std_20)
+target_include_directories(save-archive-tests PRIVATE ../../lib/miniz ../../common)
+add_test(NAME save-archive COMMAND save-archive-tests)
