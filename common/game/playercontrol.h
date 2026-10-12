@@ -1,7 +1,10 @@
 #pragma once
 
+#include "utils/bufferedshot.h"
+
 #include "world/focus.h"
 #include "utils/keycodec.h"
+#include "utils/attacktap.h"
 #include "constants.h"
 
 #include <array>
@@ -24,6 +27,22 @@ class PlayerControl final {
     void  onKeyPressed (KeyCodec::Action a, Tempest::Event::KeyType key, KeyCodec::Mapping mapping);
     void  onKeyReleased(KeyCodec::Action a, KeyCodec::Mapping mapping);
     bool  isPressed(KeyCodec::Action a) const;
+    void  setGamepadAxis(float lx, float ly);
+    void  setTurnMovement(float turn, float forward, bool walk, float turnSpeed);
+    void  setControllerMovement(float x, float y, float cameraYaw, bool walk, float turnSpeed, float turnBoost=0.f);
+    void  setControllerSwim(float x, float y, float cameraYaw, float cameraPitch, float turnSpeed);
+    void  controllerCombat(int direction, bool pressed, bool cancel=false, uint64_t holdMs=400);
+    void  setMeleeAssist(bool enabled, float maxAngle, float maxDistance);
+    void  releaseControllerKey(KeyCodec::Action action, bool cancel=false);
+    void  controllerInteract(bool sheath);
+    void  setPickupHeld(bool held) { pickupHeld=held; }
+    void  controllerEquip(size_t item, bool toggleDraw=false);
+    void  toggleTargetLock();
+    void  switchControllerTarget(bool right);
+    Npc*  lockedTarget() const { return controllerTarget; }
+    bool  isControllerMoving() const { return controllerDirectional && gamepadLY!=0.f; }
+    bool  isClassicCombat() const { return !g2Ctrl; }
+    void  setSneaking(bool enabled);
     void  onRotateMouse(float dAngleX, float dAngleY);
 
     void  drawVobRay(DbgPainter& p) const;
@@ -36,7 +55,8 @@ class PlayerControl final {
     bool  interact(Npc&         other);
     bool  interact(Item&        item);
 
-    void  clearInput();
+    void  clearInput(bool preserveTarget=false);
+    void  clearMovementInput();
 
     void  setTarget(Npc* other);
     void  actionFocus(Npc& other);
@@ -136,15 +156,45 @@ class PlayerControl final {
       } movement;
     
     bool           ctrl[Action::Last]={};
+    std::array<bool,Action::Last> controllerKeyReleases={};
     bool           wctrl[WeaponAction::Last]={};
     bool           actrl[7]={};
 
     WeaponAction   wctrlLast = WeaponAction::WeaponMele; //!< Reminder for weapon toggle.
 
     bool           cacheFocus=false;
+    bool           pickupHeld=false;
     Focus          currentFocus;
     float          rotMouse=0;
     float          rotMouseY=0;
+    float          gamepadLX=0;
+    float          gamepadLY=0;
+    float          touchTurn=0;
+    bool           touchAnalogMovement=false;
+    bool           controllerGroundStrafe=false;
+    bool           controllerDirectional=false;
+    bool           controllerReleaseAttack=false;
+    bool           controllerBlockPending=false;
+    AttackTap      controllerEmptyAttack;
+    BufferedShot   controllerBowShot;
+    size_t         controllerBowWeapon=size_t(-1);
+    bool           controllerWalkApplied=false;
+    bool           controllerSwimming=false;
+    bool           swimJumpHeld=false;
+    bool           swimDiveStroke=false;
+    float          swimPitch=0;
+    Npc*           controllerFinisher=nullptr;
+    uint64_t       controllerFinishTime=0;
+    float          controllerYaw=0;
+    float          controllerTurnSpeed=180.f;
+    float          controllerTurnBoost=0.f;
+    Npc*           controllerTarget=nullptr;
+    bool           meleeAssist=false;
+    float          meleeAssistMaxAngle=90.f;
+    float          meleeAssistMaxDistance=300.f;
+    Focus          pendingInteraction;
+    uint64_t       pendingInteractionUntil=0;
+    size_t         pendingEquipment=size_t(-1);
     bool           casting = false;
     size_t         pickLockProgress = 0;
 
@@ -157,6 +207,7 @@ class PlayerControl final {
     InventoryMenu& inv;
 
     void           setupSettings();
+    void           applyControllerWalk(bool walk);
     bool           canInteract() const;
     void           marvinF8(uint64_t dt);
     void           marvinK(uint64_t dt);
@@ -168,6 +219,7 @@ class PlayerControl final {
 
     void           clrDraw();
     void           implMove(uint64_t dt);
+    void           implSwim(Npc& pl, uint64_t dt);
     void           implMoveMobsi(Npc& pl, uint64_t dt);
     void           processPickLock(Npc& pl, Interactive& inter, KeyCodec::Action key);
     void           processLadder(Npc& pl, Interactive& inter, KeyCodec::Action key);
@@ -176,6 +228,7 @@ class PlayerControl final {
     void           assignRunAngle(Npc& pl, float rotation, uint64_t dt);
     void           setAnimRotate (Npc& pl, float rotation, int anim, bool force, uint64_t dt);
     void           processAutoRotate(Npc& pl, float& rot, uint64_t dt);
+    void           assistMeleeAttack(Npc& pl);
 
 
     //////////////////////////////////
@@ -183,17 +236,17 @@ class PlayerControl final {
     //////////////////////////////////
 
     auto wantsToMoveForward() const -> bool {
-      return movement.forwardBackward.value() > 0.f;
+      return movement.forwardBackward.value() > 0.f || gamepadLY < -((controllerDirectional || touchAnalogMovement) ? 0.f : 0.2f);
       }
     auto wantsToMoveBackward() const -> bool {
-      return movement.forwardBackward.value() < 0.f;
+      return movement.forwardBackward.value() < 0.f || gamepadLY > ((controllerDirectional || touchAnalogMovement) ? 0.f : 0.2f);
       }
 
     auto wantsToStrafeRight() const -> bool {
-      return movement.strafeRightLeft.value() > 0.f;
+      return movement.strafeRightLeft.value() > 0.f || gamepadLX > (controllerGroundStrafe ? 0.f : 0.2f);
       }
     auto wantsToStrafeLeft() const -> bool {
-      return movement.strafeRightLeft.value() < 0.f;
+      return movement.strafeRightLeft.value() < 0.f || gamepadLX < -(controllerGroundStrafe ? 0.f : 0.2f);
       }
 
     auto wantsToTurnRight() const -> bool {
