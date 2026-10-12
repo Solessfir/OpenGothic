@@ -46,7 +46,24 @@ out gl_MeshPerVertexEXT {
 
 #if defined(GL_VERTEX_SHADER) && defined(MAT_VARYINGS)
 layout(location = 0) out flat uint bucketIdOut;
+#if defined(FLAT_VARYINGS)
+#if defined(MAT_UV)
+layout(location = 1) out vec2 shUvOut;
+#endif
+#if defined(MAT_NORMAL)
+layout(location = 2) out vec3 shNormalOut;
+#endif
+#if defined(MAT_POSITION)
+layout(location = 3) out vec3 shPosOut;
+#endif
+#if defined(MAT_COLOR) && defined(MAT_POSITION)
+layout(location = 4) out vec4 shColorOut;
+#elif defined(MAT_COLOR)
+layout(location = 3) out vec4 shColorOut;
+#endif
+#else
 layout(location = 1) out Varyings  shOut;
+#endif
 #elif defined(MAT_VARYINGS)
 layout(location = 0) out flat uint bucketIdOut[]; //TODO: per-primitive
 layout(location = 1) out Varyings  shOut[];
@@ -221,7 +238,20 @@ void vertexShader(const uvec4 task) {
   uint idx = processPrimitive(meshletId, bucketId, laneID)[gl_VertexIndex%3];
   vec4 pos = processVertex(var, instanceId, meshletId, bucketId, idx);
   gl_Position = pos;
-#if defined(MAT_VARYINGS)
+#if defined(MAT_VARYINGS) && defined(FLAT_VARYINGS)
+#if defined(MAT_UV)
+  shUvOut     = var.uv;
+#endif
+#if defined(MAT_NORMAL)
+  shNormalOut = var.normal;
+#endif
+#if defined(MAT_POSITION)
+  shPosOut    = var.pos;
+#endif
+#if defined(MAT_COLOR)
+  shColorOut  = var.color;
+#endif
+#elif defined(MAT_VARYINGS)
   shOut       = var;
 #endif
   }
