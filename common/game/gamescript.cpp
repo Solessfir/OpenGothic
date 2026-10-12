@@ -868,6 +868,11 @@ const VisualFx* GameScript::spellVfx(int32_t splId) {
   return Gothic::inst().loadVisualFx(name);
   }
 
+bool GameScript::isTeleportSpell(int32_t splId) const {
+  // Spell IDs and animation letters differ between Gothic 1 and Gothic 2.
+  return spellFxInstanceNames->get_string(uint16_t(splId))=="Teleport";
+  }
+
 std::vector<GameScript::DlgChoice> GameScript::dialogChoices(std::shared_ptr<zenkit::INpc> player,
                                                              std::shared_ptr<zenkit::INpc> hnpc,
                                                              const std::vector<uint32_t>& except,
@@ -1254,8 +1259,12 @@ void GameScript::playerHotLamePotion(Npc& pl) {
     return;
 
   auto fn   = vm.find_symbol_by_name("player_hotkey_lame_potion");
-  if(fn==nullptr)
+  if(fn==nullptr) {
+#if defined(__ANDROID__)
+    playerHotPotionG1(pl,true);
+#endif
     return;
+    }
 
   ScopeVar self(*vm.global_self(), pl.handlePtr());
   vm.call_function<void>(fn);
@@ -1267,11 +1276,33 @@ void GameScript::playerHotLameHeal(Npc& pl) {
     return;
 
   auto fn   = vm.find_symbol_by_name("player_hotkey_lame_heal");
-  if(fn==nullptr)
+  if(fn==nullptr) {
+#if defined(__ANDROID__)
+    playerHotPotionG1(pl,false);
+#endif
     return;
+    }
 
   ScopeVar self(*vm.global_self(), pl.handlePtr());
   vm.call_function<void>(fn);
+  }
+
+void GameScript::playerHotPotionG1(Npc& pl, bool mana) {
+  if(owner.version().game!=1 || pl.isDown() || pl.isAiBusy() || pl.interactive()!=nullptr ||
+     pl.weaponState()!=WeaponState::NoWeapon || pl.isSwim() || pl.isDive())
+    return;
+  if(pl.attribute(mana ? ATR_MANA : ATR_HITPOINTS)>=pl.attribute(mana ? ATR_MANAMAX : ATR_HITPOINTSMAX))
+    return;
+  // Gothic 1 has no built-in quick-potion script callbacks.
+  // Use the smallest owned standard potion through its normal item script, never permanent bonuses or raw stat changes.
+  for(auto tier : {"01", "02", "03"}) {
+    const auto name=string_frm(mana ? "ITFO_POTION_MANA_" : "ITFO_POTION_HEALTH_",tier);
+    const auto item=findSymbolIndex(name);
+    if(item!=size_t(-1) && pl.itemCount(item)>0) {
+      pl.useItem(item);
+      return;
+      }
+    }
   }
 
 std::string_view GameScript::spellCastAnim(Npc&, Item &it) {
