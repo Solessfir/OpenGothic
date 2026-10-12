@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Keeps the logo and text readable over any banner -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <gradient android:angle="0" android:startColor="#FF0E0D0C" android:centerColor="#B80E0D0C" android:centerX="0.42" android:endColor="#000E0D0C" />
+</shape>
