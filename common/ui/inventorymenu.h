@@ -6,6 +6,7 @@
 
 #include "graphics/inventoryrenderer.h"
 #include "game/inventory.h"
+#include "game/quickslots.h"
 
 class Npc;
 class Item;
@@ -40,6 +41,12 @@ class InventoryMenu : public Tempest::Widget {
       Front
       };
 
+    enum class WheelKind:uint8_t {
+      Equipment,
+      Character,
+      System
+      };
+
     void  close();
     void  open(Npc& pl);
     void  trade(Npc& pl,Npc& tr);
@@ -52,6 +59,17 @@ class InventoryMenu : public Tempest::Widget {
     void  tick(uint64_t dt);
     void  draw(Tempest::Encoder<Tempest::CommandBuffer>& cmd);
     void  paintNumOverlay(Tempest::PaintEvent& e);
+    void  controllerAction(int action, bool repeat=false);
+    void  openWheel(Npc& pl, WheelKind kind=WheelKind::Equipment);
+    void  openQuickWheel(Npc& pl, size_t slot);
+    bool  isWheelOpen() const { return wheelActive; }
+    WheelKind currentWheelKind() const { return wheelKind; }
+    void  wheelMove(float x, float y, uint64_t now);
+    void  wheelPage(int direction);
+    size_t wheelSelection() const;
+    void  setWheelPageHint(std::string hint) { wheelPageHint=std::move(hint); }
+    void  beginTouchWheel(Tempest::Point origin);
+    void  touchWheelMove(Tempest::Point pos, uint64_t now);
 
     void  keyDownEvent  (Tempest::KeyEvent&   e) override;
     void  keyRepeatEvent(Tempest::KeyEvent&   e) override;
@@ -93,17 +111,52 @@ class InventoryMenu : public Tempest::Widget {
     uint8_t                   page       =0;
     Tempest::Timer            takeTimer;
     size_t                    takeCount  =0;
+    size_t                    controllerDropItem = size_t(-1);
+    size_t                    controllerDropCell = size_t(-1);
     LootMode                  lootMode   =LootMode::Normal;
     InventoryRenderer         renderer;
 
     size_t                    columsCount = 5;
     int32_t                   scrollDelta = 0;
+    bool                      wheelActive = false;
+    WheelKind                 wheelKind = WheelKind::Equipment;
+    bool                      wheelTouch = false;
+    Tempest::Point             wheelTouchOrigin;
+    int                       wheelHoverPage = 0;
+    uint64_t                  wheelHoverSince = 0;
+    bool                      wheelPageArmed = true;
+    bool                      wheelCentered = true;
+    size_t                    wheelPageId = 0;
+    int                       wheelSelected = -1;
+    std::vector<size_t>        wheelItems;
+    std::string               wheelPageHint;
+    QuickSlots::Kind          wheelFilter = QuickSlots::Kind::Empty;
+    size_t                    assignmentItem = size_t(-1);
+    size_t                    assignmentCell = size_t(-1);
+    int                       assignmentDirection = -1;
+    uint64_t                  assignmentUntil = 0;
+    void                      drawWheel(Tempest::Painter& p, DrawPass pass);
+    size_t                    wheelPageSize() const;
+    void                      selectWheelSector(int selected, uint64_t now);
+    size_t                    wheelSectorCount() const;
+    struct WheelLayout {
+      Tempest::Point center;
+      int cell;
+      float radius;
+      float outer;
+      int footer;
+      };
+    WheelLayout               wheelLayout() const;
 
     size_t                    rowsCount() const;
 
     Tempest::Size             slotSize() const;
     int                       headerHeight() const;
     int                       infoHeight() const;
+    bool                      hasSideInfo() const;
+    int                       headerTop() const;
+    int                       gridTop() const;
+    Tempest::Rect             infoRect() const;
     size_t                    pagesCount() const;
 
     const Page&               activePage();
