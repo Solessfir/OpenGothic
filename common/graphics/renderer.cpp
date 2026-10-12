@@ -10,6 +10,7 @@
 #include "ui/videowidget.h"
 #include "camera.h"
 #include "gothic.h"
+#include "world/objects/npc.h"
 #include "utils/string_frm.h"
 
 using namespace Tempest;
@@ -111,8 +112,26 @@ Renderer::~Renderer() {
   }
 
 void Renderer::setupSettings() {
+  const int shadowResolution = Gothic::settingsGetI("ENGINE", "shadowMapResolution");
+  switch(shadowResolution) {
+    case 512:
+    case 1024:
+    case 1536:
+    case 2048:
+      settings.shadowResolution = uint32_t(shadowResolution);
+      break;
+    default:
+      // Missing, malformed and unsupported values retain the original shadow quality.
+      settings.shadowResolution = 2048;
+      break;
+    }
   settings.zEnvMappingEnabled = Gothic::settingsGetI("ENGINE","zEnvMappingEnabled")!=0;
   settings.zCloudShadowScale  = Gothic::settingsGetI("ENGINE","zCloudShadowScale") !=0;
+  settings.ssaoHalfResolution = Gothic::settingsGetI("ENGINE","ssaoHalfResolution")!=0;
+  settings.fogHalfResolution  = Gothic::settingsGetI("ENGINE","fogHalfResolution")==1;
+  const float fadeDistance = Gothic::settingsGetF("ENGINE","cameraObstructionFadeDistance");
+  settings.cameraObstructionDistance = Gothic::settingsGetI("ENGINE","cameraObstructionFade")!=0 && std::isfinite(fadeDistance)
+                                      ? std::clamp(fadeDistance,50.f,500.f) : 0.f;
   settings.zFogRadial         = Gothic::settingsGetI("RENDERER_D3D","zFogRadial")!=0;
   {
     // wind
@@ -139,6 +158,11 @@ void Renderer::setupSettings() {
     settings.moonSize = 400;
 
   settings.vidResIndex = Gothic::settingsGetF("INTERNAL","vidResIndex");
+  settings.renderScale = settings.vidResIndex==0 ? 1.f : (settings.vidResIndex==1 ? 0.75f : 0.5f);
+#if defined(__ANDROID__)
+  settings.renderScale = float(std::clamp(Gothic::settingsGetI("ENGINE","renderScale"),50,100))/100.f;
+  settings.vidResIndex = settings.renderScale==1.f ? 0 : 1;
+#endif
   settings.aaEnabled   = (Shaders::options().aaPreset>0) && (settings.vidResIndex==0);
 
   // direct lighting
@@ -345,7 +369,7 @@ StorageBuffer& Renderer::usesScratch(Tempest::StorageBuffer& ret, size_t size) {
   return ret;
   }
 
-void Renderer::prepareUniforms(WorldView& wview) {
+void Renderer::prepareUniforms(WorldView& wview, const Camera& camera) {
   const Texture2d* sh[Resources::ShadowLayers] = {};
   for(size_t i=0; i<Resources::ShadowLayers; ++i)
     if(!shadowMap[i].isEmpty()) {
@@ -358,6 +382,15 @@ void Renderer::prepareUniforms(WorldView& wview) {
   wview.setGbuffer(textureCast<const Texture2d&>(gbufDiffuse), textureCast<const Texture2d&>(gbufNormal));
   wview.setSceneImages(textureCast<const Texture2d&>(sceneOpaque), textureCast<const Texture2d&>(sceneDepth), zbuffer);
   wview.setWindEnabled(settings.zWindEnabled, settings.windPeriod);
+  Vec4 fadeTarget = {};
+  const auto player = Gothic::inst().player();
+  if(player!=nullptr && !camera.isFirstPerson() && !camera.isCutscene() && !camera.isFree()) {
+    auto center = player->centerPosition();
+    camera.view().project(center);
+    // Keep a 90 cm faded core, followed by a 90 cm soft edge.
+    fadeTarget = Vec4(center.x, center.y, center.z, 180.f);
+    }
+  wview.setCameraObstructionFade(settings.pathTraceEnabled ? 0.f : settings.cameraObstructionDistance, fadeTarget);
   }
 
 void Renderer::resetViewport(Tempest::Size res, Tempest::Size fullRes) {
@@ -423,6 +456,8 @@ void Renderer::resetViewport(Tempest::Size res, Tempest::Size fullRes) {
 void Renderer::resetShadowmap() {
   auto& device = Resources::device();
 
+  Log::i("Shadow map resolution = ", settings.shadowResolution);
+
   for(int i=0; i<Resources::ShadowLayers; ++i)
     Resources::recycle(std::move(shadowMap[i]));
 
@@ -454,11 +489,13 @@ void Renderer::resetSkyFog() {
     if(skyPathTrace)
       q = PathTrace;
 
-    if(sky.quality==q) {
+    const bool halfResolution = settings.fogHalfResolution && q!=PathTrace;
+    if(sky.quality==q && sky.fogHalfResolution==halfResolution) {
       return;
       }
 
     sky.quality = q;
+    sky.fogHalfResolution = halfResolution;
   }
 
   Resources::recycle(std::move(sky.fogLut3D));
@@ -466,23 +503,28 @@ void Renderer::resetSkyFog() {
 
   sky.lutIsInitialized = false;
 
+  // Reduce only the angular sampling of the lighting volume.
+  // Keep all depth steps and the separate sunshaft occlusion calculation unchanged.
+  const uint32_t divisor = sky.fogHalfResolution ? 2 : 1;
   switch(sky.quality) {
     case None:
     case VolumetricLQ:
-      sky.fogLut3D   = device.image3d(sky.lutRGBAFormat, 160, 90, 64);
+      sky.fogLut3D   = device.image3d(sky.lutRGBAFormat, 160/divisor, 90/divisor, 64);
       break;
     case VolumetricHQ:
-      // fogLut and oclussion are decupled
-      sky.fogLut3D   = device.image3d(sky.lutRGBFormat,  128,64,32);
-      sky.fogLut3DMs = device.image3d(sky.lutRGBAFormat, 128,64,32);
+      // Fog lighting and occlusion are decoupled.
+      sky.fogLut3D   = device.image3d(sky.lutRGBFormat,  128/divisor, 64/divisor, 32);
+      sky.fogLut3DMs = device.image3d(sky.lutRGBAFormat, 128/divisor, 64/divisor, 32);
       break;
     case Epipolar:
-      sky.fogLut3D   = device.image3d(sky.lutRGBFormat,  128,64,32);
-      sky.fogLut3DMs = device.image3d(sky.lutRGBAFormat, 128,64,32);
+      sky.fogLut3D   = device.image3d(sky.lutRGBFormat,  128/divisor, 64/divisor, 32);
+      sky.fogLut3DMs = device.image3d(sky.lutRGBAFormat, 128/divisor, 64/divisor, 32);
       break;
     case PathTrace:
       break;
     }
+  if(sky.quality!=PathTrace)
+    Log::i("Fog lighting volume = ", sky.fogLut3D.w(), "x", sky.fogLut3D.h(), "x", sky.fogLut3D.d());
   }
 
 void Renderer::prepareSky(Tempest::Encoder<Tempest::CommandBuffer>& cmd, WorldView& wview) {
@@ -542,9 +584,16 @@ void Renderer::prepareSky(Tempest::Encoder<Tempest::CommandBuffer>& cmd, WorldVi
   cmd.draw(nullptr, 0, 3);
   }
 
-void Renderer::draw(Attachment& result, Encoder<CommandBuffer>& cmd, uint8_t fId,
+void Renderer::draw(Attachment& output, Encoder<CommandBuffer>& cmd, uint8_t fId,
                     VectorImage::Mesh& uiLayer, VectorImage::Mesh& numOverlay,
-                    InventoryMenu& inventory, VideoWidget& video) {
+                    InventoryMenu& inventory, VideoWidget& video, float hdrPeakNits) {
+  // Menus can render before any world has waited for the asynchronous shader compiler.
+  if(hdrPeakNits>0)
+    shaders.waitCompiler();
+  // Compose the existing SDR UI at paper white, not at the display's peak brightness.
+  const float paperWhite = std::min(200.f, hdrPeakNits);
+  hdrPeakRatio = hdrPeakNits>0 ? hdrPeakNits/paperWhite : 0.f;
+  auto& result = hdrPeakNits>0 ? usesAttachment(hdrComposite, TextureFormat::RGBA16F, output.size()) : output;
   auto wview  = Gothic::inst().worldView();
   auto camera = Gothic::inst().camera();
 
@@ -565,8 +614,25 @@ void Renderer::draw(Attachment& result, Encoder<CommandBuffer>& cmd, uint8_t fId
 
     cmd.setFramebuffer({{result, Tempest::Preserve, Tempest::Preserve}});
     cmd.setDebugMarker("Inventory-counters");
+#if !defined(__ANDROID__)
     numOverlay.draw(cmd);
+#endif
     }
+#if defined(__ANDROID__)
+  // The Android overlay also contains the FPS counter outside the inventory.
+  if(!video.isActive())
+    numOverlay.draw(cmd);
+#endif
+  if(hdrPeakNits>0) {
+    cmd.setDebugMarker("HDR output");
+    cmd.setFramebuffer({{output, Tempest::Discard, Tempest::Preserve}});
+    cmd.setBinding(0, hdrComposite, Sampler::nearest(ClampMode::ClampToEdge));
+    cmd.setPushData(Vec2(paperWhite, hdrPeakNits));
+    cmd.setPipeline(shaders.hdrOutput);
+    cmd.draw(nullptr, 0, 3);
+    }
+  // Save thumbnails and other offscreen draws remain SDR.
+  hdrPeakRatio = 0;
   }
 
 void Renderer::dbgDraw(Tempest::Painter& p) {
@@ -643,7 +709,7 @@ void Renderer::draw(Tempest::Attachment& result, Encoder<CommandBuffer>& cmd, ui
     wview.updateFrustrum(frustrum);
     }
 
-  prepareUniforms(wview);
+  prepareUniforms(wview, camera);
   wview.preFrameUpdate(camera, tickCount, fId);
   wview.prepareGlobals(cmd,fId);
 
@@ -740,9 +806,12 @@ void Renderer::drawTonemapping(Attachment& result, Encoder<CommandBuffer>& cmd, 
     float contrast   = 1;
     float gamma      = 1.f/2.2f;
     float mul        = 1;
+    float hdrPeak    = 0;
+    float padding[3] = {};
     };
 
   Push p;
+  p.hdrPeak = hdrPeakRatio;
   p.brightness = (settings.zVidBrightness - 0.5f)*0.1f;
   p.contrast   = std::max(1.5f - settings.zVidContrast, 0.01f);
   p.gamma      = p.gamma/std::max(2.0f*settings.zVidGamma,  0.01f);
@@ -795,9 +864,12 @@ void Renderer::drawCMAA2(Tempest::Attachment& result, Tempest::Encoder<Tempest::
     float contrast   = 1;
     float gamma      = 1.f/2.2f;
     float mul        = 1;
+    float hdrPeak    = 0;
+    float padding[3] = {};
     };
 
   Push p;
+  p.hdrPeak = hdrPeakRatio;
   p.brightness = (settings.zVidBrightness - 0.5f)*0.1f;
   p.contrast   = std::max(1.5f - settings.zVidContrast, 0.01f);
   p.gamma      = p.gamma/std::max(2.0f*settings.zVidGamma,  0.01f);
@@ -809,7 +881,8 @@ void Renderer::drawCMAA2(Tempest::Attachment& result, Tempest::Encoder<Tempest::
   auto& psoTone = (settings.vidResIndex==0) ? shaders.tonemapping : shaders.tonemappingUpscale;
   cmd.setFramebuffer({{result, Tempest::Discard, Tempest::Preserve}});
   cmd.setBinding(0, wview.sceneGlobals().uboGlobal[SceneGlobals::V_Main]);
-  cmd.setBinding(1, sceneLinear, Sampler::nearest());
+  const auto sampler = settings.vidResIndex==0 ? Sampler::nearest() : Sampler::bilinear(ClampMode::ClampToEdge);
+  cmd.setBinding(1, sceneLinear, sampler);
   cmd.setPushData(&p, sizeof(p));
   cmd.setPipeline(psoTone);
   cmd.draw(nullptr, 0, 3);
@@ -1911,10 +1984,13 @@ void Renderer::prepareSSAO(Encoder<CommandBuffer>& cmd, WorldView& wview) {
   push.projInv.inverse();
 
   auto& device = Resources::device();
-  if(ssao.ssaoBuf.size()!=zbuffer.size()) {
+  const bool halfResolution = settings.ssaoHalfResolution && device.properties().hasStorageFormat(TextureFormat::RG32F);
+  const auto aoSize = halfResolution ? Size((zbuffer.w()+1)/2, (zbuffer.h()+1)/2) : zbuffer.size();
+  const auto aoFormat = halfResolution ? TextureFormat::RG32F : ssao.aoFormat;
+  if(ssao.ssaoBuf.size()!=aoSize || ssao.ssaoBuf.format()!=aoFormat || ssao.ssaoBlur.size()!=zbuffer.size()) {
     Resources::recycle(std::move(ssao.ssaoBuf));
     Resources::recycle(std::move(ssao.ssaoBlur));
-    ssao.ssaoBuf  = device.image2d(ssao.aoFormat, zbuffer.size());
+    ssao.ssaoBuf  = device.image2d(aoFormat, aoSize);
     ssao.ssaoBlur = device.image2d(ssao.aoFormat, zbuffer.size());
     }
 
@@ -1927,23 +2003,27 @@ void Renderer::prepareSSAO(Encoder<CommandBuffer>& cmd, WorldView& wview) {
   cmd.setBinding(3, gbufNormal,  Sampler::nearest(ClampMode::ClampToEdge));
   cmd.setBinding(4, zbuffer,     Sampler::nearest(ClampMode::ClampToEdge));
   cmd.setPushData(&push, sizeof(push));
-  cmd.setPipeline(shaders.ssao);
+  cmd.setPipeline(halfResolution ? shaders.ssaoHalf : shaders.ssao);
   cmd.dispatchThreads(ssao.ssaoBuf.size());
 
+  cmd.setDebugMarker(halfResolution ? "SSAO upsample" : "SSAO blur");
   cmd.setBinding(0, ssao.ssaoBlur);
   cmd.setBinding(1, wview.sceneGlobals().uboGlobal[SceneGlobals::V_Main]);
-  cmd.setBinding(2, ssao.ssaoBuf);
+  if(halfResolution)
+    cmd.setBinding(2, ssao.ssaoBuf, Sampler::nearest(ClampMode::ClampToEdge));
+  else
+    cmd.setBinding(2, ssao.ssaoBuf);
   cmd.setBinding(3, zbuffer, Sampler::nearest(ClampMode::ClampToEdge));
-  cmd.setPipeline(shaders.ssaoBlur);
-  cmd.dispatchThreads(ssao.ssaoBuf.size());
+  cmd.setPipeline(halfResolution ? shaders.ssaoUpsample : shaders.ssaoBlur);
+  cmd.dispatchThreads(ssao.ssaoBlur.size());
   }
 
 void Renderer::prepareFog(Encoder<Tempest::CommandBuffer>& cmd, WorldView& wview) {
   auto& scene  = wview.sceneGlobals();
   auto& device = Resources::device();
 
-  cmd.setDebugMarker("Fog-LUTs");
   if(sky.quality!=PathTrace) {
+    cmd.setDebugMarker("Fog-lighting-volume");
     auto& shader = sky.quality==VolumetricLQ ? shaders.fogViewLut3d : shaders.fogViewLutSep;
     cmd.setFramebuffer({});
     cmd.setBinding(0, scene.uboGlobal[SceneGlobals::V_Main]);
@@ -1974,6 +2054,7 @@ void Renderer::prepareFog(Encoder<Tempest::CommandBuffer>& cmd, WorldView& wview
     case VolumetricLQ:
       break;
     case VolumetricHQ: {
+      cmd.setDebugMarker("Fog-sunshaft-occlusion");
       auto& occlusionLut = usesImage2d(sky.occlusionLut, TextureFormat::R32U, zbuffer.size());
       if(settings.vsmEnabled && !settings.rtsmEnabled && !settings.pathTraceEnabled) {
         cmd.setFramebuffer({});
@@ -2760,18 +2841,11 @@ Tempest::Attachment Renderer::screenshoot(uint8_t frameId, Tempest::Size size) {
   }
 
 float Renderer::internalResolutionScale() const {
-  if(settings.vidResIndex==0)
-    return 1;
-  if(settings.vidResIndex==1)
-    return 0.75;
-  return 0.5;
+  return settings.renderScale;
   }
 
 Size Renderer::internalResolution(Tempest::Size src) const {
-  if(settings.vidResIndex==0)
-     return src;
-  if(settings.vidResIndex==1)
-    return Size(3*src.w/4, 3*src.h/4);
-  return Size(src.w/2, src.h/2);
+  return Size(std::max(1,int(float(src.w)*settings.renderScale)),
+              std::max(1,int(float(src.h)*settings.renderScale)));
   }
 

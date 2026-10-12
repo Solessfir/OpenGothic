@@ -16,9 +16,25 @@ using namespace Tempest;
 
 static bool hasBindless() {
   const auto& p = Resources::device().properties();
+#if defined(__ANDROID__)
+  const std::string_view name = p.name;
+  if(name.find("Adreno")!=std::string_view::npos && name.find("610")!=std::string_view::npos) {
+    Log::i("Disabling bindless material shaders for ",name);
+    return false;
+    }
+#endif
   if(p.descriptors.nonUniformIndexing && p.descriptors.maxTexture>=65000 && p.descriptors.maxStorage>=65000)
     return true;
   return false;
+  }
+
+// Vulkan drivers compile a shader when its pipeline is created or first drawn.
+// When a driver crashes there, the last of these lines in logcat names the shader.
+static GothicShader shaderSource(std::string_view name) {
+#if defined(__ANDROID__)
+  Log::d("Loading shader ",name);
+#endif
+  return GothicShader::get(name);
   }
 
 Shaders* Shaders::instance = nullptr;
@@ -95,6 +111,8 @@ void Shaders::compileShaders() noexcept {
 
   ssao                = computeShader("ssao.comp.sprv");
   ssaoBlur            = computeShader("ssao_blur.comp.sprv");
+  ssaoHalf            = computeShader("ssao_half.comp.sprv");
+  ssaoUpsample        = computeShader("ssao_upsample.comp.sprv");
 
   directLight      = postEffect("direct_light",    RenderState::ZTestMode::NoEqual);
   directLightSh    = postEffect("direct_light_sh", RenderState::ZTestMode::NoEqual);
@@ -130,9 +148,9 @@ void Shaders::compileShaders() noexcept {
     state.setZTestMode    (RenderState::ZTestMode::Always);
     state.setZWriteEnabled(false);
 
-    auto sh      = GothicShader::get("triangle.vert.sprv");
+    auto sh      = shaderSource("triangle.vert.sprv");
     auto vsLight = device.shader(sh.data,sh.len);
-    sh           = GothicShader::get("sky_pathtrace.frag.sprv");
+    sh           = shaderSource("sky_pathtrace.frag.sprv");
     auto fsLight = device.shader(sh.data,sh.len);
     skyPathTrace = device.pipeline(Triangles, state, vsLight, fsLight);
   }
@@ -150,9 +168,9 @@ void Shaders::compileShaders() noexcept {
   state.setZTestMode    (RenderState::ZTestMode::Equal);
   state.setZWriteEnabled(false);
 
-  auto sh      = GothicShader::get("sun.vert.sprv");
+  auto sh      = shaderSource("sun.vert.sprv");
   auto vsLight = device.shader(sh.data,sh.len);
-  sh           = GothicShader::get("sun.frag.sprv");
+  sh           = shaderSource("sun.frag.sprv");
   auto fsLight = device.shader(sh.data,sh.len);
   sun          = device.pipeline(Triangles, state, vsLight, fsLight);
   }
@@ -166,23 +184,23 @@ void Shaders::compileShaders() noexcept {
 
   state.setZWriteEnabled(false);
 
-  auto sh      = GothicShader::get("light.vert.sprv");
+  auto sh      = shaderSource("light.vert.sprv");
   auto vsLight = device.shader(sh.data,sh.len);
-  sh           = GothicShader::get("light.frag.sprv");
+  sh           = shaderSource("light.frag.sprv");
   auto fsLight = device.shader(sh.data,sh.len);
   lights       = device.pipeline(Triangles, state, vsLight, fsLight);
   if(opts.doRtScene) {
     if(opts.doRayQuery) {
-      sh      = GothicShader::get("light_rq_at.frag.sprv");
+      sh      = shaderSource("light_rq_at.frag.sprv");
       fsLight = device.shader(sh.data,sh.len);
       } else {
-      sh      = GothicShader::get("light_rq.frag.sprv");
+      sh      = shaderSource("light_rq.frag.sprv");
       fsLight = device.shader(sh.data,sh.len);
       }
     lightsRq = device.pipeline(Triangles, state, vsLight, fsLight);
     }
   if(Shaders::isVsmSupported()) {
-    sh      = GothicShader::get("light_vsm.frag.sprv");
+    sh      = shaderSource("light_vsm.frag.sprv");
     fsLight = device.shader(sh.data,sh.len);
     lightsVsm = device.pipeline(Triangles, state, vsLight, fsLight);
     }
@@ -190,6 +208,7 @@ void Shaders::compileShaders() noexcept {
 
   tonemapping        = postEffect("triangle_uv", "tonemapping",    RenderState::ZTestMode::Always);
   tonemappingUpscale = postEffect("triangle_uv", "tonemapping_up", RenderState::ZTestMode::Always);
+  hdrOutput          = postEffect("triangle_uv", "hdr_output",    RenderState::ZTestMode::Always);
 
   cmaa2EdgeColor2x2Presets[uint32_t(AaPreset::OFF)]    = Tempest::ComputePipeline();
   cmaa2EdgeColor2x2Presets[uint32_t(AaPreset::MEDIUM)] = computeShader("cmaa2_edges_color2x2_quality_0.comp.sprv");
@@ -197,18 +216,18 @@ void Shaders::compileShaders() noexcept {
 
   cmaa2ProcessCandidates = computeShader("cmaa2_process_candidates.comp.sprv");
   {
-    auto sh = GothicShader::get("cmaa2_deferred_color_apply_2x2.vert.sprv");
+    auto sh = shaderSource("cmaa2_deferred_color_apply_2x2.vert.sprv");
     auto vs = device.shader(sh.data,sh.len);
-    sh = GothicShader::get("cmaa2_deferred_color_apply_2x2.frag.sprv");
+    sh = shaderSource("cmaa2_deferred_color_apply_2x2.frag.sprv");
     auto fs = device.shader(sh.data,sh.len);
     cmaa2DeferredColorApply2x2 = device.pipeline(Tempest::Points,RenderState(),vs,fs);
   }
 
   {
     RenderState state;
-    auto sh = GothicShader::get("gizmo.vert.sprv");
+    auto sh = shaderSource("gizmo.vert.sprv");
     auto vs = device.shader(sh.data,sh.len);
-    sh = GothicShader::get("gizmo.frag.sprv");
+    sh = shaderSource("gizmo.frag.sprv");
     auto fs = device.shader(sh.data,sh.len);
     gizmo = device.pipeline(Triangles,state,vs,fs);
   }
@@ -220,9 +239,9 @@ void Shaders::compileShaders() noexcept {
     state.setBlendDest    (RenderState::BlendMode::OneMinusSrcAlpha);
     state.setCullFaceMode (RenderState::CullMode::Front);
 
-    auto sh = GothicShader::get("light_imposter.vert.sprv");
+    auto sh = shaderSource("light_imposter.vert.sprv");
     auto vs = device.shader(sh.data,sh.len);
-    sh = GothicShader::get("light_imposter.frag.sprv");
+    sh = shaderSource("light_imposter.frag.sprv");
     auto fs = device.shader(sh.data,sh.len);
     lightImposter = device.pipeline(Triangles,state,vs,fs);
   }
@@ -242,10 +261,10 @@ void Shaders::compileShaders() noexcept {
     state.setBlendSource  (RenderState::BlendMode::SrcAlpha);
     state.setBlendDest    (RenderState::BlendMode::OneMinusSrcAlpha);
 
-    auto sh = GothicShader::get(string_frm("triangle_uv",".vert.sprv"));
+    auto sh = shaderSource(string_frm("triangle_uv",".vert.sprv"));
     auto vs = device.shader(sh.data,sh.len);
 
-    sh      = GothicShader::get(string_frm("pathtrace",".frag.sprv"));
+    sh      = shaderSource(string_frm("pathtrace",".frag.sprv"));
     auto fs = device.shader(sh.data,sh.len);
     rtPathtrace = device.pipeline(Triangles,state,vs,fs);
     }
@@ -255,15 +274,15 @@ void Shaders::compileShaders() noexcept {
     state.setCullFaceMode(RenderState::CullMode::NoCull);
     state.setZTestMode   (RenderState::ZTestMode::Less);
 
-    auto sh = GothicShader::get("probe_dbg.vert.sprv");
+    auto sh = shaderSource("probe_dbg.vert.sprv");
     auto vs = device.shader(sh.data,sh.len);
-    sh = GothicShader::get("probe_dbg.frag.sprv");
+    sh = shaderSource("probe_dbg.frag.sprv");
     auto fs = device.shader(sh.data,sh.len);
     probeDbg = device.pipeline(Triangles,state,vs,fs);
 
-    sh = GothicShader::get("probe_hit_dbg.vert.sprv");
+    sh = shaderSource("probe_hit_dbg.vert.sprv");
     vs = device.shader(sh.data,sh.len);
-    sh = GothicShader::get("probe_hit_dbg.frag.sprv");
+    sh = shaderSource("probe_hit_dbg.frag.sprv");
     fs = device.shader(sh.data,sh.len);
     probeHitDbg = device.pipeline(Triangles,state,vs,fs);
 
@@ -281,9 +300,9 @@ void Shaders::compileShaders() noexcept {
     state.setBlendDest    (RenderState::BlendMode::SrcAlpha);  // for debugging
     state.setZTestMode    (RenderState::ZTestMode::NoEqual);
     state.setZWriteEnabled(false);
-    sh = GothicShader::get("probe_ambient.vert.sprv");
+    sh = shaderSource("probe_ambient.vert.sprv");
     vs = device.shader(sh.data,sh.len);
-    sh = GothicShader::get("probe_ambient.frag.sprv");
+    sh = shaderSource("probe_ambient.frag.sprv");
     fs = device.shader(sh.data,sh.len);
     probeAmbient = device.pipeline(Triangles,state,vs,fs);
     }
@@ -294,9 +313,9 @@ void Shaders::compileShaders() noexcept {
     state.setZTestMode   (RenderState::ZTestMode::Less);
     state.setZWriteEnabled(false);
 
-    auto sh = GothicShader::get("surf_dbg.vert.sprv");
+    auto sh = shaderSource("surf_dbg.vert.sprv");
     auto vs = device.shader(sh.data,sh.len);
-    sh = GothicShader::get("surf_dbg.frag.sprv");
+    sh = shaderSource("surf_dbg.frag.sprv");
     auto fs = device.shader(sh.data,sh.len);
     surfDbg = device.pipeline(Triangles,state,vs,fs);
 
@@ -418,9 +437,9 @@ void Shaders::compileShaders() noexcept {
     state.setCullFaceMode(RenderState::CullMode::Front);
     state.setZTestMode   (RenderState::ZTestMode::LEqual);
 
-    auto sh = GothicShader::get("item.vert.sprv");
+    auto sh = shaderSource("item.vert.sprv");
     auto vs = device.shader(sh.data,sh.len);
-    sh = GothicShader::get("item.frag.sprv");
+    sh = shaderSource("item.frag.sprv");
     auto fs = device.shader(sh.data,sh.len);
     inventory = device.pipeline(Triangles,state,vs,fs);
   }
@@ -641,8 +660,6 @@ const RenderPipeline* Shaders::materialPipeline(const Material& mat, DrawCommand
   if(typeVs==nullptr || typeFs==nullptr)
     return nullptr;
 
-  const char* bindless = bl ? "_bindless" : "_slot";
-
   materials.emplace_front();
   auto& b = materials.front();
   b.alpha        = alpha;
@@ -652,11 +669,26 @@ const RenderPipeline* Shaders::materialPipeline(const Material& mat, DrawCommand
   b.trivial      = trivial;
 
   auto& device = Resources::device();
-  if(mat.isTesselated() && device.properties().tesselationShader && t==DrawCommands::Landscape && true) {
-    auto shVs = GothicShader::get(string_frm("main_", vsTok, typeVs, bindless, ".vert.sprv"));
-    auto shTc = GothicShader::get(string_frm("main_", vsTok, typeVs, bindless, ".tesc.sprv"));
-    auto shTe = GothicShader::get(string_frm("main_", vsTok, typeVs, bindless, ".tese.sprv"));
-    auto shFs = GothicShader::get(string_frm("main_", fsTok, typeFs, bindless, ".frag.sprv"));
+  static const bool needsFlatVaryings = []() {
+#if defined(__ANDROID__)
+    const std::string_view name = Resources::device().properties().name;
+    const bool enabled = name.find("Adreno")!=std::string_view::npos && name.find("610")!=std::string_view::npos;
+    if(enabled)
+      Log::i("Using flattened material varyings for ",name);
+    return enabled;
+#else
+    return false;
+#endif
+    }();
+  const bool flatVaryings = needsFlatVaryings && !bl;
+  const char* shaderSuffix = flatVaryings ? "_flat_slot" : (bl ? "_bindless" : "_slot");
+  const char* pfxSuffix = flatVaryings ? "_flat" : "";
+
+  if(mat.isTesselated() && device.properties().tesselationShader && t==DrawCommands::Landscape && !flatVaryings) {
+    auto shVs = shaderSource(string_frm("main_", vsTok, typeVs, shaderSuffix, ".vert.sprv"));
+    auto shTc = shaderSource(string_frm("main_", vsTok, typeVs, shaderSuffix, ".tesc.sprv"));
+    auto shTe = shaderSource(string_frm("main_", vsTok, typeVs, shaderSuffix, ".tese.sprv"));
+    auto shFs = shaderSource(string_frm("main_", fsTok, typeFs, shaderSuffix, ".frag.sprv"));
 
     auto vs = device.shader(shVs.data,shVs.len);
     auto tc = device.shader(shTc.data,shTc.len);
@@ -664,25 +696,25 @@ const RenderPipeline* Shaders::materialPipeline(const Material& mat, DrawCommand
     auto fs = device.shader(shFs.data,shFs.len);
     b.pipeline = device.pipeline(Triangles, state, vs, tc, te, fs);
     }
-  else if(options().doMeshShading && t!=DrawCommands::Pfx) {
-    auto shMs = GothicShader::get(string_frm("main_", vsTok, typeVs, bindless, ".mesh.sprv"));
-    auto shFs = GothicShader::get(string_frm("main_", fsTok, typeFs, bindless, ".frag.sprv"));
+  else if(options().doMeshShading && t!=DrawCommands::Pfx && !flatVaryings) {
+    auto shMs = shaderSource(string_frm("main_", vsTok, typeVs, shaderSuffix, ".mesh.sprv"));
+    auto shFs = shaderSource(string_frm("main_", fsTok, typeFs, shaderSuffix, ".frag.sprv"));
 
     auto ms = device.shader(shMs.data,shMs.len);
     auto fs = device.shader(shFs.data,shFs.len);
     b.pipeline = device.pipeline(state, Shader(), ms, fs);
     }
   else if(t!=DrawCommands::Pfx) {
-    auto shVs = GothicShader::get(string_frm("main_", vsTok, typeVs, bindless, ".vert.sprv"));
-    auto shFs = GothicShader::get(string_frm("main_", fsTok, typeFs, bindless, ".frag.sprv"));
+    auto shVs = shaderSource(string_frm("main_", vsTok, typeVs, shaderSuffix, ".vert.sprv"));
+    auto shFs = shaderSource(string_frm("main_", fsTok, typeFs, shaderSuffix, ".frag.sprv"));
 
     auto vs = device.shader(shVs.data,shVs.len);
     auto fs = device.shader(shFs.data,shFs.len);
     b.pipeline = device.pipeline(Triangles, state, vs, fs);
     }
   else {
-    auto shVs = GothicShader::get(string_frm("main_", vsTok, typeVs, ".vert.sprv"));
-    auto shFs = GothicShader::get(string_frm("main_", fsTok, typeFs, ".frag.sprv"));
+    auto shVs = shaderSource(string_frm("main_", vsTok, typeVs, pfxSuffix, ".vert.sprv"));
+    auto shFs = shaderSource(string_frm("main_", fsTok, typeFs, pfxSuffix, ".frag.sprv"));
 
     auto vs = device.shader(shVs.data,shVs.len);
     auto fs = device.shader(shFs.data,shFs.len);
@@ -707,17 +739,17 @@ RenderPipeline Shaders::postEffect(std::string_view vsName, std::string_view fsN
   stateFsq.setZTestMode    (ztest);
   stateFsq.setZWriteEnabled(false);
 
-  auto sh = GothicShader::get(string_frm(vsName,".vert.sprv"));
+  auto sh = shaderSource(string_frm(vsName,".vert.sprv"));
   auto vs = device.shader(sh.data,sh.len);
 
-  sh      = GothicShader::get(string_frm(fsName,".frag.sprv"));
+  sh      = shaderSource(string_frm(fsName,".frag.sprv"));
   auto fs = device.shader(sh.data,sh.len);
   return device.pipeline(Triangles,stateFsq,vs,fs);
   }
 
 ComputePipeline Shaders::computeShader(std::string_view name) {
   auto& device = Resources::device();
-  auto  sh     = GothicShader::get(name);
+  auto  sh     = shaderSource(name);
   return device.pipeline(device.shader(sh.data,sh.len));
   }
 
@@ -732,10 +764,10 @@ RenderPipeline Shaders::fogShader(std::string_view name) {
     state.setBlendDest(RenderState::BlendMode::OneMinusSrcAlpha);
     }
 
-  auto sh = GothicShader::get("triangle.vert.sprv");
+  auto sh = shaderSource("triangle.vert.sprv");
   auto vs = device.shader(sh.data,sh.len);
 
-  sh      = GothicShader::get(string_frm(name,".frag.sprv"));
+  sh      = shaderSource(string_frm(name,".frag.sprv"));
   auto fs = device.shader(sh.data,sh.len);
   return device.pipeline(Triangles,state,vs,fs);
   }
@@ -754,10 +786,10 @@ RenderPipeline Shaders::inWaterShader(std::string_view name, bool isScattering) 
     state.setBlendDest  (RenderState::BlendMode::SrcColor);
     }
 
-  auto sh = GothicShader::get("triangle.vert.sprv");
+  auto sh = shaderSource("triangle.vert.sprv");
   auto vs = device.shader(sh.data,sh.len);
 
-  sh      = GothicShader::get(string_frm(name,".frag.sprv"));
+  sh      = shaderSource(string_frm(name,".frag.sprv"));
   auto fs = device.shader(sh.data,sh.len);
   return device.pipeline(Triangles,state,vs,fs);
   }
@@ -771,13 +803,13 @@ RenderPipeline Shaders::reflectionShader(std::string_view name, bool hasMeshlets
   state.setBlendSource  (RenderState::BlendMode::One);
   state.setBlendDest    (RenderState::BlendMode::One);
 
-  auto sh = GothicShader::get("triangle.vert.sprv");
+  auto sh = shaderSource("triangle.vert.sprv");
   auto vs = device.shader(sh.data,sh.len);
-  sh      = GothicShader::get(name);
+  sh      = shaderSource(name);
   auto fs = device.shader(sh.data,sh.len);
 
   if(hasMeshlets) {
-    sh = GothicShader::get("water_reflection.mesh.sprv");
+    sh = shaderSource("water_reflection.mesh.sprv");
     vs = device.shader(sh.data,sh.len);
     }
 
@@ -793,9 +825,9 @@ RenderPipeline Shaders::ambientLightShader(std::string_view name) {
   state.setZTestMode    (RenderState::ZTestMode::NoEqual);
   state.setZWriteEnabled(false);
 
-  auto sh = GothicShader::get("triangle.vert.sprv");
+  auto sh = shaderSource("triangle.vert.sprv");
   auto vs = device.shader(sh.data,sh.len);
-  sh      = GothicShader::get(string_frm(name,".frag.sprv"));
+  sh      = shaderSource(string_frm(name,".frag.sprv"));
   auto fs = device.shader(sh.data,sh.len);
 
   return device.pipeline(Triangles, state, vs, fs);

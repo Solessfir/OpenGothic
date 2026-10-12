@@ -1,0 +1,26 @@
+#version 450
+#extension GL_GOOGLE_include_directive : enable
+#include "lighting/tonemapping.glsl"
+#include "lighting/hdr_output.glsl"
+
+layout(local_size_x = 64) in;
+layout(binding = 0, std430) buffer Output { vec4 values[]; } outputData;
+
+void main() {
+  uint i = gl_GlobalInvocationID.x;
+  if(i>4096)
+    return;
+  float intensity = float(i)/256.0;
+  VideoSettings settings;
+  settings.brightness = 0;
+  settings.contrast = 1;
+  settings.gamma = 1.0/2.2;
+  settings.mulExposure = 1;
+  settings.hdr = vec4(0);
+  float sdr = gameTonemap(vec3(intensity), settings).r;
+  settings.hdr.x = 5;
+  float hdr = gameTonemap(vec3(intensity), settings).r;
+  vec3 pq = hdr10Encode(vec3(intensity), 200.0);
+  outputData.values[i*2] = vec4(sdr, hdr, pq.r, pq.g);
+  outputData.values[i*2+1] = vec4(pq.b, hdr10Encode(vec3(intensity,0,0),200.0));
+  }
