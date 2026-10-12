@@ -87,6 +87,7 @@ class Camera final {
     void debugDraw(DbgPainter& p);
 
     Tempest::PointF    spin() const;
+    float             followSpeed() const;
     Tempest::Vec3      destTarget() const;
     float              azimuth() const;
 
@@ -132,6 +133,11 @@ class Camera final {
     struct Interpolated {
       Tempest::Vec3       target    = {};
       Tempest::Vec3       rotOffset = {};
+#if defined(__ANDROID__)
+      float              range     = 3.f;
+      float              elevation = 0.f;
+      bool               restoreFraming = false;
+#endif
       };
 
     State                 state;

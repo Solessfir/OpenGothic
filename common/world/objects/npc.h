@@ -589,6 +589,7 @@ class Npc final {
     int32_t                        aiExpectedInvest = 1;
     size_t                         currentSpellCast = size_t(-1);
     uint64_t                       castNextTime     = 0;
+    uint64_t                       castFeedbackTime = 0;
     int32_t                        spellInfo        = 0;
 
     // transform-backshape
