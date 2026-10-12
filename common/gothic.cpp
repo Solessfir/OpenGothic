@@ -1,4 +1,8 @@
 #include "gothic.h"
+#include "utils/saveloadprofile.h"
+#include "utils/savesnapshot.h"
+#include "game/serialize.h"
+#include <Tempest/File>
 
 #include <Tempest/Log>
 #include <Tempest/TextCodec>
@@ -20,7 +24,9 @@
 
 #include "utils/fileutil.h"
 #include "utils/fileext.h"
+#include "utils/gamedetection.h"
 #include "utils/inifile.h"
+#include "utils/saveslot.h"
 
 #include "commandline.h"
 #include "mainwindow.h"
@@ -151,8 +157,25 @@ Gothic::Gothic(GameModDescriptor desc) {
 
   baseIniFile.reset(new IniFile(nestedPath({u"system",u"Gothic.ini"},Dir::FT_File)));
   iniFile    .reset(new IniFile(u"Gothic.ini"));
+#if defined(__ANDROID__)
+  constexpr int defaultResolutionIndex = 0; // native scene resolution
+  constexpr int defaultSsaoHalfResolution = 1;
+  constexpr int defaultFogHalfResolution = 1;
+  // Copied PC settings commonly request uncapped rendering; Android starts with a writable 60 FPS preference.
+  if(!iniFile->has("ENGINE", "zMaxFPS"))
+    iniFile->set("ENGINE", "zMaxFPS", 60);
+  if(!iniFile->has("ENGINE", "renderScale")) {
+    const int legacy=iniFile->has("INTERNAL","vidResIndex") ? iniFile->getI("INTERNAL","vidResIndex") : 0;
+    iniFile->set("ENGINE","renderScale",legacy==0 ? 100 : (legacy==1 ? 75 : 50));
+    }
+#else
+  constexpr int defaultResolutionIndex = 0; // native scene resolution
+  constexpr int defaultSsaoHalfResolution = 0;
+  constexpr int defaultFogHalfResolution = 0;
+#endif
   if(!iniFile->has("INTERNAL", "vidResIndex")) {
-    iniFile->set("INTERNAL", "vidResIndex", 0); // full-res
+    // The original game's display-mode index is not an OpenGothic render-scale choice.
+    iniFile->set("INTERNAL", "vidResIndex", defaultResolutionIndex);
     }
   {
   defaults.reset(new IniFile());
@@ -164,6 +187,22 @@ Gothic::Gothic(GameModDescriptor desc) {
   defaults->set("GAME", "useGothic1Controls",  1);
   defaults->set("GAME", "highlightMeleeFocus", 0);
   defaults->set("GAME", "useQuickSaveKeys",    1);
+  defaults->set("GAME", "skipEmptyLoot",       1);
+  defaults->set("ENGINE", "worldCacheMiB", 512);
+  defaults->set("ENGINE", "cameraObstructionFade", 0);
+  defaults->set("ENGINE", "cameraObstructionFadeDistance", 180.f);
+#if defined(__ANDROID__)
+  defaults->set("ENGINE", "cameraObstructionFade", 1);
+  defaults->set("GAME", "showFps",             0);
+  defaults->set("GAME", "vibration",           1);
+  defaults->set("GAME", "centerPlayerBars",    0);
+  defaults->set("GAME", "useGothic1Controls",  0);
+  defaults->set("GAME", "usePotionKeys",      1);
+  defaults->set("GAME", "mouseSensitivity",   0.53f);
+  defaults->set("ENGINE", "shadowMapResolution", 1024);
+  defaults->set("ENGINE", "renderScale", 100);
+  defaults->set("ENGINE", "frameRateLimit", -1);
+#endif
 
   defaults->set("GAME", "animatedWindows",     1);
   defaults->set("GAME", "subTitles",           1);
@@ -184,11 +223,23 @@ Gothic::Gothic(GameModDescriptor desc) {
   defaults->set("RENDERER_D3D", "zFogRadial", 1); // sunshafts
   defaults->set("ENGINE",       "zEnvMappingEnabled", 1); // reflections
   defaults->set("ENGINE",       "zCloudShadowScale", gpu.type==Tempest::DeviceType::Discrete); // ssao
-  defaults->set("INTERNAL",     "vidResIndex", 0); // full-res
+  defaults->set("INTERNAL",     "vidResIndex", defaultResolutionIndex);
+  defaults->set("ENGINE",       "ssaoHalfResolution", defaultSsaoHalfResolution);
+  defaults->set("ENGINE",       "fogHalfResolution", defaultFogHalfResolution);
+  defaults->set("DEBUG",        "touchControls", 0);
+  defaults->set("DEBUG",        "gamepadControls", 0);
 
   defaults->set("VIDEO", "zVidBrightness", 0.5f);
   defaults->set("VIDEO", "zVidContrast",   0.5f);
   defaults->set("VIDEO", "zVidGamma",      0.5f);
+#if defined(__ANDROID__)
+  defaults->set("VIDEO", "displayMode", "auto");
+  defaults->set("GAME", "cameraElevationOffset", 10.f);
+  defaults->set("GAME", "cameraCombatElevationOffset", 20.f);
+  defaults->set("GAME", "cameraFollowSpeed", 2.f);
+#else
+  defaults->set("VIDEO", "displayMode", "sdr");
+#endif
 
   defaults->set("SOUND", "musicEnabled",  1);
   defaults->set("SOUND", "musicVolume",   0.5f);
@@ -227,8 +278,6 @@ Gothic::Gothic(GameModDescriptor desc) {
   defaults->set("KEYS", "keyShowMap",     "3200");
   }
 
-  detectGothicVersion();
-
   modFile    = std::move(desc.modFile);
   wrldDef    = std::move(desc.wrldDef);
   plDef      = std::move(desc.plDef);
@@ -244,12 +293,14 @@ Gothic::Gothic(GameModDescriptor desc) {
   Resources::mountVdfs(desc.vdf);
   //TODO: -vdfs:physicalfirst
   Resources::mountWork(Gothic::nestedPath({u"_work"}, Dir::FT_Dir));
+  detectGothicVersion();
 
   if(wrldDef.empty()) {
     if(version().game==2)
       wrldDef = "newworld.zen"; else
       wrldDef = "world.zen";
     }
+  Log::i("Default world = ",wrldDef);
 
   if(plDef.empty())
     plDef = "PC_HERO";
@@ -267,6 +318,8 @@ Gothic::Gothic(GameModDescriptor desc) {
   }
 
 Gothic::~Gothic() {
+  if(saveTask.valid())
+    saveTask.wait();
   instance = nullptr;
   }
 
@@ -438,8 +491,8 @@ void Gothic::emitGlobalSound(const SoundFx *sfx) {
     }
   }
 
-void Gothic::emitGlobalSound(const Tempest::Sound &sfx) {
-  auto s = sndDev.load(sfx);
+void Gothic::emitGlobalSound(const Tempest::Sound &sfx, bool voice) {
+  auto s = (voice ? voiceDev : sndDev).load(sfx);
   s.play();
 
   for(size_t i=0;i<sndStorage.size();){
@@ -537,25 +590,98 @@ bool Gothic::finishLoading() {
   if(state!=LoadState::Finalize && state!=LoadState::FailedLoad && state!=LoadState::FailedSave)
     return false;
   if(loadingFlag.compare_exchange_strong(state,LoadState::Idle)){
+    SaveLoadProfile::Timer time("finish/total");
     loaderTh.join();
     if(pendingGame!=nullptr)
       game = std::move(pendingGame);
     saveTex = Texture2d();
     loadTex = Texture2d();
+    if(state==LoadState::FailedSave)
+      savePending = false;
     onWorldLoaded();
+    SaveLoadProfile::finish();
     return true;
     }
   return false;
   }
 
-void Gothic::startSave(Tempest::Texture2d&& tex,
-                       const std::function<std::unique_ptr<GameSession>(std::unique_ptr<GameSession>&&)> f) {
+void Gothic::startSave(Tempest::Texture2d&& tex, std::string slot, std::string name, Tempest::Pixmap screen) {
+  if(savePending || checkLoading()!=LoadState::Idle)
+    return;
+  const auto destination = std::filesystem::absolute(std::filesystem::path(TextCodec::toUtf16(slot)));
+  savePending = true;
+  saveProfileStart = SaveLoadProfile::operationStart!=0 ? SaveLoadProfile::operationStart : SaveLoadProfile::now();
+  saveGameTick = game ? game->tickCount() : 0;
   saveTex = std::move(tex);
-  implStartLoadSave("",false,f);
+  onPrint("Saving...");
+  try {
+    implStartLoadSave("",false,[this,destination,name=std::move(name),screen=std::move(screen)](std::unique_ptr<GameSession>&& game) {
+      SaveLoadProfile::Timer time("save/snapshot-worker-total");
+      if(!game)
+        throw std::runtime_error("no game to save");
+      try {
+        SaveSnapshot snapshot;
+        {
+          Serialize serializer(snapshot);
+          game->save(serializer, name, screen);
+          serializer.finish();
+        }
+        if(SaveLoadProfile::enabled())
+          Log::i("[SaveLoad] snapshot payload bytes=", snapshot.byteSize());
+        // The background task owns bytes only, never references to the live game.
+        saveTask = std::async(std::launch::async, [destination,snapshot=std::move(snapshot)] {
+          Workers::setThreadName("Writing save");
+          SaveLoadProfile::Timer time("save/background-compress-and-write");
+          snapshot.write(destination);
+          });
+        return std::move(game);
+        }
+      catch(const SaveSnapshot::TooLarge&) {
+        Log::i("Save exceeds snapshot budget; using blocking save");
+        }
+      catch(const std::bad_alloc&) {
+        Log::i("Not enough memory for save snapshot; using blocking save");
+        }
+      // Very large saves still work without retaining an unbounded snapshot in RAM.
+      AtomicSave::replace(destination, [&](const std::filesystem::path& temporary) {
+        WFile file(temporary.u16string());
+        Serialize serializer(file);
+        game->save(serializer, name, screen);
+        serializer.finish();
+        });
+      return std::move(game);
+      });
+    }
+  catch(...) {
+    savePending = false;
+    throw;
+    }
+  }
+
+void Gothic::finishSave(bool wait) {
+  // The capture thread publishes saveTask before releasing the loading state.
+  if(checkLoading()!=LoadState::Idle || !savePending)
+    return;
+  if(saveTask.valid() && !wait && saveTask.wait_for(std::chrono::seconds(0))!=std::future_status::ready)
+    return;
+  savePending = false;
+  try {
+    if(saveTask.valid())
+      saveTask.get();
+    SaveLoadProfile::report("save/request-to-committed", SaveLoadProfile::now()-saveProfileStart);
+    if(SaveLoadProfile::enabled() && game)
+      Log::i("[SaveLoad] game progressed during save ms=", game->tickCount()-saveGameTick);
+    onPrint("Game saved");
+    }
+  catch(const std::exception& error) {
+    Log::e("Unable to write save: ", error.what());
+    onPrint("Save failed. Existing saves were not changed.");
+    }
   }
 
 void Gothic::startLoad(std::string_view banner,
                        const std::function<std::unique_ptr<GameSession>(std::unique_ptr<GameSession>&&)> f) {
+  finishSave(true);
   implStartLoadSave(banner,true,f);
   }
 
@@ -622,8 +748,11 @@ void Gothic::implStartLoadSave(std::string_view banner,
 void Gothic::cancelLoading() {
   if(loadingFlag.load()!=LoadState::Idle){
     loaderTh.join();
+    if(loadingFlag.load()==LoadState::FailedSave)
+      savePending = false;
     loadingFlag.store(LoadState::Idle);
     }
+  finishSave(true);
   }
 
 void Gothic::tick(uint64_t dt) {
@@ -644,11 +773,19 @@ void Gothic::updateAnimation(uint64_t dt) {
   }
 
 void Gothic::quickSave() {
-  save("save_slot_0.sav","Quick save");
+  if(checkLoading()!=LoadState::Idle || !isInGameAndAlive()) return;
+  const auto slot=SaveSlot::nextQuickSlot(".",settingsGetI("GAME","quickSaveSlots"));
+  if(slot==size_t(-1)) {
+    onPrint("No writable quicksave slot");
+    return;
+    }
+  save(SaveSlot::path(".",slot).string(),"Quick save");
   }
 
 void Gothic::quickLoad() {
-  load("save_slot_0.sav");
+  finishSave(true);
+  const auto slots=SaveSlot::quickSlots(".");
+  load(SaveSlot::path(".",slots.empty() ? 0 : slots.front()).string());
   }
 
 void Gothic::save(std::string_view slot, std::string_view name) {
@@ -893,6 +1030,23 @@ float Gothic::settingsSoundVolume() {
   return soundEnabled ? soundVolume : 0.f;
   }
 
+int Gothic::settingsFpsLimit() {
+#if defined(__ANDROID__)
+  // An explicit menu selection takes precedence over copied SystemPack settings.
+  const int selected = settingsGetI("ENGINE", "frameRateLimit");
+  if(selected>=0)
+    return selected;
+#endif
+  const int legacy = options().fpsLimit;
+  return legacy>0 ? legacy : std::max(0,settingsGetI("ENGINE", "zMaxFPS"));
+  }
+
+float Gothic::settingsVoiceVolume() {
+  if(settingsGetI("SOUND","soundEnabled")==0) return 0.f;
+  if(settingsGetS("SOUND","voiceVolume").empty()) return settingsSoundVolume();
+  return std::clamp(settingsGetF("SOUND","voiceVolume"),0.f,1.f);
+  }
+
 void Gothic::flushSettings() {
   instance->iniFile->flush();
   }
@@ -915,16 +1069,19 @@ void Gothic::detectGothicVersion() {
   if(baseIniFile->has("GAME","useGothic1Controls"))
     score[2]++;
 
-  if(score[1]>score[2])
-    vinfo.game = 1; else
-    vinfo.game = 2;
-
-  if(vinfo.game==2) {
-    vinfo.patch = baseIniFile->getI("GAME","PATCHVERSION");
-    }
+  GameDetection::Evidence evidence;
+  evidence.gothic1Score = score[1];
+  evidence.gothic2Score = score[2];
+  evidence.gothic1World = Resources::hasFile("WORLD.ZEN");
+  evidence.gothic2World = Resources::hasFile("NEWWORLD.ZEN");
+  evidence.addonWorld = Resources::hasFile("ADDONWORLD.ZEN");
+  evidence.hasPatch = baseIniFile->has("GAME","PATCHVERSION");
+  evidence.patch = baseIniFile->getI("GAME","PATCHVERSION");
+  vinfo = GameDetection::detect(evidence);
 
   if(CommandLine::inst().doForceG1()) {
     vinfo.game = 1;
+    vinfo.patch = 0;
     }
   else if(CommandLine::inst().doForceG2()) {
     vinfo.game  = 2;
@@ -934,6 +1091,7 @@ void Gothic::detectGothicVersion() {
     vinfo.game  = 2;
     vinfo.patch = 5;
     }
+  Log::i("Game version = Gothic ",int(vinfo.game),", patch = ",vinfo.patch);
   }
 
 void Gothic::setupSettings() {
@@ -942,6 +1100,7 @@ void Gothic::setupSettings() {
 
   const float soundVolume = settingsSoundVolume();
   sndDev.setGlobalVolume(soundVolume);
+  voiceDev.setGlobalVolume(settingsVoiceVolume());
 
   auto ord  = Gothic::settingsGetS("GAME","invCatOrder");
   while(!ord.empty()) {
