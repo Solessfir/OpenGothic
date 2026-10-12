@@ -1,4 +1,9 @@
 #include "serialize.h"
+#include "utils/saveloadprofile.h"
+#include "utils/zipdirectory.h"
+#include "utils/zipextract.h"
+#include "utils/savesnapshot.h"
+#include <exception>
 
 #include <cstring>
 #include <exception>
@@ -15,6 +20,7 @@
 
 size_t Serialize::writeFunc(void* pOpaque, uint64_t file_ofs, const void* pBuf, size_t n) {
   auto& self = *reinterpret_cast<Serialize*>(pOpaque);
+  SaveLoadProfile::Accumulate time(self.profileIo);
   file_ofs += mz_zip_get_archive_file_start_offset(&self.impl);
   if(file_ofs!=self.curOffset) {
     self.impl.m_last_error = MZ_ZIP_FILE_SEEK_FAILED;
@@ -27,6 +33,7 @@ size_t Serialize::writeFunc(void* pOpaque, uint64_t file_ofs, const void* pBuf, 
 
 size_t Serialize::readFunc(void* pOpaque, uint64_t file_ofs, void* pBuf, size_t n) {
   auto& self = *reinterpret_cast<Serialize*>(pOpaque);
+  SaveLoadProfile::Accumulate time(self.profileIo);
   file_ofs += mz_zip_get_archive_file_start_offset(&self.impl);
   if(self.curOffset<file_ofs) {
     size_t diff = size_t(file_ofs-self.curOffset);
@@ -78,23 +85,49 @@ Serialize::Serialize(Tempest::IDevice& fin) : fin(&fin) {
     throw std::runtime_error("unable to read game archive");
   }
 
+Serialize::Serialize(SaveSnapshot& snapshot) : snapshot(&snapshot) {
+  entryBuf.reserve(1*1024*1024);
+  entryName.reserve(256);
+  }
+
 Serialize::~Serialize() noexcept(false) {
+  if(std::uncaught_exceptions()==0) {
+    try {
+      finish();
+      }
+    catch(...) {
+      if(fout!=nullptr && !finished)
+        mz_zip_writer_end(&impl);
+      throw;
+      }
+    }
+  else if(fout!=nullptr && !finished)
+    mz_zip_writer_end(&impl);
+  if(fin!=nullptr && !finished)
+    mz_zip_reader_end(&impl);
+  }
+
+void Serialize::finish() {
+  if(finished)
+    return;
+  closeEntry();
+  if(fout!=nullptr) {
+    SaveLoadProfile::Timer time("save/zip-finalize");
+    if(!mz_zip_writer_finalize_archive(&impl) || !fout->flush())
+      throw std::runtime_error("unable to finalize save archive");
+    mz_zip_writer_end(&impl);
+    //Tempest::Log::d("save time = ", Tempest::Application::tickCount()-time0);
+    }
   if(fin!=nullptr)
     mz_zip_reader_end(&impl);
-  if(fout==nullptr)
-    return;
-  try {
-    closeEntry();
-    if(!mz_zip_writer_finalize_archive(&impl) || !fout->flush())
-      throw std::runtime_error("unable to finalize game archive");
+  if(SaveLoadProfile::enabled() && profileEntries>100) {
+    Tempest::Log::i("[SaveLoad] archive ", fout ? "write" : snapshot ? "snapshot" : "read", " entries=", profileEntries,
+                   " raw-bytes=", profileBytes, " zip-inclusive-ms=", double(profileZip)/1000000.0,
+                   " io-ms=", double(profileIo)/1000000.0,
+                   " lookup-ms=", double(profileLookup)/1000000.0,
+                   " directory-ms=", double(profileDirectory)/1000000.0);
     }
-  catch(...) {
-    mz_zip_writer_end(&impl);
-    if(std::uncaught_exceptions()==0)
-      throw;
-    return;
-    }
-  mz_zip_writer_end(&impl);
+  finished = true;
   }
 
 std::string_view Serialize::worldName() const {
@@ -104,13 +137,20 @@ std::string_view Serialize::worldName() const {
   }
 
 void Serialize::closeEntry() {
-  if(fout==nullptr)
+  if(fout==nullptr && snapshot==nullptr)
     return;
   if(entryBuf.empty())
     return;
 
   mz_uint level  = entryBuf.size()>256 ? MZ_BEST_SPEED : MZ_NO_COMPRESSION;
-  mz_bool status = mz_zip_writer_add_mem(&impl, entryName.c_str(), entryBuf.data(), entryBuf.size(), level);
+  SaveLoadProfile::Accumulate time(profileZip);
+  ++profileEntries;
+  profileBytes += entryBuf.size();
+  mz_bool status = MZ_TRUE;
+  if(snapshot!=nullptr)
+    snapshot->add(entryName, entryBuf.data(), entryBuf.size());
+  else
+    status = mz_zip_writer_add_mem(&impl, entryName.c_str(), entryBuf.data(), entryBuf.size(), level);
   entryBuf .clear();
   entryName.clear();
   if(!status)
@@ -119,7 +159,7 @@ void Serialize::closeEntry() {
 
 bool Serialize::implSetEntry(std::string_view fname) {
   size_t prefix = 0;
-  if(fout!=nullptr) {
+  if(fout!=nullptr || snapshot!=nullptr) {
     while(prefix<fname.size() && prefix<entryName.size()) {
       if(entryName[prefix]!=fname[prefix])
         break;
@@ -128,14 +168,18 @@ bool Serialize::implSetEntry(std::string_view fname) {
     }
   closeEntry();
   entryName = fname;
-  if(fout!=nullptr) {
+  if(fout!=nullptr || snapshot!=nullptr) {
     for(size_t i=prefix; i<entryName.size(); ++i) {
       if(entryName[i]=='/' && i+1<entryName.size()) {
         const char prev = entryName[i+1];
         entryName[i+1] = '\0';
         const auto it = outFileList.insert(entryName.c_str());
         if(it.second) {
-          mz_bool status = mz_zip_writer_add_mem(&impl, entryName.c_str(), NULL, 0, MZ_NO_COMPRESSION);
+          mz_bool status = MZ_TRUE;
+          if(snapshot!=nullptr)
+            snapshot->add(entryName.c_str(), nullptr, 0);
+          else
+            status = mz_zip_writer_add_mem(&impl, entryName.c_str(), NULL, 0, MZ_NO_COMPRESSION);
           if(!status)
             throw std::runtime_error("unable to allocate entry in game archive");
           }
@@ -146,11 +190,14 @@ bool Serialize::implSetEntry(std::string_view fname) {
     }
   if(fin!=nullptr) {
     mz_uint32 id = mz_uint32(-1);
-    if(mz_zip_reader_locate_file_v2(&impl, entryName.c_str(), nullptr, 0, &id)) {
-      mz_zip_archive_file_stat stat = {};
-      mz_zip_reader_file_stat(&impl,id,&stat);
-      entryBuf.resize(size_t(stat.m_uncomp_size));
-      mz_zip_reader_extract_file_to_mem(&impl,entryName.c_str(),entryBuf.data(),entryBuf.size(),0);
+    const auto lookupStart = SaveLoadProfile::now();
+    const bool found = mz_zip_reader_locate_file_v2(&impl, entryName.c_str(), nullptr, 0, &id)!=0;
+    profileLookup += SaveLoadProfile::now()-lookupStart;
+    if(found) {
+      SaveLoadProfile::Accumulate time(profileZip);
+      ZipExtract::entry(impl, id, entryBuf);
+      ++profileEntries;
+      profileBytes += entryBuf.size();
       } else {
       entryBuf.clear();
       }
@@ -161,25 +208,8 @@ bool Serialize::implSetEntry(std::string_view fname) {
   }
 
 uint32_t Serialize::implDirectorySize(std::string_view e) {
-  uint32_t count = 0;
-  std::vector<char> filename;
-  filename.reserve(256);
-  for(mz_uint i=0; i<mz_zip_reader_get_num_files(&impl); ++i) {
-    const auto length = mz_zip_reader_get_filename(&impl, i, nullptr, 0);
-    if(length==0)
-      throw std::runtime_error("unable to locate entry in game archive");
-    filename.resize(length);
-    if(mz_zip_reader_get_filename(&impl, i, filename.data(), length)!=length)
-      throw std::runtime_error("unable to read entry name in game archive");
-    std::string_view name(filename.data(), length-1);
-    if(name.size()<=e.size() || !name.starts_with(e))
-      continue;
-    const auto child = name.substr(e.size());
-    const auto separator = child.find('/');
-    if(separator==std::string_view::npos || separator+1==child.size())
-      ++count;
-    }
-  return count;
+  SaveLoadProfile::Accumulate time(profileDirectory);
+  return ZipDirectory::size(impl, e);
   }
 
 void Serialize::writeBytes(const void* buf, size_t sz) {
@@ -295,6 +325,7 @@ void Serialize::implWrite(const Tempest::Pixmap& p) {
   }
 
 void Serialize::implWrite(const Tempest::Pixmap& p, const char* ext) {
+  SaveLoadProfile::Timer time("save/preview-encode");
   std::vector<uint8_t> tmp;
   tmp.reserve(4*1024*1024);
   Tempest::MemWriter w{tmp};
