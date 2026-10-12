@@ -11,10 +11,21 @@ set(CMAKE_RELWITHDEBINFO_POSTFIX "")
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_SKIP_RPATH ON)
 
+if(ANDROID AND CMAKE_BUILD_TYPE STREQUAL "Release")
+  # The pinned NDK supports ThinLTO through Clang, llvm-ar and LLD.
+  # CMake 3.22's IPO check incorrectly selects the removed gold linker with this toolchain.
+  add_compile_options("$<$<COMPILE_LANGUAGE:C,CXX>:-flto=thin>")
+  add_link_options(-flto=thin)
+  # Keep symbols in build outputs for crash analysis; Gradle strips the APK's native library.
+  set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -DNDEBUG -g")
+  set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -DNDEBUG -g")
+endif()
+
 add_library(${PROJECT_NAME} STATIC)
 if(ANDROID)
   add_library(Gothic2Notr SHARED)
-  add_library(Spacer SHARED)
+  set_target_properties(Gothic2Notr PROPERTIES OUTPUT_NAME "opengothic")
+  target_link_options(Gothic2Notr PRIVATE "$<$<CONFIG:Release>:-Wl,--thinlto-jobs=4>")
 else()
   add_executable(Gothic2Notr)
   add_executable(Spacer)
@@ -36,7 +47,7 @@ if(NOT MSVC)
   if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "7.1" AND NOT APPLE AND NOT ${CMAKE_CXX_COMPILER_ID} MATCHES "Clang")
     target_compile_options(${PROJECT_NAME} PRIVATE -Wno-format-truncation)
   endif()
-  if(UNIX)
+  if(UNIX AND NOT ANDROID)
     # -rdynamic is needed to allow obtaining meaningful backtraces
     target_link_options(${PROJECT_NAME} PRIVATE -rdynamic)
   endif()
@@ -72,7 +83,7 @@ endif()
 ## OpenGothic
 
 # sources
-file(GLOB_RECURSE OPENGOTHIC_SOURCES "common/*.h" "common/*.cpp")
+file(GLOB_RECURSE OPENGOTHIC_SOURCES CONFIGURE_DEPENDS "common/*.h" "common/*.cpp")
 file(GLOB_RECURSE SPACER_SOURCES "spacer/*.h" "spacer/*.cpp")
 
 target_sources(${PROJECT_NAME} PRIVATE ${OPENGOTHIC_SOURCES} ${ObjCSOURCES})
@@ -82,7 +93,9 @@ add_subdirectory(shader)
 target_link_libraries(${PROJECT_NAME} GothicShaders)
 
 # editor icons and such
-add_subdirectory(spacer/assets)
+if(NOT ANDROID)
+  add_subdirectory(spacer/assets)
+endif()
 
 include_directories("common")
 
@@ -98,7 +111,7 @@ endif()
 if(WIN32)
   target_link_libraries(${PROJECT_NAME} shlwapi DbgHelp)
 elseif(ANDROID)
-  target_link_libraries(${PROJECT_NAME} dl)
+  target_link_libraries(${PROJECT_NAME} android log dl)
 elseif(UNIX)
   target_link_libraries(${PROJECT_NAME} -lpthread -ldl)
 endif()
@@ -209,18 +222,27 @@ if(WIN32)
   target_sources(Gothic2Notr PRIVATE icon.rc)
 endif()
 target_link_libraries(Gothic2Notr PRIVATE OpenGothic)
+if(NOT ANDROID)
+  add_executable(WorldCacheTests EXCLUDE_FROM_ALL tests/worldcache/main.cpp)
+  target_link_libraries(WorldCacheTests PRIVATE OpenGothic)
+  if(MSVC)
+    target_link_options(WorldCacheTests PRIVATE /SUBSYSTEM:CONSOLE)
+  endif()
+endif()
 
 # editor
-target_sources(Spacer PRIVATE ${SPACER_SOURCES} spacer/main.cpp)
-target_include_directories(Spacer PRIVATE "spacer")
-target_link_libraries(Spacer PRIVATE OpenGothic SpacerAssets)
+if(NOT ANDROID)
+  target_sources(Spacer PRIVATE ${SPACER_SOURCES} spacer/main.cpp)
+  target_include_directories(Spacer PRIVATE "spacer")
+  target_link_libraries(Spacer PRIVATE OpenGothic SpacerAssets)
+endif()
 
 if(ANDROID)
-  add_android_apk(OpenGothic-apk
-    PACKAGE_NAME org.opengothic.app
-    CODE Gothic2Notr
-    MANIFEST android/AndroidManifest.xml)
+  add_subdirectory(android)
 endif()
 
 # installation
-install(TARGETS Gothic2Notr Spacer DESTINATION bin)
+install(TARGETS Gothic2Notr DESTINATION bin)
+if(NOT ANDROID)
+  install(TARGETS Spacer DESTINATION bin)
+endif()
