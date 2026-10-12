@@ -1,8 +1,11 @@
 #include "world.h"
+#include "worlddata.h"
+#include "utils/saveloadprofile.h"
 
 #include <functional>
 #include <future>
 #include <cctype>
+#include <stdexcept>
 
 #include <Tempest/Log>
 #include <Tempest/Painter>
@@ -65,40 +68,37 @@ const char* materialTag(zenkit::MaterialGroup src) {
 
 World::World(GameSession& game, std::string_view file, bool startup, std::function<void(int)> loadProgress)
   :wname(std::move(file)), game(game), wsound(game,*this), wobj(*this) {
-  const auto* entry = Resources::vdfsIndex().find(wname);
-
-  if(entry == nullptr) {
+  if(Resources::vdfsIndex().find(wname)==nullptr) {
     Tempest::Log::e("unable to open Zen-file: \"",wname,"\"");
     return;
     }
 
+  SaveLoadProfile::Timer time("load/world-build-total");
   try {
-    auto          buf = entry->open_read();
-    zenkit::World world;
-    world.load(buf.get(), version().game == 1 ? zenkit::GameVersion::GOTHIC_1
-                                              : zenkit::GameVersion::GOTHIC_2);
+    const auto data = Resources::loadWorld(wname, version().game==1 ? zenkit::GameVersion::GOTHIC_1
+                                                                  : zenkit::GameVersion::GOTHIC_2);
+    const auto& world = data->world;
+    time.step("load/static-world-data");
 
     loadProgress(20);
-    auto& worldMesh = world.world_mesh;
-
     auto wdynamicFut = std::async(std::launch::async, [&]() {
       Workers::setThreadName("Loading: BVH thread");
-      return std::unique_ptr<DynamicWorld>(new DynamicWorld(this,worldMesh));
+      SaveLoadProfile::Timer time("load/collision-instance");
+      return std::unique_ptr<DynamicWorld>(new DynamicWorld(this,data->landscape));
       });
     auto wviewFut = std::async(std::launch::async, [&]() {
       Workers::setThreadName("Loading: PackedMesh thread");
-      PackedMesh vmesh(worldMesh,PackedMesh::PK_VisualLnd);
-      return std::unique_ptr<WorldView>(new WorldView(vmesh, wname));
+      SaveLoadProfile::Timer time("load/visual-build-parallel");
+      return std::unique_ptr<WorldView>(new WorldView(*data->visual, wname));
       });
 
     loadProgress(30);
 
     {
-      bsp.nodes             = std::move(world.world_bsp_tree.nodes);
-      bsp.sectors           = std::move(world.world_bsp_tree.sectors);
-      bsp.leaf_node_indices = std::move(world.world_bsp_tree.leaf_node_indices);
+      bsp.nodes             = world.world_bsp_tree.nodes;
+      bsp.sectors           = world.world_bsp_tree.sectors;
+      bsp.leaf_node_indices = world.world_bsp_tree.leaf_node_indices;
       bsp.sectorsData.resize(bsp.sectors.size());
-      world.world_bsp_tree  = zenkit::BspTree();
     }
     loadProgress(50);
 
@@ -106,7 +106,7 @@ World::World(GameSession& game, std::string_view file, bool startup, std::functi
     loadProgress(60);
 
     wdynamic = wdynamicFut.get();
-    world.world_mesh = zenkit::Mesh();
+    time.step("load/mesh-jobs-and-bsp");
     loadProgress(70);
 
     globFx.reset(new GlobalEffects(*this));
@@ -115,6 +115,7 @@ World::World(GameSession& game, std::string_view file, bool startup, std::functi
       wobj.addRoot(vob,startup);
 
     wmatrix->buildIndex();
+    time.step("load/vobs-and-waypoints");
     loadProgress(100);
     }
   catch(...) {
@@ -415,17 +416,23 @@ Focus World::validateFocus(const Focus &def) {
   return ret;
   }
 
-Focus World::findFocus(const Npc &pl, const Focus& def) {
+Focus World::findFocus(const Npc &pl, const Focus& def, bool unarmed) {
   auto  opt      = WorldObjects::NoFlg;
   auto  collAlgo = TARGET_COLLECT_FOCUS;
   auto  collType = TARGET_TYPE_ALL;
-  auto& policy   = searchPolicy(pl,collAlgo,collType,opt);
+  auto& policy   = searchPolicy(pl,collAlgo,collType,opt,unarmed);
 
-  WorldObjects::SearchOpt optNpc {policy.npc_range1,  policy.npc_range2,  policy.npc_azi,  collAlgo, collType, opt};
+  WorldObjects::SearchOpt optNpc {policy.npc_range1, npcFocusRange(pl,policy.npc_range2,unarmed), policy.npc_azi, collAlgo, collType, opt};
   WorldObjects::SearchOpt optMob {policy.mob_range1,  policy.mob_range2,  policy.mob_azi,  collAlgo};
   WorldObjects::SearchOpt optItm {policy.item_range1, policy.item_range2, policy.item_azi, collAlgo, collType};
 
-  if(pl.weaponState()==WeaponState::NoWeapon) {
+  if(pl.isPlayer() && Gothic::settingsGetI("GAME","skipEmptyLoot")!=0) {
+    // Armed focus must still reach unconscious NPCs for finishing moves and spell targets.
+    if(unarmed || pl.weaponState()==WeaponState::NoWeapon)
+      optNpc.flags = WorldObjects::SearchFlg(optNpc.flags | WorldObjects::NoEmptyLoot);
+    }
+
+  if(unarmed || pl.weaponState()==WeaponState::NoWeapon) {
     // used only for dialogs it seems
     optNpc.rangeMax = std::max(optNpc.rangeMax, policy.npc_longrange);
     }
@@ -433,9 +440,9 @@ Focus World::findFocus(const Npc &pl, const Focus& def) {
   auto n     = policy.npc_prio <0 ? nullptr : wobj.findNpcNear    (pl,def.npc,        optNpc);
   auto it    = policy.item_prio<0 ? nullptr : wobj.findItem       (pl,def.item,       optItm);
   auto inter = policy.mob_prio <0 ? nullptr : wobj.findInteractive(pl,def.interactive,optMob);
-  auto ws = pl.weaponState();
+  auto ws = unarmed ? WeaponState::NoWeapon : pl.weaponState();
   if(ws==WeaponState::Bow || ws==WeaponState::CBow) {
-    optMob.flags = WorldObjects::SearchFlg(WorldObjects::FcOverride | WorldObjects::NoRay);
+    optMob.flags = WorldObjects::SearchFlg(optMob.flags | WorldObjects::FcOverride | WorldObjects::NoRay);
     inter = wobj.findInteractive(pl,def.interactive,optMob);
     }
 
@@ -481,7 +488,7 @@ bool World::testFocusNpc(Npc* def) {
   auto  collType = TARGET_TYPE_ALL;
   auto& policy   = searchPolicy(*npcPlayer,collAlgo,collType,opt);
 
-  WorldObjects::SearchOpt optNpc{policy.npc_range1, policy.npc_range2, policy.npc_azi, collAlgo, collType, opt};
+  WorldObjects::SearchOpt optNpc{policy.npc_range1, npcFocusRange(*npcPlayer,policy.npc_range2), policy.npc_azi, collAlgo, collType, opt};
   return wobj.testFocusNpc(*npcPlayer,def,optNpc);
   }
 
@@ -844,12 +851,32 @@ void World::invalidateVobIndex() {
   wobj.invalidateVobIndex();
   }
 
-const zenkit::IFocus& World::searchPolicy(const Npc& pl, TargetCollect& collAlgo, TargetType& collType, WorldObjects::SearchFlg& opt) const {
+float World::npcFocusRange(const Npc& pl,float range,bool unarmed) const {
+  // Adjust only the player's melee NPC focus, consistently for acquisition and retention.
+  if(&pl!=npcPlayer || unarmed) return range;
+  const auto ws=pl.weaponState();
+  if(ws==WeaponState::Fist || ws==WeaponState::W1H || ws==WeaponState::W2H) {
+    if(meleeFocusRangeScale==0.f) {
+      // Ordinary monsters begin warning at this scripted perception boundary, not their attack distance.
+      // Read the installed scripts without invoking AI or changing enemy awareness.
+      auto* warning=game.script()->findSymbol("PERC_DIST_MONSTER_ACTIVE_MAX");
+      if(warning!=nullptr && warning->type()==zenkit::DaedalusDataType::INT && warning->count()>0) {
+        const int distance=warning->get_int();
+        if(distance>0) return float(distance);
+        }
+      return range*2.f;
+      }
+    return range*meleeFocusRangeScale;
+    }
+  return range;
+  }
+
+const zenkit::IFocus& World::searchPolicy(const Npc& pl, TargetCollect& collAlgo, TargetType& collType, WorldObjects::SearchFlg& opt, bool unarmed) const {
   opt      = WorldObjects::NoFlg;
   collAlgo = TARGET_COLLECT_FOCUS;
   collType = TARGET_TYPE_ALL;
 
-  switch(pl.weaponState()) {
+  switch(unarmed ? WeaponState::NoWeapon : pl.weaponState()) {
     case WeaponState::Fist:
     case WeaponState::W1H:
     case WeaponState::W2H:
