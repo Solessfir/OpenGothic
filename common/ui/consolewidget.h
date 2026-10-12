@@ -16,6 +16,7 @@ class ConsoleWidget : public Tempest::Widget {
     void printLine(std::string_view s);
     void close();
     int  exec();
+    bool isActive() const { return overlay!=nullptr; }
 
   protected:
     void paintEvent    (Tempest::PaintEvent& e) override;
