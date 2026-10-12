@@ -1,6 +1,10 @@
 #include "playercontrol.h"
+#include "utils/feedback.h"
 
 #include <cmath>
+#include <algorithm>
+#include <iterator>
+#include <Tempest/Application>
 
 #include "world/objects/npc.h"
 #include "world/objects/item.h"
@@ -9,6 +13,10 @@
 #include "ui/dialogmenu.h"
 #include "ui/inventorymenu.h"
 #include "gothic.h"
+#include "utils/gamepadbindings.h"
+#include "utils/swiminput.h"
+#include "utils/meleeassist.h"
+#include "utils/movementresponse.h"
 
 PlayerControl::PlayerControl(DialogMenu& dlg, InventoryMenu &inv)
   :dlg(dlg),inv(inv) {
@@ -21,11 +29,16 @@ PlayerControl::~PlayerControl() {
   }
 
 void PlayerControl::setupSettings() {
+#if defined(__ANDROID__)
+  // Android uses the selected combat scheme for either game, including modern touch attacks and block.
+  g2Ctrl = Gothic::inst().settingsGetI("GAME","USEGOTHIC1CONTROLS")==0;
+#else
   if(Gothic::inst().version().game==2) {
     g2Ctrl = Gothic::inst().settingsGetI("GAME","USEGOTHIC1CONTROLS")==0;
     } else {
     g2Ctrl = false;
     }
+#endif
   }
 
 void PlayerControl::setTarget(Npc *other) {
@@ -46,6 +59,7 @@ void PlayerControl::setTarget(Npc *other) {
   }
 
 void PlayerControl::onKeyPressed(KeyCodec::Action a, Tempest::KeyEvent::KeyType key, KeyCodec::Mapping mapping) {
+  controllerKeyReleases[a]=false;
   auto       w    = Gothic::inst().world();
   auto       c    = Gothic::inst().camera();
   auto       pl   = w  ? w->player() : nullptr;
@@ -54,6 +68,11 @@ void PlayerControl::onKeyPressed(KeyCodec::Action a, Tempest::KeyEvent::KeyType 
 
   if(w!=nullptr && w->isCutsceneLock())
     return;
+
+  if(a==KeyCodec::LockTarget) {
+    toggleTargetLock();
+    return;
+    }
 
   handleMovementAction(KeyCodec::ActionMapping{a,mapping}, true);
 
@@ -168,6 +187,7 @@ void PlayerControl::onKeyPressed(KeyCodec::Action a, Tempest::KeyEvent::KeyType 
     }
 
   if(a==KeyCodec::ActionGeneric) {
+    pickupHeld=ws==WeaponState::NoWeapon;
     FocusAction fk = ActGeneric;
     if(this->wantsToMoveForward())
       fk = ActMove;
@@ -200,6 +220,7 @@ void PlayerControl::onKeyPressed(KeyCodec::Action a, Tempest::KeyEvent::KeyType 
   }
 
 void PlayerControl::onKeyReleased(KeyCodec::Action a, KeyCodec::Mapping mapping) {
+  if(a==KeyCodec::ActionGeneric) pickupHeld=false;
   ctrl[a] = false;
 
   handleMovementAction(KeyCodec::ActionMapping{a, mapping}, false);
@@ -247,6 +268,262 @@ bool PlayerControl::isPressed(KeyCodec::Action a) const {
   return ctrl[a];
   }
 
+void PlayerControl::setGamepadAxis(float lx, float ly) {
+  touchAnalogMovement=false;
+  touchTurn=0;
+  controllerSwimming=false;
+  swimJumpHeld=false;
+  swimDiveStroke=false;
+  if(controllerWalkApplied) {
+    if(auto pl=Gothic::inst().player())
+      pl->setWalkMode(WalkBit(uint8_t(pl->walkMode()) & ~uint8_t(WalkBit::WM_Walk)));
+    controllerWalkApplied=false;
+    }
+  controllerGroundStrafe = false;
+  controllerDirectional = false;
+  gamepadLX = lx;
+  gamepadLY = ly;
+  }
+
+void PlayerControl::setTurnMovement(float turn,float forward,bool walk,float turnSpeed) {
+  setGamepadAxis(0.f,forward);
+  touchAnalogMovement=true;
+  applyControllerWalk(walk);
+  controllerTurnSpeed=turnSpeed;
+  touchTurn=std::clamp(turn,-1.f,1.f);
+  }
+
+void PlayerControl::applyControllerWalk(bool walk) {
+  auto pl=Gothic::inst().player();
+  if(pl==nullptr) return;
+  if(controllerWalkApplied && !walk) {
+    pl->setWalkMode(WalkBit(uint8_t(pl->walkMode()) & ~uint8_t(WalkBit::WM_Walk)));
+    controllerWalkApplied=false;
+    }
+  if(walk && (pl->walkMode()&WalkBit::WM_Walk)==WalkBit::WM_Run) {
+    pl->setWalkMode(pl->walkMode()|WalkBit::WM_Walk);
+    controllerWalkApplied=true;
+    }
+  }
+
+void PlayerControl::setControllerMovement(float x,float y,float cameraYaw,bool walk,float turnSpeed,float turnBoost) {
+  touchTurn=0;
+  touchAnalogMovement=false;
+  controllerSwimming=false;
+  swimJumpHeld=false;
+  swimDiveStroke=false;
+  auto pl=Gothic::inst().player();
+  if(pl==nullptr) return;
+  applyControllerWalk(walk);
+  controllerDirectional=true;
+  controllerGroundStrafe=false;
+  controllerTurnSpeed=turnSpeed;
+  controllerTurnBoost=turnBoost;
+  if(pl->isSwim() || pl->isDive()) {
+    gamepadLX=x; gamepadLY=y;
+    } else if(controllerTarget!=nullptr) {
+    controllerGroundStrafe=true;
+    const auto axis=GamepadBindings::targetMovementAxis(x,y);
+    gamepadLX=axis.first; gamepadLY=axis.second;
+    } else {
+    gamepadLX=0; gamepadLY=-std::sqrt(x*x+y*y);
+    }
+  controllerYaw=cameraYaw-std::atan2(x,-y)*180.f/float(M_PI);
+  }
+
+void PlayerControl::releaseControllerKey(KeyCodec::Action action,bool cancel) {
+  if(!cancel && ctrl[action]) {
+    controllerKeyReleases[action]=true;
+    return;
+    }
+  controllerKeyReleases[action]=false;
+  ctrl[action]=false;
+  handleMovementAction({action,KeyCodec::Mapping::Secondary},false);
+  }
+
+void PlayerControl::setControllerSwim(float x,float y,float cameraYaw,float cameraPitch,float turnSpeed) {
+  touchAnalogMovement=false;
+  touchTurn=0;
+  // Use the same movement curve as walking, but let camera pitch steer underwater.
+  if(controllerWalkApplied) {
+    if(auto pl=Gothic::inst().player())
+      pl->setWalkMode(WalkBit(uint8_t(pl->walkMode()) & ~uint8_t(WalkBit::WM_Walk)));
+    controllerWalkApplied=false;
+    }
+  controllerSwimming=true;
+  controllerDirectional=false;
+  controllerGroundStrafe=false;
+  controllerTarget=nullptr;
+  controllerTurnSpeed=turnSpeed;
+  const auto aim=SwimInput::direction(x,y,cameraYaw,cameraPitch);
+  controllerYaw=aim.yaw;
+  swimPitch=aim.pitch;
+  gamepadLX=0;
+  gamepadLY=-std::min(1.f,std::hypot(x,y));
+  }
+
+void PlayerControl::setMeleeAssist(bool enabled,float maxAngle,float maxDistance) {
+  meleeAssist=enabled;
+  meleeAssistMaxAngle=maxAngle;
+  meleeAssistMaxDistance=maxDistance;
+  }
+
+void PlayerControl::assistMeleeAttack(Npc& pl) {
+  const auto ws=pl.weaponState();
+  if(!meleeAssist || controllerTarget!=nullptr || pl.isAttackAnim() || !pl.isRotationAllowed() || pl.isSwim() || pl.isDive() ||
+     (ws!=WeaponState::Fist && ws!=WeaponState::W1H && ws!=WeaponState::W2H)) return;
+  auto& world=pl.world();
+  auto target=world.validateFocus(currentFocus).npc;
+  if(target==nullptr || target==&pl || target!=pl.target() || target->isDown() || !world.testFocusNpc(target)) return;
+  const auto delta=target->centerPosition()-pl.centerPosition();
+  if(delta.x==0.f && delta.z==0.f) return;
+  const float targetYaw=std::atan2(delta.z,delta.x)*180.f/float(M_PI);
+  const auto yaw=MeleeAssist::facing(pl.rotation(),targetYaw,delta.length(),
+                                   meleeAssistMaxAngle,meleeAssistMaxDistance);
+  if(yaw) {
+    pl.setDirection(*yaw);
+    pl.setAnimRotate(0);
+    }
+  }
+
+void PlayerControl::controllerCombat(int direction,bool pressed,bool cancel,uint64_t holdMs) {
+  // Explicit combat requests must not turn movement into an attack modifier.
+  if(direction<0 || direction>=7) return;
+  auto bowPlayer=Gothic::inst().player();
+  const auto bowState=bowPlayer!=nullptr ? bowPlayer->weaponState() : WeaponState::NoWeapon;
+  if(direction==ActForward && (bowState==WeaponState::Bow || bowState==WeaponState::CBow || controllerBowShot.active())) {
+    if(cancel) {
+      controllerBowShot.cancel();
+      }
+    else if(!pressed) {
+      controllerBowShot.release();
+      }
+    else if(bowPlayer!=nullptr && !bowPlayer->isDown() && !bowPlayer->isAiBusy() &&
+            bowPlayer->interactive()==nullptr && bowPlayer->hasAmmunition() &&
+            (bowState==WeaponState::Bow || bowState==WeaponState::CBow)) {
+      controllerBowWeapon=bowPlayer->inventory().activeWeapon()->clsId();
+      controllerBowShot.press();
+      }
+    return;
+    }
+  if(direction==ActForward && (!pressed || cancel)) {
+    controllerFinisher=nullptr;
+    controllerFinishTime=0;
+    }
+  if(cancel) {
+    actrl[direction]=false;
+    if(direction==ActForward) {
+      controllerReleaseAttack=false;
+      controllerEmptyAttack.cancel();
+      }
+    if(direction==ActBack) controllerBlockPending=false;
+    return;
+    }
+  if(!pressed) {
+    // Keep short attack and parry taps until the simulation has consumed them.
+    if(direction==ActForward && controllerEmptyAttack.active()) {
+      const bool tap=controllerEmptyAttack.release(Tempest::Application::tickCount());
+      auto pl=Gothic::inst().player();
+      if(tap && pl!=nullptr && !pl->isDown() && pl->interactive()==nullptr && !pl->isAiBusy()) {
+        const auto ws=pl->weaponState();
+        if(ws==WeaponState::Fist || ws==WeaponState::W1H || ws==WeaponState::W2H)
+          actrl[ActForward]=true;
+        }
+      }
+    if(direction==ActForward) controllerReleaseAttack=true;
+    return;
+    }
+  auto pl=Gothic::inst().player();
+  if(pl==nullptr || pl->isDown() || pl->interactive()!=nullptr || pl->isAiBusy()) return;
+  const auto ws=pl->weaponState();
+  if(ws==WeaponState::NoWeapon) return;
+  if(direction==ActKill && (pl->target()==nullptr || !pl->canFinish(*pl->target()))) return;
+  if(ws==WeaponState::Fist && (direction==ActLeft || direction==ActRight)) return;
+  if(direction==ActForward && (ws==WeaponState::Fist || ws==WeaponState::W1H || ws==WeaponState::W2H) &&
+     currentFocus.npc==nullptr) {
+    // An empty-target press becomes a swing only on a short release, never on a long hold.
+    controllerEmptyAttack.begin(Tempest::Application::tickCount(),holdMs);
+    actrl[ActForward]=false;
+    controllerReleaseAttack=false;
+    return;
+    }
+  if(direction==ActForward && (ws==WeaponState::W1H || ws==WeaponState::W2H) &&
+     pl->target()!=nullptr && pl->canFinish(*pl->target())) {
+    // Only a press begun over a finishable NPC can become a finishing blow.
+    // Normal attacks stay immediate and cannot turn into executions when an enemy falls.
+    controllerFinisher=pl->target();
+    controllerFinishTime=holdMs;
+    actrl[ActForward]=false;
+    controllerReleaseAttack=false;
+    return;
+    }
+  if(direction==ActForward) controllerReleaseAttack=false;
+  if(direction==ActBack) controllerBlockPending=true;
+  actrl[direction]=true;
+  }
+
+void PlayerControl::controllerInteract(bool sheath) {
+  auto w=Gothic::inst().world();
+  auto pl=Gothic::inst().player();
+  if(w==nullptr || pl==nullptr || pl->isDown()) return;
+  if(pl->weaponState()!=WeaponState::NoWeapon) {
+    if(!sheath) return;
+    pendingInteraction=w->findFocus(*pl,Focus(),true);
+    pendingInteractionUntil=w->tickCount()+3000;
+    controllerTarget=nullptr;
+    wctrl[WeaponClose]=true;
+    return;
+    }
+  auto f=w->findFocus(Focus());
+  if(f.item) interact(*f.item);
+  else if(f.interactive) interact(*f.interactive);
+  else if(f.npc) interact(*f.npc);
+  }
+
+void PlayerControl::controllerEquip(size_t item,bool toggleDraw) {
+  auto pl=Gothic::inst().player();
+  auto active=pl!=nullptr ? pl->activeWeapon() : nullptr;
+  // Direct slot taps toggle the weapon in hand; wheel choices only ready equipment.
+  if(toggleDraw && active!=nullptr && active->clsId()==item) {
+    pendingEquipment=size_t(-1);
+    std::fill(std::begin(wctrl),std::end(wctrl),false);
+    wctrl[WeaponClose]=true;
+    return;
+    }
+  pendingEquipment=item;
+  }
+
+void PlayerControl::toggleTargetLock() {
+  if(controllerTarget!=nullptr) { controllerTarget=nullptr; return; }
+  auto w=Gothic::inst().world();
+  auto pl=Gothic::inst().player();
+  if(w==nullptr || pl==nullptr || pl->weaponState()==WeaponState::NoWeapon) return;
+  auto f=w->findFocus(Focus());
+  if(f.npc!=nullptr && !f.npc->isDown() && w->testFocusNpc(f.npc)) {
+    controllerTarget=f.npc;
+    currentFocus=f;
+    setTarget(f.npc);
+    }
+  }
+
+void PlayerControl::switchControllerTarget(bool right) {
+  if(controllerTarget==nullptr) return;
+  auto world=Gothic::inst().world();
+  Focus target;
+  target.npc=controllerTarget;
+  if(world==nullptr || world->validateFocus(target).npc==nullptr) {
+    controllerTarget=nullptr;
+    return;
+    }
+  auto old=controllerTarget;
+  currentFocus=Focus(*controllerTarget);
+  moveFocus(right?ActRight:ActLeft);
+  if(currentFocus.npc!=nullptr && !currentFocus.npc->isDown())
+    controllerTarget=currentFocus.npc;
+  else currentFocus=Focus(*old);
+  setTarget(controllerTarget);
+  }
+
 void PlayerControl::onRotateMouse(float dAngleX, float dAngleY) {
   rotMouse  += dAngleX;
   rotMouseY += dAngleY;
@@ -270,9 +547,42 @@ void PlayerControl::drawVobRay(DbgPainter& p) const {
   }
 
 void PlayerControl::tickFocus() {
+  auto w=Gothic::inst().world();
+  auto pl=Gothic::inst().player();
+  if(controllerTarget!=nullptr && w!=nullptr && pl!=nullptr) {
+    Focus target;
+    target.npc=controllerTarget;
+    auto valid=w->validateFocus(target);
+    // Retain focus with Gothic's existing cached-target rules, not acquisition angle tests.
+    if(valid.npc==nullptr || valid.npc->isDown() || pl->isDown() || pl->weaponState()==WeaponState::NoWeapon ||
+       w->findFocus(target).npc!=controllerTarget)
+      controllerTarget=nullptr;
+    }
   currentFocus = findFocus(&currentFocus);
+  if(controllerTarget!=nullptr)
+    currentFocus=Focus(*controllerTarget);
   setTarget(currentFocus.npc);
 
+  if(pendingInteractionUntil!=0 && w!=nullptr && pl!=nullptr) {
+    const auto valid=w->validateFocus(pendingInteraction);
+    const auto now=w->findFocus(*pl,Focus(),true);
+    if(w->tickCount()>pendingInteractionUntil || pl->isDown() ||
+       valid.item!=pendingInteraction.item || valid.npc!=pendingInteraction.npc || valid.interactive!=pendingInteraction.interactive ||
+       now.item!=pendingInteraction.item || now.npc!=pendingInteraction.npc || now.interactive!=pendingInteraction.interactive) {
+      pendingInteractionUntil=0;
+      }
+    else if(pl->weaponState()==WeaponState::NoWeapon && canInteract()) {
+      pendingInteractionUntil=0;
+      controllerInteract(false);
+      }
+    }
+
+  if(pickupHeld && !ctrl[Action::ActionGeneric] && w!=nullptr && pl!=nullptr &&
+     pl->weaponState()==WeaponState::NoWeapon && !pl->isDown() && canInteract()) {
+    // Only repeat loose-item pickup, never conversations or opening containers.
+    const auto nearby=w->findFocus(Focus());
+    if(nearby.item!=nullptr) interact(*nearby.item);
+    }
   if(!ctrl[Action::ActionGeneric])
     return;
 
@@ -284,7 +594,9 @@ void PlayerControl::tickFocus() {
     clearInput();
     }
   else if(focus.item!=nullptr && interact(*focus.item)) {
+    const bool held=pickupHeld;
     clearInput();
+    pickupHeld=held;
     }
 
   if(focus.npc)
@@ -293,7 +605,12 @@ void PlayerControl::tickFocus() {
   }
 
 void PlayerControl::clearFocus() {
+  controllerBowShot.cancel();
+  controllerReleaseAttack=false;
   currentFocus = Focus();
+  controllerTarget=nullptr;
+  pendingInteractionUntil=0;
+  pendingEquipment=size_t(-1);
   }
 
 void PlayerControl::actionFocus(Npc& other) {
@@ -343,6 +660,8 @@ bool PlayerControl::interact(Npc &other) {
     return false;
   auto state = pl->bodyStateMasked();
   if(other.isDown()) {
+    if(Gothic::settingsGetI("GAME","skipEmptyLoot")!=0 && !other.inventory().iterator(Inventory::T_Ransack).isValid())
+      return true;
     if(state!=BS_STAND && state!=BS_SNEAK && state!=BS_SWIM && state!=BS_DIVE)
       return false;
     if(!inv.ransack(*w->player(),other))
@@ -414,6 +733,10 @@ void PlayerControl::toggleWalkMode() {
   if(w==nullptr || w->player()==nullptr)
     return;
   auto pl = w->player();
+  if(controllerWalkApplied) {
+    pl->setWalkMode(pl->walkMode()^WalkBit::WM_Walk);
+    controllerWalkApplied=false;
+    }
   pl->setWalkMode(pl->walkMode()^WalkBit::WM_Walk);
   }
 
@@ -429,6 +752,15 @@ void PlayerControl::toggleSneakMode() {
     }
   }
 
+void PlayerControl::setSneaking(bool enabled) {
+  auto pl=Gothic::inst().player();
+  if(pl==nullptr || pl->isDown() || (enabled && !pl->canSneak())) return;
+  auto mode=uint8_t(pl->walkMode());
+  if(enabled) mode|=uint8_t(WalkBit::WM_Sneak);
+  else mode&=~uint8_t(WalkBit::WM_Sneak);
+  pl->setWalkMode(WalkBit(mode));
+  }
+
 bool PlayerControl::canInteract() const {
   auto w = Gothic::inst().world();
   if(w==nullptr || w->player()==nullptr)
@@ -439,7 +771,39 @@ bool PlayerControl::canInteract() const {
   return true;
   }
 
-void PlayerControl::clearInput() {
+void PlayerControl::clearMovementInput() {
+  movement.reset();
+  for(const auto action : {KeyCodec::Forward,KeyCodec::Back,KeyCodec::Left,KeyCodec::Right,KeyCodec::RotateL,KeyCodec::RotateR}) {
+    ctrl[action] = false;
+    controllerKeyReleases[action] = false;
+    }
+  }
+
+void PlayerControl::clearInput(bool preserveTarget) {
+  pickupHeld=false;
+  touchAnalogMovement=false;
+  touchTurn=0;
+  controllerFinisher=nullptr;
+  controllerFinishTime=0;
+  controllerSwimming=false;
+  swimJumpHeld=false;
+  swimDiveStroke=false;
+  controllerKeyReleases.fill(false);
+  controllerReleaseAttack=false;
+  controllerBlockPending=false;
+  controllerEmptyAttack.cancel();
+  controllerBowShot.cancel();
+  pendingEquipment=size_t(-1);
+  if(controllerWalkApplied) {
+    if(auto pl=Gothic::inst().player())
+      pl->setWalkMode(WalkBit(uint8_t(pl->walkMode()) & ~uint8_t(WalkBit::WM_Walk)));
+    }
+  controllerWalkApplied=false;
+  controllerDirectional=false;
+  controllerGroundStrafe=false;
+  gamepadLX=0; gamepadLY=0;
+  if(!preserveTarget) controllerTarget=nullptr;
+  pendingInteractionUntil=0;
   movement.reset();
   std::memset(ctrl, 0,sizeof(ctrl));
   std::memset(actrl,0,sizeof(actrl));
@@ -565,21 +929,42 @@ bool PlayerControl::tickMove(uint64_t dt) {
   if(w->isCutsceneLock())
     clearInput();
 
-  if(tickCameraMove(dt))
+  if(tickCameraMove(dt)) {
+    controllerBowShot.cancel();
     return true;
+    }
 
   if(ctrl[Action::K_F8] && Gothic::inst().isMarvinEnabled())
     marvinF8(dt);
   if(ctrl[Action::K_K] && Gothic::inst().isMarvinEnabled())
     marvinK(dt);
-  cacheFocus = ctrl[Action::ActionGeneric];
+  cacheFocus = ctrl[Action::ActionGeneric] || controllerTarget!=nullptr || controllerBowShot.active();
   if(camera!=nullptr)
     camera->setLookBack(ctrl[Action::LookBack]);
 
   if(pl==nullptr)
     return true;
 
+  if(controllerFinisher!=nullptr) {
+    const auto ws=pl->weaponState();
+    if(pl->target()!=controllerFinisher || !pl->canFinish(*pl->target()) || pl->isDown() ||
+       pl->interactive()!=nullptr || (ws!=WeaponState::W1H && ws!=WeaponState::W2H)) {
+      controllerFinisher=nullptr;
+      }
+    else if(dt>=controllerFinishTime) {
+      actrl[ActKill]=true;
+      controllerFinisher=nullptr;
+      }
+    else controllerFinishTime-=dt;
+    }
   implMove(dt);
+  if(controllerBlockPending) {
+    // One parry attempt per button press, never a held auto-parry or a delayed attack interrupt.
+    actrl[ActBack]=false;
+    controllerBlockPending=false;
+    }
+  for(size_t i=0;i<controllerKeyReleases.size();++i)
+    if(controllerKeyReleases[i]) releaseControllerKey(Action(i),true);
 
   float runAngle = pl->runAngle();
   if(runAngle!=0.f || std::fabs(runAngleDest)>0.01f) {
@@ -615,6 +1000,18 @@ void PlayerControl::implMove(uint64_t dt) {
 
   Npc::Anim ani = Npc::Anim::Idle;
 
+  if(controllerBowShot.active()) {
+    const auto weapon=pl.inventory().activeWeapon();
+    if((ws!=WeaponState::Bow && ws!=WeaponState::CBow) || weapon==nullptr || weapon->clsId()!=controllerBowWeapon ||
+       !pl.hasAmmunition() || pl.isDown() || bs==BS_STUMBLE || pl.isAiBusy() || pl.interactive()!=nullptr ||
+       !pl.isInState(ScriptFn()) || dlg.isActive() || pl.isFalling() || pl.isSlide() || pl.isInAir() ||
+       pl.isJump() || pl.isJumpUp() || pl.isSwim() || pl.isDive() || pendingEquipment!=size_t(-1) ||
+       std::any_of(std::begin(wctrl),std::end(wctrl),[](bool pending){ return pending; }))
+      controllerBowShot.cancel();
+    else
+      controllerBowShot.advance(dt);
+    }
+
   if(bs==BS_DEAD)
     return;
   if(bs==BS_UNCONSCIOUS)
@@ -632,6 +1029,37 @@ void PlayerControl::implMove(uint64_t dt) {
     }
 
   if(pl.canSwitchWeapon()) {
+    // Selecting the weapon already in hand must not start a sheathe/draw cycle.
+    if(auto active=pl.activeWeapon(); active!=nullptr && active->clsId()==pendingEquipment)
+      pendingEquipment=size_t(-1);
+    if(pendingEquipment!=size_t(-1)) {
+      if(pl.weaponState()!=WeaponState::NoWeapon) {
+        pl.closeWeapon(false);
+        return;
+        }
+      const auto id=pendingEquipment;
+      pendingEquipment=size_t(-1);
+      auto item=pl.getItem(id);
+      if(item!=nullptr && item->checkCond(pl)) {
+        if((item->mainFlag()&(ITM_CAT_NF|ITM_CAT_FF))!=0) {
+          if(pl.currentMeleeWeapon()!=item && pl.currentRangedWeapon()!=item)
+            pl.useItem(id,Item::NSLOT,false);
+          if(pl.currentMeleeWeapon()==item) wctrl[WeaponMele]=true;
+          if(pl.currentRangedWeapon()==item) wctrl[WeaponBow]=true;
+          }
+        else if(item->isSpellOrRune()) {
+          // Quick slots may select a scroll/rune that has no numbered spell slot yet.
+          if(!item->isEquipped()) {
+            uint8_t slot=3;
+            for(uint8_t i=0;i<8;++i)
+              if(pl.inventory().currentSpell(i)==nullptr) { slot=uint8_t(3+i); break; }
+            pl.useItem(id,slot,false);
+            }
+          for(uint8_t i=0;i<8;++i)
+            if(pl.inventory().currentSpell(i)==item) wctrl[Weapon3+i]=true;
+          }
+        }
+      }
     if(wctrl[WeaponClose]) {
       wctrl[WeaponClose] = !(pl.closeWeapon(false) || pl.isMonster());
       return;
@@ -680,8 +1108,22 @@ void PlayerControl::implMove(uint64_t dt) {
     return;
     }
 
+  if(controllerSwimming && (pl.isSwim() || pl.isDive())) {
+    implSwim(pl,dt);
+    return;
+    }
+
   int rotation = 0;
+  if(controllerDirectional && controllerTarget==nullptr && gamepadLY!=0.f && allowRot && !pl.isAttackAnim()) {
+    const float delta=std::remainder(controllerYaw-rot,360.f);
+    rot+=MovementResponse::turn(delta,std::abs(gamepadLY),controllerTurnSpeed,controllerTurnBoost,float(dt)/1000.f);
+    }
   if(allowRot) {
+    if(touchTurn!=0.f) {
+      rot-=controllerTurnSpeed*float(dt)/1000.f*touchTurn;
+      rotation=touchTurn>0.f ? 1 : -1;
+      rotMouse=0;
+      }
     if(this->wantsToTurnLeft()) {
       rot += rspeed;
       rotation = -1;
@@ -713,6 +1155,10 @@ void PlayerControl::implMove(uint64_t dt) {
     }
 
   if(casting) {
+    if(controllerReleaseAttack) {
+      actrl[ActForward]=false;
+      controllerReleaseAttack=false;
+      }
     if(!actrl[ActForward] || (Gothic::inst().version().game==1 && pl.attribute(ATR_MANA)==0)) {
       casting = false;
       pl.endCastSpell(true);
@@ -726,7 +1172,7 @@ void PlayerControl::implMove(uint64_t dt) {
     }
 
   if((ws==WeaponState::Bow || ws==WeaponState::CBow) && pl.hasAmmunition()) {
-    if(actrl[ActGeneric] || actrl[ActForward]) {
+    if(actrl[ActGeneric] || actrl[ActForward] || controllerBowShot.active()) {
       if(auto other = pl.target()) {
         auto dp = other->position()-pl.position();
         pl.turnTo(dp.x,dp.z,true,dt);
@@ -748,6 +1194,13 @@ void PlayerControl::implMove(uint64_t dt) {
       if(actrl[ActRight]) {
         moveFocus(ActRight);
         actrl[ActRight]  = false;
+        }
+      if(controllerBowShot.active()) {
+        // shootBow also reports success for some non-shooting states; only aim states can fire.
+        const auto aimState=pl.bodyStateMasked();
+        if((aimState==BS_AIMNEAR || aimState==BS_AIMFAR) && pl.shootBow(currentFocus.interactive))
+          controllerBowShot.fired();
+        return;
         }
       if(!actrl[ActForward])
         return;
@@ -781,6 +1234,11 @@ void PlayerControl::implMove(uint64_t dt) {
     }
 
   if(actrl[ActForward] || actrl[ActMove]) {
+    assistMeleeAttack(pl);
+    if(controllerReleaseAttack) {
+      actrl[ActForward]=false;
+      controllerReleaseAttack=false;
+      }
     ctrl [Action::Forward] = actrl[ActMove];
     actrl[ActMove]         = false;
     if(ws!=WeaponState::Mage && !(g2Ctrl && (ws==WeaponState::Bow || ws==WeaponState::CBow))) {
@@ -827,6 +1285,7 @@ void PlayerControl::implMove(uint64_t dt) {
       return;
       }
     else if(ws==WeaponState::W1H || ws==WeaponState::W2H) {
+      if(actrl[ActLeft] || actrl[ActRight]) assistMeleeAttack(pl);
       if(actrl[ActLeft] && pl.swingSwordL()) {
         movement.strafeRightLeft.reset();
         }
@@ -945,7 +1404,7 @@ void PlayerControl::implMove(uint64_t dt) {
     }
 
   setAnimRotate(pl, rot, ani==Npc::Anim::Idle ? rotation : 0, movement.turnRightLeft.any(), dt);
-  if(actrl[ActGeneric] || ani==Npc::Anim::MoveL || ani==Npc::Anim::MoveR || pl.isFinishingMove()) {
+  if(controllerTarget!=nullptr || actrl[ActGeneric] || ani==Npc::Anim::MoveL || ani==Npc::Anim::MoveR || pl.isFinishingMove()) {
     processAutoRotate(pl,rot,dt);
     }
 
@@ -955,6 +1414,45 @@ void PlayerControl::implMove(uint64_t dt) {
     assignRunAngle(pl,pl.rotation(),dt);
     }
   pl.setDirection(rot);
+  }
+
+void PlayerControl::implSwim(Npc& pl, uint64_t dt) {
+  const bool jump=ctrl[Action::Jump];
+  if(!jump)
+    swimDiveStroke=false;
+  if(jump && !swimJumpHeld) {
+    swimDiveStroke=pl.isSwim();
+    if(swimDiveStroke)
+      pl.startDive();
+    }
+  swimJumpHeld=jump;
+
+  float magnitude=-gamepadLY;
+  float yaw=controllerYaw;
+  float pitch=pl.isDive() ? swimPitch : 0.f;
+  if(jump && pl.isDive()) {
+    // A fresh press underwater rises; the surface dive press must be released first.
+    pitch=swimDiveStroke ? -40.f : 80.f;
+    if(magnitude==0.f)
+      yaw=pl.rotation();
+    magnitude=1.f;
+    }
+  if(magnitude>0.f) {
+    const float step=controllerTurnSpeed*float(dt)/1000.f;
+    const float rotation=std::remainder(yaw-pl.rotation(),360.f);
+    pl.setDirection(pl.rotation()+std::clamp(rotation,-step,step));
+    const float elevation=pitch-pl.rotationY();
+    pl.setDirectionY(pl.rotationY()+std::clamp(elevation,-step,step));
+    }
+  else if(pl.isSwim()) {
+    pl.setDirectionY(0.f);
+    }
+  pl.setAnimRotate(0);
+  pl.setRunAngle(0.f);
+  runAngleDest=0.f;
+  rotMouse=0.f;
+  rotMouseY=0.f;
+  pl.setAnim(magnitude>0.f ? Npc::Anim::Move : Npc::Anim::Idle);
   }
 
 void PlayerControl::implMoveMobsi(Npc& pl, uint64_t /*dt*/) {
@@ -981,10 +1479,10 @@ void PlayerControl::implMoveMobsi(Npc& pl, uint64_t /*dt*/) {
       inter->onKeyInput(KeyCodec::ActionGeneric);
       ctrl[KeyCodec::ActionGeneric] = false;
       }
-    else if(ctrl[KeyCodec::Forward]) {
+    else if(wantsToMoveForward()) {
       inter->onKeyInput(KeyCodec::Forward);
       }
-    else if(ctrl[KeyCodec::Back]) {
+    else if(wantsToMoveBackward()) {
       inter->onKeyInput(KeyCodec::Back);
       }
     }
@@ -1016,6 +1514,7 @@ void PlayerControl::processPickLock(Npc& pl, Interactive& inter, KeyCodec::Actio
     }
 
   if(pickLockProgress<cmp.size() && std::toupper(cmp[pickLockProgress])!=ch) {
+    Feedback::play(Feedback::Effect::Reject);
     pickLockProgress = 0;
     const int32_t dex = Gothic::inst().version().game==2 ? pl.attribute(ATR_DEXTERITY) : (100 - pl.talentValue(TALENT_PICKLOCK));
     if(dex<=int32_t(script.rand(100)))  {
@@ -1031,11 +1530,13 @@ void PlayerControl::processPickLock(Npc& pl, Interactive& inter, KeyCodec::Actio
     } else {
     pickLockProgress++;
     if(pickLockProgress>=cmp.size()) {
+      Feedback::play(Feedback::Effect::Confirm);
       script.invokePickLock(pl,1,1);
       inter.setAsCracked(true);
       pickLockProgress = 0;
       } else {
       script.invokePickLock(pl,1,0);
+      Feedback::play(Feedback::Effect::Navigate);
       }
     }
   }
