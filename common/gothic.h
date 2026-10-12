@@ -3,6 +3,7 @@
 #include <string>
 #include <memory>
 #include <thread>
+#include <future>
 
 #include <Tempest/Signal>
 #include <Tempest/Dir>
@@ -96,7 +97,7 @@ class Gothic final {
 
     void         emitGlobalSound(std::string_view   sfx);
     void         emitGlobalSound(const SoundFx*     sfx);
-    void         emitGlobalSound(const Tempest::Sound& sfx);
+    void         emitGlobalSound(const Tempest::Sound& sfx, bool voice=false);
 
     void         emitGlobalSoundWav(std::string_view wav);
 
@@ -139,7 +140,9 @@ class Gothic final {
     LoadState    checkLoading() const;
     bool         finishLoading();
     void         startLoad(std::string_view banner, const std::function<std::unique_ptr<GameSession>(std::unique_ptr<GameSession>&&)> f);
-    void         startSave(Tempest::Texture2d&& tex, const std::function<std::unique_ptr<GameSession>(std::unique_ptr<GameSession>&&)> f);
+    void         startSave(Tempest::Texture2d&& tex, std::string slot, std::string name, Tempest::Pixmap screen);
+    bool         isSavePending() const { return savePending; }
+    void         finishSave(bool wait = false);
     void         cancelLoading();
 
     void         tick(uint64_t dt);
@@ -200,6 +203,8 @@ class Gothic final {
     static float                          settingsGetF(std::string_view sec, std::string_view name);
     static void                           settingsSetF(std::string_view sec, std::string_view name, float val);
     static float                          settingsSoundVolume();
+    static float                          settingsVoiceVolume();
+    static int                            settingsFpsLimit();
     static void                           flushSettings();
 
   private:
@@ -229,6 +234,10 @@ class Gothic final {
     std::atomic_int                         loadProgress{0};
     std::thread                             loaderTh;
     std::atomic<LoadState>                  loadingFlag{LoadState::Idle};
+    std::future<void>                       saveTask;
+    bool                                    savePending = false;
+    uint64_t                                saveProfileStart = 0;
+    uint64_t                                saveGameTick = 0;
 
     std::unique_ptr<GameSession>            game, pendingGame;
     std::unique_ptr<FightAi>                fight;
@@ -240,6 +249,7 @@ class Gothic final {
 
     std::mutex                              syncSnd;
     Tempest::SoundDevice                    sndDev;
+    Tempest::SoundDevice                    voiceDev;
     std::unordered_map<std::string,SoundFx> sndFxCache;
     std::unordered_map<std::string,SoundFx> sndWavCache;
     std::vector<Tempest::SoundEffect>       sndStorage;

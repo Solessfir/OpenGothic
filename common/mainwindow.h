@@ -1,5 +1,8 @@
 #pragma once
 
+#include "utils/gamepadactivity.h"
+#include "utils/radialinput.h"
+
 #include "camera.h"
 #include "resources.h"
 
@@ -21,6 +24,10 @@
 
 #include <vector>
 #include <thread>
+#include <fstream>
+#if defined(__ANDROID__)
+#include <Tempest/FramePacer>
+#endif
 
 #include "world/world.h"
 #include "world/focus.h"
@@ -33,9 +40,12 @@
 #include "ui/videowidget.h"
 #include "ui/menuroot.h"
 #include "ui/consolewidget.h"
+#if defined(__MOBILE_PLATFORM__)
 #include "ui/touchinput.h"
+#endif
 
 #include "utils/keycodec.h"
+#include "utils/gamepadbindings.h"
 #include "resources.h"
 
 class MenuRoot;
@@ -68,6 +78,7 @@ class MainWindow : public Tempest::Window {
     void paintFocus     (Tempest::Painter& p, const Focus& fc, const Tempest::Matrix4x4& vp);
     void paintFocus     (Tempest::Painter& p, Tempest::Rect rect);
 
+    Tempest::Size playerBarSize() const;
     void drawBar(Tempest::Painter& p, const Tempest::Texture2d *bar, int x, int y, float v, Tempest::AlignFlag flg);
     void drawMsg(Tempest::Painter& p);
     void drawProgress(Tempest::Painter& p, int x, int y, int w, int h, float v);
@@ -90,6 +101,17 @@ class MainWindow : public Tempest::Window {
 
     void processMouse(Tempest::MouseEvent& event, bool enable);
     void tickMouse(uint64_t dt);
+    void tickGamepad();
+    void applySystemWheelSelection(size_t selected, bool touch=false);
+    void updateControllerOverlay();
+    void paintControllerOverlay(Tempest::PaintEvent& event, int top);
+    GamepadBindings::Context controllerContext() const;
+    void controllerAction(const GamepadBindings::Event& event);
+    void controllerQuickSlot(size_t slot, bool toggleDraw=true);
+    void controllerUiKey(Tempest::Event::KeyType key, bool repeat, bool touchNavigation=false);
+#if defined(__MOBILE_PLATFORM__)
+    void onTouchCommand(TouchInput::Command command, bool pressed);
+#endif
     void onSettings();
 
     void setupUi();
@@ -114,6 +136,7 @@ class MainWindow : public Tempest::Window {
 
     Tempest::Device&      device;
     Tempest::Swapchain    swapchain;
+    bool                 hdrRequested = false;
     Tempest::TextureAtlas atlas;
     Shaders               shaders;
     Renderer              renderer;
@@ -150,14 +173,49 @@ class MainWindow : public Tempest::Window {
     DocumentMenu              document;
     ChapterScreen             chapter;
     ConsoleWidget             console;
-#if defined(__MOBILE_PLATFORM__)
-    TouchInput                mobileUi;
-#endif
     RuntimeMode               runtimeMode = R_Normal;
 
     Tempest::Widget*          uiKeyUp=nullptr;
     Tempest::Point            dMouse;
     PlayerControl             player;
+#if defined(__ANDROID__)
+    Tempest::Timer            controllerTimer;
+    GamepadBindings           controllerBindings;
+    GamepadActivity           controllerActivity;
+    void                      setControllerInput(bool enabled);
+    bool                      controllerConnected=false;
+    bool                      controllerExploration=false;
+    bool                      controllerFocused=true;
+    bool                      controllerAxesBlocked=true;
+    bool                      resumeAnalogAfterSave=false;
+    uint32_t                  controllerButtons=0;
+    uint32_t                  controllerTriggers=0;
+    uint32_t                  wheelHeldMask=0;
+    size_t                    wheelQuickSlot=size_t(-1);
+    RadialInput::StickSelector wheelStickInput;
+    uint64_t                  controllerLastPoll=0;
+    uint64_t                  controllerLookIdle=0;
+    uint64_t                  controllerLastSwitch=0;
+    bool                      controllerSwitchReady=true;
+    bool                      controllerWasPresent=false;
+    bool                      controllerDisconnectPending=false;
+    int                       controllerOverlayContext=-1;
+    std::string               controllerOverlayTitle;
+    struct ControllerGuideGroup {
+      std::string title;
+      std::vector<std::string> lines;
+      };
+    std::array<ControllerGuideGroup,5> controllerOverlayGroups;
+#endif
+#if defined(__MOBILE_PLATFORM__)
+    TouchInput                mobileUi;
+    bool                      touchWheelOwned=false;
+    bool onTouchWheel(TouchInput::Command command, TouchInput::WheelPhase phase, Tempest::Point pos);
+    uint64_t                  touchLookIdle=0;
+    bool                      touchMovementBlocked=false;
+    std::optional<KeyCodec::ActionMapping> touchHeldAction;
+    std::optional<KeyCodec::ActionMapping> touchTapRelease;
+#endif
     uint64_t                  lastTick=0;
 
     Tempest::Shortcut         funcKey[11];
@@ -176,6 +234,16 @@ class MainWindow : public Tempest::Window {
       void     push(uint64_t t);
       };
     Fps           fps;
+    bool          profileGpu = false;
+    uint32_t      gpuProfileFrames = 0;
+    uint32_t      gpuProfileAttempts = 0;
+    std::ofstream gpuProfileLog;
+#if defined(__ANDROID__)
+    uint64_t      fpsOverlayUpdated = 0;
+    bool          showFps = false;
+    uint32_t      maxFps = 60;
+    Tempest::FramePacer framePacer;
+#endif
     BenchmarkData benchmark;
     uint64_t      maxFpsInv = 0;
   };
