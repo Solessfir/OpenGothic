@@ -25,6 +25,7 @@ class Animation;
 class AttachBinder;
 class PfxEmitterMesh;
 class GthFont;
+struct WorldData;
 
 namespace Dx8 {
 class DirectMusic;
@@ -85,6 +86,7 @@ class Resources final {
     static void                      mountVdfs(const std::vector<std::u16string>& vdfs);
     static void                      mountWork(const std::filesystem::path& path);
     static void                      unloadAll();
+    static std::shared_ptr<const WorldData> loadWorld(std::string_view name, zenkit::GameVersion version);
 
     static const Tempest::Sampler&   shadowSampler();
 
@@ -232,6 +234,8 @@ class Resources final {
     std::unique_ptr<Dx8::DirectMusic> dxMusic;
     DmLoader*                         dmLoader = nullptr;
     zenkit::Vfs                       gothicAssets;
+    std::mutex                       syncWorld;
+    std::shared_ptr<const WorldData>  worldCache;
 
     std::vector<uint8_t>              fBuff, ddsBuf;
     Tempest::IndexBuffer<uint16_t>    cube;
