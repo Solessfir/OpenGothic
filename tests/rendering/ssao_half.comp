@@ -1,0 +1,20 @@
+#version 460
+#extension GL_GOOGLE_include_directive : enable
+#include "ssao/half_resolution.glsl"
+
+layout(local_size_x = 8, local_size_y = 8) in;
+layout(binding = 0) uniform sampler2D depth;
+layout(binding = 1) uniform sampler2D aoDepth;
+layout(binding = 2, std430) buffer Output {
+  vec4 values[];
+  };
+
+void main() {
+  const ivec2 pixel = ivec2(gl_GlobalInvocationID.xy);
+  const ivec2 size = textureSize(depth, 0);
+  if(any(greaterThanEqual(pixel, size)))
+    return;
+  const ivec2 nearest = ssaoNearestDepthPixel(depth, pixel/2);
+  const float ao = ssaoResolveHalf(aoDepth, pixel, texelFetch(depth, pixel, 0).r);
+  values[pixel.y*size.x+pixel.x] = vec4(ao, nearest, 0);
+  }

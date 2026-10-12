@@ -26,7 +26,7 @@ class Renderer final {
 
     void draw(Tempest::Attachment& result, Tempest::Encoder<Tempest::CommandBuffer>& cmd, uint8_t fId,
               Tempest::VectorImage::Mesh& uiLayer, Tempest::VectorImage::Mesh& numOverlay,
-              InventoryMenu &inventory, VideoWidget& video);
+              InventoryMenu &inventory, VideoWidget& video, float hdrPeakNits = 0);
     void draw(Tempest::Attachment& result, Tempest::Encoder<Tempest::CommandBuffer>& cmd, uint8_t fId,
               WorldView& view, const Camera& camera);
 
@@ -59,7 +59,7 @@ class Renderer final {
     Tempest::StorageBuffer& usesSsboInit(Tempest::StorageBuffer& ret, size_t size);
     Tempest::StorageBuffer& usesScratch(Tempest::StorageBuffer& ret, size_t size);
 
-    void prepareUniforms(WorldView& wview);
+    void prepareUniforms(WorldView& wview, const Camera& camera);
     void resetViewport(Tempest::Size size, Tempest::Size fullRes);
     void resetShadowmap();
     void resetSkyFog();
@@ -124,7 +124,7 @@ class Renderer final {
     void togglePathtrace();
 
     struct Settings {
-      const uint32_t shadowResolution   = 2048;
+      uint32_t       shadowResolution   = 2048;
       bool           vsmEnabled         = false;
       bool           rtsmEnabled        = false;
       bool           swrEnabled         = false;
@@ -133,6 +133,9 @@ class Renderer final {
 
       bool           zEnvMappingEnabled = false;
       bool           zCloudShadowScale  = false;
+      bool           ssaoHalfResolution = false;
+      bool           fogHalfResolution  = false;
+      float          cameraObstructionDistance = 0;
       bool           zFogRadial         = false;
 
       bool           zWindEnabled       = false;
@@ -149,6 +152,7 @@ class Renderer final {
       float          moonSize           = 0;
 
       float          vidResIndex        = 0;
+      float          renderScale        = 1;
 
       float          vsmMipBias         = 0.25; //TODO: set to lower, eventually
       } settings;
@@ -160,6 +164,8 @@ class Renderer final {
     Tempest::Vec3             clipInfo;
 
     Tempest::Attachment       sceneLinear;
+    Tempest::Attachment       hdrComposite;
+    float                     hdrPeakRatio = 0;
     Tempest::ZBuffer          zbuffer, shadowMap[Resources::ShadowLayers];
     Tempest::ZBuffer          zbufferUi;
 
@@ -184,6 +190,7 @@ class Renderer final {
 
     struct Sky {
       Quality                quality       = Quality::None;
+      bool                   fogHalfResolution = false;
 
       Tempest::TextureFormat lutRGBFormat  = Tempest::TextureFormat::R11G11B10UF;
       Tempest::TextureFormat lutRGBAFormat = Tempest::TextureFormat::RGBA16F;

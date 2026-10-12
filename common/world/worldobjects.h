@@ -35,6 +35,7 @@ class WorldObjects final {
       NoAngle       = 4,
       NoRay         = 8,
       FcOverride    = 16,
+      NoEmptyLoot   = 32,
       };
 
     struct SearchOpt final {
