@@ -22,6 +22,13 @@ class MenuRoot : public Tempest::Widget {
     void popMenu();
     void closeAll();
     bool isActive() const;
+    void requestDeleteSave(std::string_view hint);
+    bool canRequestDeleteSave() const;
+    bool overwriteSelectedSave();
+    void renameSelectedSave();
+    void directionalInput(bool right, bool repeat=false, bool touchNavigation=true);
+    bool canAdjustValue();
+    void adjustValue(int steps);
     void setPlayer(const Npc& pl);
     void processMusicTheme();
 
@@ -38,6 +45,7 @@ class MenuRoot : public Tempest::Widget {
 
   private:
     void initSettings();
+    void navigateBack();
 
     std::unique_ptr<zenkit::DaedalusVm>    vm;
     int32_t                                vmLang = -1;
