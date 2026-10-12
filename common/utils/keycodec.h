@@ -33,6 +33,7 @@ class KeyCodec final {
 
       LookBack,
       FirstPerson,
+      LockTarget,
 
       Forward,
       Back,
