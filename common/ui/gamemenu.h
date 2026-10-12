@@ -28,11 +28,17 @@ class GameMenu : public Tempest::Widget {
     void setPlayer(const Npc& pl);
 
     void onKeyboard(KeyCodec::Action k);
-    void onBeginTouch(Tempest::Point pos);
-    void onDragTouch(Tempest::Point pos);
-    void onEndTouch(bool activate);
+    bool adjustsHorizontally();
+    bool canAdjustValue();
+    void adjustValue(int steps);
     void onTick();
     void processMusicTheme();
+    void requestDeleteSave(std::string_view hint);
+    bool canRequestDeleteSave() const;
+    bool isDeletingSave() const { return pendingDelete!=nullptr; }
+    bool closeNestedView();
+    bool overwriteSelectedSave();
+    void renameSelectedSave();
 
     KeyCodec::Action keyClose() const { return kClose; }
 
@@ -48,8 +54,6 @@ class GameMenu : public Tempest::Widget {
       Log       = uint8_t(5),
       };
 
-    struct ListContentDialog;
-    struct ListViewDialog;
     struct KeyEditDialog;
     struct SavNameDialog;
     struct Item {
@@ -78,8 +82,16 @@ class GameMenu : public Tempest::Widget {
 
     Item                                  hItems[zenkit::IMenu::item_count];
     Item*                                 ctrlInput = nullptr;
-    Item*                                 touchSlider = nullptr;
-    bool                                  touchActive = false;
+    Item*                                 pendingDelete = nullptr;
+    Item*                                 quickLoadItem = nullptr;
+    std::vector<size_t>                    quickLoadSlots;
+    Item*                                 journalList = nullptr;
+    Item*                                 journalContent = nullptr;
+    uint32_t                              journalCategory = 0;
+    bool                                  journalContentWasVisible = false;
+    std::string                           deleteName;
+    std::string                           deleteHint;
+    std::string                           deleteError;
     uint32_t                              curItem=0;
     bool                                  exitFlag=false;
     bool                                  closeFlag=false;
@@ -90,22 +102,27 @@ class GameMenu : public Tempest::Widget {
     void                                  drawSlider(Tempest::Painter& p, Item& it, int x, int y, int w, int h);
     void                                  drawQuestList(Tempest::Painter& p, Item& it, int x, int y, int w, int h,
                                                         const QuestLog& log, QuestStat st);
+    void                                  showQuest();
+    void                                  journalInput(KeyCodec::Action key);
 
     Item*                                 selectedItem();
-    Tempest::Rect                         itemRect(const Item& item) const;
+    bool                                  selectionIncludes(const Item& item);
+    Item*                                 selectedSaveItem();
     Item*                                 selectedNextItem(Item* cur);
     Item*                                 selectedContentItem(Item* it);
     void                                  setSelection(int cur, int seek=1);
     void                                  initItems();
+    void                                  initAndroidVideo();
+    void                                  initAndroidOptions();
+    void                                  refreshQuickLoad();
+    void                                  addMissingQuickLoad();
     void                                  getText(const Item &it, std::vector<char>& out);
     const GthFont&                        getTextFont(const Item &it);
-    Item*                                 touchHitTest(Item& p, Tempest::Point pos);
 
     static bool                           isSelectable(const std::shared_ptr<zenkit::IMenuItem>& item);
     static bool                           isHorSelectable(const std::shared_ptr<zenkit::IMenuItem>& item);
     static bool                           isEnabled(const std::shared_ptr<zenkit::IMenuItem>& item);
     static bool                           isHidden(const std::shared_ptr<zenkit::IMenuItem>& item);
-    static float                          sliderStep(const std::shared_ptr<zenkit::IMenuItem>& item);
 
     void                                  exec         (Item &item, int slideDx, KeyCodec::Action hint);
     void                                  execSingle   (Item &it,   int slideDx, KeyCodec::Action hint);
@@ -115,7 +132,7 @@ class GameMenu : public Tempest::Widget {
     void                                  execCommands (std::string str, bool isClick, KeyCodec::Action hint);
 
     bool                                  implUpdateSavThumb(Item& sel);
-    size_t                                saveSlotId(const Item& sel);
+    static size_t                         saveSlotId(const Item& sel);
 
     std::string_view                      strEnum(std::string_view en, int id, std::vector<char> &out);
     size_t                                strEnumSize(std::string_view en);
