@@ -68,16 +68,16 @@ std::unique_ptr<Tempest::AbstractGraphicsApi> mkApi(const CommandLine& g) {
 #endif
   }
 
-int main(int argc,const char** argv) {
+// Tempest looks up main dynamically on Android, so it must stay visible despite -fvisibility=hidden
 #if defined(__ANDROID__)
-  {
-    auto appdir = InstallDetect::androidInternalDataPath();
-    std::filesystem::current_path(appdir);
-  }
-#elif defined(__IOS__)
+__attribute__((visibility("default")))
+#endif
+int main(int argc,const char** argv) {
+#if defined(__IOS__) || defined(__ANDROID__)
   {
     auto appdir = InstallDetect::applicationSupportDirectory();
-    std::filesystem::current_path(appdir);
+    if(!appdir.empty())
+      std::filesystem::current_path(appdir);
   }
 #endif
 
