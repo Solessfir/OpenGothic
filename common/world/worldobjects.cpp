@@ -1038,6 +1038,8 @@ static bool checkFlag(Npc& n,WorldObjects::SearchFlg f){
     return false;
   if(bool(f&WorldObjects::NoUnconscious) && n.isUnconscious())
     return false;
+  if(bool(f&WorldObjects::NoEmptyLoot) && n.isDown() && !n.inventory().iterator(Inventory::T_Ransack).isValid())
+    return false;
   return true;
   }
 
