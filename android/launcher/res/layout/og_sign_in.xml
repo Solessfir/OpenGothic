@@ -1,0 +1,405 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/og_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/og_ground">
+
+    <ImageView
+        android:id="@+id/og_hero"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:alpha="0.5"
+        android:importantForAccessibility="no"
+        android:scaleType="matrix" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/og_scrim_left" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <!-- Account name and password -->
+            <LinearLayout
+                android:id="@+id/og_form"
+                android:layout_width="340dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="72dp"
+                android:layout_marginTop="30dp"
+                android:layout_marginBottom="24dp"
+                android:orientation="vertical">
+
+                <TextView
+                    style="@style/Launcher.Text.Title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:accessibilityHeading="true"
+                    android:text="@string/og_sign_in_title" />
+
+                <TextView
+                    style="@style/Launcher.Text.Muted"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="@string/og_sign_in_purpose" />
+
+                <TextView
+                    style="@style/Launcher.Text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:labelFor="@+id/og_account_field"
+                    android:text="@string/og_account_name"
+                    android:textColor="@color/og_soft"
+                    android:textSize="13sp" />
+
+                <EditText
+                    android:id="@+id/og_account_field"
+                    style="@style/Launcher.Field"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:autofillHints="username"
+                    android:imeOptions="actionNext|flagNoExtractUi"
+                    android:inputType="text|textNoSuggestions" />
+
+                <TextView
+                    style="@style/Launcher.Text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:labelFor="@+id/og_password_field"
+                    android:text="@string/og_password"
+                    android:textColor="@color/og_soft"
+                    android:textSize="13sp" />
+
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp">
+
+                    <EditText
+                        android:id="@+id/og_password_field"
+                        style="@style/Launcher.Field"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:autofillHints="password"
+                        android:imeOptions="actionGo|flagNoExtractUi"
+                        android:inputType="textPassword"
+                        android:paddingEnd="52dp" />
+
+                    <ImageButton
+                        android:id="@+id/og_show_password"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:layout_gravity="end|center_vertical"
+                        android:background="@drawable/og_button_plain"
+                        android:contentDescription="@string/og_show_password"
+                        android:src="@drawable/og_ic_eye" />
+                </FrameLayout>
+
+                <Button
+                    android:id="@+id/og_submit"
+                    style="@style/Launcher.Button.Primary"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="16dp"
+                    android:minHeight="48dp"
+                    android:text="@string/og_sign_in" />
+
+                <TextView
+                    android:id="@+id/og_form_error"
+                    style="@style/Launcher.Text"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:textColor="@color/og_error"
+                    android:textSize="14sp"
+                    android:visibility="gone" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="-14dp"
+                    android:layout_marginTop="4dp"
+                    android:layout_marginEnd="-14dp"
+                    android:orientation="horizontal">
+
+                    <Button
+                        android:id="@+id/og_use_qr"
+                        style="@style/Launcher.Button.Plain"
+                        android:layout_width="wrap_content"
+                        android:layout_height="48dp"
+                        android:minHeight="48dp"
+                        android:text="@string/og_use_qr"
+                        android:textSize="14sp" />
+
+                    <Space
+                        android:layout_width="0dp"
+                        android:layout_height="0dp"
+                        android:layout_weight="1" />
+
+                    <Button
+                        android:id="@+id/og_not_now"
+                        style="@style/Launcher.Button.Plain"
+                        android:layout_width="wrap_content"
+                        android:layout_height="48dp"
+                        android:minHeight="48dp"
+                        android:text="@string/og_not_now"
+                        android:textSize="14sp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Waiting for approval in the Steam app -->
+            <LinearLayout
+                android:id="@+id/og_approve"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_marginTop="24dp"
+                android:layout_marginBottom="24dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <ImageView
+                    android:layout_width="120dp"
+                    android:layout_height="200dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/og_phone" />
+
+                <LinearLayout
+                    android:layout_width="360dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="64dp"
+                    android:orientation="vertical">
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <View
+                            android:id="@+id/og_waiting_dot"
+                            android:layout_width="8dp"
+                            android:layout_height="8dp"
+                            android:background="@drawable/og_dot" />
+
+                        <TextView
+                            style="@style/Launcher.Text.Muted"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="10dp"
+                            android:text="@string/og_waiting_for_steam"
+                            android:textSize="13sp" />
+                    </LinearLayout>
+
+                    <TextView
+                        style="@style/Launcher.Text.Title"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="14dp"
+                        android:accessibilityHeading="true"
+                        android:text="@string/og_approve_title" />
+
+                    <TextView
+                        style="@style/Launcher.Text.Muted"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:lineSpacingMultiplier="1.2"
+                        android:text="@string/og_approve_body" />
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="18dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <Button
+                            android:id="@+id/og_open_steam"
+                            style="@style/Launcher.Button.Primary"
+                            android:layout_width="wrap_content"
+                            android:layout_height="48dp"
+                            android:minWidth="0dp"
+                            android:minHeight="48dp"
+                            android:text="@string/og_open_steam"
+                            android:textSize="15sp" />
+
+                        <Button
+                            android:id="@+id/og_enter_code"
+                            style="@style/Launcher.Button.Plain"
+                            android:layout_width="wrap_content"
+                            android:layout_height="48dp"
+                            android:layout_marginStart="6dp"
+                            android:minHeight="48dp"
+                            android:text="@string/og_enter_code"
+                            android:textSize="14sp" />
+                    </LinearLayout>
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Steam Guard code -->
+            <LinearLayout
+                android:id="@+id/og_code"
+                android:layout_width="340dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="72dp"
+                android:layout_marginTop="30dp"
+                android:layout_marginBottom="24dp"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    style="@style/Launcher.Text.Title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:accessibilityHeading="true"
+                    android:text="@string/og_code_title" />
+
+                <TextView
+                    android:id="@+id/og_code_body"
+                    style="@style/Launcher.Text.Muted"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:lineSpacingMultiplier="1.2" />
+
+                <EditText
+                    android:id="@+id/og_code_field"
+                    style="@style/Launcher.Field"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:autofillHints="oneTimeCode"
+                    android:hint="@string/og_code_hint"
+                    android:imeOptions="actionGo|flagNoExtractUi"
+                    android:inputType="textCapCharacters|textNoSuggestions"
+                    android:letterSpacing="0.2"
+                    android:maxLength="8"
+                    android:textSize="20sp" />
+
+                <Button
+                    android:id="@+id/og_code_submit"
+                    style="@style/Launcher.Button.Primary"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="16dp"
+                    android:minHeight="48dp"
+                    android:text="@string/og_continue" />
+
+                <TextView
+                    android:id="@+id/og_code_error"
+                    style="@style/Launcher.Text"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:textColor="@color/og_error"
+                    android:textSize="14sp"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <!-- QR code for the Steam app on another device -->
+            <LinearLayout
+                android:id="@+id/og_qr"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_marginTop="24dp"
+                android:layout_marginBottom="24dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <FrameLayout
+                    android:layout_width="220dp"
+                    android:layout_height="220dp"
+                    android:background="@drawable/og_qr_frame"
+                    android:padding="10dp">
+
+                    <ImageView
+                        android:id="@+id/og_qr_image"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:contentDescription="@string/og_qr_description"
+                        android:scaleType="fitCenter" />
+                </FrameLayout>
+
+                <LinearLayout
+                    android:layout_width="340dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="48dp"
+                    android:orientation="vertical">
+
+                    <TextView
+                        style="@style/Launcher.Text.Title"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:accessibilityHeading="true"
+                        android:text="@string/og_qr_title" />
+
+                    <TextView
+                        style="@style/Launcher.Text.Muted"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:lineSpacingMultiplier="1.2"
+                        android:text="@string/og_qr_body" />
+
+                    <Button
+                        android:id="@+id/og_qr_password"
+                        style="@style/Launcher.Button.Plain"
+                        android:layout_width="wrap_content"
+                        android:layout_height="48dp"
+                        android:layout_marginStart="-14dp"
+                        android:layout_marginTop="14dp"
+                        android:minHeight="48dp"
+                        android:text="@string/og_use_password"
+                        android:textSize="14sp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/og_busy"
+                style="@style/Launcher.Text.Muted"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_marginTop="120dp"
+                android:visibility="gone" />
+        </FrameLayout>
+    </ScrollView>
+
+    <ImageButton
+        android:id="@+id/og_back"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:layout_marginStart="18dp"
+        android:layout_marginTop="14dp"
+        android:background="@drawable/og_button_plain"
+        android:contentDescription="@string/og_back"
+        android:src="@drawable/og_ic_back" />
+
+    <TextView
+        android:id="@+id/og_privacy"
+        style="@style/Launcher.Text.Muted"
+        android:layout_width="300dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="32dp"
+        android:layout_marginBottom="22dp"
+        android:gravity="end"
+        android:lineSpacingMultiplier="1.2"
+        android:text="@string/og_privacy"
+        android:textSize="12sp" />
+</FrameLayout>
