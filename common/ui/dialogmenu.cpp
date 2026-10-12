@@ -1,4 +1,5 @@
 #include "dialogmenu.h"
+#include "utils/feedback.h"
 
 #include <Tempest/Painter>
 #include <Tempest/Log>
@@ -59,7 +60,7 @@ void DialogMenu::setupSettings() {
   showSubtitles       = Gothic::settingsGetI("GAME","subTitles");
   showSubtitlesPlayer = Gothic::settingsGetI("GAME","subTitlesPlayer");
 
-  const float volume = Gothic::settingsSoundVolume();
+  const float volume = Gothic::settingsVoiceVolume();
   soundDevice.setGlobalVolume(volume);
   }
 
@@ -397,6 +398,7 @@ void DialogMenu::startTrade() {
 
 void DialogMenu::skipPhrase() {
   if(current.time>0) {
+    Feedback::play(Feedback::Effect::Navigate);
     if(pl!=nullptr)
       pl->setAiOutputBarrier(0,false);
     if(other!=nullptr)
@@ -537,6 +539,7 @@ void DialogMenu::onSelect() {
     }
 
   if(dlgSel<choice.size()) {
+    Feedback::play(Feedback::Effect::Confirm);
     onEntry(choice[dlgSel]);
     choiceAnimTime = dlgAnimation ? ANIM_TIME : 0;
     }
@@ -562,11 +565,14 @@ void DialogMenu::mouseWheelEvent(MouseEvent &e) {
     return;
     }
 
+  const auto previous=dlgSel;
   if(e.delta>0)
     dlgSel--;
   if(e.delta<0)
     dlgSel++;
   dlgSel = (dlgSel+choice.size())%std::max<size_t>(choice.size(),1);
+  if(dlgSel!=previous && isChoiceMenuActive())
+    Feedback::play(Feedback::Effect::Navigate);
   update();
   }
 
@@ -581,6 +587,7 @@ void DialogMenu::keyDownEvent(KeyEvent &e) {
     return;
     }
   if(e.key==Event::K_W || e.key==Event::K_S || e.key==Event::K_Up || e.key==Event::K_Down || e.key==Event::K_ESCAPE){
+    const auto previous=dlgSel;
     if(e.key==Event::K_W || e.key==Event::K_Up){
       dlgSel--;
       }
@@ -591,6 +598,8 @@ void DialogMenu::keyDownEvent(KeyEvent &e) {
       skipPhrase();
       }
     dlgSel = (dlgSel+choice.size())%std::max<size_t>(choice.size(),1);
+    if(dlgSel!=previous && isChoiceMenuActive())
+      Feedback::play(Feedback::Effect::Navigate);
     update();
     return;
     }
