@@ -58,7 +58,7 @@ class Shaders {
     Tempest::RenderPipeline  stash;
     Tempest::RenderPipeline  bink;
 
-    Tempest::ComputePipeline ssao, ssaoBlur;
+    Tempest::ComputePipeline ssao, ssaoBlur, ssaoHalf, ssaoUpsample;
 
     Tempest::ComputePipeline irradiance;
 
@@ -78,6 +78,7 @@ class Shaders {
     Tempest::RenderPipeline  waterReflection, waterReflectionSSR;
 
     Tempest::RenderPipeline  tonemapping, tonemappingUpscale;
+    Tempest::RenderPipeline  hdrOutput;
 
     // AA
     Tempest::ComputePipeline cmaa2EdgeColor2x2Presets[uint32_t(AaPreset::PRESETS_COUNT)];

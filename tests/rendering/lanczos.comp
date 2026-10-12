@@ -1,0 +1,41 @@
+#version 450
+#extension GL_GOOGLE_include_directive : enable
+#extension GL_EXT_control_flow_attributes : enable
+
+#define M_PI 3.14159265358979323846
+#include "upscale/lanczos.glsl"
+
+layout(local_size_x=8, local_size_y=8) in;
+layout(binding=0) uniform sampler2D source;
+layout(binding=1, std430) buffer Output { vec4 pixels[]; };
+layout(push_constant) uniform Dimensions { ivec2 outputSize; };
+
+vec3 reference(sampler2D img, vec2 coord) {
+  vec2 res = vec2(textureSize(img,0));
+  vec2 inv = 1.0/res;
+  coord -= 0.5*inv;
+  vec2 base = floor(coord*res)*inv;
+  vec3 total = vec3(0);
+  for(int x=-2; x<=2; ++x)
+    for(int y=-2; y<=2; ++y) {
+      if(abs(x)==2 && abs(y)==2)
+        continue;
+      vec2 at = vec2(x,y)*inv+base;
+      vec2 d = (at-coord)*res;
+      total += textureLod(img,at+0.5*inv,0).rgb*lanczosWeight(d.x,2)*lanczosWeight(d.y,2);
+      }
+  return total;
+  }
+
+void main() {
+  ivec2 at = ivec2(gl_GlobalInvocationID.xy);
+  if(any(greaterThanEqual(at,outputSize)))
+    return;
+  vec2 uv = (vec2(at)+0.5)/vec2(outputSize);
+#ifdef REFERENCE
+  vec3 c = reference(source,uv);
+#else
+  vec3 c = lanczosUpscale(source,uv);
+#endif
+  pixels[at.y*outputSize.x+at.x] = vec4(c,1);
+  }
