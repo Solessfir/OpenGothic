@@ -1,13 +1,14 @@
 #include "gamemenu.h"
 #include "safearea.h"
+#include "utils/feedback.h"
 
 #include <Tempest/Painter>
 #include <Tempest/Log>
 #include <Tempest/TextCodec>
 #include <Tempest/Dialog>
+#include <Tempest/SystemApi>
 
 #include <algorithm>
-#include <cmath>
 
 #include "utils/string_frm.h"
 #include "world/objects/npc.h"
@@ -15,6 +16,7 @@
 #include "ui/menuroot.h"
 #include "utils/gthfont.h"
 #include "utils/fileutil.h"
+#include "utils/saveslot.h"
 #include "utils/keycodec.h"
 #include "game/definitions/musicdefinitions.h"
 #include "game/serialize.h"
@@ -27,169 +29,6 @@ using namespace Tempest;
 
 static const float scriptDiv=8192.0f;
 
-struct GameMenu::ListContentDialog : Dialog {
-  ListContentDialog(Item& textView):textView(textView) {
-    setFocusPolicy(ClickFocus);
-    setCursorShape(CursorShape::Hidden);
-    setFocus(true);
-    }
-
-  void mouseDownEvent(MouseEvent& e) override {
-    if(e.button==Event::ButtonRight) {
-      close();
-      }
-    }
-
-  void mouseWheelEvent(Tempest::MouseEvent& event) override {
-    onMove(-event.delta);
-    }
-
-  void keyDownEvent(KeyEvent &e) override { e.accept(); }
-  void keyUpEvent  (KeyEvent &e) override {
-    if(e.key==Event::K_ESCAPE) {
-      close();
-      return;
-      }
-    if(e.key==Event::K_W || e.key==Event::K_Up) {
-      onMove(-1);
-      }
-    if(e.key==Event::K_S || e.key==Event::K_Down) {
-      onMove(+1);
-      }
-    }
-
-  void onMove(int dy) {
-    if(dy<0) {
-      if(textView.scroll>0)
-        textView.scroll--;
-      }
-    if(dy>0) {
-      // will be clamped at draw
-      textView.scroll++;
-      }
-    }
-
-  void paintEvent (PaintEvent&) override {}
-  void paintShadow(PaintEvent&) override {}
-
-  Item& textView;
-  };
-
-struct GameMenu::ListViewDialog : Dialog {
-  ListViewDialog(GameMenu& owner, Item& list):owner(owner),list(list){
-    setFocusPolicy(ClickFocus);
-    setCursorShape(CursorShape::Hidden);
-    setFocus(true);
-    status = toStatus(list.handle->user_string[0]);
-    }
-
-  void mouseDownEvent(MouseEvent& e) override {
-    if(e.button==Event::ButtonLeft) {
-      showQuest();
-      }
-    if(e.button==Event::ButtonRight) {
-      close();
-      }
-    }
-
-  void showQuest() {
-    auto  prev = owner.curItem;
-    auto* next = owner.selectedContentItem(&list);
-    auto* ql   = selectedQuest();
-    if(next==nullptr || ql==nullptr)
-      return;
-
-    auto vis = next->visible;
-    next->visible = true;
-
-    std::string text;
-    for(size_t i=0; i<ql->entry.size(); ++i) {
-      text += ql->entry[i];
-      if(i+1<ql->entry.size())
-        text+="\n---\n";
-      }
-    next->scroll          = 0;
-    next->handle->text[0] = text;
-
-    for(uint32_t i=0; i<zenkit::IMenu::item_count; ++i)
-      if(&owner.hItems[i]==next) {
-        owner.curItem = i;
-        break;
-        }
-
-    ListContentDialog dlg(*next);
-    dlg.resize(owner.owner.size());
-    dlg.exec();
-    next->visible = vis;
-    owner.curItem = prev;
-    }
-
-  void keyDownEvent(KeyEvent &e) override { e.accept(); }
-
-  void keyRepeatEvent(KeyEvent &e) override {
-    keyUpEvent(e);
-    }
-
-  void keyUpEvent  (KeyEvent &e) override {
-    if(e.key==Event::K_Return) {
-      showQuest();
-      return;
-      }
-    if(e.key==Event::K_ESCAPE) {
-      close();
-      return;
-      }
-    if(e.key==Event::K_W || e.key==Event::K_Up) {
-      onMove(-1);
-      }
-    if(e.key==Event::K_S || e.key==Event::K_Down) {
-      onMove(+1);
-      }
-    }
-
-  void mouseWheelEvent(Tempest::MouseEvent& event) override {
-    onMove(-event.delta);
-    }
-
-  void onMove(int dy) {
-    if(dy<0) {
-      if(list.value>0)
-        list.value--;
-      }
-    if(dy>0) {
-      const size_t num = numQuests();
-      if(list.value+1<int(num))
-        list.value++;
-      }
-    update();
-    }
-
-  void paintEvent (PaintEvent&) override {}
-  void paintShadow(PaintEvent&) override {}
-
-  size_t numQuests() const {
-    return size_t(GameMenu::numQuests(Gothic::inst().questLog(),status));
-    }
-
-  const QuestLog::Quest* selectedQuest() const {
-    int32_t num = 0;
-    if(auto ql=Gothic::inst().questLog()) {
-      for(size_t i=0; i<ql->questCount(); ++i) {
-        auto& quest = ql->quest(ql->questCount()-i-1);
-        if(!isCompatible(quest,status))
-          continue;
-        if(num==list.value)
-          return &quest;
-        ++num;
-        }
-      }
-    return nullptr;
-    }
-
-  GameMenu& owner;
-  Item&     list;
-  QuestStat status = QuestStat::Log;
-  };
 
 struct GameMenu::KeyEditDialog : Dialog {
   KeyEditDialog(){
@@ -217,10 +56,20 @@ struct GameMenu::KeyEditDialog : Dialog {
   };
 
 struct GameMenu::SavNameDialog : Dialog {
-  SavNameDialog(std::string& text):text(text), text0(text) {
+  SavNameDialog(GameMenu& menu, std::string& text):menu(menu), text(text), text0(text) {
     setFocusPolicy(ClickFocus);
     setCursorShape(CursorShape::Hidden);
     setFocus(true);
+    }
+
+  ~SavNameDialog() override {
+    SystemApi::hideSoftInput();
+    menu.update();
+    }
+
+  void beginTextInput() {
+    menu.update();
+    SystemApi::showSoftInput(text);
     }
 
   void mouseDownEvent(MouseEvent& e) override { e.accept(); }
@@ -232,6 +81,8 @@ struct GameMenu::SavNameDialog : Dialog {
   void keyDownEvent(KeyEvent &e) override { e.accept(); }
   void keyUpEvent  (KeyEvent &e) override {
     update();
+    // The name is painted by the underlying menu, not this transparent input dialog.
+    menu.update();
 
     if(e.key==Event::K_ESCAPE) {
       text = text0;
@@ -260,6 +111,7 @@ struct GameMenu::SavNameDialog : Dialog {
   void paintEvent (PaintEvent&) override {}
   void paintShadow(PaintEvent&) override {}
 
+  GameMenu&    menu;
   std::string& text;
   std::string  text0;
 
@@ -299,6 +151,35 @@ GameMenu::GameMenu(MenuRoot &owner, KeyCodec& keyCodec, zenkit::DaedalusVm& vm, 
   setPosition(int(infoX*float(w())),int(infoY*float(h())));
 
   setSelection(Gothic::inst().isInGameAndAlive() ? menu->default_ingame : menu->default_outgame);
+  int newestSave=-1;
+  auto newestTime=std::filesystem::file_time_type::min();
+  for(int i=0;i<zenkit::IMenu::item_count;++i) {
+    const auto& item=hItems[i];
+    if(!isSelectable(item.handle) || !isEnabled(item.handle) || item.savHdr.version==0 ||
+       item.handle->on_sel_action_s[0]!="SAVEGAME_LOAD") continue;
+    const auto id=saveSlotId(item);
+    if(id==size_t(-1)) continue;
+    const auto path=SaveSlot::path(".",id);
+    std::error_code error;
+    if(!std::filesystem::is_regular_file(std::filesystem::symlink_status(path,error))) continue;
+    const auto time=std::filesystem::last_write_time(path,error);
+    if(!error && (newestSave<0 || time>newestTime)) {
+      newestSave=i;
+      newestTime=time;
+      }
+    }
+  if(newestSave>=0) setSelection(newestSave);
+  // Prefer an existing save at startup or after death; preserve the living player's pause-menu default.
+  if(menuSection==Gothic::inst().menuMain() && !Gothic::inst().isInGameAndAlive()) {
+    for(int i=0;i<zenkit::IMenu::item_count;++i) {
+      const auto& item=hItems[i];
+      if(item.name=="MENUITEM_MAIN_SAVEGAME_LOAD" && isSelectable(item.handle) && isEnabled(item.handle)) {
+        if(SaveSlot::hasAny("."))
+          setSelection(i);
+        break;
+        }
+      }
+    }
   updateValues();
   slider = Resources::loadTexture("MENU_SLIDER_POS.TGA");
 
@@ -315,6 +196,7 @@ GameMenu::~GameMenu() {
   }
 
 void GameMenu::resetVm(zenkit::DaedalusVm* inVm) {
+  while(closeNestedView()) {}
   vm = inVm;
   for(int i=0; i<zenkit::IMenu::item_count; ++i){
     hItems[i].handle = nullptr;
@@ -375,6 +257,278 @@ void GameMenu::initItems() {
       }
     updateItem(hItems[i]);
     }
+  addMissingQuickLoad();
+  initAndroidVideo();
+  initAndroidOptions();
+  quickLoadItem=nullptr;
+  for(auto& item:hItems)
+    if(item.handle!=nullptr && item.name=="MENUITEM_LOAD_SLOT0") quickLoadItem=&item;
+  refreshQuickLoad();
+  }
+
+void GameMenu::refreshQuickLoad() {
+  if(quickLoadItem==nullptr) return;
+  quickLoadSlots=SaveSlot::quickSlots(".");
+  // Browse oldest to newest, starting with the latest save at the right end.
+  std::reverse(quickLoadSlots.begin(),quickLoadSlots.end());
+  quickLoadItem->name="MENUITEM_LOAD_SLOT"+std::to_string(quickLoadSlots.empty() ? 0 : quickLoadSlots.back());
+  updateItem(*quickLoadItem);
+  }
+
+void GameMenu::initAndroidOptions() {
+#if defined(__ANDROID__)
+  auto find=[&](std::string_view name) -> Item* {
+    for(auto& item:hItems) if(item.name==name && item.handle!=nullptr) return &item;
+    return nullptr;
+    };
+  auto voiceLabel=find("MENUITEM_AUDIO_SPEEKER");
+  auto voiceSlider=find("MENUITEM_AUDIO_SPEEKER_CHOICE");
+  auto sourceSlider=find("MENUITEM_AUDIO_SFXVOL_SLIDER");
+  if(voiceLabel!=nullptr && voiceSlider!=nullptr && sourceSlider!=nullptr) {
+    // Android routes audio itself and does not use Gothic's speaker configuration.
+    if(Gothic::settingsGetS("SOUND","voiceVolume").empty())
+      Gothic::settingsSetF("SOUND","voiceVolume",Gothic::settingsVoiceVolume());
+    voiceLabel->handle=std::make_shared<zenkit::IMenuItem>(*voiceLabel->handle);
+    voiceLabel->handle->text[0]="Dialogue volume";
+    voiceLabel->handle->text[1]="Adjust spoken dialogue independently of sound effects.";
+    voiceSlider->handle=std::make_shared<zenkit::IMenuItem>(*sourceSlider->handle);
+    voiceSlider->handle->pos_y=voiceLabel->handle->pos_y;
+    voiceSlider->handle->on_chg_set_option="voiceVolume";
+    voiceSlider->img=sourceSlider->img;
+    updateItem(*voiceSlider);
+    auto music=find("MENUITEM_AUDIO_MUSIC");
+    auto musicChoice=find("MENUITEM_AUDIO_MUSIC_CHOICE");
+    auto provider=find("MENUITEM_AUDIO_PROVIDER");
+    auto providerChoice=find("MENUITEM_AUDIO_PROVIDER_CHOICE");
+    if(music!=nullptr && musicChoice==music+1 && provider==music+2 &&
+       providerChoice==music+3 && voiceLabel==music+4 && voiceSlider==music+5) {
+      // Keep the script's row spacing and choice offsets while grouping the volume sliders.
+      const int musicY=music->handle->pos_y;
+      const int providerY=provider->handle->pos_y;
+      const int voiceY=voiceLabel->handle->pos_y;
+      auto moveRow=[](Item& label, Item& choice, int y) {
+        const int offset=choice.handle->pos_y-label.handle->pos_y;
+        label.handle=std::make_shared<zenkit::IMenuItem>(*label.handle);
+        choice.handle=std::make_shared<zenkit::IMenuItem>(*choice.handle);
+        label.handle->pos_y=y;
+        choice.handle->pos_y=y+offset;
+        };
+      moveRow(*music,*musicChoice,providerY);
+      moveRow(*provider,*providerChoice,voiceY);
+      moveRow(*voiceLabel,*voiceSlider,musicY);
+      std::rotate(music,voiceLabel,voiceSlider+1);
+      }
+    if(auto effects=find("MENUITEM_AUDIO_SFXVOL")) {
+      effects->handle=std::make_shared<zenkit::IMenuItem>(*effects->handle);
+      effects->handle->text[0]="Sound effects";
+      effects->handle->text[1]="Adjust sound effects independently of dialogue.";
+      }
+    }
+
+  auto removeRow=[&](std::string_view name) {
+    auto label=find(name);
+    if(label==nullptr) return;
+    const int y=label->handle->pos_y;
+    *label=Item();
+    // Remove the linked value too, keeping it out of navigation and EFFECTS chains.
+    if(auto choice=find(std::string(name)+"_CHOICE")) *choice=Item();
+    int nextY=0;
+    for(const auto& item:hItems) {
+      if(item.handle==nullptr || item.name.ends_with("_BACK")) continue;
+      const int rowY=item.handle->pos_y;
+      if(rowY>y && (nextY==0 || rowY<nextY)) nextY=rowY;
+      }
+    if(nextY>y) {
+      const int spacing=nextY-y;
+      for(auto& item:hItems) {
+        if(item.handle==nullptr || item.handle->pos_y<=y || item.name.ends_with("_BACK")) continue;
+        item.handle=std::make_shared<zenkit::IMenuItem>(*item.handle);
+        item.handle->pos_y-=spacing;
+        }
+      }
+    };
+  for(auto name:{"MENUITEM_OPT_GRAPHICS", "MENUITEM_OPT_CONTROLS", "MENUITEM_PERF",
+                 "MENUITEM_AUDIO_PROVIDER", "MENUITEM_AUDIO_REVERB", "MENUITEM_AUDIO_REVERB_SPEECH", "MENUITEM_AUDIO_SAMPLERATE",
+                 "MENUITEM_EXT_FFT", "MENUITEM_EXT_WATERFADE", "MENUITEM_EXT_AMBIENTPFX",
+                 "MENUITEM_GAME_FIGHTFOCUS", "MENUITEM_GAME_INTERACTFOCUS", "MENUITEM_GAME_BLOOD"})
+    removeRow(name);
+
+  auto back=find("MENUITEM_GAME_BACK");
+  auto sourceLabel=find("MENUITEM_GAME_SUB_TITLES");
+  auto sourceChoice=find("MENUITEM_GAME_SUB_TITLES_CHOICE");
+  if(back==nullptr || sourceLabel==nullptr || sourceChoice==nullptr) return;
+  size_t end=0;
+  for(size_t i=0;i<std::size(hItems);++i) if(hItems[i].handle!=nullptr) end=i+1;
+  if(end+2>std::size(hItems)) return;
+  Item label, choice;
+  label.name="ANDROID_QUICKSAVES_LABEL";
+  label.handle=std::make_shared<zenkit::IMenuItem>(*sourceLabel->handle);
+  label.img=sourceLabel->img;
+  label.handle->text[0]="Quicksave slots";
+  choice.name="ANDROID_QUICKSAVES";
+  choice.handle=std::make_shared<zenkit::IMenuItem>(*sourceChoice->handle);
+  choice.img=sourceChoice->img;
+  const int choiceOffset=choice.handle->pos_y-label.handle->pos_y;
+  choice.handle->on_chg_set_option_section="GAME";
+  choice.handle->on_chg_set_option="quickSaveSlots";
+  choice.handle->text[0]="Default";
+  for(int i=1;i<=20;++i) choice.handle->text[0]+="|"+std::to_string(i);
+  choice.handle->text[1]="Default: one quicksave. 1-20: rotate through separate quicksave slots.";
+  label.handle->text[1]=choice.handle->text[1];
+
+  std::vector<int> rows;
+  std::vector<std::pair<int,int>> positions;
+  for(auto& item:hItems) {
+    int y=item.handle==nullptr ? 0 : item.handle->pos_y;
+    int offset=0;
+    if(item.name.ends_with("_CHOICE") || item.name.ends_with("_SLIDER")) {
+      if(auto label=find(std::string_view(item.name).substr(0,item.name.size()-7))) {
+        offset=y-label->handle->pos_y;
+        y=label->handle->pos_y;
+        }
+      }
+    positions.emplace_back(y,offset);
+    if(item.handle!=nullptr && item.name!="MENUITEM_GAME_HEADLINE" && &item!=back)
+      rows.push_back(y);
+    }
+  std::sort(rows.begin(),rows.end());
+  rows.erase(std::unique(rows.begin(),rows.end()),rows.end());
+  const int step=4500/int(rows.size()+1);
+  for(auto& item:hItems) {
+    if(item.handle==nullptr || item.name=="MENUITEM_GAME_HEADLINE") continue;
+    item.handle=std::make_shared<zenkit::IMenuItem>(*item.handle);
+    if(&item==back) item.handle->pos_y=7000;
+    else {
+      const auto [y,offset]=positions[size_t(&item-hItems)];
+      item.handle->pos_y=1700+int(std::lower_bound(rows.begin(),rows.end(),y)-rows.begin())*step+offset;
+      }
+    }
+  label.handle->pos_y=1700+int(rows.size())*step;
+  choice.handle->pos_y=label.handle->pos_y+choiceOffset;
+  const size_t index=size_t(back-hItems);
+  std::move_backward(hItems+index,hItems+end,hItems+end+2);
+  hItems[index]=std::move(label);
+  hItems[index+1]=std::move(choice);
+  updateItem(hItems[index+1]);
+#endif
+  }
+
+void GameMenu::initAndroidVideo() {
+#if defined(__ANDROID__)
+  const Item* resolution=nullptr;
+  const Texture2d* sliderBackground=nullptr;
+  for(const auto& item:hItems)
+    if(item.name=="MENUITEM_VID_RESOLUTION_CHOICE") resolution=&item;
+  for(const auto& item:hItems)
+    if(item.name=="MENUITEM_VID_BRIGHTNESS_SLIDER") sliderBackground=item.img;
+  if(resolution==nullptr) return;
+  const auto font=resolution->handle->fontname;
+  auto labelFont=font;
+  auto titleFont=font;
+  auto backFont=font;
+  std::string titleText="VIDEO SETTINGS", backText="BACK";
+  for(const auto& item:hItems) {
+    if(item.name=="MENUITEM_VID_RESOLUTION") labelFont=item.handle->fontname;
+    if(item.name=="MENUITEM_VID_HEADLINE") {
+      titleFont=item.handle->fontname;
+      titleText=item.handle->text[0];
+      }
+    if(item.name=="MENUITEM_VID_BACK") {
+      backFont=item.handle->fontname;
+      backText=item.handle->text[0];
+      }
+    }
+  // Keep the original Gothic menu background and fonts, without editing either game's scripts.
+  for(auto& item:hItems) item=Item();
+  size_t index=0;
+  auto add=[&](const char* name,const char* text,int x,int y,int width,zenkit::MenuItemType type,bool selectable) -> Item& {
+    auto& item=hItems[index++];
+    item.name=name;
+    item.handle=std::make_shared<zenkit::IMenuItem>();
+    auto& h=*item.handle;
+    h.fontname=font;
+    h.text[0]=text;
+    h.pos_x=x; h.pos_y=y; h.dim_x=width; h.dim_y=350;
+    h.type=type;
+    h.flags=selectable ? zenkit::MenuItemFlag::SELECTABLE : zenkit::MenuItemFlag(0);
+    return item;
+    };
+  auto& title=add("ANDROID_VIDEO_TITLE",titleText.c_str(),1000,750,6200,zenkit::MenuItemType::TEXT,false);
+  title.handle->fontname=titleFont;
+  title.handle->dim_y=650;
+  title.handle->flags=zenkit::MenuItemFlag::CENTERED;
+  struct Row { const char* name; const char* label; const char* values; const char* section; const char* option; };
+  const Row rows[]={
+    {"ANDROID_SCALE","Resolution","","ENGINE","renderScale"},
+    {"ANDROID_FPS","Frame rate","30 FPS|60 FPS|Unlocked","ENGINE","frameRateLimit"},
+    {"ANDROID_FOG","Half-res fog","Off|On","ENGINE","fogHalfResolution"},
+    {"ANDROID_SSAO","Half-res SSAO","Off|On","ENGINE","ssaoHalfResolution"},
+    {"ANDROID_SHADOWS","Shadows","512|1024|1536|2048","ENGINE","shadowMapResolution"},
+    {"ANDROID_BRIGHTNESS","Brightness","","VIDEO","zVidBrightness"},
+    {"ANDROID_CONTRAST","Contrast","","VIDEO","zVidContrast"},
+    {"ANDROID_GAMMA","Gamma","","VIDEO","zVidGamma"},
+    };
+  int y=1650;
+  for(const auto& row:rows) {
+    const std::string labelName=std::string(row.name)+"_LABEL";
+    auto& label=add(labelName.c_str(),row.label,1000,y,3700,zenkit::MenuItemType::TEXT,false);
+    label.handle->fontname=labelFont;
+    label.handle->dim_y=600;
+    label.handle->user_string[0]=row.name;
+    auto& item=add(row.name,row.values,4800,y,2200,
+                   row.values[0]==0 ? zenkit::MenuItemType::SLIDER : zenkit::MenuItemType::CHOICEBOX,true);
+    item.handle->on_chg_set_option_section=row.section;
+    item.handle->on_chg_set_option=row.option;
+    if(item.handle->type==zenkit::MenuItemType::SLIDER) {
+      item.img=sliderBackground;
+      item.handle->dim_y=600;
+      }
+    else {
+      // Original Gothic choice values sit slightly below the larger label's top edge.
+      item.handle->pos_y+=120;
+      }
+    updateItem(item);
+    y+=625;
+    }
+  auto& back=add("ANDROID_VIDEO_BACK",backText.c_str(),1000,7000,6200,zenkit::MenuItemType::TEXT,true);
+  back.handle->fontname=backFont;
+  back.handle->dim_y=650;
+  back.handle->flags=back.handle->flags | zenkit::MenuItemFlag::CENTERED;
+  back.handle->on_sel_action[0]=int(zenkit::MenuItemSelectAction::BACK);
+#endif
+  }
+
+void GameMenu::addMissingQuickLoad() {
+  // Gothic 1 and some mods omit slot zero. Reuse the load list's styling without modifying MENU.DAT.
+  int first=-1, last=-1, end=0;
+  for(int i=0;i<zenkit::IMenu::item_count;++i) {
+    const auto& item=hItems[i];
+    if(item.handle==nullptr)
+      continue;
+    end=i+1;
+    if(item.handle->on_sel_action_s[0]!="SAVEGAME_LOAD")
+      continue;
+    const auto slot=saveSlotId(item);
+    if(slot==0)
+      return;
+    if(slot==size_t(-1))
+      continue;
+    if(first<0) first=i;
+    last=i;
+    }
+  if(first<0 || end==zenkit::IMenu::item_count)
+    return;
+
+  Item quick;
+  quick.name="MENUITEM_LOAD_SLOT0";
+  quick.handle=std::make_shared<zenkit::IMenuItem>(*hItems[first].handle);
+  quick.img=hItems[first].img;
+  quick.handle->text[0]="- Quick Save -";
+  const int spacing=last>first ? (hItems[last].handle->pos_y-hItems[first].handle->pos_y)/(last-first) : 300;
+  quick.handle->pos_y=hItems[last].handle->pos_y+spacing;
+  std::move_backward(hItems+last+1,hItems+end,hItems+end+1);
+  hItems[last+1]=std::move(quick);
+  updateItem(hItems[last+1]);
   }
 
 void GameMenu::paintEvent(PaintEvent &e) {
@@ -410,6 +564,44 @@ void GameMenu::paintEvent(PaintEvent &e) {
     auto&       fnt   = Resources::font(scale);
     fnt.drawText(p, w()-fnt.textSize(appBuild).w-int(25*scale), h()-int(25*scale), appBuild);
     }
+
+  if(pendingDelete!=nullptr) {
+    const auto font = Resources::font(scale);
+    const auto titleFont = Resources::font(scale*1.1f);
+    const char* title = "Delete save permanently?";
+    const string_frm name("\"",deleteName,"\"");
+    const std::string_view hint = deleteError.empty() ? deleteHint : deleteError;
+    const int padding = std::max(8,int(16*scale));
+    const int gap = std::max(4,font.pixelSize()/2);
+    const int border = std::max(1,int(scale));
+    const int available = std::max(1,w()-2*padding);
+    const int contentWidth = std::max({titleFont.textSize(title).w,font.textSize(name).w,font.textSize(hint).w});
+    const int width = std::min(available,std::clamp(contentWidth+2*padding,int(280*scale),int(420*scale)));
+    const int textWidth = std::max(1,width-2*padding);
+    const int titleHeight = titleFont.textSize(textWidth,title).h;
+    const int nameHeight = font.textSize(textWidth,name).h;
+    const int hintHeight = font.textSize(textWidth,hint).h;
+    const int height = 2*padding+titleHeight+nameHeight+hintHeight+3*gap+border;
+    const int left = (w()-width)/2;
+    const int top = (h()-height)/2;
+    p.setBrush(Color(0.f,0.f,0.f,0.88f));
+    p.drawRect(left,top,width,height);
+    p.setBrush(Color(0.843f,0.761f,0.631f,0.85f));
+    p.drawRect(left,top,width,border);
+    p.drawRect(left,top+height-border,width,border);
+    p.drawRect(left,top,border,height);
+    p.drawRect(left+width-border,top,border,height);
+    int row = top+padding;
+    // Gothic font coordinates use the first line's baseline.
+    titleFont.drawText(p,left+padding,row+titleFont.pixelSize(),textWidth,titleHeight,title,AlignHCenter);
+    row+=titleHeight+gap;
+    font.drawText(p,left+padding,row+font.pixelSize(),textWidth,nameHeight,name,AlignHCenter);
+    row+=nameHeight+gap;
+    p.setBrush(Color(0.843f,0.761f,0.631f,0.35f));
+    p.drawRect(left+padding,row,textWidth,border);
+    row+=border+gap;
+    font.drawText(p,left+padding,row+font.pixelSize(),textWidth,hintHeight,hint,AlignHCenter);
+    }
   }
 
 void GameMenu::drawItem(Painter& p, Item& hItem) {
@@ -422,8 +614,13 @@ void GameMenu::drawItem(Painter& p, Item& hItem) {
   auto flags = item->flags;
   getText(hItem,textBuf);
 
-  const auto rect = itemRect(hItem);
-  const int x = rect.x, y = rect.y, szX = rect.w, szY = rect.h;
+  const int32_t dimx = (item->dim_x!=-1) ? item->dim_x : 8192;
+  const int32_t dimy = (item->dim_y!=-1) ? item->dim_y : 750;
+
+  const int   x     = int(float(w()*item->pos_x)/scriptDiv);
+  const int   y     = int(float(h()*item->pos_y)/scriptDiv);
+  int         szX   = int(float(w()*dimx       )/scriptDiv);
+  int         szY   = int(float(h()*dimy       )/scriptDiv);
 
   if(hItem.img && !hItem.img->isEmpty()) {
     p.setBrush(*hItem.img);
@@ -524,6 +721,11 @@ void GameMenu::drawSlider(Painter& p, Item& it, int x, int y, int sw, int sh) {
     return;
 
   float v  = Gothic::settingsGetF(sec, opt);
+  if(it.name=="ANDROID_SCALE") {
+    v=(std::clamp(v,50.f,100.f)-50.f)/50.f;
+    getTextFont(it).drawText(p,x+sw+8,y+getTextFont(it).pixelSize(),string_frm(Gothic::settingsGetI(sec,opt),"%"));
+    p.setBrush(*slider);
+    }
   int   dx = int(float(sw-w)*std::max(0.f,std::min(v,1.f)));
   p.drawRect(x+dx,y+(sh-h)/2,w,h,
              0,0,p.brush().w(),p.brush().h());
@@ -586,91 +788,138 @@ void GameMenu::resizeEvent(SizeEvent &) {
   onTick();
   }
 
-Rect GameMenu::itemRect(const Item& it) const {
-  const auto& item = it.handle;
-  const int dimx = item->dim_x!=-1 ? item->dim_x : 8192;
-  const int dimy = item->dim_y!=-1 ? item->dim_y : 750;
-  return Rect(int(float(w()*item->pos_x)/scriptDiv),int(float(h()*item->pos_y)/scriptDiv),
-              int(float(w()*dimx)/scriptDiv),int(float(h()*dimy)/scriptDiv));
-  }
-
-GameMenu::Item* GameMenu::touchHitTest(Item& p, Point pos) {
-  auto* it = &p;
-  while(it!=nullptr) {
-    auto rect = itemRect(*it);
-    if(rect.contains(pos))
-      return it;
-    if(it->handle->flags & zenkit::MenuItemFlag::EFFECTS) {
-      auto next=selectedNextItem(it);
-      if(next!=&p)
-        it=next;
-      } else {
-      it=nullptr;
-      }
+bool GameMenu::closeNestedView() {
+  if(pendingDelete!=nullptr) {
+    pendingDelete=nullptr;
     }
-  return nullptr;
+  else if(journalContent!=nullptr) {
+    journalContent->visible=journalContentWasVisible;
+    journalContent=nullptr;
+    curItem=uint32_t(journalList-hItems);
+    }
+  else if(journalList!=nullptr) {
+    journalList=nullptr;
+    curItem=journalCategory;
+    }
+  else {
+    return false;
+    }
+  update();
+  return true;
   }
 
-void GameMenu::onBeginTouch(Point pos) {
-  touchSlider = nullptr;
-  touchActive = false;
-
-  // reverse of draw order
-  for(uint32_t i = zenkit::IMenu::item_count; i-- > 0;) {
-    if(hItems[i].handle==nullptr)
-      continue;
-    auto& item = hItems[i].handle;
-    if(!isEnabled(item) || isHidden(item))
-      continue;
-    if(!isSelectable(item))
-      continue;
-    auto hit = touchHitTest(hItems[i], pos);
-    if(hit==nullptr)
-      continue;
-    setSelection(int(i), -1);
-    if(auto s = selectedItem()) {
-      updateSavThumb(*s);
-      touchActive = true;
+void GameMenu::showQuest() {
+  auto* log=Gothic::inst().questLog();
+  auto* content=selectedContentItem(journalList);
+  if(log==nullptr || content==nullptr) return;
+  const auto status=toStatus(journalList->handle->user_string[0]);
+  int32_t selected=0;
+  for(size_t i=log->questCount();i>0;--i) {
+    const auto& quest=log->quest(i-1);
+    if(!isCompatible(quest,status)) continue;
+    if(selected++!=journalList->value) continue;
+    std::string text;
+    for(size_t entry=0;entry<quest.entry.size();++entry) {
+      if(entry>0) text+="\n---\n";
+      text+=quest.entry[entry];
       }
-    if(hit->handle->type==zenkit::MenuItemType::SLIDER) {
-      touchSlider = hit;
-      break;
-      }
-    break;
+    journalContent=content;
+    journalContentWasVisible=content->visible;
+    content->visible=true;
+    content->scroll=0;
+    content->handle->text[0]=std::move(text);
+    curItem=uint32_t(content-hItems);
+    Feedback::play(Feedback::Effect::Confirm);
+    update();
+    return;
     }
   }
 
-void GameMenu::onDragTouch(Point pos) {
-  if(touchSlider==nullptr)
+void GameMenu::journalInput(KeyCodec::Action key) {
+  // Stay in the regular menu input path so touch and gamepad can reach every journal level.
+  if(key==KeyCodec::Escape) {
+    closeNestedView();
     return;
-  const auto  rect = itemRect(*touchSlider);
-  const auto& sec  = touchSlider->handle->on_chg_set_option_section;
-  const auto& opt  = touchSlider->handle->on_chg_set_option;
-  if(rect.w<=0 || sec.empty() || opt.empty())
+    }
+  if(key==KeyCodec::ActionGeneric && journalContent==nullptr) {
+    showQuest();
     return;
-
-  float value = std::clamp(float(pos.x-rect.x)/float(rect.w),0.f,1.f) * 100.f;
-  float stp   = sliderStep(touchSlider->handle) * 100.f;
-  if(stp<=1.f)
-    stp = 1.f;
-
-  value = std::clamp(std::round(value/stp)*stp,0.f,100.f);
-
-  Gothic::settingsSetF(sec,opt,value/100.f);
+    }
+  if(key!=KeyCodec::Forward && key!=KeyCodec::Back) return;
+  const int32_t dy=key==KeyCodec::Forward ? -1 : 1;
+  if(journalContent!=nullptr) {
+    journalContent->scroll=std::max(0,journalContent->scroll+dy);
+    }
+  else {
+    const int32_t count=numQuests(Gothic::inst().questLog(),toStatus(journalList->handle->user_string[0]));
+    journalList->value=std::clamp(journalList->value+dy,0,std::max(0,count-1));
+    }
   update();
   }
 
-void GameMenu::onEndTouch(bool activate) {
-  const bool tap = touchActive && touchSlider==nullptr;
-  touchSlider = nullptr;
-  touchActive = false;
-  if(activate && tap)
-    onKeyboard(KeyCodec::ActionGeneric);
+bool GameMenu::adjustsHorizontally() {
+  if(journalList!=nullptr || pendingDelete!=nullptr) return false;
+  auto sel=selectedItem();
+  if(sel==nullptr) return false;
+  return isHorSelectable(sel->handle) || canAdjustValue();
+  }
+
+bool GameMenu::canAdjustValue() {
+  if(journalList!=nullptr || pendingDelete!=nullptr || ctrlInput!=nullptr) return false;
+  auto first=selectedItem();
+  if(first==quickLoadItem && quickLoadSlots.size()>1) return true;
+  auto item=first;
+  // Gothic can select a text label whose EFFECTS chain contains the actual slider.
+  for(int count=0; item!=nullptr && count<zenkit::IMenu::item_count; ++count) {
+    const auto& handle=item->handle;
+    if(!isEnabled(handle) || isHidden(handle)) return false;
+    if((handle->type==zenkit::MenuItemType::SLIDER || handle->type==zenkit::MenuItemType::CHOICEBOX) &&
+       !handle->on_chg_set_option.empty() && !handle->on_chg_set_option_section.empty()) return true;
+    if(!(handle->flags & zenkit::MenuItemFlag::EFFECTS)) return false;
+    item=selectedNextItem(item);
+    if(item==first) break;
+    }
+  return false;
+  }
+
+void GameMenu::adjustValue(int steps) {
+  if(steps==0 || !canAdjustValue()) return;
+  exec(*selectedItem(),steps,steps>0 ? KeyCodec::Right : KeyCodec::Left);
+  update();
   }
 
 void GameMenu::onKeyboard(KeyCodec::Action key) {
+  if(journalList!=nullptr) {
+    journalInput(key);
+    return;
+    }
+  if(pendingDelete!=nullptr) {
+    if(key==KeyCodec::Escape) {
+      pendingDelete=nullptr;
+      update();
+      }
+    else if(key==KeyCodec::ActionGeneric && Gothic::inst().checkLoading()==Gothic::LoadState::Idle) {
+      Gothic::inst().finishSave(true);
+      std::error_code error;
+      if(SaveSlot::remove(".",saveSlotId(*pendingDelete),error)) {
+        Log::i("Deleted save slot ",saveSlotId(*pendingDelete));
+        pendingDelete->savHdr = SaveGameHeader();
+        pendingDelete->savPriview = Pixmap();
+        pendingDelete->handle->text[0] = "---";
+        pendingDelete=nullptr;
+        refreshQuickLoad();
+        updateSavThumb(*selectedItem());
+        }
+      else {
+        Log::e("Cannot delete save: ",error.message());
+        deleteError="Could not delete save. Cancel and try again.";
+        }
+      update();
+      }
+    return;
+    }
   auto sel = selectedItem();
-  if(sel!=nullptr && isHorSelectable(sel->handle)) {
+  if(sel!=nullptr && isHorSelectable(sel->handle) && !canAdjustValue()) {
     if(key==KeyCodec::Left)
       key = KeyCodec::Forward;
     else if(key==KeyCodec::Right)
@@ -696,9 +945,33 @@ void GameMenu::onKeyboard(KeyCodec::Action key) {
     exec(*sel,0,key);
     }
   if(key==KeyCodec::K_Del && sel!=nullptr) {
+    if(saveSlotId(*sel)!=size_t(-1)) {
+      requestDeleteSave("Enter: delete    Esc: cancel");
+      return;
+      }
     Gothic::inst().emitGlobalSound(Gothic::inst().loadSoundFx("MENU_SELECT"));
     exec(*sel,0,key);
     }
+  }
+
+bool GameMenu::canRequestDeleteSave() const {
+  // This is queried by touch input every frame; check the file only when deletion is requested.
+  return journalList==nullptr && pendingDelete==nullptr && ctrlInput==nullptr && curItem<zenkit::IMenu::item_count &&
+         saveSlotId(hItems[curItem])!=size_t(-1) && Gothic::inst().checkLoading()==Gothic::LoadState::Idle;
+  }
+
+void GameMenu::requestDeleteSave(std::string_view hint) {
+  if(!canRequestDeleteSave()) return;
+  auto sel=selectedItem();
+  std::error_code error;
+  const auto status=std::filesystem::symlink_status(SaveSlot::path(".",saveSlotId(*sel)),error);
+  if(error || !std::filesystem::is_regular_file(status))
+    return;
+  pendingDelete=sel;
+  deleteName=sel->handle->text[0];
+  deleteHint=hint;
+  deleteError.clear();
+  update();
   }
 
 void GameMenu::onTick() {
@@ -783,6 +1056,8 @@ void GameMenu::setSelection(int desired, int seek) {
 
     auto& it=hItems[cur].handle;
     if(isSelectable(it) && isEnabled(it)){
+      if(curItem!=cur && curItem!=uint32_t(-1))
+        Feedback::play(Feedback::Effect::Navigate);
       curItem=cur;
       for(size_t i=0;i<zenkit::IMenuItem::select_action_count;++i)
         if(it->on_sel_action[i]==int(zenkit::MenuItemSelectAction::EXECUTE_COMMANDS))
@@ -812,12 +1087,28 @@ void GameMenu::getText(const Item& it, std::vector<char> &out) {
     }
   }
 
+bool GameMenu::selectionIncludes(const Item& item) {
+  auto* first=selectedItem();
+  if(first==nullptr) return false;
+  if(item.name.starts_with("ANDROID_") && item.handle->user_string[0]==first->name)
+    return true;
+  // Original menus select a label and link its slider through an EFFECTS chain.
+  auto* current=first;
+  for(size_t count=0;current!=nullptr && count<zenkit::IMenu::item_count;++count) {
+    if(current==&item) return true;
+    if(!(current->handle->flags & zenkit::MenuItemFlag::EFFECTS)) return false;
+    current=selectedNextItem(current);
+    if(current==first) break;
+    }
+  return false;
+  }
+
 const GthFont& GameMenu::getTextFont(const GameMenu::Item &it) {
   const float scale = Gothic::interfaceScale(this);
   GthFont ret;
   if(!isEnabled(it.handle))
     return Resources::font(it.handle->fontname, Resources::FontType::Disabled, scale);
-  if(&it==selectedItem())
+  if(selectionIncludes(it))
     return Resources::font(it.handle->fontname, Resources::FontType::Hi, scale);
   return Resources::font(it.handle->fontname, Resources::FontType::Normal, scale);
   }
@@ -828,6 +1119,15 @@ bool GameMenu::isSelectable(const std::shared_ptr<zenkit::IMenuItem>& item) {
 
 bool GameMenu::isHorSelectable(const std::shared_ptr<zenkit::IMenuItem>& item) {
   return item != nullptr && (item->flags & zenkit::MenuItemFlag::HOR_SELECTABLE) && !isHidden(item);
+  }
+
+float GameMenu::sliderStep(const std::shared_ptr<zenkit::IMenuItem>& item) {
+  if(item==nullptr || item->type!=zenkit::MenuItemType::SLIDER)
+    return 0;
+  float v = item->user_float[0];
+  if(v==0.f)
+    return 0.03f; // error?
+  return 1.f/v;
   }
 
 bool GameMenu::isEnabled(const std::shared_ptr<zenkit::IMenuItem>& item) {
@@ -851,16 +1151,8 @@ bool GameMenu::isHidden(const std::shared_ptr<zenkit::IMenuItem>& item) {
   return opt==item->hide_on_value;
   }
 
-float GameMenu::sliderStep(const std::shared_ptr<zenkit::IMenuItem>& item) {
-  if(item==nullptr || item->type!=zenkit::MenuItemType::SLIDER)
-    return 0;
-  float v = item->user_float[0];
-  if(v==0.f)
-    return 0.03f; // error?
-  return 1.f/v;
-  }
-
 void GameMenu::exec(Item &p, int slideDx, KeyCodec::Action hint) {
+  Feedback::play(slideDx==0 ? Feedback::Effect::Confirm : Feedback::Effect::Navigate);
   auto* it = &p;
   while(it!=nullptr) {
     if(it==&p)
@@ -882,6 +1174,16 @@ void GameMenu::exec(Item &p, int slideDx, KeyCodec::Action hint) {
   }
 
 void GameMenu::execSingle(Item &it, int slideDx, KeyCodec::Action hint) {
+  if(&it==quickLoadItem && slideDx!=0) {
+    if(quickLoadSlots.empty()) return;
+    const auto current=std::find(quickLoadSlots.begin(),quickLoadSlots.end(),saveSlotId(it));
+    const int index=int(current-quickLoadSlots.begin());
+    const int next=std::clamp(index+slideDx,0,int(quickLoadSlots.size())-1);
+    it.name="MENUITEM_LOAD_SLOT"+std::to_string(quickLoadSlots[size_t(next)]);
+    updateItem(it);
+    updateSavThumb(it);
+    return;
+    }
   auto& item          = it.handle;
   auto& onSelAction   = item->on_sel_action;
   auto& onSelAction_S = item->on_sel_action_s;
@@ -890,9 +1192,10 @@ void GameMenu::execSingle(Item &it, int slideDx, KeyCodec::Action hint) {
   if(item->type==zenkit::MenuItemType::INPUT && slideDx==0) {
     ctrlInput = &it;
     if(item->on_chg_set_option.empty()) {
-      SavNameDialog dlg{item->text[0]};
+      SavNameDialog dlg{*this,item->text[0]};
       if(it.savHdr.version==0)
         dlg.text = "";
+      dlg.beginTextInput();
       dlg.resize(owner.size());
       dlg.exec();
       ctrlInput = nullptr;
@@ -985,25 +1288,54 @@ void GameMenu::execChgOption(Item &item, int slideDx) {
   if(sec.empty() || opt.empty())
     return;
 
+  if(item.name=="ANDROID_SCALE") {
+    if(slideDx!=0) Gothic::settingsSetI(sec,opt,std::clamp(Gothic::settingsGetI(sec,opt)+slideDx*5,50,100));
+    return;
+    }
+  if(item.name=="ANDROID_QUICKSAVES") {
+    const int count=std::clamp(Gothic::settingsGetI(sec,opt),0,20);
+    Gothic::settingsSetI(sec,opt,slideDx==0 ? (count+1)%21 : std::clamp(count+slideDx,0,20));
+    updateItem(item);
+    return;
+    }
+  if(item.name=="ANDROID_FPS") {
+    constexpr int values[]={30,60,0};
+    updateItem(item);
+    if(item.value==3)
+      item.value=slideDx<0 ? 2 : 0;
+    else if(slideDx==0)
+      item.value=(item.value+1)%3;
+    else
+      item.value=std::clamp(item.value+slideDx,0,2);
+    Gothic::settingsSetI(sec,opt,values[item.value]);
+    updateItem(item);
+    return;
+    }
+  if(item.name=="ANDROID_SHADOWS") {
+    constexpr int values[]={512,1024,1536,2048};
+    updateItem(item);
+    item.value=std::clamp(item.value+slideDx,0,3);
+    Gothic::settingsSetI(sec,opt,values[item.value]);
+    return;
+    }
+  if((item.name=="ANDROID_FOG" || item.name=="ANDROID_SSAO") && slideDx==0) {
+    Gothic::settingsSetI(sec,opt,!Gothic::settingsGetI(sec,opt));
+    return;
+    }
+
   if(item.handle->type==zenkit::MenuItemType::SLIDER && slideDx!=0) {
     updateItem(item);
     float v = Gothic::settingsGetF(sec, opt);
-    float s = sliderStep(item.handle);
-    v  = std::max(0.f,std::min(v+float(slideDx)*s,1.f));
+    v  = std::max(0.f,std::min(v+float(slideDx)*sliderStep(item.handle),1.f));
     Gothic::settingsSetF(sec, opt, v);
     }
   if(item.handle->type==zenkit::MenuItemType::CHOICEBOX) {
     updateItem(item);
     const int cnt = int(strEnumSize(item.handle->text[0]));
-#if defined(__MOBILE_PLATFORM__)
-    if(slideDx==0 && cnt>0)
-      item.value = (item.value+1)%cnt; else
-      item.value += slideDx;
-#else
     if(slideDx==0 && cnt==2)
-      slideDx = 1;
-    item.value += slideDx;
-#endif
+      slideDx = 1; // QoL: on/off toggle
+
+    item.value += slideDx; // next value
     if(cnt>0)
       item.value = std::clamp(item.value,0,cnt-1);  else
       item.value = 0;
@@ -1016,8 +1348,32 @@ void GameMenu::execSaveGame(const GameMenu::Item& item) {
   if(id==size_t(-1))
     return;
 
-  string_frm fname("save_slot_",int(id),".sav");
+  const auto fname=SaveSlot::path(".",id).string();
   Gothic::inst().save(fname,item.handle->text[0]);
+  }
+
+GameMenu::Item* GameMenu::selectedSaveItem() {
+  if(pendingDelete!=nullptr || ctrlInput!=nullptr || !Gothic::inst().isInGameAndAlive() ||
+     Gothic::inst().checkLoading()!=Gothic::LoadState::Idle) return nullptr;
+  auto item=selectedItem();
+  if(item==nullptr || !isEnabled(item->handle) || saveSlotId(*item)==size_t(-1)) return nullptr;
+  for(const auto& action:item->handle->on_sel_action_s)
+    if(action=="SAVEGAME_SAVE") return item;
+  return nullptr;
+  }
+
+bool GameMenu::overwriteSelectedSave() {
+  auto item=selectedSaveItem();
+  if(item==nullptr || item->savHdr.version==0 ||
+     !FileUtil::exists(TextCodec::toUtf16(SaveSlot::path(".",saveSlotId(*item)).string()))) return false;
+  item->handle->text[0]=item->savHdr.name;
+  execSaveGame(*item);
+  owner.closeAll();
+  return true;
+  }
+
+void GameMenu::renameSelectedSave() {
+  if(selectedSaveItem()!=nullptr) onKeyboard(KeyCodec::ActionGeneric);
   }
 
 bool GameMenu::execLoadGame(const GameMenu::Item &item) {
@@ -1025,7 +1381,7 @@ bool GameMenu::execLoadGame(const GameMenu::Item &item) {
   if(id==size_t(-1))
     return false;
 
-  string_frm fname("save_slot_",int(id),".sav");
+  const auto fname=SaveSlot::path(".",id).string();
   if(!FileUtil::exists(TextCodec::toUtf16(fname.c_str())))
     return false;
   Gothic::inst().load(fname);
@@ -1041,16 +1397,13 @@ void GameMenu::execCommands(std::string str, bool isClick, KeyCodec::Action hint
       if(i.handle != nullptr && i.handle->type==zenkit::MenuItemType::LISTBOX) {
         i.visible = (i.name==arg0);
         if(i.visible && isClick) {
-          const uint32_t prev = curItem;
-          curItem = id;
-          ListViewDialog dlg(*this,i);
-          if(dlg.numQuests()==0) {
-            curItem = prev;
-            return;
-            }
-          dlg.resize(owner.size());
-          dlg.exec();
-          curItem = prev;
+          const int32_t count=numQuests(Gothic::inst().questLog(),toStatus(i.handle->user_string[0]));
+          if(count==0) continue;
+          journalCategory=curItem;
+          journalList=&i;
+          i.value=std::clamp(i.value,0,count-1);
+          curItem=id;
+          update();
           }
         }
       }
@@ -1077,6 +1430,20 @@ void GameMenu::execCommands(std::string str, bool isClick, KeyCodec::Action hint
 void GameMenu::updateItem(GameMenu::Item &item) {
   auto& it   = item.handle;
   item.value = Gothic::settingsGetI(it->on_chg_set_option_section, it->on_chg_set_option);
+  if(item.name=="ANDROID_QUICKSAVES")
+    item.value=std::clamp(item.value,0,20);
+  if(item.name=="ANDROID_FPS") {
+    const int limit=Gothic::settingsFpsLimit();
+    item.value=limit==30 ? 0 : (limit==60 ? 1 : (limit==0 ? 2 : 3));
+    it->text[0]="30 FPS|60 FPS|Unlocked";
+    // Preserve and display custom legacy limits until the player chooses a preset.
+    if(item.value==3)
+      it->text[0]+="|"+std::to_string(limit)+" FPS";
+    }
+  if(item.name=="ANDROID_SHADOWS") {
+    const int size=item.value;
+    item.value=size==512 ? 0 : (size==1024 ? 1 : (size==1536 ? 2 : 3));
+    }
   updateSavTitle(item);
   }
 
@@ -1088,8 +1455,9 @@ void GameMenu::updateSavTitle(GameMenu::Item& sel) {
   if(id==size_t(-1))
     return;
 
-  char fname[64]={};
-  std::snprintf(fname,sizeof(fname)-1,"save_slot_%d.sav",int(id));
+  // Include the just-finished save when choosing the newest slot and preview.
+  Gothic::inst().finishSave(true);
+  const auto fname=SaveSlot::path(".",id).string();
 
   if(!FileUtil::exists(TextCodec::toUtf16(fname))) {
     sel.handle->text[0] = "---";
@@ -1105,6 +1473,11 @@ void GameMenu::updateSavTitle(GameMenu::Item& sel) {
     if(id!=0 || sel.handle->text[0].empty())
       sel.handle->text[0] = hdr.name;
     sel.savHdr = std::move(hdr);
+    if(&sel==quickLoadItem && quickLoadSlots.size()>1) {
+      const auto index=std::find(quickLoadSlots.begin(),quickLoadSlots.end(),id)-quickLoadSlots.begin();
+      sel.handle->text[0]="Quick save "+std::to_string(index+1)+"/"+std::to_string(quickLoadSlots.size());
+      sel.handle->text[1]="Left / Right: browse quicksaves. Accept: load.";
+      }
 
     if(reader.setEntry("priview.png"))
       reader.read(sel.savPriview); // legacy
@@ -1153,8 +1526,7 @@ bool GameMenu::implUpdateSavThumb(GameMenu::Item& sel) {
   if(id==size_t(-1))
     return false;
 
-  char fname[64]={};
-  std::snprintf(fname,sizeof(fname)-1,"save_slot_%d.sav",int(id));
+  const auto fname=SaveSlot::path(".",id).string();
 
   if(!FileUtil::exists(TextCodec::toUtf16(fname)))
     return false;

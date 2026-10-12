@@ -1,8 +1,14 @@
 #include "inventorymenu.h"
 #include "safearea.h"
+#include "utils/feedback.h"
+#include "utils/radialinput.h"
 
 #include <Tempest/Painter>
 #include <Tempest/SoundEffect>
+#include <Tempest/Application>
+
+#include <algorithm>
+#include <limits>
 
 #include "utils/string_frm.h"
 #include "world/objects/npc.h"
@@ -13,10 +19,10 @@
 #include "utils/keycodec.h"
 #include "gothic.h"
 #include "resources.h"
+#include "utils/gamepadbindings.h"
 
 using namespace Tempest;
 
-static constexpr int headerTop     = 70;
 static constexpr int headerSpacing = 30;
 
 struct InventoryMenu::Page {
@@ -100,6 +106,7 @@ InventoryMenu::~InventoryMenu() {
   }
 
 void InventoryMenu::close() {
+  wheelActive=false;
   if(state!=State::Closed) {
     if(state==State::Trade)
       Gothic::inst().emitGlobalSound("TRADE_CLOSE"); else
@@ -264,29 +271,39 @@ void InventoryMenu::processMove(KeyEvent& e) {
 
 void InventoryMenu::moveLeft(bool usePage) {
   auto& sel = activePageSel();
+  const auto oldPage=page;
+  const auto oldSelection=sel.sel;
 
   if(usePage && sel.sel%columsCount==0 && page>0)
     page--;
   else if(sel.sel>0)
     sel.sel--;
+  if(page!=oldPage || sel.sel!=oldSelection)
+    Feedback::play(Feedback::Effect::Navigate);
   }
 
 void InventoryMenu::moveRight(bool usePage) {
   auto&        pg     = activePage();
   auto&        sel    = activePageSel();
   const size_t pCount = pagesCount();
+  const auto oldPage=page;
+  const auto oldSelection=sel.sel;
 
   if(usePage && ((sel.sel+1u)%columsCount==0 || sel.sel+1u==pg.size() || pg.size()==0) && page+1u<pCount)
     page++;
   else if(sel.sel+1<pg.size())
     sel.sel++;
+  if(page!=oldPage || sel.sel!=oldSelection)
+    Feedback::play(Feedback::Effect::Navigate);
   }
 
 void InventoryMenu::moveUp() {
   auto& sel = activePageSel();
 
-  if(sel.sel>=columsCount)
+  if(sel.sel>=columsCount) {
     sel.sel -= columsCount;
+    Feedback::play(Feedback::Effect::Navigate);
+    }
   else
     moveLeft(false);
   }
@@ -295,8 +312,10 @@ void InventoryMenu::moveDown() {
   auto& pg  = activePage();
   auto& sel = activePageSel();
 
-  if(sel.sel+columsCount<pg.size())
+  if(sel.sel+columsCount<pg.size()) {
     sel.sel += columsCount;
+    Feedback::play(Feedback::Effect::Navigate);
+    }
   else
     moveRight(false);
   }
@@ -404,8 +423,8 @@ void InventoryMenu::mouseWheelEvent(MouseEvent &e) {
   }
 
 size_t InventoryMenu::rowsCount() const {
-  const int iy=std::max(headerTop,margins().top)+headerHeight()+headerSpacing;
-  return size_t((h()-iy-infoHeight()-std::max(20,margins().bottom))/slotSize().h);
+  const int reserved = hasSideInfo() ? 0 : infoHeight();
+  return size_t(std::max(1,(h()-gridTop()-reserved-std::max(20,margins().bottom))/std::max(1,slotSize().h)));
   }
 
 int InventoryMenu::headerHeight() const {
@@ -440,6 +459,42 @@ int InventoryMenu::infoHeight() const {
   return (Item::MAX_UI_ROWS+2)*int(float(Resources::font(scale).pixelSize()))+int(scale*10)/*padding bottom*/;
   }
 
+bool InventoryMenu::hasSideInfo() const {
+#if defined(__ANDROID__)
+  const float scale = Gothic::interfaceScale(this);
+  const int gap = int(24*scale);
+  const int centerWidth = w()-2*(43+int(columsCount)*slotSize().w+gap);
+  return centerWidth>=int(360*scale) && h()>=2*infoHeight()+60;
+#else
+  return false;
+#endif
+  }
+
+int InventoryMenu::headerTop() const {
+  if(hasSideInfo())
+    return std::max(int(16*Gothic::interfaceScale(this)),margins().top);
+  return std::max(70,margins().top);
+  }
+
+int InventoryMenu::gridTop() const {
+  if(hasSideInfo())
+    return headerTop()+int(42*Gothic::interfaceScale(this));
+  return headerTop()+headerHeight()+headerSpacing;
+  }
+
+Rect InventoryMenu::infoRect() const {
+  const float scale = Gothic::interfaceScale(this);
+  const int dh = infoHeight();
+  const int y  = h()-dh-std::max(20,margins().bottom);
+  if(hasSideInfo()) {
+    const int gap = int(24*scale);
+    const int x = 43+int(columsCount)*slotSize().w+gap;
+    return Rect(x,y,w()-2*x,dh);
+    }
+  const int dw = std::min(clientRect().w,int(720*scale));
+  return Rect(SafeArea::center(w(),dw,margins().left,margins().right),y,dw,dh);
+  }
+
 size_t InventoryMenu::pagesCount() const {
   if(state==State::Chest || state==State::Trade)
     return 2;
@@ -469,6 +524,8 @@ void InventoryMenu::onItemAction(uint8_t slotHint) {
   auto it = page.get(sel.sel);
   if(!it.isValid())
     return;
+
+  Feedback::play(Feedback::Effect::Confirm);
 
   if(state==State::Equip) {
     const size_t clsId = it->clsId();
@@ -561,12 +618,13 @@ void InventoryMenu::adjustScroll() {
   }
 
 void InventoryMenu::drawAll(Painter &p, Npc &player, DrawPass pass) {
+  if(wheelActive) { drawWheel(p,pass); return; }
   const int padd = 43;
 
-  const int top   = std::max(headerTop,margins().top);
+  const int top   = headerTop();
   const int left  = std::max(padd,margins().left);
   const int right = w() - std::max(padd,margins().right);
-  const int iy    = top + headerHeight() + headerSpacing;
+  const int iy    = gridTop();
 
   if(state==State::LockPicking)
     return;
@@ -658,6 +716,12 @@ void InventoryMenu::drawSlot(Painter &p, DrawPass pass, const Inventory::Iterato
     } else {
     auto fnt = Resources::font(scale);
 
+    if(&page==&active && id==sel.sel && id==assignmentCell && it->clsId()==assignmentItem &&
+       assignmentDirection>=0 && Application::tickCount()<assignmentUntil) {
+      const auto label=QuickSlots::directions[assignmentDirection];
+      fnt.drawText(p,x,y+fnt.pixelSize(),slotSize().w,fnt.pixelSize(),label,AlignHCenter);
+      }
+
     if(it.count()>1) {
       string_frm vint(int(it.count()));
       auto sz = fnt.textSize(vint);
@@ -715,11 +779,11 @@ void InventoryMenu::drawHeader(Painter &p, std::string_view title, int x, int y)
 
 void InventoryMenu::drawInfo(Painter &p) {
   const float scale = Gothic::interfaceScale(this);
-  const auto  area  = clientRect();
-  const int   dw    = std::min(area.w, int(720*scale));
-  const int   dh    = infoHeight();
-  const int   x     = SafeArea::center(w(),dw,margins().left,margins().right);
-  const int   y     = h()-dh-std::max(20,margins().bottom);
+  const auto  rect  = infoRect();
+  const int   dw    = rect.w;
+  const int   dh    = rect.h;
+  const int   x     = rect.x;
+  const int   y     = rect.y;
 
   auto& pg  = activePage();
   auto& sel = activePageSel();
@@ -761,9 +825,311 @@ void InventoryMenu::drawInfo(Painter &p) {
     }
 
   const int sz = dh;
-  renderer.drawItem(x+dw-sz-sz/2,y,sz,sz,r);
+  if(hasSideInfo())
+    renderer.drawItem(x+(dw-sz)/2,y-sz-20,sz,sz,r); else
+    renderer.drawItem(x+dw-sz-sz/2,y,sz,sz,r);
   }
 
 void InventoryMenu::draw(Tempest::Encoder<CommandBuffer>& cmd) {
   renderer.draw(cmd);
+  }
+
+void InventoryMenu::controllerAction(int action, bool repeat) {
+  using A=GamepadBindings::Action;
+  if(A(action)!=A::Drop || !repeat) controllerDropItem=size_t(-1);
+  if(player==nullptr || state==State::Closed || state==State::LockPicking) return;
+  if(A(action)>=A::AssignUp && A(action)<=A::AssignRight) {
+    if(!activePage().is(&player->inventory())) return;
+    const auto item=activePage().get(activePageSel().sel);
+    const size_t direction=size_t(action-int(A::AssignUp));
+    if(item.isValid() && QuickSlots::assign(*player,direction,*item)) {
+      assignmentItem=item->clsId();
+      assignmentCell=activePageSel().sel;
+      assignmentDirection=int(direction);
+      assignmentUntil=Application::tickCount()+1500;
+      update();
+      }
+    return;
+    }
+  switch(A(action)) {
+    case A::Back: close(); return;
+    case A::Up: moveUp(); break;
+    case A::Down: moveDown(); break;
+    case A::Left: moveLeft(false); break;
+    case A::Right: moveRight(false); break;
+    case A::LeftPanel: if(pagesCount()==2) page=0; break;
+    case A::RightPanel: if(pagesCount()==2) page=1; break;
+    case A::Accept: onItemAction(Item::NSLOT); takeTimer.stop(); takeCount=0; break;
+    case A::TakeStack:
+      if(state==State::Chest || state==State::Trade || state==State::Ransack || state==State::Equip) {
+        lootMode=LootMode::Stack; onTakeStuff(); lootMode=LootMode::Normal;
+        }
+      break;
+    case A::Drop: {
+      if(!activePage().is(&player->inventory())) break;
+      auto it=activePage().get(activePageSel().sel);
+      if(it.isValid()) {
+        if(repeat && (controllerDropItem!=it->clsId() || controllerDropCell!=activePageSel().sel)) {
+          controllerDropItem=size_t(-1);
+          break;
+          }
+        controllerDropItem=it->clsId();
+        controllerDropCell=activePageSel().sel;
+        player->dropItem(it->clsId(),1);
+        Feedback::play(Feedback::Effect::Confirm);
+        }
+      break;
+      }
+    default:
+      if(A(action)>=A::Spell3 && A(action)<=A::Spell10 && state==State::Equip) {
+        auto it=activePage().get(activePageSel().sel);
+        if(it.isValid() && it->isSpellOrRune()) onItemAction(uint8_t(action-int(A::Spell3)+3));
+        }
+      break;
+    }
+  adjustScroll(); update();
+  }
+
+void InventoryMenu::openWheel(Npc& pl, WheelKind kind) {
+  wheelFilter=QuickSlots::Kind::Empty;
+  const bool utilityMenu=kind!=WheelKind::Equipment;
+  if(pl.isDown() || pl.isMonster() || pl.interactive()!=nullptr) return;
+  if(!utilityMenu && (!pl.canSwitchWeapon() || !pl.isAiQueueEmpty())) return;
+  state=State::Equip; player=&pl; trader=nullptr; chest=nullptr; page=0;
+  pagePl.reset(new InvPage(pl.inventory())); pageOth.reset();
+  wheelItems.clear();
+  for(auto it=pl.inventory().iterator(Inventory::T_Inventory);!utilityMenu && it.isValid();++it) {
+    if(!it->checkCond(pl)) continue;
+    // Equipped items and their spare copies appear separately in the inventory iterator.
+    if(std::find(wheelItems.begin(),wheelItems.end(),it->clsId())!=wheelItems.end()) continue;
+    if((it->mainFlag()&(ITM_CAT_NF|ITM_CAT_FF))!=0 || (it->isSpellOrRune() && it.slot()!=Item::NSLOT))
+      wheelItems.push_back(it->clsId());
+    }
+  wheelActive=true; wheelPageId=0; wheelSelected=-1; wheelCentered=true;
+  wheelKind=kind; wheelTouch=false;
+  wheelHoverPage=0;
+  wheelPageArmed=true;
+  wheelPageHint.clear();
+  update();
+  }
+
+void InventoryMenu::openQuickWheel(Npc& pl,size_t slot) {
+  const auto category=QuickSlots::kind(slot);
+  if(category==QuickSlots::Kind::Empty) return;
+  openWheel(pl);
+  if(!wheelActive) return;
+  wheelFilter=category;
+  wheelItems.clear();
+  for(auto it=pl.inventory().iterator(Inventory::T_Inventory);it.isValid();++it) {
+    if(QuickSlots::kind(*it)!=category || !it->checkCond(pl)) continue;
+    if(std::find(wheelItems.begin(),wheelItems.end(),it->clsId())!=wheelItems.end()) continue;
+    wheelItems.push_back(it->clsId());
+    }
+  update();
+  }
+
+size_t InventoryMenu::wheelPageSize() const {
+  return wheelItems.size()>8 ? 6 : 8;
+  }
+
+size_t InventoryMenu::wheelSectorCount() const {
+  // Paged wheels keep their navigation arrows in the same two sectors.
+  if(wheelPageSize()==6) return 8;
+  if(wheelKind==WheelKind::System) return 5;
+  if(wheelKind==WheelKind::Character) return 2;
+  return std::min(wheelPageSize(),wheelItems.size()-std::min(wheelItems.size(),wheelPageId*wheelPageSize()));
+  }
+
+InventoryMenu::WheelLayout InventoryMenu::wheelLayout() const {
+  const float scale=Gothic::interfaceScale(this);
+  const float fontScale=std::min(scale,float(std::min(w(),h()))/720.f);
+  const auto layout=RadialInput::layout(w(),h(),scale,int(wheelSectorCount()),Resources::font(fontScale).pixelSize());
+  return {Point(int(std::lround(layout.x)),int(std::lround(layout.y))),layout.cell,layout.radius,layout.outer,layout.footer};
+  }
+
+void InventoryMenu::beginTouchWheel(Point origin) {
+  wheelTouch=true;
+  wheelTouchOrigin=origin;
+  wheelHoverPage=0;
+  wheelPageArmed=true;
+  update();
+  }
+
+void InventoryMenu::touchWheelMove(Point pos, uint64_t now) {
+  if(!wheelActive || !wheelTouch) return;
+  const auto delta=pos-wheelTouchOrigin;
+  const int selected=RadialInput::touchSector(float(pos.x),float(pos.y),float(wheelTouchOrigin.x),float(wheelTouchOrigin.y),
+                                            w(),h(),int(wheelSectorCount()));
+  if(selected<0) {
+    wheelSelected=-1;
+    wheelHoverPage=0;
+    if(std::hypot(float(delta.x),float(delta.y))<RadialInput::touchDeadZone(w(),h())) {
+      wheelCentered=true;
+      wheelPageArmed=true;
+      }
+    update();
+    return;
+    }
+  selectWheelSector(selected,now);
+  }
+
+void InventoryMenu::selectWheelSector(int selected, uint64_t now) {
+  if(wheelKind==WheelKind::Equipment && wheelPageSize()==6 && selected>=6) {
+    wheelSelected=-1;
+    const int direction=selected==6 ? -1 : 1;
+    if(wheelHoverPage!=direction) {
+      wheelHoverPage=direction;
+      wheelHoverSince=now;
+      }
+    if(wheelPageArmed && now-wheelHoverSince>=500) {
+      wheelPage(direction);
+      wheelPageArmed=false;
+      }
+    update();
+    return;
+    }
+  wheelHoverPage=0;
+  if(!wheelCentered) return;
+  const auto previous=wheelSelected;
+  wheelSelected=selected;
+  if(wheelKind!=WheelKind::Equipment) {
+    if(selected<0 || size_t(selected)>=wheelSectorCount()) wheelSelected=-1;
+    }
+  else if(wheelPageId*wheelPageSize()+size_t(selected)>=wheelItems.size()) {
+    wheelSelected=-1;
+    }
+  if(wheelSelected>=0 && wheelSelected!=previous)
+    Feedback::play(Feedback::Effect::Navigate);
+  update();
+  }
+
+void InventoryMenu::wheelMove(float x,float y,uint64_t now) {
+  if(!wheelActive || wheelTouch) return;
+  if(x*x+y*y<0.25f) {
+    wheelCentered=true;
+    wheelHoverPage=0;
+    wheelPageArmed=true;
+    update();
+    return;
+    }
+  selectWheelSector(RadialInput::sector(x,y,0.5f,std::numeric_limits<float>::max(),int(wheelSectorCount())),now);
+  }
+
+void InventoryMenu::wheelPage(int direction) {
+  const auto count=wheelPageSize();
+  const auto pages=std::max<size_t>(1,(wheelItems.size()+count-1)/count);
+  wheelPageId=(wheelPageId+pages+(direction<0?pages-1:1))%pages;
+  wheelSelected=-1; wheelCentered=false;
+  wheelHoverPage=0;
+  wheelPageArmed=false;
+  update();
+  }
+
+size_t InventoryMenu::wheelSelection() const {
+  if(wheelKind!=WheelKind::Equipment) return wheelSelected>=0 && size_t(wheelSelected)<wheelSectorCount() ? size_t(wheelSelected) : size_t(-1);
+  if(wheelSelected<0 || size_t(wheelSelected)>=wheelPageSize() ||
+     wheelPageId*wheelPageSize()+size_t(wheelSelected)>=wheelItems.size()) return size_t(-1);
+  return wheelItems[wheelPageId*wheelPageSize()+size_t(wheelSelected)];
+  }
+void InventoryMenu::drawWheel(Painter& p,DrawPass pass) {
+  const bool utilityMenu=wheelKind!=WheelKind::Equipment;
+  const auto layout=wheelLayout();
+  const float cx=float(layout.center.x), cy=float(layout.center.y);
+  const float inner=layout.radius*0.52f;
+  const int cell=layout.cell;
+  const auto count=wheelSectorCount();
+  const float step=count>0 ? 2.f*float(M_PI)/float(count) : 0.f;
+  const float scale=std::min(Gothic::interfaceScale(this),float(std::min(w(),h()))/720.f);
+  auto& font=Resources::font(scale);
+  const int line=font.pixelSize();
+  const int pad=std::max(4,int(8*scale));
+  const int footerTop=int(cy+layout.outer)+pad;
+  const int footerLeft=int(cx-layout.outer);
+  const int footerWidth=int(2*layout.outer);
+  const Color gold(0.843f,0.761f,0.631f,0.85f);
+
+  p.pushState();
+  auto point=[&](float radius,float angle) {
+    return Point(int(std::lround(cx+std::sin(angle)*radius)),int(std::lround(cy-std::cos(angle)*radius)));
+    };
+  auto band=[&](float r0,float r1,float a0,float a1,const Color& color) {
+    p.setBrush(color);
+    const int segments=std::max(1,int(std::ceil((a1-a0)*24.f)));
+    for(int s=0;s<segments;++s) {
+      const float a=a0+(a1-a0)*float(s)/float(segments);
+      const float b=a0+(a1-a0)*float(s+1)/float(segments);
+      const auto p0=point(r0,a), p1=point(r1,a), p2=point(r1,b), p3=point(r0,b);
+      p.drawTriangle(p0.x,p0.y,0.f,0.f,p1.x,p1.y,0.f,0.f,p2.x,p2.y,0.f,0.f);
+      if(r0>0.f) p.drawTriangle(p0.x,p0.y,0.f,0.f,p2.x,p2.y,0.f,0.f,p3.x,p3.y,0.f,0.f);
+      }
+    };
+  if(pass==DrawPass::Back) {
+    band(0.f,layout.outer,0.f,2.f*float(M_PI),Color(0.035f,0.026f,0.015f,0.88f));
+    for(size_t i=0;i<count;++i) {
+      const bool pageButton=!utilityMenu && wheelPageSize()==6 && i>=6;
+      const bool hovered=pageButton && wheelHoverPage==(i==6 ? -1 : 1);
+      if(int(i)==wheelSelected || hovered)
+        band(inner,layout.outer,float(i)*step-step/2,float(i)*step+step/2,Color(0.7f,0.47f,0.18f,0.35f));
+      }
+    band(layout.outer-std::max(1.5f,scale),layout.outer,0.f,2.f*float(M_PI),gold);
+    band(inner-1.f,inner,0.f,2.f*float(M_PI),Color(0.843f,0.761f,0.631f,0.4f));
+    p.setBrush(gold);
+    p.setPen(Pen(Color(0.843f,0.761f,0.631f,0.4f),Painter::Alpha,std::max(1.f,scale)));
+    if(count>1) {
+      for(size_t i=0;i<count;++i) {
+        const float angle=float(i)*step-step/2;
+        p.drawLine(point(inner,angle),point(layout.outer,angle));
+        }
+      }
+    }
+
+  for(size_t i=0;i<count;++i) {
+    const bool pageButton=!utilityMenu && wheelPageSize()==6 && i>=6;
+    const auto itemId=wheelPageId*wheelPageSize()+i;
+    auto item=!utilityMenu && !pageButton && itemId<wheelItems.size() ? player->getItem(wheelItems[itemId]) : nullptr;
+    const auto at=point(layout.radius,float(i)*step);
+    if(pass==DrawPass::Back && item)
+      renderer.drawItem(at.x-cell/2,at.y-cell/2,cell,cell,*item);
+    if(pass==DrawPass::Front && item && item->isEquipped()) {
+      const float angle=float(i)*step;
+      const float halfArc=step*0.4f/3.f;
+      band(layout.outer-std::max(4.f,3.f*scale),layout.outer,angle-halfArc,angle+halfArc,
+           Color(0.95f,0.78f,0.42f,1.f));
+      }
+    if(pass==DrawPass::Front && (utilityMenu || pageButton)) {
+      const auto fpsLabel=Gothic::settingsGetI("GAME","showFps")!=0 ? "FPS: On" : "FPS: Off";
+      const auto debugLabel=wheelTouch ?
+          (Gothic::settingsGetI("DEBUG","touchControls")!=0 ? "Touch debug\nOn" : "Touch debug\nOff") :
+          (Gothic::settingsGetI("DEBUG","gamepadControls")!=0 ? "Gamepad controls\nOn" : "Gamepad controls\nOff");
+      const auto hudLabel=Gothic::settingsGetI("GAME","centerPlayerBars")!=0 ? "HUD\nCentered" : "HUD\nClassic";
+      const auto combatLabel=Gothic::settingsGetI("GAME","useGothic1Controls")!=0 ? "Combat\nClassic" : "Combat\nModern";
+      const auto vibrationLabel=Gothic::settingsGetI("GAME","vibration")!=0 ? "Vibration\nOn" : "Vibration\nOff";
+      const char* systemLabels[]={fpsLabel,debugLabel,hudLabel,combatLabel,vibrationLabel};
+      const auto label=wheelKind==WheelKind::System ? systemLabels[i] :
+                       (wheelKind==WheelKind::Character ? (i==0 ? "Stats" : "Journal") : (i==6 ? "<" : ">"));
+      const bool twoLines=wheelKind==WheelKind::System && i!=0;
+      font.drawText(p,at.x-cell,at.y+(twoLines ? 0 : line/2),2*cell,twoLines ? 2*line : line,label,AlignHCenter);
+      }
+    }
+  if(pass==DrawPass::Front) {
+    // Gothic fonts position text by its baseline, not by the top of its box.
+    const int centerWidth=int(inner*1.8f);
+    const char* centerLabel=!wheelTouch && wheelSelected>=0 ? "Selected" : "Cancel";
+    font.drawText(p,int(cx)-centerWidth/2,int(cy)+line/2,centerWidth,line,centerLabel,AlignHCenter);
+    auto item=utilityMenu ? nullptr : player->getItem(wheelSelection());
+    const auto pages=std::max<size_t>(1,(wheelItems.size()+wheelPageSize()-1)/wheelPageSize());
+    const auto categoryTitle=wheelFilter==QuickSlots::Kind::Empty ? std::string_view("Equipment") : QuickSlots::title(wheelFilter);
+    string_frm pagedTitle(categoryTitle," ",wheelPageId+1," / ",pages);
+    const std::string_view title=wheelKind==WheelKind::System ? "System" :
+                                 (wheelKind==WheelKind::Character ? "Character" : (pages>1 ? std::string_view(pagedTitle.c_str()) : categoryTitle));
+    font.drawText(p,footerLeft,int(cy-layout.outer)-pad,footerWidth,line,title,AlignHCenter);
+    const std::string_view name=item ? item->description() : (wheelItems.empty() && !utilityMenu ? "No usable items" : "");
+    string_frm itemLabel(name,item && item->isEquipped() ? " (Equipped)" : "");
+    font.drawText(p,footerLeft+pad,footerTop+line,footerWidth-2*pad,2*line,itemLabel.c_str(),AlignHCenter);
+    if(pages>1) {
+      const std::string_view hint=wheelTouch ? "Hold < / > to change page" : std::string_view(wheelPageHint);
+      font.drawText(p,footerLeft+pad,footerTop+layout.footer-pad,footerWidth-2*pad,line,hint,AlignHCenter);
+      }
+    }
+  p.popState();
   }

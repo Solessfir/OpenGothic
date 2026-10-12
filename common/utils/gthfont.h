@@ -19,6 +19,7 @@ class GthFont final {
 
     void drawText(Tempest::Painter& p, int x, int y, int w, int h, std::string_view txt, Tempest::AlignFlag align, int firstLine=0) const;
     void drawText(Tempest::Painter& p, int x, int y, std::string_view txt) const;
+    void drawTextShadow(Tempest::Painter& p, int x, int y, int w, int h, std::string_view txt, Tempest::AlignFlag align=Tempest::AlignLeft) const;
 
     auto textSize(const std::string_view txt) const -> Tempest::Size;
     auto textSize(const char*    b, const char* e) const -> Tempest::Size;

@@ -1,6 +1,7 @@
 #include "gthfont.h"
 
 #include <Tempest/Size>
+#include <cmath>
 #include "resources.h"
 
 using namespace Tempest;
@@ -33,6 +34,14 @@ void GthFont::drawText(Painter &p, int bx, int by, int bw, int bh,
   p.setBrush(Brush(*tex,color));
   processText(&p,bx,by,bw,bh,txt,align,firstLine);
   p.setBrush(b);
+  }
+
+void GthFont::drawTextShadow(Painter& p,int x,int y,int w,int h,std::string_view txt,AlignFlag align) const {
+  auto shadow=*this;
+  shadow.color=Color(0.f,0.f,0.f,0.8f);
+  const int offset=std::max(1,int(std::round(scale)));
+  shadow.drawText(p,x+offset,y+offset,w,h,txt,align);
+  drawText(p,x,y,w,h,txt,align);
   }
 
 Size GthFont::processText(Painter* p, int bx, int by, int bw, int bh,
