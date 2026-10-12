@@ -19,10 +19,13 @@ vec4 clouds(vec3 at, float nightPhase,
             in sampler2D nightL1, in sampler2D nightL0) {
   vec3  cloudsAt = normalize(at);
   vec2  texc     = 2000.0*vec2(atan(cloudsAt.z,cloudsAt.y), atan(cloudsAt.x,cloudsAt.y));
+  // The smallest mip holds the average color, and a LOD past it clamps there.
+  // Mali drivers crash compiling this shader with textureQueryLevels, which no other shader uses.
+  const float lastMip = 32.0;
 
-  vec4  cloudDL1 = textureLod(dayL1,   texc*0.3, textureQueryLevels(dayL1)  );
-  vec4  cloudDL0 = textureLod(dayL0,   texc*0.3, textureQueryLevels(dayL0)  );
-  vec4  cloudNL1 = textureLod(nightL1, texc*0.3, textureQueryLevels(nightL1));
+  vec4  cloudDL1 = textureLod(dayL1,   texc*0.3, lastMip);
+  vec4  cloudDL0 = textureLod(dayL0,   texc*0.3, lastMip);
+  vec4  cloudNL1 = textureLod(nightL1, texc*0.3, lastMip);
   vec4  cloudNL0 = vec4(0); // stars
 
   vec4 day       = (cloudDL0+cloudDL1)*0.5;
