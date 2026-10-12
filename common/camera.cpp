@@ -14,6 +14,7 @@
 #include "gothic.h"
 
 #include "utils/string_frm.h"
+#include "utils/cameramath.h"
 
 using namespace Tempest;
 
@@ -115,6 +116,10 @@ void Camera::load(Serialize &s, Npc* pl) {
   s.read(inter.target, inter.rotOffset);
   s.read(origin,angles,veloTrans);
   s.read(userRange);
+#if defined(__ANDROID__)
+  inter.range=state.range;
+  inter.restoreFraming=true;
+#endif
   }
 
 void Camera::changeZoom(int delta) {
@@ -185,6 +190,9 @@ void Camera::setMode(const Camera::Mode m) {
     };
 
   const bool reset = !(isRegular(camMod) && isRegular(m));
+#if defined(__ANDROID__)
+  const float previousPitch=state.spin.x;
+#endif
   if(camMod==Mode::Cutscene) {
     state.spin   = angles;
     state.target = origin;
@@ -221,6 +229,9 @@ void Camera::setMode(const Camera::Mode m) {
                       def.best_azimuth,
                       def.best_rot_z);
   state.spin += rotBest;
+#if defined(__ANDROID__)
+  if(!reset) state.spin.x=previousPitch;
+#endif
   }
 
 void Camera::setMarvinMode(Camera::MarvinMode nextMod) {
@@ -707,6 +718,16 @@ void Camera::tick(uint64_t dt) {
   // dst.spin = angleMod(dst.spin);
   // src.spin = angleMod(src.spin);
 
+#if defined(__ANDROID__)
+  if(inter.restoreFraming && camMarvinMod==M_Normal) {
+    // Resolve the loaded input angles and current gameplay preset before presenting a frame.
+    // A saved menu camera position must not visibly fly into the mobile framing after loading.
+    if(camMod==Camera::FirstPerson) tickFirstPerson(-1.f);
+    else tickThirdPerson(-1.f);
+    veloTrans=Vec3();
+    inter.restoreFraming=false;
+    }
+#endif
   auto prev = origin;
 
   switch (camMarvinMod) {
@@ -793,8 +814,19 @@ void Camera::tickFirstPerson(float /*dtF*/) {
   angles = state.spin;
   }
 
+float Camera::followSpeed() const {
+#if defined(__ANDROID__)
+  if(camMarvinMod==M_Normal && (camMod==Normal || camMod==Melee || camMod==Ranged || camMod==Magic)) {
+    const float speed=Gothic::settingsGetF("GAME","cameraFollowSpeed");
+    return std::isfinite(speed) ? std::clamp(speed,0.25f,4.f) : 2.f;
+    }
+#endif
+  return 1.f;
+  }
+
 void Camera::tickThirdPerson(float dtF) {
   const auto& def = cameraDef();
+  const float followDt=dtF*followSpeed();
 
   auto mkRotMatrix = [this](Vec3 spin){
     auto view = Camera::mkRotation(spin);
@@ -818,10 +850,35 @@ void Camera::tickThirdPerson(float dtF) {
 
   if(camMod!=Dialog) {
     state.spin      = clampRotation(state.spin);
-    inter.rotOffset = followRot(inter.rotOffset, rotOffsetDef, dtF, def.velo_rot);
+    inter.rotOffset = followRot(inter.rotOffset, rotOffsetDef, followDt, def.velo_rot);
     }
 
-  const auto rotOffsetMat = mkRotMatrix(state.spin);
+  auto orbitSpin=state.spin;
+#if defined(__ANDROID__)
+  const bool gameplay=camMod==Normal || camMod==Melee || camMod==Ranged || camMod==Magic;
+  if(gameplay) {
+    // Raise the camera along its orbit so the normal look-at points downward toward the player.
+    // Keep the offset out of saved input angles to avoid accumulating it on reload.
+    const bool combat=camMod==Melee || camMod==Ranged || camMod==Magic;
+    const float elevation=Gothic::settingsGetF("GAME",combat ? "cameraCombatElevationOffset" : "cameraElevationOffset");
+    const float desiredElevation=std::isfinite(elevation) ? std::clamp(elevation,0.f,30.f) : 0.f;
+    // Blend framing changes separately from the faster movement follow and manual camera input.
+    const float blend=dtF<=0.f ? 1.f : -std::expm1(-dtF/0.15f);
+    inter.elevation+=(desiredElevation-inter.elevation)*blend;
+    inter.range+=(state.range-inter.range)*blend;
+    orbitSpin.x+=inter.elevation;
+    range=inter.range*100.f;
+    orbitSpin=clampRotation(orbitSpin);
+    }
+  else {
+    inter.range=state.range;
+    inter.elevation=0.f;
+    }
+  // Inventory has its own composed view; gameplay pitch must not tilt that preset.
+  // Keep the input pitch untouched so closing inventory restores the player's view.
+  if(camMod==Inventory) orbitSpin.x=def.best_elevation;
+#endif
+  const auto rotOffsetMat = mkRotMatrix(orbitSpin);
   if(camMod!=Dialog) {
     rotOffsetMat.project(targetOffset);
     // vanilla clamps target-offset according to collision
@@ -830,7 +887,7 @@ void Camera::tickThirdPerson(float dtF) {
       }
     // and has leash-like follow for target+offset
     // ignores def.translate
-    inter.target = followTarget(inter.target, state.target+targetOffset, dtF);
+    inter.target = followTarget(inter.target, state.target+targetOffset, followDt);
     }
 
   auto dir = Vec3{0,0,1};
@@ -852,7 +909,7 @@ void Camera::tickThirdPerson(float dtF) {
     }
 
   if(def.translate!=0) {
-    origin = followTrans(origin, inter.target + dir*range, (camMod!=Dialog ? dtF : -1.f), def.velo_trans);
+    origin = followTrans(origin, inter.target + dir*range, (camMod!=Dialog ? followDt : -1.f), def.velo_trans);
     }
 
   angles = calcLookAtAngles(origin, inter.target, inter.rotOffset, state.spin);
@@ -943,18 +1000,18 @@ Vec3 Camera::clampRotation(Tempest::Vec3 spin) {
   //NOTE: min elevation is zero for nomal camera. assume that it's ignored by vanilla
   float       maxElev = +85;
   float       minElev = -60;
-  float       maxAzim = +180;
-  float       minAzim = -180;
 
   const auto pl = Gothic::inst().player();
   if(pl==nullptr)
     return spin;
 
   const auto plSpin = (Vec3{0,  pl->rotation(), 0});
+  // Equivalent yaw angles must stay near the character before applying pitch limits.
+  // Clamping an unwrapped yaw can turn a small boundary crossing into a half-turn.
+  spin.y = CameraMath::yawNear(spin.y,plSpin.y);
   spin = spin - plSpin;
 
   spin.x = std::clamp(spin.x, minElev, maxElev);
-  spin.y = std::clamp(spin.y, minAzim, maxAzim);
   return (spin + plSpin);
   }
 
