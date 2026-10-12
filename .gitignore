@@ -15,6 +15,17 @@ CMakeLists.txt.user*
 # Build-dir
 build/
 build-*/
+android/.gradle/
+android/app/.cxx/
+android/app/build/
+android/local.properties
+# Private test packages can contain legally owned game files and saves.
+*.local.md
+*.apk
+*.keystore
+*.jks
+android/tools/__pycache__/
+android/tools/tests/__pycache__/
 bin/log.txt
 bin/crash.log
 bin/dbg.bin
