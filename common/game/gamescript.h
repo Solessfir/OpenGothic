@@ -75,6 +75,8 @@ class GameScript final {
     void         savePerc(Serialize& fout);
     void         loadPerc(Serialize& fin);
 
+    bool         usesMemoryExtensions() const { return dma!=nullptr; }
+
     inline auto& getVm() { return vm; }
     auto         questLog() const -> const QuestLog&;
 
@@ -116,6 +118,7 @@ class GameScript final {
     const AiState&              aiState  (ScriptFn id);
     const zenkit::ISpell&       spellDesc(int32_t splId);
     const VisualFx*             spellVfx (int32_t splId);
+    bool                       isTeleportSpell(int32_t splId) const;
 
     auto dialogChoices(std::shared_ptr<zenkit::INpc> self, std::shared_ptr<zenkit::INpc> npc, const std::vector<uint32_t> &except, bool includeImp) -> std::vector<DlgChoice>;
     auto updateDialog (const GameScript::DlgChoice &dlg, Npc &player, Npc &npc) -> std::vector<GameScript::DlgChoice>;
@@ -174,6 +177,8 @@ class GameScript final {
     void      eventPlayAni(Npc& npc, std::string_view ani);
 
   private:
+    void playerHotPotionG1(Npc& pl, bool mana);
+
     template<typename T>
     struct DetermineSignature {
       using signature = void();
