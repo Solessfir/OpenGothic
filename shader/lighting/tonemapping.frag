@@ -104,6 +104,7 @@ void main() {
   }
 
   color    = gameTonemap(color, push.settings);
-  color   += dither(gl_FragCoord.xy, TONEMAP_DITHER_TARGET_BITS); 
+  if(push.settings.hdr.x<=0.0)
+    color += dither(gl_FragCoord.xy, TONEMAP_DITHER_TARGET_BITS);
   outColor = vec4(color, 1.0);
   }

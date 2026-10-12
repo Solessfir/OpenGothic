@@ -34,6 +34,7 @@ class Material final {
     bool                      isGhost          = false;
     float                     waveMaxAmplitude = 0;
     float                     envMapping       = 0;
+    bool                      cameraObstruction = false;
 
     bool operator == (const Material& other) const;
 
