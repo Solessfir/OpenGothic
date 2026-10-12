@@ -3,6 +3,7 @@
 #include <Tempest/Log>
 
 #include "ui/gamemenu.h"
+#include "utils/feedback.h"
 #include "gothic.h"
 
 using namespace Tempest;
@@ -107,6 +108,37 @@ bool MenuRoot::isActive() const {
   return current!=nullptr;
   }
 
+void MenuRoot::navigateBack() {
+  if(current==nullptr)
+    return;
+  if(current->closeNestedView()) {
+    Feedback::play(Feedback::Effect::Navigate);
+    return;
+    }
+  if(menuStack.empty() && !Gothic::inst().isInGame() &&
+     Gothic::inst().checkLoading()==Gothic::LoadState::Idle)
+    return;
+  Feedback::play(Feedback::Effect::Navigate);
+  popMenu();
+  }
+
+void MenuRoot::requestDeleteSave(std::string_view hint) {
+  if(current!=nullptr)
+    current->requestDeleteSave(hint);
+  }
+
+bool MenuRoot::canRequestDeleteSave() const {
+  return current!=nullptr && current->canRequestDeleteSave();
+  }
+
+bool MenuRoot::overwriteSelectedSave() {
+  return current!=nullptr && current->overwriteSelectedSave();
+  }
+
+void MenuRoot::renameSelectedSave() {
+  if(current!=nullptr) current->renameSelectedSave();
+  }
+
 void MenuRoot::setPlayer(const Npc &pl) {
   if(current!=nullptr)
     current->setPlayer(pl);
@@ -129,9 +161,11 @@ bool MenuRoot::hasVersionLine() const {
 void MenuRoot::mouseDownEvent(MouseEvent& event) {
   if(current!=nullptr) {
     if(event.button==Event::ButtonRight) {
-      popMenu();
+      navigateBack();
       } else {
-      current->onKeyboard(KeyCodec::ActionGeneric);
+      // A stray screen tap must not confirm permanent deletion.
+      if(!current->isDeletingSave())
+        current->onKeyboard(KeyCodec::ActionGeneric);
       }
     } else {
     event.ignore();
@@ -150,6 +184,26 @@ void MenuRoot::mouseWheelEvent(MouseEvent &event) {
     } else {
     event.ignore();
     }
+  }
+
+void MenuRoot::directionalInput(bool right, bool repeat, bool touchNavigation) {
+  if(current==nullptr) return;
+  if(current->adjustsHorizontally()) {
+    current->onKeyboard(right ? KeyCodec::Right : KeyCodec::Left);
+    return;
+    }
+  // A held direction must not repeatedly enter or close several menu levels.
+  if(repeat || !touchNavigation) return;
+  if(right) current->onKeyboard(KeyCodec::ActionGeneric);
+  else navigateBack();
+  }
+
+bool MenuRoot::canAdjustValue() {
+  return current!=nullptr && current->canAdjustValue();
+  }
+
+void MenuRoot::adjustValue(int steps) {
+  if(current!=nullptr) current->adjustValue(steps);
   }
 
 void MenuRoot::keyRepeatEvent(Tempest::KeyEvent &e) {
@@ -205,7 +259,8 @@ void MenuRoot::keyDownEvent(KeyEvent &e) {
       current->onKeyboard(KeyCodec::ActionGeneric);
     else if(e.key==Event::K_Delete)
       current->onKeyboard(KeyCodec::K_Del);
-    else if(e.key==Event::K_ESCAPE || keyCodec.tr(e)==current->keyClose())
-      popMenu();
+    else if(e.key==Event::K_ESCAPE || keyCodec.tr(e)==current->keyClose()) {
+      navigateBack();
+      }
     }
   }
