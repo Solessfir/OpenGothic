@@ -26,7 +26,7 @@ int main() {
     auto swim=SwimInput::direction(0,-1,25,30);
     check(std::abs(swim.yaw-25)<0.001f && std::abs(swim.pitch+30)<0.001f,"Forward swimming follows camera yaw and downward pitch");
     swim=SwimInput::direction(0,1,25,30);
-    check(std::abs(yawDelta(25,swim.yaw))==180.f && std::abs(swim.pitch-30)<0.001f,"Backward swimming reverses both horizontal and vertical direction");
+    check(std::abs(yawDelta(25,swim.yaw))==180.f && std::abs(swim.pitch-45)<0.001f,"Backward swimming reverses direction and climbs steeper than the camera");
     swim=SwimInput::direction(1,0,25,30);
     check(std::abs(swim.yaw+65)<0.001f && swim.pitch==0.f,"Sideways swimming remains level relative to the camera");
     swim=SwimInput::direction(0,0,25,30);
