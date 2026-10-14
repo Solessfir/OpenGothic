@@ -206,6 +206,9 @@ void TouchInput::mouseDownEvent(Tempest::MouseEvent& e) {
   for(size_t i=0;i<std::size(Buttons);++i)
     if(buttonRect(i).contains(e.pos()))
       button = int(i);
+  // Jump does nothing in the water and sits where camera drags start.
+  if(swimming && !uiActive && button>=0 && Buttons[button]==Command::Jump)
+    button = -1;
 
   const bool onBlock=blockVisible() && blockRect().contains(e.pos());
   multiTap.down(e.mouseID,float(e.x),float(e.y),touch.pressedAt,
