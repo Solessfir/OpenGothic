@@ -178,6 +178,7 @@ class MainWindow : public Tempest::Window {
     Tempest::Widget*          uiKeyUp=nullptr;
     Tempest::Point            dMouse;
     uint64_t                  mouseLookIdle=0;
+    float                     cursorScale=0;
     // Pause after camera input before the swim camera eases back to the surface view.
     static constexpr uint64_t SwimViewDelayMs = 300;
     PlayerControl             player;

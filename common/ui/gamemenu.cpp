@@ -122,7 +122,7 @@ GameMenu::GameMenu(MenuRoot &owner, KeyCodec& keyCodec, zenkit::DaedalusVm& vm, 
 #if defined(__MOBILE_PLATFORM__)
   setCursorShape(CursorShape::Hidden);
 #else
-  setCursorShape(CursorShape::Arrow);
+  setCursorShape(CursorShape::Custom);
 #endif
   timer.timeout.bind(this,&GameMenu::onTick);
   timer.start(100);

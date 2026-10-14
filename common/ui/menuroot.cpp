@@ -111,7 +111,7 @@ void MenuRoot::closeAll() {
 
 void MenuRoot::updateCursor() {
 #if !defined(__MOBILE_PLATFORM__)
-  setCursorShape(current!=nullptr ? CursorShape::Arrow : CursorShape::Hidden);
+  setCursorShape(current!=nullptr ? CursorShape::Custom : CursorShape::Hidden);
 #endif
   }
 

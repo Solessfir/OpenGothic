@@ -211,7 +211,7 @@ void InventoryMenu::onWorldChanged() {
 
 void InventoryMenu::tick(uint64_t /*dt*/) {
 #if !defined(__MOBILE_PLATFORM__)
-  const auto cursor = (state!=State::Closed && state!=State::LockPicking && !wheelActive) ? CursorShape::Arrow : CursorShape::Hidden;
+  const auto cursor = (state!=State::Closed && state!=State::LockPicking && !wheelActive) ? CursorShape::Custom : CursorShape::Hidden;
   if(cursorShape()!=cursor)
     setCursorShape(cursor);
 #endif

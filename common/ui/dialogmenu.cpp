@@ -86,7 +86,7 @@ void DialogMenu::tick(uint64_t dt) {
     }
 
 #if !defined(__MOBILE_PLATFORM__)
-  const auto cursor = isChoiceMenuActive() ? CursorShape::Arrow : CursorShape::Hidden;
+  const auto cursor = isChoiceMenuActive() ? CursorShape::Custom : CursorShape::Hidden;
   if(cursorShape()!=cursor)
     setCursorShape(cursor);
 #endif
