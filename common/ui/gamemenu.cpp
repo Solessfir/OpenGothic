@@ -264,6 +264,7 @@ void GameMenu::initItems() {
   addMissingQuickLoad();
   initAndroidVideo();
   initAndroidOptions();
+  initExtraKeys();
   quickLoadItem=nullptr;
   for(auto& item:hItems)
     if(item.handle!=nullptr && item.name=="MENUITEM_LOAD_SLOT0") quickLoadItem=&item;
@@ -415,6 +416,103 @@ void GameMenu::initAndroidOptions() {
   hItems[index+1]=std::move(choice);
   updateItem(hItems[index+1]);
 #endif
+  }
+
+void GameMenu::initExtraKeys() {
+  // Bindings OpenGothic adds to the "more settings" key page, built from its last script row.
+  auto find=[&](std::string_view name) -> Item* {
+    for(auto& item:hItems) if(item.name==name && item.handle!=nullptr) return &item;
+    return nullptr;
+    };
+  const bool extPage    = find("MENU_ITEM_CHG_EXTKEYS_HEADLINE")!=nullptr;
+  // Gothic 1 has no "more settings" page, so its only key page takes the rows instead.
+  const bool singlePage = find("MENU_ITEM_CHG_KEYS_HEADLINE")!=nullptr &&
+                          vm->find_symbol_by_name("MENU_OPT_CONTROLS_EXTKEYS")==nullptr;
+  if(!extPage && !singlePage)
+    return;
+  // The page content differs between games, so copy whichever visible key row is lowest on it.
+  // Quick potion rows are hidden unless their option is set; the page is rebuilt each time it opens.
+  Item* input=nullptr;
+  Item* prevInput=nullptr;
+  for(auto& item:hItems) {
+    if(item.handle==nullptr || !item.name.starts_with("MENU_ITEM_INP_") || isHidden(item.handle))
+      continue;
+    if(input==nullptr || item.handle->pos_y>input->handle->pos_y) {
+      prevInput=input;
+      input=&item;
+      }
+    else if(prevInput==nullptr || item.handle->pos_y>prevInput->handle->pos_y) {
+      prevInput=&item;
+      }
+    }
+  if(input==nullptr || prevInput==nullptr)
+    return;
+  auto label=find("MENU_ITEM_KEY_"+input->name.substr(std::strlen("MENU_ITEM_INP_")));
+  if(label==nullptr)
+    return;
+  const int step=input->handle->pos_y-prevInput->handle->pos_y;
+  if(step<=0)
+    return;
+
+  struct Row { const char* name; const char* text; const char* hint; const char* option; };
+  const Row rows[]={
+    {"OPENGOTHIC_KEY_INTERACT","Interact","Pick up, talk, loot and use; the action key then only attacks","keyInteract"},
+    {"OPENGOTHIC_KEY_SHEATH",  "Sheath weapon","Put away the weapon, bow or spell in hand","keySheath"},
+    };
+  size_t end=0;
+  for(size_t i=0;i<std::size(hItems);++i) if(hItems[i].handle!=nullptr) end=i+1;
+  if(end+2*std::size(rows)>std::size(hItems))
+    return;
+
+  // Insert after the source row so keyboard navigation follows the screen order.
+  size_t at=size_t(std::max(label,input)-hItems)+1;
+  const int labelY=label->handle->pos_y, inputY=input->handle->pos_y;
+
+  // Move rows below out of the way when they would overlap, such as Gothic 1's preset buttons.
+  // Back stays in its own column on the right.
+  const int shift=step*int(std::size(rows));
+  bool overlap=false;
+  for(auto& item:hItems)
+    if(item.handle!=nullptr && !isHidden(item.handle) && !item.name.ends_with("_BACK") &&
+       item.handle->pos_y>inputY && item.handle->pos_y<=inputY+shift)
+      overlap=true;
+  for(auto& item:hItems) {
+    if(!overlap || item.handle==nullptr || item.name.ends_with("_BACK") || item.handle->pos_y<=inputY)
+      continue;
+    item.handle=std::make_shared<zenkit::IMenuItem>(*item.handle);
+    item.handle->pos_y+=shift;
+    }
+
+  Item src[2]={*label,*input};
+  std::move_backward(hItems+at,hItems+end,hItems+end+2*std::size(rows));
+  for(size_t i=0;i<std::size(rows);++i) {
+    const int dy=step*int(i+1);
+    auto& l=hItems[at++];
+    l=src[0];
+    l.name=std::string(rows[i].name)+"_LABEL";
+    l.handle=std::make_shared<zenkit::IMenuItem>(*src[0].handle);
+    l.handle->text[0]=rows[i].text;
+    l.handle->hide_if_option_set.clear();
+    l.handle->text[1]=rows[i].hint;
+    l.handle->pos_y=labelY+dy;
+    auto& k=hItems[at++];
+    k=src[1];
+    k.name=rows[i].name;
+    k.handle=std::make_shared<zenkit::IMenuItem>(*src[1].handle);
+    k.handle->on_chg_set_option=rows[i].option;
+    k.handle->hide_if_option_set.clear();
+    k.handle->text[1]=rows[i].hint;
+    k.handle->pos_y=inputY+dy;
+    updateItem(k);
+    }
+
+  const int lastY=labelY+step*int(std::size(rows));
+  for(auto& item:hItems) {
+    if(item.handle==nullptr || !item.name.ends_with("_BACK") || item.handle->pos_y>lastY)
+      continue;
+    item.handle=std::make_shared<zenkit::IMenuItem>(*item.handle);
+    item.handle->pos_y+=step*int(std::size(rows));
+    }
   }
 
 void GameMenu::initAndroidVideo() {

@@ -104,7 +104,9 @@ KeyCodec::KeyCodec() {
     &keyInventory,
     &keyShowStatus,
     &keyShowLog,
-    &keyShowMap
+    &keyShowMap,
+    &keyInteract,
+    &keySheath
     };
   Gothic::inst().onSettingsChanged.bind(this,&KeyCodec::setupSettings);
   setupSettings();
@@ -258,6 +260,11 @@ std::string KeyCodec::toCode(int32_t code) {
 KeyCodec::ActionMapping KeyCodec::implTr(int32_t code) const {
   if(auto m = keyEnd.mapping(code))
     return { Idle, *m };
+  // Checked first: binding E or F here takes the key over from its default action.
+  if(auto m = keyInteract.mapping(code))
+    return { Interact, *m };
+  if(auto m = keySheath.mapping(code))
+    return { Sheath, *m };
   if(auto m = keyUp.mapping(code))
     return { Forward, *m };
   if(auto m = keyDown.mapping(code))
@@ -486,6 +493,8 @@ void KeyCodec::setupSettings() {
   keyShowStatus  = setup("keyShowStatus");
   keyShowLog     = setup("keyShowLog");
   keyShowMap     = setup("keyShowMap");
+  keyInteract    = setup("keyInteract");
+  keySheath      = setup("keySheath");
   }
 
 KeyCodec::KeyPair KeyCodec::setup(const char* kp) {
