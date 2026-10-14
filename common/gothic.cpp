@@ -229,6 +229,7 @@ Gothic::Gothic(GameModDescriptor desc) {
   defaults->set("DEBUG",        "touchControls", 0);
   defaults->set("DEBUG",        "gamepadControls", 0);
   defaults->set("GAME",         "cameraSwimming", 0);
+  defaults->set("GAME",         "cameraFollowSpeed", 2.f);
 
   defaults->set("VIDEO", "zVidBrightness", 0.5f);
   defaults->set("VIDEO", "zVidContrast",   0.5f);
@@ -237,7 +238,6 @@ Gothic::Gothic(GameModDescriptor desc) {
   defaults->set("VIDEO", "displayMode", "auto");
   defaults->set("GAME", "cameraElevationOffset", 10.f);
   defaults->set("GAME", "cameraCombatElevationOffset", 20.f);
-  defaults->set("GAME", "cameraFollowSpeed", 2.f);
 #else
   defaults->set("VIDEO", "displayMode", "sdr");
 #endif
