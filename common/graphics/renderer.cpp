@@ -456,21 +456,35 @@ void Renderer::resetViewport(Tempest::Size res, Tempest::Size fullRes) {
 void Renderer::resetShadowmap() {
   auto& device = Resources::device();
 
+  const bool forceSm1 = (settings.giMethod==GiMethod::Probes || settings.giMethod==GiMethod::IrrC ||
+                         settings.pathTraceEnabled || sky.quality==PathTrace);
+  bool used[Resources::ShadowLayers] = {};
+  for(int i=0; i<Resources::ShadowLayers; ++i) {
+    used[i] = true;
+    if(!(i==1 && forceSm1)) {
+      if(settings.vsmEnabled && !(settings.rtsmEnabled && i==1))
+        used[i] = false; //TODO: support vsm in gi code
+      if(settings.rtsmEnabled && !(sky.quality!=None && i==1))
+        used[i] = false; //TODO: support vsm in gi code
+      }
+    }
+
+  // Every settings change lands here, e.g. on each step of a dragged volume slider.
+  bool changed = false;
+  for(int i=0; i<Resources::ShadowLayers; ++i) {
+    if(used[i]==shadowMap[i].isEmpty() || (used[i] && uint32_t(shadowMap[i].w())!=settings.shadowResolution))
+      changed = true;
+    }
+  if(!changed)
+    return;
+
   Log::i("Shadow map resolution = ", settings.shadowResolution);
 
   for(int i=0; i<Resources::ShadowLayers; ++i)
     Resources::recycle(std::move(shadowMap[i]));
-
-  const bool forceSm1 = (settings.giMethod==GiMethod::Probes || settings.giMethod==GiMethod::IrrC ||
-                         settings.pathTraceEnabled || sky.quality==PathTrace);
   for(int i=0; i<Resources::ShadowLayers; ++i) {
-    if(!(i==1 && forceSm1)) {
-      if(settings.vsmEnabled && !(settings.rtsmEnabled && i==1))
-        continue; //TODO: support vsm in gi code
-      if(settings.rtsmEnabled && !(sky.quality!=None && i==1))
-        continue; //TODO: support vsm in gi code
-      }
-    shadowMap[i] = device.zbuffer(shadowFormat, settings.shadowResolution, settings.shadowResolution);
+    if(used[i])
+      shadowMap[i] = device.zbuffer(shadowFormat, settings.shadowResolution, settings.shadowResolution);
     }
   }
 
