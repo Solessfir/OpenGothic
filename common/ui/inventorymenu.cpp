@@ -210,6 +210,11 @@ void InventoryMenu::onWorldChanged() {
   }
 
 void InventoryMenu::tick(uint64_t /*dt*/) {
+#if !defined(__MOBILE_PLATFORM__)
+  const auto cursor = (state!=State::Closed && state!=State::LockPicking && !wheelActive) ? CursorShape::Arrow : CursorShape::Hidden;
+  if(cursorShape()!=cursor)
+    setCursorShape(cursor);
+#endif
   if(player!=nullptr && (player->isDown() || player->bodyStateMasked()==BS_UNCONSCIOUS)) {
     close();
     return;
@@ -384,6 +389,25 @@ void InventoryMenu::mouseDownEvent(MouseEvent &e) {
   if(state==State::LockPicking)
     return;
 
+#if !defined(__MOBILE_PLATFORM__)
+  // Clicking beside the grids must not use or take the selected item.
+  if(e.button==MouseEvent::ButtonLeft && !wheelActive && !selectCellAt(e.pos()))
+    return;
+  // In the player's own inventory, right click on an item drops one (repeating while held), Shift drops the stack.
+  if(e.button==MouseEvent::ButtonRight && state==State::Equip && !wheelActive && selectCellAt(e.pos())) {
+    if(e.modifier & Event::M_Shift) {
+      lootMode = LootMode::Stack;
+      onTakeStuff();
+      lootMode = LootMode::Normal;
+      } else {
+      lootMode = LootMode::Normal;
+      takeTimer.start(200);
+      onTakeStuff();
+      }
+    adjustScroll();
+    return;
+    }
+#endif
   if (e.button==MouseEvent::ButtonLeft)
     onItemAction(Item::NSLOT);
   else if (e.button==MouseEvent::ButtonRight)
@@ -395,6 +419,61 @@ void InventoryMenu::mouseDownEvent(MouseEvent &e) {
 void InventoryMenu::mouseUpEvent(MouseEvent&) {
   takeTimer.stop();
   takeCount=0;
+  }
+
+void InventoryMenu::mouseMoveEvent(MouseEvent& e) {
+#if defined(__MOBILE_PLATFORM__)
+  // Touch drags arrive as mouse moves; touch input has its own inventory navigation.
+  e.ignore();
+#else
+  // Accept moves while open, so the game does not turn them into mouse look.
+  if(player==nullptr || state==State::Closed) {
+    e.ignore();
+    return;
+    }
+  if(state==State::LockPicking || wheelActive)
+    return;
+  selectCellAt(e.pos());
+#endif
+  }
+
+bool InventoryMenu::selectCellAt(Point pos) {
+  // Same layout as drawAll: the chest or trader grid on the left, the player grid on the right.
+  const int    padd   = 43;
+  const int    wcount = int(columsCount);
+  const int    hcount = int(rowsCount());
+  const auto   cell   = slotSize();
+  const int    y0     = gridTop();
+  if(cell.w<=0 || cell.h<=0 || pos.y<y0 || pos.y>=y0+hcount*cell.h)
+    return false;
+
+  auto inGrid = [&](int x0) { return pos.x>=x0 && pos.x<x0+wcount*cell.w; };
+  uint8_t pg = 0;
+  if(pageOth!=nullptr && inGrid(padd))
+    pg = 0;
+  else if(state!=State::Ransack && inGrid(w()-padd-wcount*cell.w))
+    pg = 1;
+  else
+    return false;
+
+  const int  x0  = pg==0 ? padd : w()-padd-wcount*cell.w;
+  auto&      sel = pageOth!=nullptr ? pageLocal[pg] : pageLocal[1];
+  auto&      inv = pageOth!=nullptr ? *(pg==0 ? pageOth : pagePl) : *pagePl;
+  const size_t id = (sel.scroll+size_t((pos.y-y0)/cell.h))*columsCount + size_t((pos.x-x0)/cell.w);
+  if(id>=inv.size())
+    return false;
+
+  if(pageOth!=nullptr && page!=pg) {
+    page = pg;
+    Feedback::play(Feedback::Effect::Navigate);
+    }
+  else if(sel.sel==id)
+    return true;
+  else
+    Feedback::play(Feedback::Effect::Navigate);
+  sel.sel = id;
+  update();
+  return true;
   }
 
 void InventoryMenu::mouseWheelEvent(MouseEvent &e) {
