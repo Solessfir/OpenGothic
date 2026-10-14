@@ -1736,6 +1736,12 @@ void MainWindow::render(){
       if(pause)
         Gothic::inst().pushPause(); else
         Gothic::inst().popPause();
+#if !defined(__MOBILE_PLATFORM__)
+      // Android pauses audio from its activity lifecycle instead.
+      if(pause)
+        SoundDevice::pauseAll(); else
+        SoundDevice::resumeAll();
+#endif
       }
 
     if(T_UNLIKELY(Gothic::inst().isBenchmarkModeCi())) {
