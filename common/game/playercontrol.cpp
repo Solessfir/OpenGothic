@@ -75,6 +75,12 @@ void PlayerControl::onKeyPressed(KeyCodec::Action a, Tempest::KeyEvent::KeyType 
     return;
     }
 
+#if !defined(__MOBILE_PLATFORM__)
+  // Mouse buttons arrive without a key code; touch and gamepad do too, but only on mobile.
+  if(a==KeyCodec::ActionGeneric)
+    mouseCombat=(key==Tempest::KeyEvent::K_NoKey);
+#endif
+
   // Separate from the attack key: pick up, use or talk to whatever is in focus.
   if(a==KeyCodec::Interact) {
     if(pl!=nullptr && pl->interactive()==nullptr)
@@ -203,10 +209,6 @@ void PlayerControl::onKeyPressed(KeyCodec::Action a, Tempest::KeyEvent::KeyType 
     }
 
   if(a==KeyCodec::ActionGeneric) {
-#if !defined(__MOBILE_PLATFORM__)
-    // Mouse buttons arrive without a key code; touch and gamepad do too, but only on mobile.
-    mouseCombat=(key==Tempest::KeyEvent::K_NoKey);
-#endif
     pickupHeld=ws==WeaponState::NoWeapon;
     FocusAction fk = ActGeneric;
     if(this->wantsToMoveForward())
