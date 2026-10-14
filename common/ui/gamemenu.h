@@ -40,6 +40,11 @@ class GameMenu : public Tempest::Widget {
     bool overwriteSelectedSave();
     void renameSelectedSave();
 
+    bool hoverMouse  (Tempest::Point pos);
+    bool pressMouse  (Tempest::Point pos);
+    void dragMouse   (Tempest::Point pos);
+    void releaseMouse(bool activate);
+
     KeyCodec::Action keyClose() const { return kClose; }
 
   protected:
@@ -93,6 +98,7 @@ class GameMenu : public Tempest::Widget {
     std::string                           deleteHint;
     std::string                           deleteError;
     uint32_t                              curItem=0;
+    Item*                                 mouseSlider=nullptr;
     bool                                  exitFlag=false;
     bool                                  closeFlag=false;
 
@@ -106,6 +112,9 @@ class GameMenu : public Tempest::Widget {
     void                                  journalInput(KeyCodec::Action key);
 
     Item*                                 selectedItem();
+    Item*                                 itemAt(Tempest::Point pos, int& index);
+    Tempest::Rect                         itemRect(const Item& item) const;
+    static bool                           isDraggable(const Item& item);
     bool                                  selectionIncludes(const Item& item);
     Item*                                 selectedSaveItem();
     Item*                                 selectedNextItem(Item* cur);
