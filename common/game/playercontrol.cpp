@@ -77,8 +77,9 @@ void PlayerControl::onKeyPressed(KeyCodec::Action a, Tempest::KeyEvent::KeyType 
 
 #if !defined(__MOBILE_PLATFORM__)
   // Mouse buttons arrive without a key code; touch and gamepad do too, but only on mobile.
+  // Classic combat holds the action key as a modifier, so it keeps the vanilla focus lock.
   if(a==KeyCodec::ActionGeneric)
-    mouseCombat=(key==Tempest::KeyEvent::K_NoKey);
+    mouseCombat=(g2Ctrl && key==Tempest::KeyEvent::K_NoKey);
 #endif
 
   // Separate from the attack key: pick up, use or talk to whatever is in focus.
@@ -118,7 +119,8 @@ void PlayerControl::onKeyPressed(KeyCodec::Action a, Tempest::KeyEvent::KeyType 
       }
 
     // With a separate interact key bound, the attack key no longer interacts; unarmed it readies the last weapon.
-    if(a==Action::ActionGeneric && ws==WeaponState::NoWeapon && pl->interactive()==nullptr &&
+    // Classic combat keeps vanilla behavior, since the action key is held as an attack modifier there.
+    if(a==Action::ActionGeneric && g2Ctrl && ws==WeaponState::NoWeapon && pl->interactive()==nullptr &&
        !Gothic::settingsGetS("KEYS","keyInteract").empty()) {
       drawLastWeapon(*pl);
       return;
