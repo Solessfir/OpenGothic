@@ -34,6 +34,7 @@ class MenuRoot : public Tempest::Widget {
 
     void showVersion(bool s);
     bool hasVersionLine() const;
+    bool isTopMenu(const GameMenu* m) const { return menuStack.empty() && current==m; }
 
     void mouseWheelEvent(Tempest::MouseEvent& event) override;
     void keyRepeatEvent (Tempest::KeyEvent&   event) override;
@@ -42,11 +43,15 @@ class MenuRoot : public Tempest::Widget {
   protected:
     void mouseDownEvent (Tempest::MouseEvent& event) override;
     void mouseUpEvent   (Tempest::MouseEvent& event) override;
+#if !defined(__MOBILE_PLATFORM__)
     void mouseDragEvent (Tempest::MouseEvent& event) override;
+    void mouseMoveEvent (Tempest::MouseEvent& event) override;
+#endif
 
   private:
     void initSettings();
     void navigateBack();
+    void updateCursor();
 
     std::unique_ptr<zenkit::DaedalusVm>    vm;
     int32_t                                vmLang = -1;
@@ -57,8 +62,10 @@ class MenuRoot : public Tempest::Widget {
 
     Tempest::Event::KeyType                cheatCode[6] = {};
     bool                                   showVersionHint = false;
-#if defined(__MOBILE_PLATFORM__)
-    Tempest::Point                         touchStart;
-    bool                                   touchMoved = false;
+#if !defined(__MOBILE_PLATFORM__)
+    Tempest::Point                         mouseStart;
+    bool                                   mousePressed = false;
+    bool                                   mouseMoved   = false;
+    bool                                   mouseEnabled = true;
 #endif
   };

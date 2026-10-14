@@ -11,6 +11,7 @@
 #include <Tempest/Layout>
 #include <Tempest/Application>
 #include <Tempest/Log>
+#include <Tempest/Pixmap>
 
 #include "ui/dialogmenu.h"
 #include "ui/menuroot.h"
@@ -345,6 +346,66 @@ void MainWindow::paintEvent(PaintEvent& event) {
     }
   }
 
+#if !defined(__MOBILE_PLATFORM__)
+// Menu pointer: a slim arrow with a dark fill and a warm light border, in the colors of the inventory slots.
+static Pixmap makeMenuCursor(float scale, int& hotspot) {
+  struct P { float x, y; };
+  // Drawn on a 32-unit grid and shown at 22 px, the size of a desktop arrow.
+  const float k       = 22.f/32.f*scale;
+  const P     shape[] = {{2,2},{2,21},{7,16.6f},{15.6f,16.6f}};
+  const float border  = std::max(1.f, 1.3f*k);
+  const int   size    = int(std::ceil(22.f*scale));
+
+  P pts[std::size(shape)];
+  for(size_t i=0; i<std::size(shape); ++i)
+    pts[i] = {shape[i].x*k, shape[i].y*k};
+  hotspot = int(pts[0].x);
+
+  auto inside = [&](float x, float y) {
+    bool in = false;
+    for(size_t i=0, j=std::size(pts)-1; i<std::size(pts); j=i++)
+      if((pts[i].y>y)!=(pts[j].y>y) && x<(pts[j].x-pts[i].x)*(y-pts[i].y)/(pts[j].y-pts[i].y)+pts[i].x)
+        in = !in;
+    return in;
+    };
+  auto edgeDist = [&](float x, float y) {
+    float d = std::numeric_limits<float>::max();
+    for(size_t i=0, j=std::size(pts)-1; i<std::size(pts); j=i++) {
+      const float ex = pts[i].x-pts[j].x, ey = pts[i].y-pts[j].y;
+      const float t  = std::clamp(((x-pts[j].x)*ex+(y-pts[j].y)*ey)/(ex*ex+ey*ey), 0.f, 1.f);
+      d = std::min(d, std::hypot(x-pts[j].x-t*ex, y-pts[j].y-t*ey));
+      }
+    return d;
+    };
+
+  // 4x4 supersampling for smooth edges.
+  constexpr int ss = 4;
+  Pixmap  img(uint32_t(size), uint32_t(size), TextureFormat::RGBA8);
+  auto*   px = reinterpret_cast<uint8_t*>(img.data());
+  for(int y=0; y<size; ++y)
+    for(int x=0; x<size; ++x) {
+      float edge = 0, fill = 0;
+      for(int sy=0; sy<ss; ++sy)
+        for(int sx=0; sx<ss; ++sx) {
+          const float fx = float(x)+(float(sx)+0.5f)/ss, fy = float(y)+(float(sy)+0.5f)/ss;
+          if(edgeDist(fx,fy)<=border*0.5f)
+            edge += 1;
+          else if(inside(fx,fy))
+            fill += 1;
+          }
+      const float cover = edge+fill;
+      const float b     = cover>0 ? edge/cover : 0;
+      auto* o = px + (y*size+x)*4;
+      // Border #ffdfad over a solid #020202 fill.
+      o[0] = uint8_t(std::lround(b*255.f + (1-b)*2.f));
+      o[1] = uint8_t(std::lround(b*223.f + (1-b)*2.f));
+      o[2] = uint8_t(std::lround(b*173.f + (1-b)*2.f));
+      o[3] = uint8_t(std::lround(cover/float(ss*ss)*255.f));
+      }
+  return img;
+  }
+#endif
+
 void MainWindow::resizeEvent(SizeEvent&) {
 #if defined(__ANDROID__)
   framePacer.reset();
@@ -358,6 +419,15 @@ void MainWindow::resizeEvent(SizeEvent&) {
   if(SystemApi::isFullscreen(hwnd())) {
     setCursorPosition(Point(w()/2,h()/2));
     }
+
+#if !defined(__MOBILE_PLATFORM__)
+  if(const float scale = Gothic::interfaceScale(this); scale!=cursorScale) {
+    cursorScale = scale;
+    int hotspot = 0;
+    const auto img = makeMenuCursor(scale,hotspot);
+    SystemApi::setCustomCursor(img,hotspot,hotspot);
+    }
+#endif
 
   dMouse = Point();
   }
@@ -414,6 +484,17 @@ void MainWindow::processMouse(MouseEvent& event, bool enable) {
   }
 
 void MainWindow::tickMouse(uint64_t dt) {
+  if(rootMenu.isActive() || dialogs.isActive() || inventory.isActive()) {
+    uiPointer = true;
+    }
+  else if(uiPointer) {
+    // The UI pointer moves freely, so mouse look restarts from the window center instead of where it was left.
+    uiPointer = false;
+    dMouse    = Point();
+    if(SystemApi::isFullscreen(hwnd()))
+      setCursorPosition(Point(w()/2,h()/2));
+    }
+
 #if defined(__ANDROID__)
   if(controllerConnected) {
     dMouse = Point();

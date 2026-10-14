@@ -46,9 +46,11 @@ class DialogMenu : public Tempest::Widget {
     void paintChoice(Tempest::PaintEvent& e);
 
     void mouseDownEvent (Tempest::MouseEvent& event) override;
+    void mouseMoveEvent (Tempest::MouseEvent& event) override;
     void mouseWheelEvent(Tempest::MouseEvent& event) override;
 
     void onSelect();
+    size_t choiceAt(Tempest::Point pos) const;
     void setupSettings();
     bool isChoiceMenuActive() const;
 
