@@ -252,6 +252,25 @@ void MainWindow::paintEvent(PaintEvent& event) {
       auto focus = world->validateFocus(player.focus());
       paintFocus(p,focus,vp);
 
+      if(auto pl = Gothic::inst().player(); pl!=nullptr && Gothic::settingsGetI("GAME","freeAim")!=0 &&
+         !rootMenu.isActive() && !inventory.isActive() && !dialogs.isActive() &&
+         (pl->weaponState()==WeaponState::Bow || pl->weaponState()==WeaponState::CBow || pl->weaponState()==WeaponState::Mage)) {
+        // Free aim crosshair: four short ticks around the point projectiles fly to.
+        const int s   = std::max(1,int(std::lround(Gothic::interfaceScale(this))));
+        const int gap = 4*s, len = 6*s, th = 2*s, cx = w()/2, cy = h()/2;
+        auto tick = [&](int x, int y, int tw, int tht) {
+          p.setBrush(Color(0.f,0.f,0.f,0.6f));
+          p.drawRect(x-s,y-s,tw+2*s,tht+2*s);
+          p.setBrush(Color(1.f,0.875f,0.68f,0.95f));
+          p.drawRect(x,y,tw,tht);
+          };
+        tick(cx-gap-len, cy-th/2, len, th);
+        tick(cx+gap,     cy-th/2, len, th);
+        tick(cx-th/2, cy-gap-len, th, len);
+        tick(cx-th/2, cy+gap,     th, len);
+        p.setBrush(Color(1.0));
+        }
+
       if(auto pl = Gothic::inst().player()){
         if (!Gothic::inst().isDesktop()) {
           auto& opt = Gothic::options();
@@ -1433,6 +1452,11 @@ void MainWindow::tickCamera(uint64_t dt) {
     else if(pl!=nullptr && (pl->isSwim() || pl->isDive()) &&
             (player.isControllerSwimming() || Gothic::settingsGetI("GAME","cameraSwimming")!=0)) {
       // The swimmer steers from the camera, so following the swimmer back would feed into itself.
+      camera.setTarget(pos);
+      }
+    else if(pl!=nullptr && Gothic::settingsGetI("GAME","freeAim")!=0 &&
+            (pl->weaponState()==WeaponState::Bow || pl->weaponState()==WeaponState::CBow || pl->weaponState()==WeaponState::Mage)) {
+      // Free aim: the mouse turns the camera and the hero turns to the crosshair, never the other way around.
       camera.setTarget(pos);
       }
     else if(player.focus().npc!=nullptr && meleeFocus && pl!=nullptr) {
