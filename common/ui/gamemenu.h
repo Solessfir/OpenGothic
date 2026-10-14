@@ -36,6 +36,7 @@ class GameMenu : public Tempest::Widget {
     void requestDeleteSave(std::string_view hint);
     bool canRequestDeleteSave() const;
     bool isDeletingSave() const { return pendingDelete!=nullptr; }
+    bool isReadingQuest() const { return journalContent!=nullptr; }
     bool closeNestedView();
     bool overwriteSelectedSave();
     void renameSelectedSave();
@@ -113,6 +114,7 @@ class GameMenu : public Tempest::Widget {
 
     Item*                                 selectedItem();
     Item*                                 itemAt(Tempest::Point pos, int& index);
+    int32_t                               questAt(const Item& list, Tempest::Point pos);
     Tempest::Rect                         itemRect(const Item& item) const;
     static bool                           isDraggable(const Item& item);
     bool                                  selectionIncludes(const Item& item);
