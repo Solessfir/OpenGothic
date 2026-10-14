@@ -101,6 +101,4 @@ Use/Attack confirms permanent deletion; Back cancels. There is no undo.
 
 ## Swimming
 
-Movement follows the camera underwater. Hold Jump at the surface to dive.
-Release and hold Jump again underwater to rise; release to return to camera-directed swimming.
-Center movement to stop. Release Jump before diving again after surfacing.
+Movement follows the camera. Swim forward while looking steeply down to dive, and look up to rise. Center movement to stop. The Jump area turns into camera space while swimming.

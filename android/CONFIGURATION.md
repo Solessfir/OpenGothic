@@ -61,6 +61,7 @@ Options > Audio > Dialogue volume adjusts speech separately from effects and mus
 | `centerPlayerBars` | `0` | Classic corner health/mana bars; `1` stacks bars at bottom-center. Also selectable in the System hold wheel |
 | `mouseSensitivity` | `0.53` | Also controls touch/gamepad camera sensitivity |
 | `camLookaroundInverse` | Game preference | Vertical camera inversion |
+| `cameraSwimming` | `0` | `1` makes keyboard swimming follow the camera: forward swims where you look, and looking steeply down while swimming forward dives. Controller and touch swimming always follow the camera |
 
 Inventory keeps its own framing; radial wheels leave the gameplay camera active.
 Manual pitch is preserved across exploration/combat, and elevation/zoom changes blend smoothly.

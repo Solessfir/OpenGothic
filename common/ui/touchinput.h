@@ -53,6 +53,7 @@ class TouchInput : public Tempest::Widget {
     void            setGesturesEnabled(bool enabled);
     void            setSaveDeleteEnabled(bool enabled);
     void            setAnalogMovement(bool enabled);
+    void            setSwimming(bool enabled) { swimming = enabled; }
     void            setClassicAction(bool held);
     void            setDebugOverlay(bool enabled);
     void            setDebugLeftInset(int inset);
@@ -141,6 +142,7 @@ class TouchInput : public Tempest::Widget {
     bool            saveDeleteEnabled = false;
     bool            touchEnabled = true;
     bool            analogMovement = false;
+    bool            swimming = false;
     bool            debugOverlay = false;
     bool            classicCombat = true;
     bool            classicAction = false;
