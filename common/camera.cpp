@@ -190,9 +190,13 @@ void Camera::setMode(const Camera::Mode m) {
     };
 
   const bool reset = !(isRegular(camMod) && isRegular(m));
-#if defined(__ANDROID__)
   const float previousPitch=state.spin.x;
-#endif
+  // Camera-directed swimming dives by looking down, so the dive must not snap the view back.
+  const bool keepWaterPitch = camMod==Swim && m==Dive && Gothic::settingsGetI("GAME","cameraSwimming")!=0;
+  // Surfacing blends from the dive view in tickThirdPerson instead of snapping to the swim camera.
+  const bool  surfacing     = camMod==Dive && m==Swim;
+  const float previousRange = state.range;
+  surfaceBlend = false;
   if(camMod==Mode::Cutscene) {
     state.spin   = angles;
     state.target = origin;
@@ -232,6 +236,12 @@ void Camera::setMode(const Camera::Mode m) {
 #if defined(__ANDROID__)
   if(!reset) state.spin.x=previousPitch;
 #endif
+  if(keepWaterPitch) state.spin.x=previousPitch;
+  if(surfacing) {
+    state.spin.x = previousPitch;
+    state.range  = previousRange;
+    surfaceBlend = true;
+    }
   }
 
 void Camera::setMarvinMode(Camera::MarvinMode nextMod) {
@@ -328,6 +338,8 @@ void Camera::setDialogDistance(float d) {
   }
 
 void Camera::onRotateMouse(const PointF& dpos) {
+  if(dpos.x!=0.f)
+    surfaceBlend = false;
   state.spin.x += dpos.x;
   state.spin.y += dpos.y;
   }
@@ -848,6 +860,14 @@ void Camera::tickThirdPerson(float dtF) {
     inter.rotOffset = Vec3(0);
     }
 
+  if(surfaceBlend) {
+    const float blend = dtF<=0.f ? 1.f : -std::expm1(-dtF/0.5f);
+    state.spin.x += (def.best_elevation-state.spin.x)*blend;
+    state.range  += (def.best_range    -state.range )*blend;
+    if(std::abs(def.best_elevation-state.spin.x)<0.5f && std::abs(def.best_range-state.range)<0.01f)
+      surfaceBlend = false;
+    }
+
   if(camMod!=Dialog) {
     state.spin      = clampRotation(state.spin);
     inter.rotOffset = followRot(inter.rotOffset, rotOffsetDef, followDt, def.velo_rot);
@@ -898,7 +918,9 @@ void Camera::tickThirdPerson(float dtF) {
     // testd in marvin: collision is calculated from offseted 'target', not from npc
     range = calcCameraColision(inter.target, dir, rotation, range);
     // NOTE: with range < 80, camera gradually moves up in vanilla
-    if(range<80.f) {
+    // Camera-directed diving keeps the view direction near the floor, otherwise the swimmer would steer by the flip.
+    const bool keepDiveView = camMod==Dive && Gothic::settingsGetI("GAME","cameraSwimming")!=0;
+    if(range<80.f && !keepDiveView) {
       range      = 150; // also collision?!
       rotation.x = 80;
       rotation.y = state.spin.y;
