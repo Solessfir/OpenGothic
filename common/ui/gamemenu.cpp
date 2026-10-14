@@ -1054,9 +1054,73 @@ GameMenu::Item* GameMenu::itemAt(Point pos, int& index) {
   return nullptr;
   }
 
+int32_t GameMenu::questAt(const Item& list, Point pos) {
+  auto* log = Gothic::inst().questLog();
+  if(log==nullptr)
+    return -1;
+  // Same layout as drawItem and drawQuestList.
+  const auto& item = *list.handle;
+  const auto  rect = itemRect(list);
+  const int   px   = int(float(w()*item.frame_sizex)/scriptDiv);
+  const int   py   = int(float(h()*item.frame_sizey)/scriptDiv);
+  const int   x    = rect.x+px, y = rect.y+py, lw = rect.w-2*px, lh = rect.h-2*py;
+  if(pos.x<x || pos.x>=x+lw || pos.y<y)
+    return -1;
+
+  const auto  st    = toStatus(item.user_string[0]);
+  const float scale = Gothic::interfaceScale(this);
+  auto&       fnt   = Resources::font(item.fontname,Resources::FontType::Normal,scale);
+  int32_t     id    = -1;
+  int         top   = y;
+  for(size_t i=0; i<log->questCount(); ++i) {
+    auto& quest = log->quest(log->questCount()-i-1);
+    if(!isCompatible(quest,st))
+      continue;
+    if(++id<list.scroll)
+      continue;
+    const int rowH = fnt.textSize(lw,quest.name).h;
+    if(top+rowH>y+lh)
+      break;
+    if(pos.y<top+rowH)
+      return id;
+    top += rowH;
+    }
+  return -1;
+  }
+
 bool GameMenu::hoverMouse(Point pos) {
   if(ctrlInput!=nullptr || pendingDelete!=nullptr || mouseSlider!=nullptr)
     return false;
+  // The opened quest text has nothing to point at; the wheel scrolls it.
+  if(journalContent!=nullptr)
+    return false;
+  // Pointing at a quest in the visible list enters it directly, without confirming its category first.
+  Item* list = journalList;
+  for(uint32_t i=0; list==nullptr && i<zenkit::IMenu::item_count; ++i)
+    if(hItems[i].visible && hItems[i].handle!=nullptr && hItems[i].handle->type==zenkit::MenuItemType::LISTBOX)
+      list = &hItems[i];
+  if(list!=nullptr) {
+    const int32_t id = questAt(*list,pos);
+    if(id>=0) {
+      if(journalList==nullptr) {
+        journalCategory = curItem;
+        journalList     = list;
+        curItem         = uint32_t(list-hItems);
+        }
+      if(id!=list->value)
+        Feedback::play(Feedback::Effect::Navigate);
+      list->value = id;
+      update();
+      return true;
+      }
+    }
+  if(journalList!=nullptr) {
+    // Leave the list when the pointer moves back onto the categories.
+    int index = 0;
+    if(itemAt(pos,index)==nullptr)
+      return false;
+    closeNestedView();
+    }
   int index = 0;
   if(itemAt(pos,index)==nullptr)
     return false;
@@ -1073,6 +1137,9 @@ bool GameMenu::pressMouse(Point pos) {
   mouseSlider = nullptr;
   if(ctrlInput!=nullptr || pendingDelete!=nullptr)
     return false;
+  hoverMouse(pos);
+  if(journalList!=nullptr)
+    return journalContent==nullptr && questAt(*journalList,pos)>=0;
   int  index = 0;
   auto hit   = itemAt(pos,index);
   if(hit==nullptr)
