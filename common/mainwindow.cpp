@@ -1761,6 +1761,20 @@ void MainWindow::render(){
       once=false;
       }
 
+    // Pause while another application has focus, the same way an open menu pauses the game.
+    if(const bool pause = !isActive() && !Gothic::inst().isBenchmarkModeCi(); pause!=focusPaused) {
+      focusPaused = pause;
+      if(pause)
+        Gothic::inst().pushPause(); else
+        Gothic::inst().popPause();
+#if !defined(__MOBILE_PLATFORM__)
+      // Android pauses audio from its activity lifecycle instead.
+      if(pause)
+        SoundDevice::pauseAll(); else
+        SoundDevice::resumeAll();
+#endif
+      }
+
     if(T_UNLIKELY(Gothic::inst().isBenchmarkModeCi())) {
       const auto st = Gothic::inst().checkLoading();
       if(st==Gothic::LoadState::Loading) {
