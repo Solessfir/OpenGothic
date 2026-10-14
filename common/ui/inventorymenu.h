@@ -80,6 +80,7 @@ class InventoryMenu : public Tempest::Widget {
 
     void  mouseDownEvent (Tempest::MouseEvent& event) override;
     void  mouseUpEvent   (Tempest::MouseEvent& event) override;
+    void  mouseMoveEvent (Tempest::MouseEvent& event) override;
     void  mouseWheelEvent(Tempest::MouseEvent& event) override;
 
   private:
@@ -161,6 +162,7 @@ class InventoryMenu : public Tempest::Widget {
 
     const Page&               activePage();
     PageLocal&                activePageSel();
+    bool                      selectCellAt(Tempest::Point pos);
 
     void          processMove(Tempest::KeyEvent& e);
     void          moveLeft(bool usePage);

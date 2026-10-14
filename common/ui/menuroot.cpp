@@ -4,6 +4,7 @@
 
 #include "ui/gamemenu.h"
 #include "utils/feedback.h"
+#include "utils/mouseutil.h"
 #include "gothic.h"
 
 using namespace Tempest;
@@ -21,6 +22,11 @@ MenuRoot::~MenuRoot() {
   }
 
 void MenuRoot::initSettings() {
+#if !defined(__MOBILE_PLATFORM__)
+  mouseEnabled = MouseUtil::isPointerEnabled();
+  updateCursor();
+#endif
+
   const auto lang = Gothic::inst().settingsGetI("GAME", "language");
   if(lang==vmLang && vm!=nullptr)
     return;
@@ -63,6 +69,7 @@ void MenuRoot::setMenu(GameMenu *w) {
   if(w)
     addWidget(w);
   current=w;
+  updateCursor();
   }
 
 void MenuRoot::pushMenu(GameMenu *w) {
@@ -75,6 +82,7 @@ void MenuRoot::pushMenu(GameMenu *w) {
     w->onTick();
     }
   current = w;
+  updateCursor();
   }
 
 void MenuRoot::popMenu() {
@@ -82,6 +90,7 @@ void MenuRoot::popMenu() {
     if(Gothic::inst().isInGame() || Gothic::inst().checkLoading()!=Gothic::LoadState::Idle) {
       current=nullptr;
       removeAllWidgets();
+      updateCursor();
       owner()->setFocus(true);
       }
     return;
@@ -92,6 +101,7 @@ void MenuRoot::popMenu() {
   addWidget(w);
   current=w;
   current->onTick();
+  updateCursor();
 
   menuStack.pop_back();
   }
@@ -101,7 +111,14 @@ void MenuRoot::closeAll() {
   if(Gothic::inst().isInGame() || Gothic::inst().checkLoading()!=Gothic::LoadState::Idle) {
     current=nullptr;
     removeAllWidgets();
+    updateCursor();
     }
+  }
+
+void MenuRoot::updateCursor() {
+#if !defined(__MOBILE_PLATFORM__)
+  setCursorShape(current!=nullptr && mouseEnabled ? CursorShape::Custom : CursorShape::Hidden);
+#endif
   }
 
 bool MenuRoot::isActive() const {
@@ -159,20 +176,68 @@ bool MenuRoot::hasVersionLine() const {
   }
 
 void MenuRoot::mouseDownEvent(MouseEvent& event) {
-  if(current!=nullptr) {
-    if(event.button==Event::ButtonRight) {
-      navigateBack();
-      } else {
-      // A stray screen tap must not confirm permanent deletion.
-      if(!current->isDeletingSave())
-        current->onKeyboard(KeyCodec::ActionGeneric);
-      }
-    } else {
+  if(current==nullptr) {
     event.ignore();
+    return;
     }
+  if(event.button==Event::ButtonRight) {
+#if !defined(__MOBILE_PLATFORM__)
+    // Hover enters quest lists implicitly, so leaving one must not need a separate click.
+    if(mouseEnabled && !current->isReadingQuest())
+      current->closeNestedView();
+#endif
+    navigateBack();
+    return;
+    }
+#if !defined(__MOBILE_PLATFORM__)
+  if(mouseEnabled) {
+    if(event.button!=Event::ButtonLeft)
+      return;
+    mouseStart   = event.pos();
+    mouseMoved   = false;
+    mousePressed = current->pressMouse(event.pos()-current->pos());
+    return;
+    }
+#endif
+  // A stray screen tap must not confirm permanent deletion.
+  if(!current->isDeletingSave())
+    current->onKeyboard(KeyCodec::ActionGeneric);
   }
 
-void MenuRoot::mouseUpEvent(MouseEvent&) {
+#if !defined(__MOBILE_PLATFORM__)
+void MenuRoot::mouseDragEvent(MouseEvent& event) {
+  // Accept the event even without a press, so the game does not take it as mouse look.
+  if(current==nullptr) {
+    event.ignore();
+    return;
+    }
+  if(!mousePressed)
+    return;
+  const int  step  = std::max(1, int(8.f*Gothic::interfaceScale(this)));
+  const auto delta = event.pos()-mouseStart;
+  mouseMoved |= std::max(std::abs(delta.x),std::abs(delta.y))>=step;
+  current->dragMouse(event.pos()-current->pos());
+  }
+
+void MenuRoot::mouseMoveEvent(MouseEvent& event) {
+  if(current==nullptr || !mouseEnabled) {
+    event.ignore();
+    return;
+    }
+  current->hoverMouse(event.pos()-current->pos());
+  }
+#endif
+
+void MenuRoot::mouseUpEvent(MouseEvent& event) {
+#if !defined(__MOBILE_PLATFORM__)
+  if(current==nullptr || !mousePressed || event.button!=Event::ButtonLeft)
+    return;
+  mouseDragEvent(event);
+  mousePressed = false;
+  current->releaseMouse(!mouseMoved);
+#else
+  (void)event;
+#endif
   }
 
 void MenuRoot::mouseWheelEvent(MouseEvent &event) {
