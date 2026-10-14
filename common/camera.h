@@ -99,6 +99,7 @@ class Camera final {
     void               setDialogDistance(float d);
 
     void               onRotateMouse(const Tempest::PointF& dpos);
+    void               easeToSwimView() { if(camMod==Swim) surfaceBlend = true; }
 
     Tempest::Matrix4x4 projective() const;
     Tempest::Matrix4x4 view() const;
@@ -163,6 +164,7 @@ class Camera final {
     bool                  tgEnable      = true;
     bool                  fpEnable      = false;
     bool                  lbEnable      = false;
+    bool                  surfaceBlend  = false;
     bool                  inertiaTarget = true;
     Mode                  camMod        = Normal;
     MarvinMode            camMarvinMod  = M_Normal;
