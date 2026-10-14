@@ -3419,9 +3419,11 @@ Item* Npc::takeItem(Item& item) {
     return nullptr;
     }
 
-  const auto  dpos = item.midPosition()-centerPosition();
-  const auto* sq   = setAnimAngGet(Npc::Anim::ItmGet, Pose::calcAniCombVert(dpos));
-  if(sq==nullptr)
+  // Optional for the hero: take items instantly, without bending down and waiting for the animation.
+  const bool  instant = isPlayer() && Gothic::settingsGetI("GAME","skipPickupAnimation")!=0;
+  const auto  dpos    = item.midPosition()-centerPosition();
+  const auto* sq      = instant ? nullptr : setAnimAngGet(Npc::Anim::ItmGet, Pose::calcAniCombVert(dpos));
+  if(sq==nullptr && !instant)
     return nullptr;
 
   std::unique_ptr<Item> ptr = owner.takeItem(item);
@@ -3442,7 +3444,8 @@ Item* Npc::takeItem(Item& item) {
   if(isPlayer() && it!=nullptr)
     owner.sendPassivePerc(*this,*this,*it,PERC_ASSESSTHEFT);
 
-  implAniWait(uint64_t(sq->totalTime()));
+  if(sq!=nullptr)
+    implAniWait(uint64_t(sq->totalTime()));
   return it;
   }
 
