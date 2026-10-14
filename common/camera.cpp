@@ -191,6 +191,7 @@ void Camera::setMode(const Camera::Mode m) {
 
   const bool reset = !(isRegular(camMod) && isRegular(m));
   const float previousPitch=state.spin.x;
+  const Vec3  previousSpin =state.spin;
   // Camera-directed swimming dives by looking down, so the dive must not snap the view back.
   const bool keepWaterPitch = camMod==Swim && m==Dive && Gothic::settingsGetI("GAME","cameraSwimming")!=0;
   // Surfacing blends from the dive view in tickThirdPerson instead of snapping to the swim camera.
@@ -233,9 +234,8 @@ void Camera::setMode(const Camera::Mode m) {
                       def.best_azimuth,
                       def.best_rot_z);
   state.spin += rotBest;
-#if defined(__ANDROID__)
-  if(!reset) state.spin.x=previousPitch;
-#endif
+  // Drawing or sheathing keeps the view; the distance blends in tickThirdPerson.
+  if(!reset) state.spin=previousSpin;
   if(keepWaterPitch) state.spin.x=previousPitch;
   if(surfacing) {
     state.spin.x = previousPitch;
@@ -724,6 +724,11 @@ void Camera::tick(uint64_t dt) {
   {
     const auto& def = cameraDef();
     state.range = def.min_range + (def.max_range-def.min_range)*userRange;
+    // Combat cameras are closer in the scripts; keep at least the exploration distance to see more of the fight.
+    if(camMod==Melee || camMod==Ranged || camMod==Magic) {
+      const auto& normal = Gothic::cameraDef().stdCam();
+      state.range = std::max(state.range, normal.min_range + (normal.max_range-normal.min_range)*userRange);
+      }
   }
 
   // normalize angles in -180..180 range, for convinience
@@ -827,12 +832,10 @@ void Camera::tickFirstPerson(float /*dtF*/) {
   }
 
 float Camera::followSpeed() const {
-#if defined(__ANDROID__)
   if(camMarvinMod==M_Normal && (camMod==Normal || camMod==Melee || camMod==Ranged || camMod==Magic)) {
     const float speed=Gothic::settingsGetF("GAME","cameraFollowSpeed");
     return std::isfinite(speed) ? std::clamp(speed,0.25f,4.f) : 2.f;
     }
-#endif
   return 1.f;
   }
 
@@ -874,7 +877,6 @@ void Camera::tickThirdPerson(float dtF) {
     }
 
   auto orbitSpin=state.spin;
-#if defined(__ANDROID__)
   const bool gameplay=camMod==Normal || camMod==Melee || camMod==Ranged || camMod==Magic;
   if(gameplay) {
     // Raise the camera along its orbit so the normal look-at points downward toward the player.
@@ -897,7 +899,6 @@ void Camera::tickThirdPerson(float dtF) {
   // Inventory has its own composed view; gameplay pitch must not tilt that preset.
   // Keep the input pitch untouched so closing inventory restores the player's view.
   if(camMod==Inventory) orbitSpin.x=def.best_elevation;
-#endif
   const auto rotOffsetMat = mkRotMatrix(orbitSpin);
   if(camMod!=Dialog) {
     rotOffsetMat.project(targetOffset);
