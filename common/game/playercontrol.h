@@ -212,6 +212,7 @@ class PlayerControl final {
     void           marvinK(uint64_t dt);
     void           marvinO();
     void           toggleWalkMode();
+    void           drawLastWeapon(Npc& pl);
     void           toggleSneakMode();
     void           moveFocus(FocusAction act);
     Focus          findFocus(const Focus* prev) const;

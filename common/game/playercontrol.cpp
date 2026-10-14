@@ -75,6 +75,13 @@ void PlayerControl::onKeyPressed(KeyCodec::Action a, Tempest::KeyEvent::KeyType 
     return;
     }
 
+  // Separate from the attack key: pick up, use or talk to whatever is in focus.
+  if(a==KeyCodec::Interact) {
+    if(pl!=nullptr && pl->interactive()==nullptr)
+      controllerInteract(true);
+    return;
+    }
+
   handleMovementAction(KeyCodec::ActionMapping{a,mapping}, true);
 
   if(pl!=nullptr && pl->interactive()!=nullptr && c!=nullptr && !c->isFree()) {
@@ -90,16 +97,24 @@ void PlayerControl::onKeyPressed(KeyCodec::Action a, Tempest::KeyEvent::KeyType 
     }
 
   if(pl!=nullptr) {
+    if(a==Action::Sheath) {
+      if(ws!=WeaponState::NoWeapon)
+        wctrl[WeaponClose] = true;
+      return;
+      }
+
     if(a==Action::Weapon) {
       if(ws!=WeaponState::NoWeapon) //Currently a weapon is active
         wctrl[WeaponClose] = true;
-      else {
-        if(wctrlLast>=WeaponAction::Weapon3 && pl->inventory().currentSpell(static_cast<uint8_t>(wctrlLast-3))==nullptr)
-          wctrlLast=WeaponAction::WeaponBow;  //Spell no longer available -> fallback to Bow.
-        if(wctrlLast==WeaponAction::WeaponBow && pl->currentRangedWeapon()==nullptr)
-          wctrlLast=WeaponAction::WeaponMele; //Bow no longer available -> fallback to Mele.
-        wctrl[wctrlLast] = true;
-        }
+      else
+        drawLastWeapon(*pl);
+      return;
+      }
+
+    // With a separate interact key bound, the attack key no longer interacts; unarmed it readies the last weapon.
+    if(a==Action::ActionGeneric && ws==WeaponState::NoWeapon && pl->interactive()==nullptr &&
+       !Gothic::settingsGetS("KEYS","keyInteract").empty()) {
+      drawLastWeapon(*pl);
       return;
       }
 
@@ -218,6 +233,14 @@ void PlayerControl::onKeyPressed(KeyCodec::Action a, Tempest::KeyEvent::KeyType 
     marvinO();
 
   ctrl[a] = true;
+  }
+
+void PlayerControl::drawLastWeapon(Npc& pl) {
+  if(wctrlLast>=WeaponAction::Weapon3 && pl.inventory().currentSpell(static_cast<uint8_t>(wctrlLast-3))==nullptr)
+    wctrlLast=WeaponAction::WeaponBow;  //Spell no longer available -> fallback to Bow.
+  if(wctrlLast==WeaponAction::WeaponBow && pl.currentRangedWeapon()==nullptr)
+    wctrlLast=WeaponAction::WeaponMele; //Bow no longer available -> fallback to Mele.
+  wctrl[wctrlLast] = true;
   }
 
 void PlayerControl::onKeyReleased(KeyCodec::Action a, KeyCodec::Mapping mapping) {
