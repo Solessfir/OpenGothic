@@ -36,9 +36,15 @@ class GameMenu : public Tempest::Widget {
     void requestDeleteSave(std::string_view hint);
     bool canRequestDeleteSave() const;
     bool isDeletingSave() const { return pendingDelete!=nullptr; }
+    bool isReadingQuest() const { return journalContent!=nullptr; }
     bool closeNestedView();
     bool overwriteSelectedSave();
     void renameSelectedSave();
+
+    bool hoverMouse  (Tempest::Point pos);
+    bool pressMouse  (Tempest::Point pos);
+    void dragMouse   (Tempest::Point pos);
+    void releaseMouse(bool activate);
 
     KeyCodec::Action keyClose() const { return kClose; }
 
@@ -93,6 +99,7 @@ class GameMenu : public Tempest::Widget {
     std::string                           deleteHint;
     std::string                           deleteError;
     uint32_t                              curItem=0;
+    Item*                                 mouseSlider=nullptr;
     bool                                  exitFlag=false;
     bool                                  closeFlag=false;
 
@@ -106,6 +113,11 @@ class GameMenu : public Tempest::Widget {
     void                                  journalInput(KeyCodec::Action key);
 
     Item*                                 selectedItem();
+    Item*                                 itemAt(Tempest::Point pos, int& index);
+    Item*                                 itemAt(Tempest::Point pos, int& index, bool textOnly);
+    int32_t                               questAt(const Item& list, Tempest::Point pos);
+    Tempest::Rect                         itemRect(const Item& item) const;
+    static bool                           isDraggable(const Item& item);
     bool                                  selectionIncludes(const Item& item);
     Item*                                 selectedSaveItem();
     Item*                                 selectedNextItem(Item* cur);
