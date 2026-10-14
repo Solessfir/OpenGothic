@@ -34,6 +34,7 @@ class MenuRoot : public Tempest::Widget {
 
     void showVersion(bool s);
     bool hasVersionLine() const;
+    bool isTopMenu(const GameMenu* m) const { return menuStack.empty() && current==m; }
 
     void mouseWheelEvent(Tempest::MouseEvent& event) override;
     void keyRepeatEvent (Tempest::KeyEvent&   event) override;

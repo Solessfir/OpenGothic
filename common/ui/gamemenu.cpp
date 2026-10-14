@@ -562,7 +562,7 @@ void GameMenu::paintEvent(PaintEvent &e) {
       }
     }
 
-  if(owner.hasVersionLine()) {
+  if(owner.hasVersionLine() && owner.isTopMenu(this)) {
     auto&       fnt   = Resources::font(scale);
     fnt.drawText(p, w()-fnt.textSize(appBuild).w-int(25*scale), h()-int(25*scale), appBuild);
     }
@@ -1030,8 +1030,20 @@ GameMenu::Item* GameMenu::itemAt(Point pos, int& index) {
     auto* it  = &selected;
     for(int n=0; n<zenkit::IMenu::item_count && it!=nullptr; ++n) {
       auto rect = itemRect(*it);
-      if(it->handle->type!=zenkit::MenuItemType::SLIDER)
-        rect.h = getTextFont(*it).pixelSize();
+      if(it->handle->type!=zenkit::MenuItemType::SLIDER) {
+        const auto& fnt = getTextFont(*it);
+        rect.h = fnt.pixelSize();
+        // Script boxes often span the whole row; on a shared row such as Back and "More keys" only the drawn text may count.
+        if(it->handle->type!=zenkit::MenuItemType::INPUT && !(it->handle->flags & zenkit::MenuItemFlag::MULTILINE)) {
+          getText(*it,textBuf);
+          const int tw = fnt.textSize(std::string_view(textBuf.data())).w;
+          if(tw>0 && tw<rect.w) {
+            if(it->handle->flags & zenkit::MenuItemFlag::CENTERED)
+              rect.x += (rect.w-tw)/2;
+            rect.w = tw;
+            }
+          }
+        }
       if(it->visible && !isHidden(it->handle) && rect.contains(pos)) {
         if(hit==nullptr)
           hit = it;
