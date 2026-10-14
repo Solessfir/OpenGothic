@@ -41,6 +41,7 @@ class PlayerControl final {
     void  switchControllerTarget(bool right);
     Npc*  lockedTarget() const { return controllerTarget; }
     bool  isControllerMoving() const { return controllerDirectional && gamepadLY!=0.f; }
+    bool  isControllerSwimming() const { return controllerSwimming; }
     bool  isClassicCombat() const { return !g2Ctrl; }
     void  setSneaking(bool enabled);
     void  onRotateMouse(float dAngleX, float dAngleY);
@@ -180,8 +181,6 @@ class PlayerControl final {
     size_t         controllerBowWeapon=size_t(-1);
     bool           controllerWalkApplied=false;
     bool           controllerSwimming=false;
-    bool           swimJumpHeld=false;
-    bool           swimDiveStroke=false;
     float          swimPitch=0;
     Npc*           controllerFinisher=nullptr;
     uint64_t       controllerFinishTime=0;
@@ -219,7 +218,7 @@ class PlayerControl final {
 
     void           clrDraw();
     void           implMove(uint64_t dt);
-    void           implSwim(Npc& pl, uint64_t dt);
+    void           implSwim(Npc& pl, uint64_t dt, float magnitude, float yaw, float aimPitch, bool faceIdle = false, bool backward = false);
     void           implMoveMobsi(Npc& pl, uint64_t dt);
     void           processPickLock(Npc& pl, Interactive& inter, KeyCodec::Action key);
     void           processLadder(Npc& pl, Interactive& inter, KeyCodec::Action key);

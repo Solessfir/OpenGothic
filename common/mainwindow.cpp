@@ -414,8 +414,16 @@ void MainWindow::tickMouse(uint64_t dt) {
     return;
     }
 
-  if(dMouse==Point())
+  if(dMouse==Point()) {
+#if !defined(__MOBILE_PLATFORM__)
+    // Touch look never moves the mouse; mobile input paths track their own idle time.
+    mouseLookIdle+=dt;
+    if(mouseLookIdle>=SwimViewDelayMs && Gothic::settingsGetI("GAME","cameraSwimming")!=0)
+      camera->easeToSwimView();
+#endif
     return;
+    }
+  mouseLookIdle=0;
 
   const bool  camLookaroundInverse = Gothic::inst().settingsGetI("GAME","camLookaroundInverse");
   const float mouseSensitivity     = Gothic::inst().settingsGetF("GAME","mouseSensitivity")/MouseUtil::mouseSysSpeed();
@@ -1352,6 +1360,11 @@ void MainWindow::tickCamera(uint64_t dt) {
       camera.setTarget(pos);
       }
 #endif
+    else if(pl!=nullptr && (pl->isSwim() || pl->isDive()) &&
+            (player.isControllerSwimming() || Gothic::settingsGetI("GAME","cameraSwimming")!=0)) {
+      // The swimmer steers from the camera, so following the swimmer back would feed into itself.
+      camera.setTarget(pos);
+      }
     else if(player.focus().npc!=nullptr && meleeFocus && pl!=nullptr) {
       auto spin = camera.spin();
       spin.y = pl->rotation();
