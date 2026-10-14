@@ -175,6 +175,11 @@ void MenuRoot::mouseDownEvent(MouseEvent& event) {
     return;
     }
   if(event.button==Event::ButtonRight) {
+#if !defined(__MOBILE_PLATFORM__)
+    // Hover enters quest lists implicitly, so leaving one must not need a separate click.
+    if(!current->isReadingQuest())
+      current->closeNestedView();
+#endif
     navigateBack();
     return;
     }
