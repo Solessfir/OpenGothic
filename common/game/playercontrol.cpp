@@ -13,6 +13,7 @@
 #include "ui/dialogmenu.h"
 #include "ui/inventorymenu.h"
 #include "gothic.h"
+#include "camera.h"
 #include "utils/gamepadbindings.h"
 #include "utils/swiminput.h"
 #include "utils/meleeassist.h"
@@ -272,8 +273,6 @@ void PlayerControl::setGamepadAxis(float lx, float ly) {
   touchAnalogMovement=false;
   touchTurn=0;
   controllerSwimming=false;
-  swimJumpHeld=false;
-  swimDiveStroke=false;
   if(controllerWalkApplied) {
     if(auto pl=Gothic::inst().player())
       pl->setWalkMode(WalkBit(uint8_t(pl->walkMode()) & ~uint8_t(WalkBit::WM_Walk)));
@@ -310,8 +309,6 @@ void PlayerControl::setControllerMovement(float x,float y,float cameraYaw,bool w
   touchTurn=0;
   touchAnalogMovement=false;
   controllerSwimming=false;
-  swimJumpHeld=false;
-  swimDiveStroke=false;
   auto pl=Gothic::inst().player();
   if(pl==nullptr) return;
   applyControllerWalk(walk);
@@ -786,8 +783,6 @@ void PlayerControl::clearInput(bool preserveTarget) {
   controllerFinisher=nullptr;
   controllerFinishTime=0;
   controllerSwimming=false;
-  swimJumpHeld=false;
-  swimDiveStroke=false;
   controllerKeyReleases.fill(false);
   controllerReleaseAttack=false;
   controllerBlockPending=false;
@@ -1109,8 +1104,26 @@ void PlayerControl::implMove(uint64_t dt) {
     }
 
   if(controllerSwimming && (pl.isSwim() || pl.isDive())) {
-    implSwim(pl,dt);
+    implSwim(pl,dt,-gamepadLY,controllerYaw,swimPitch);
     return;
+    }
+
+  if((pl.isSwim() || pl.isDive()) && Gothic::settingsGetI("GAME","cameraSwimming")!=0) {
+    if(auto camera = Gothic::inst().camera()) {
+      if(wantsToTurnLeft())
+        camera->onRotateMouse(Tempest::PointF(0.f, rspeed));
+      if(wantsToTurnRight())
+        camera->onRotateMouse(Tempest::PointF(0.f,-rspeed));
+      const float forward = movement.forwardBackward.value();
+      // There is no backward dive animation, so backing away only works at the surface.
+      const bool  back = forward<0.f && pl.isSwim();
+      const float x    = back ? 0.f : movement.strafeRightLeft.value();
+      const float y    = -std::max(forward,0.f);
+      const auto  spin = camera->spin();
+      const auto  aim  = SwimInput::direction(x,y,spin.y,spin.x);
+      implSwim(pl,dt,back ? 1.f : std::min(1.f,std::hypot(x,y)),aim.yaw,aim.pitch,true,back);
+      return;
+      }
     }
 
   int rotation = 0;
@@ -1416,31 +1429,20 @@ void PlayerControl::implMove(uint64_t dt) {
   pl.setDirection(rot);
   }
 
-void PlayerControl::implSwim(Npc& pl, uint64_t dt) {
-  const bool jump=ctrl[Action::Jump];
-  if(!jump)
-    swimDiveStroke=false;
-  if(jump && !swimJumpHeld) {
-    swimDiveStroke=pl.isSwim();
-    if(swimDiveStroke)
-      pl.startDive();
-    }
-  swimJumpHeld=jump;
+void PlayerControl::implSwim(Npc& pl, uint64_t dt, float magnitude, float yaw, float aimPitch, bool faceIdle, bool backward) {
+  // Steeper than the default swim camera, so looking at the swimmer does not dive.
+  constexpr float diveAngle = -45.f;
 
-  float magnitude=-gamepadLY;
-  float yaw=controllerYaw;
-  float pitch=pl.isDive() ? swimPitch : 0.f;
-  if(jump && pl.isDive()) {
-    // A fresh press underwater rises; the surface dive press must be released first.
-    pitch=swimDiveStroke ? -40.f : 80.f;
-    if(magnitude==0.f)
-      yaw=pl.rotation();
-    magnitude=1.f;
-    }
-  if(magnitude>0.f) {
-    const float step=controllerTurnSpeed*float(dt)/1000.f;
+  if(pl.isSwim() && magnitude>0.f && !backward && aimPitch<diveAngle)
+    pl.startDive();
+
+  const float pitch=pl.isDive() ? aimPitch : 0.f;
+  const float step=controllerTurnSpeed*float(dt)/1000.f;
+  if(magnitude>0.f || faceIdle) {
     const float rotation=std::remainder(yaw-pl.rotation(),360.f);
     pl.setDirection(pl.rotation()+std::clamp(rotation,-step,step));
+    }
+  if(magnitude>0.f) {
     const float elevation=pitch-pl.rotationY();
     pl.setDirectionY(pl.rotationY()+std::clamp(elevation,-step,step));
     }
@@ -1452,7 +1454,7 @@ void PlayerControl::implSwim(Npc& pl, uint64_t dt) {
   runAngleDest=0.f;
   rotMouse=0.f;
   rotMouseY=0.f;
-  pl.setAnim(magnitude>0.f ? Npc::Anim::Move : Npc::Anim::Idle);
+  pl.setAnim(magnitude>0.f ? (backward ? Npc::Anim::MoveBack : Npc::Anim::Move) : Npc::Anim::Idle);
   }
 
 void PlayerControl::implMoveMobsi(Npc& pl, uint64_t /*dt*/) {
