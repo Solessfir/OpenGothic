@@ -1730,6 +1730,14 @@ void MainWindow::render(){
       once=false;
       }
 
+    // Pause while another application has focus, the same way an open menu pauses the game.
+    if(const bool pause = !isActive() && !Gothic::inst().isBenchmarkModeCi(); pause!=focusPaused) {
+      focusPaused = pause;
+      if(pause)
+        Gothic::inst().pushPause(); else
+        Gothic::inst().popPause();
+      }
+
     if(T_UNLIKELY(Gothic::inst().isBenchmarkModeCi())) {
       const auto st = Gothic::inst().checkLoading();
       if(st==Gothic::LoadState::Loading) {
