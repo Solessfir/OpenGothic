@@ -90,9 +90,7 @@ Assign a selected spell/rune from personal inventory:
 
 ## Swimming
 
-Movement follows the camera underwater. Hold X at the surface to dive.
-Release and hold X again underwater to rise; release it to return to camera-directed swimming.
-Center movement to stop. Reaching the surface while holding X does not start another dive.
+Movement follows the camera. Swim forward while looking steeply down to dive, and look up to rise. Center movement to stop.
 
 ## Remapping
 
