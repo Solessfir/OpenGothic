@@ -47,6 +47,8 @@ class KeyCodec final {
       ActionLeft,
       ActionRight,
       Parade,
+      Interact,
+      Sheath,
 
       Walk,
       Sneak,
@@ -164,6 +166,8 @@ class KeyCodec final {
     KeyPair     keyShowStatus;
     KeyPair     keyShowLog;
     KeyPair     keyShowMap;
+    KeyPair     keyInteract;
+    KeyPair     keySheath;
 
     std::vector<KeyPair*> allKeys;
 
