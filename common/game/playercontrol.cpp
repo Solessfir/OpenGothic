@@ -203,6 +203,10 @@ void PlayerControl::onKeyPressed(KeyCodec::Action a, Tempest::KeyEvent::KeyType 
     }
 
   if(a==KeyCodec::ActionGeneric) {
+#if !defined(__MOBILE_PLATFORM__)
+    // Mouse buttons arrive without a key code; touch and gamepad do too, but only on mobile.
+    mouseCombat=(key==Tempest::KeyEvent::K_NoKey);
+#endif
     pickupHeld=ws==WeaponState::NoWeapon;
     FocusAction fk = ActGeneric;
     if(this->wantsToMoveForward())
@@ -390,7 +394,8 @@ void PlayerControl::setMeleeAssist(bool enabled,float maxAngle,float maxDistance
 
 void PlayerControl::assistMeleeAttack(Npc& pl) {
   const auto ws=pl.weaponState();
-  if(!meleeAssist || controllerTarget!=nullptr || pl.isAttackAnim() || !pl.isRotationAllowed() || pl.isSwim() || pl.isDive() ||
+  // Mouse attacks get the same one-time turn toward the target instead of the vanilla focus lock.
+  if(!(meleeAssist || mouseCombat) || controllerTarget!=nullptr || pl.isAttackAnim() || !pl.isRotationAllowed() || pl.isSwim() || pl.isDive() ||
      (ws!=WeaponState::Fist && ws!=WeaponState::W1H && ws!=WeaponState::W2H)) return;
   auto& world=pl.world();
   auto target=world.validateFocus(currentFocus).npc;
@@ -1440,7 +1445,8 @@ void PlayerControl::implMove(uint64_t dt) {
     }
 
   setAnimRotate(pl, rot, ani==Npc::Anim::Idle ? rotation : 0, movement.turnRightLeft.any(), dt);
-  if(controllerTarget!=nullptr || actrl[ActGeneric] || ani==Npc::Anim::MoveL || ani==Npc::Anim::MoveR || pl.isFinishingMove()) {
+  if(controllerTarget!=nullptr || pl.isFinishingMove() ||
+     (!mouseCombat && (actrl[ActGeneric] || ani==Npc::Anim::MoveL || ani==Npc::Anim::MoveR))) {
     processAutoRotate(pl,rot,dt);
     }
 
