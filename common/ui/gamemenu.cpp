@@ -119,7 +119,11 @@ struct GameMenu::SavNameDialog : Dialog {
 
 GameMenu::GameMenu(MenuRoot &owner, KeyCodec& keyCodec, zenkit::DaedalusVm& vm, std::string_view menuSection, KeyCodec::Action kClose)
   :owner(owner), keyCodec(keyCodec), vm(&vm), kClose(kClose) {
+#if defined(__MOBILE_PLATFORM__)
   setCursorShape(CursorShape::Hidden);
+#else
+  setCursorShape(CursorShape::Arrow);
+#endif
   timer.timeout.bind(this,&GameMenu::onTick);
   timer.start(100);
 
@@ -1002,6 +1006,122 @@ void GameMenu::processMusicTheme() {
     GameMusic::inst().setMusic(*theme,GameMusic::mkTags(GameMusic::Std,GameMusic::Day));
   }
 
+Rect GameMenu::itemRect(const Item& it) const {
+  const auto& item = it.handle;
+  const int dimx = item->dim_x!=-1 ? item->dim_x : 8192;
+  const int dimy = item->dim_y!=-1 ? item->dim_y : 750;
+  return Rect(int(float(w()*item->pos_x)/scriptDiv),int(float(h()*item->pos_y)/scriptDiv),
+              int(float(w()*dimx)/scriptDiv),int(float(h()*dimy)/scriptDiv));
+  }
+
+bool GameMenu::isDraggable(const Item& it) {
+  const auto& item = *it.handle;
+  return item.type==zenkit::MenuItemType::SLIDER ||
+         (item.type==zenkit::MenuItemType::CHOICEBOX && !item.text[0].empty() && item.text[0].back()=='%');
+  }
+
+GameMenu::Item* GameMenu::itemAt(Point pos, int& index) {
+  for(uint32_t i=0; i<zenkit::IMenu::item_count; ++i) {
+    auto& selected = hItems[i];
+    if(!selected.visible || !isSelectable(selected.handle) || !isEnabled(selected.handle))
+      continue;
+    // A selectable label owns the value items that follow it, such as its slider or choice box.
+    Item* hit = nullptr;
+    auto* it  = &selected;
+    for(int n=0; n<zenkit::IMenu::item_count && it!=nullptr; ++n) {
+      auto rect = itemRect(*it);
+      if(it->handle->type!=zenkit::MenuItemType::SLIDER)
+        rect.h = getTextFont(*it).pixelSize();
+      if(it->visible && !isHidden(it->handle) && rect.contains(pos)) {
+        if(hit==nullptr)
+          hit = it;
+        if(isDraggable(*it)) {
+          hit = it;
+          break;
+          }
+        }
+      if(!(it->handle->flags & zenkit::MenuItemFlag::EFFECTS))
+        break;
+      it = selectedNextItem(it);
+      if(it==&selected)
+        break;
+      }
+    if(hit!=nullptr) {
+      index = int(i);
+      return hit;
+      }
+    }
+  return nullptr;
+  }
+
+bool GameMenu::hoverMouse(Point pos) {
+  if(ctrlInput!=nullptr || pendingDelete!=nullptr || mouseSlider!=nullptr)
+    return false;
+  int index = 0;
+  if(itemAt(pos,index)==nullptr)
+    return false;
+  if(uint32_t(index)!=curItem) {
+    setSelection(index);
+    if(auto sel = selectedItem())
+      updateSavThumb(*sel);
+    update();
+    }
+  return true;
+  }
+
+bool GameMenu::pressMouse(Point pos) {
+  mouseSlider = nullptr;
+  if(ctrlInput!=nullptr || pendingDelete!=nullptr)
+    return false;
+  int  index = 0;
+  auto hit   = itemAt(pos,index);
+  if(hit==nullptr)
+    return false;
+  if(uint32_t(index)!=curItem) {
+    setSelection(index);
+    if(auto sel = selectedItem())
+      updateSavThumb(*sel);
+    }
+  if(isDraggable(*hit)) {
+    mouseSlider = hit;
+    dragMouse(pos);
+    }
+  update();
+  return true;
+  }
+
+void GameMenu::dragMouse(Point pos) {
+  if(mouseSlider==nullptr)
+    return;
+  const bool choice = mouseSlider->handle->type==zenkit::MenuItemType::CHOICEBOX;
+  if(!choice && slider==nullptr)
+    return;
+  const auto  rect = itemRect(*mouseSlider);
+  const int   knob = choice ? 0 : int(float(slider->w())*float(rect.h/2)/float(slider->h()));
+  const auto& sec  = mouseSlider->handle->on_chg_set_option_section;
+  const auto& opt  = mouseSlider->handle->on_chg_set_option;
+  if(rect.w<=knob || sec.empty() || opt.empty())
+    return;
+  const float value = std::clamp(float(pos.x-rect.x-knob/2)/float(rect.w-knob),0.f,1.f);
+  if(choice) {
+    const int count = int(strEnumSize(mouseSlider->handle->text[0]));
+    if(count==0)
+      return;
+    mouseSlider->value = int(std::round(value*float(count-1)));
+    Gothic::settingsSetI(sec,opt,mouseSlider->value);
+    } else {
+    Gothic::settingsSetF(sec,opt,std::round(value*100.f)/100.f);
+    }
+  update();
+  }
+
+void GameMenu::releaseMouse(bool activate) {
+  const bool dragged = mouseSlider!=nullptr;
+  mouseSlider = nullptr;
+  if(activate && !dragged)
+    onKeyboard(KeyCodec::ActionGeneric);
+  }
+
 GameMenu::Item *GameMenu::selectedItem() {
   if(curItem<zenkit::IMenu::item_count)
     return &hItems[curItem];
@@ -1318,10 +1438,10 @@ void GameMenu::execChgOption(Item &item, int slideDx) {
   if(item.handle->type==zenkit::MenuItemType::CHOICEBOX) {
     updateItem(item);
     const int cnt = int(strEnumSize(item.handle->text[0]));
-    if(slideDx==0 && cnt==2)
-      slideDx = 1; // QoL: on/off toggle
-
-    item.value += slideDx; // next value
+    if(slideDx==0 && cnt>0)
+      item.value = (item.value+1)%cnt; // QoL: a click or confirm cycles through the values
+    else
+      item.value += slideDx; // next value
     if(cnt>0)
       item.value = std::clamp(item.value,0,cnt-1);  else
       item.value = 0;
