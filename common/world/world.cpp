@@ -22,6 +22,7 @@
 #include "game/serialize.h"
 #include "utils/string_frm.h"
 #include "gothic.h"
+#include "camera.h"
 #include "focus.h"
 #include "resources.h"
 
@@ -645,13 +646,58 @@ size_t World::hasItems(std::string_view tag, size_t itemCls) {
   return wobj.hasItems(tag,itemCls);
   }
 
+std::optional<Tempest::Vec3> World::playerAimDir(Tempest::Vec3* origin) const {
+  // Free aim: the ray through the screen center, the way modern shooters aim.
+  if(Gothic::settingsGetI("GAME","freeAim")==0)
+    return std::nullopt;
+  auto camera = Gothic::inst().camera();
+  if(camera==nullptr || npcPlayer==nullptr)
+    return std::nullopt;
+
+  auto inv = camera->viewProj();
+  inv.inverse();
+  Tempest::Vec3 a = {0,0,0}, b = {0,0,0.5f};
+  inv.project(a);
+  inv.project(b);
+  auto        dir = b-a;
+  const float len = dir.length();
+  if(len<=0.f)
+    return std::nullopt;
+  if(origin!=nullptr)
+    *origin = a;
+  return dir*(1.f/len);
+  }
+
+std::optional<Tempest::Vec3> World::playerAimPoint() const {
+  Tempest::Vec3 a;
+  const auto aimDir = playerAimDir(&a);
+  if(!aimDir)
+    return std::nullopt;
+  const auto dir = *aimDir;
+
+  // Past bow range nothing hits anyway; the point only sets the direction.
+  const auto end = a + dir*float(MaxBowRange);
+  const auto hit = physic()->rayNpc(a,end,npcPlayer);
+  if(hit.npcHit!=nullptr)
+    return hit.npcHit->collosionCenter();
+  if(hit.hasCol)
+    return hit.v;
+  return end;
+  }
+
 Bullet& World::shootSpell(const Item &itm, const Npc &npc, const Npc *target) {
   Tempest::Vec3   dir     = {1.f,0.f,0.f};
   auto            pos     = npc.collosionCenter();
   const VisualFx* vfx     = script().spellVfx(itm.spellId());
   float           tgRange = vfx==nullptr ? 0 : vfx->emTrjTargetRange;
 
-  if(target!=nullptr) {
+  const auto aim = npc.isPlayer() ? playerAimPoint() : std::nullopt;
+  if(aim) {
+    pos = (vfx!=nullptr && !vfx->emTrjOriginNode.empty()) ? npc.mapBone(vfx->emTrjOriginNode) : npc.mapWeaponBone();
+    dir = *aim-pos;
+    target = nullptr;
+    }
+  else if(target!=nullptr) {
     auto tgPos = target->collosionCenter();
     if(vfx!=nullptr && !vfx->emTrjOriginNode.empty()) {
       pos = npc.mapBone(vfx->emTrjOriginNode);
@@ -676,7 +722,17 @@ Bullet& World::shootBullet(const Item &itm, const Npc &npc, const Npc *target, c
   Tempest::Vec3 dir = {1.f,0.f,0.f};
   auto          pos = npc.mapWeaponBone();
 
-  if(target!=nullptr) {
+  const auto aim = npc.isPlayer() ? playerAimPoint() : std::nullopt;
+  if(aim) {
+    // Same drop compensation as for a focused target.
+    dir = *aim - pos;
+    float lxz   = std::sqrt(dir.x*dir.x+dir.z*dir.z);
+    float t     = std::max(lxz,1.f)/DynamicWorld::bulletSpeed;
+    dir/=t;
+    dir.y += 0.5f*DynamicWorld::gravity*t;
+    target = nullptr;
+    }
+  else if(target!=nullptr) {
     dir = target->collosionCenter() - pos;
 
     float lxz   = std::sqrt(dir.x*dir.x+0*0+dir.z*dir.z);

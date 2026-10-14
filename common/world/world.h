@@ -5,6 +5,7 @@
 #include <Tempest/Matrix4x4>
 #include <string>
 #include <functional>
+#include <optional>
 
 #include <zenkit/World.hh>
 
@@ -167,6 +168,8 @@ class World final {
 
     Bullet&              shootBullet(const Item &itmId, const Npc& npc, const Npc* target, const Interactive* inter);
     Bullet&              shootSpell(const Item &itm, const Npc &npc, const Npc *target);
+    std::optional<Tempest::Vec3> playerAimPoint() const;
+    std::optional<Tempest::Vec3> playerAimDir(Tempest::Vec3* origin = nullptr) const;
 
     void                 sendPassivePerc  (Npc& self, Npc& other, int32_t perc);
     void                 sendPassivePerc  (Npc& self, Npc& other, Npc& victim, int32_t perc);

@@ -75,6 +75,12 @@ void PlayerControl::onKeyPressed(KeyCodec::Action a, Tempest::KeyEvent::KeyType 
     return;
     }
 
+#if !defined(__MOBILE_PLATFORM__)
+  // Mouse buttons arrive without a key code; touch and gamepad do too, but only on mobile.
+  if(a==KeyCodec::ActionGeneric)
+    mouseCombat=(key==Tempest::KeyEvent::K_NoKey);
+#endif
+
   // Separate from the attack key: pick up, use or talk to whatever is in focus.
   if(a==KeyCodec::Interact) {
     if(pl!=nullptr && pl->interactive()==nullptr)
@@ -193,6 +199,12 @@ void PlayerControl::onKeyPressed(KeyCodec::Action a, Tempest::KeyEvent::KeyType 
       }
     }
 
+#if !defined(__MOBILE_PLATFORM__)
+  // Mouse with a bow only draws and aims while held; onKeyReleased shoots.
+  if(a==KeyCodec::ActionGeneric && mouseCombat && (ws==WeaponState::Bow || ws==WeaponState::CBow))
+    fk = ActGeneric;
+#endif
+
   if(fk>=0) {
     std::memset(actrl,0,sizeof(actrl));
     actrl[ActGeneric] = ctrl[KeyCodec::ActionGeneric];
@@ -203,10 +215,6 @@ void PlayerControl::onKeyPressed(KeyCodec::Action a, Tempest::KeyEvent::KeyType 
     }
 
   if(a==KeyCodec::ActionGeneric) {
-#if !defined(__MOBILE_PLATFORM__)
-    // Mouse buttons arrive without a key code; touch and gamepad do too, but only on mobile.
-    mouseCombat=(key==Tempest::KeyEvent::K_NoKey);
-#endif
     pickupHeld=ws==WeaponState::NoWeapon;
     FocusAction fk = ActGeneric;
     if(this->wantsToMoveForward())
@@ -250,6 +258,19 @@ void PlayerControl::drawLastWeapon(Npc& pl) {
 void PlayerControl::onKeyReleased(KeyCodec::Action a, KeyCodec::Mapping mapping) {
   if(a==KeyCodec::ActionGeneric) pickupHeld=false;
   ctrl[a] = false;
+
+#if !defined(__MOBILE_PLATFORM__)
+  // Mouse with a bow: holding the button draws and aims, releasing shoots once the aim pose is reached.
+  if(a==KeyCodec::ActionGeneric && mouseCombat) {
+    auto pl = Gothic::inst().player();
+    if(pl!=nullptr && (pl->weaponState()==WeaponState::Bow || pl->weaponState()==WeaponState::CBow) &&
+       pl->hasAmmunition() && pl->interactive()==nullptr && !pl->isDown()) {
+      controllerBowWeapon=pl->inventory().activeWeapon()->clsId();
+      controllerBowShot.press();
+      controllerBowShot.release();
+      }
+    }
+#endif
 
   handleMovementAction(KeyCodec::ActionMapping{a, mapping}, false);
 
@@ -1019,7 +1040,9 @@ void PlayerControl::implMove(uint64_t dt) {
   float rspeed    = (pl.weaponState()==WeaponState::NoWeapon ? 90.f : 180.f)*(float(dt)/1000.f);
   auto  ws        = pl.weaponState();
   auto  bs        = pl.bodyStateMasked();
-  bool  allowRot  = !ctrl[KeyCodec::ActionGeneric] && pl.isRotationAllowed();
+  // Aiming a bow with the mouse keeps mouse turning, unlike the vanilla action key lock.
+  const bool mouseBowAim = mouseCombat && (ws==WeaponState::Bow || ws==WeaponState::CBow);
+  bool  allowRot  = (!ctrl[KeyCodec::ActionGeneric] || mouseBowAim) && pl.isRotationAllowed();
 
   Npc::Anim ani = Npc::Anim::Idle;
 
@@ -1195,6 +1218,15 @@ void PlayerControl::implMove(uint64_t dt) {
     return;
     }
 
+  // Free aim: with a ranged weapon or spell ready, the hero faces what the crosshair points at.
+  if((ws==WeaponState::Bow || ws==WeaponState::CBow || ws==WeaponState::Mage) && allowRot && !pl.isAttackAnim()) {
+    // The camera's look direction, not the hit point: a nearby hit seen from the hero would swing his facing around.
+    if(auto aim = w->playerAimDir()) {
+      if(aim->x!=0.f || aim->z!=0.f)
+        rot = std::atan2(aim->z,aim->x)*180.f/float(M_PI);
+      }
+    }
+
   if(casting) {
     if(controllerReleaseAttack) {
       actrl[ActForward]=false;
@@ -1214,7 +1246,12 @@ void PlayerControl::implMove(uint64_t dt) {
 
   if((ws==WeaponState::Bow || ws==WeaponState::CBow) && pl.hasAmmunition()) {
     if(actrl[ActGeneric] || actrl[ActForward] || controllerBowShot.active()) {
-      if(auto other = pl.target()) {
+      // Free aim follows the crosshair, so the bow must not turn toward the focused target.
+      if(Gothic::settingsGetI("GAME","freeAim")!=0 || mouseBowAim) {
+        pl.setDirection(rot);
+        pl.aimBow();
+        }
+      else if(auto other = pl.target()) {
         auto dp = other->position()-pl.position();
         pl.turnTo(dp.x,dp.z,true,dt);
         pl.aimBow();
