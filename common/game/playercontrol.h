@@ -189,6 +189,7 @@ class PlayerControl final {
     float          controllerTurnBoost=0.f;
     Npc*           controllerTarget=nullptr;
     bool           meleeAssist=false;
+    bool           mouseCombat=false;
     float          meleeAssistMaxAngle=90.f;
     float          meleeAssistMaxDistance=300.f;
     Focus          pendingInteraction;
