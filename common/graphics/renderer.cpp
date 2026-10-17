@@ -5,12 +5,14 @@
 #include <Tempest/Log>
 #include <Tempest/StorageImage>
 #include <cassert>
+#include <limits>
 
 #include "ui/inventorymenu.h"
 #include "ui/videowidget.h"
 #include "camera.h"
 #include "gothic.h"
 #include "world/objects/npc.h"
+#include "physics/dynamicworld.h"
 #include "utils/string_frm.h"
 
 using namespace Tempest;
@@ -792,13 +794,9 @@ void Renderer::draw(Tempest::Attachment& result, Encoder<CommandBuffer>& cmd, ui
   cmd.setFramebuffer({{sceneLinear, Tempest::Preserve, Tempest::Preserve}});
   drawReflections(cmd, wview);
   drawGizmo(cmd, wview);
-  if(camera.isInWater()) {
-    cmd.setDebugMarker("Underwater");
-    drawUnderwater(cmd, wview);
-    } else {
-    cmd.setDebugMarker("Fog");
-    drawFog(cmd, wview);
-    }
+  cmd.setDebugMarker("Fog");
+  drawFog(cmd, wview);
+  drawUnderwater(cmd, wview, camera);
 
   if(settings.aaEnabled) {
     cmd.setDebugMarker("CMAA2 & Tonemapping");
@@ -1843,13 +1841,33 @@ void Renderer::drawReflections(Encoder<CommandBuffer>& cmd, const WorldView& wvi
     }
   }
 
-void Renderer::drawUnderwater(Encoder<CommandBuffer>& cmd, const WorldView& wview) {
+void Renderer::drawUnderwater(Encoder<CommandBuffer>& cmd, const WorldView& wview, const Camera& camera) {
+  const auto eye = camera.originLwc();
+  auto inverse = camera.viewProj();
+  inverse.inverse();
+  float minY = eye.y;
+  for(float x : {-1.f,1.f}) {
+    for(float y : {-1.f,1.f}) {
+      Vec3 near(x,y,0.f);
+      inverse.project(near);
+      minY = std::min(minY,near.y);
+      }
+    }
+  const auto water = Gothic::inst().world()->physic()->waterRay(eye,eye.y-minY);
+  if(!water.hasCol && !camera.isInWater())
+    return;
+
+  cmd.setDebugMarker("Underwater");
+  const float waterY = water.hasCol ? water.wdepth : std::numeric_limits<float>::max();
   cmd.setBinding(0, wview.sceneGlobals().uboGlobal[SceneGlobals::V_Main]);
   cmd.setBinding(1, zbuffer);
+  cmd.setBinding(2, gbufDiffuse);
 
   cmd.setPipeline(shaders.underwaterT);
+  cmd.setPushData(waterY);
   cmd.draw(nullptr, 0, 3);
   cmd.setPipeline(shaders.underwaterS);
+  cmd.setPushData(waterY);
   cmd.draw(nullptr, 0, 3);
   }
 
