@@ -1488,6 +1488,11 @@ void MainWindow::onMarvinKey() {
 
 uint64_t MainWindow::tick() {
   Gothic::inst().finishSave();
+  if(auto* w = Gothic::inst().world()) {
+    // a script (CoM, fistfight) closes the inventory of the player
+    if(w->script().dmaTakeInventoryClose() && inventory.isActive())
+      inventory.close();
+    }
   auto time = Application::tickCount();
   auto dt   = time-lastTick;
   // NOTE: limit to ~200 FPS in game logic to avoid math issues

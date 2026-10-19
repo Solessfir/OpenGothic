@@ -162,6 +162,15 @@ void GameScript::dmaMobCanOpen(Interactive& mob) {
     dma->eventMobCanOpen(mob);
   }
 
+void GameScript::dmaInventoryOpen(Npc& npc) {
+  if(dma!=nullptr)
+    dma->eventInventoryOpen(npc);
+  }
+
+bool GameScript::dmaTakeInventoryClose() {
+  return dma!=nullptr && dma->takeInventoryClose();
+  }
+
 bool GameScript::dmaDropVob(Npc& npc, Item& item) {
   return dma!=nullptr && dma->eventDropVob(npc,item);
   }
