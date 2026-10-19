@@ -7,6 +7,8 @@
 
 #include "hookaddresses.h"
 #include "logbudget.h"
+#include "world/focus.h"
+#include "world/objects/interactive.h"
 #include "world/objects/item.h"
 #include "game/inventory.h"
 #include "world/objects/npc.h"
@@ -150,4 +152,163 @@ void DirectMemory::eventDamageEnd(Npc& victim, GameScript::DmaDamage& d) {
     }
   mem32.free(d.desc);
   d.desc = 0;
+  }
+
+// --- the focus: the pointer to the vob that the player looks at, chests and doors as oCMobLockable
+
+/// The pointer of a chest or a door for the scripts: oCMobLockable with the lock of the mob
+auto DirectMemory::mobPointer(Interactive& mob) -> ptr32_t {
+  if(mobBase==0)
+    return 0;
+  auto it = mobIndex.find(&mob);
+  if(it!=mobIndex.end())
+    return mobBase + it->second*uint32_t(sizeof(Compatibility::MobSlot));
+
+  // the slots are used in turns
+  const uint32_t i = mobCursor;
+  mobCursor = (mobCursor+1) % MobSlots;
+  if(mobs[i]!=nullptr)
+    mobIndex.erase(mobs[i]);
+  mobs[i]    = &mob;
+  mobPick[i] = 0;
+  mobIndex[&mob] = i;
+  return mobBase + i*uint32_t(sizeof(Compatibility::MobSlot));
+  }
+
+void DirectMemory::clearMobs() {
+  std::fill(mobs.begin(),mobs.end(),nullptr);
+  mobIndex.clear();
+  lastSpellFocus = -1;
+  }
+
+void DirectMemory::memoryCallback(Compatibility::MobSlot& m, uint32_t index, std::memory_order ord) {
+  if(index>=mobs.size() || mobs[index]==nullptr)
+    return;
+  auto* mob = mobs[index];
+
+  auto offset = [this](const char* name) -> int32_t {
+    auto* s = vm.find_symbol_by_name(std::string("OCMOBLOCKABLE.")+name);
+    return s==nullptr ? -1 : int32_t(s->offset_as_member());
+    };
+  auto put = [&](int32_t off, int32_t v) {
+    if(off>=0 && size_t(off)+4<=sizeof(m.raw))
+      std::memcpy(m.raw+off,&v,4);
+    };
+  auto get = [&](int32_t off) -> int32_t {
+    int32_t v = 0;
+    if(off>=0 && size_t(off)+4<=sizeof(m.raw))
+      std::memcpy(&v,m.raw+off,4);
+    return v;
+    };
+
+  // oCMobLockable: bit 0 is the lock, bit 1 opens by itself, the rest is the number of the character of the lock that is done
+  const bool locked = !mob->pickLockCode().empty() && !mob->isCracked();
+
+  if(ord==std::memory_order::release) {
+    const int32_t bf = get(offset("BITFIELD"));
+    const bool    nowLocked = (bf&1)!=0;
+    mobPick[index] = uint32_t(bf)>>2;
+    if(nowLocked!=locked && !mob->pickLockCode().empty())
+      mob->setAsCracked(!nowLocked);
+    return;
+    }
+
+  // the table of virtual functions says what it is: a chest, a door or another mob
+  const int32_t vtbl = mob->isContainer() ? 8637284 : (mob->isDoor() ? 8638548 : 8639884);
+  put(0,vtbl);
+  put(offset("BITFIELD"),(locked ? 1 : 0) | int32_t(mobPick[index]<<2));
+
+  auto text = [&](const char* name, std::string_view v) {
+    const int32_t off = offset(name);
+    if(off<0 || size_t(off)+sizeof(zString)>sizeof(m.raw))
+      return;
+    zString z;
+    std::memcpy(&z,m.raw+off,sizeof(z));
+    memAssignString(z,v);
+    std::memcpy(m.raw+off,&z,sizeof(z));
+    };
+  text("PICKLOCKSTR",mob->pickLockCode());
+  text("KEYINSTANCE",mob->keyName());
+  }
+
+/// The player looks at a character, an item or a mob: oCNpc.focus_vob is the pointer (kept in a member that the VM has)
+void DirectMemory::eventFocus(Npc& player, const Focus& focus) {
+  int32_t ptr = 0;
+  if(focus.npc!=nullptr)
+    ptr = int32_t(ptrOf(*focus.npc));
+  else if(focus.item!=nullptr)
+    ptr = int32_t(ptrOf(*focus.item));
+  else if(focus.interactive!=nullptr)
+    ptr = int32_t(mobPointer(*focus.interactive));
+  player.handle().voice_pitch = ptr;
+  }
+
+// --- the magic: Focus_Magic of the scripts is a place in the memory that the lock picking spell of CoM changes
+
+void DirectMemory::setupFocusMagic() {
+  auto* cls = vm.find_symbol_by_name("C_FOCUS");
+  if(cls==nullptr || vm.find_symbol_by_name("FOCUS_MAGIC")==nullptr)
+    return;
+
+  focusMagic = mem32.alloc(std::max<uint32_t>(cls->class_size(),128)+16,"Focus_Magic");
+  if(focusMagic==0)
+    return;
+
+  // the values that the game has now
+  const zenkit::IFocus& f = gameScript.focusMage();
+  auto putF = [&](const char* name, float v) {
+    if(auto* m = vm.find_symbol_by_name(std::string("C_FOCUS.")+name)) {
+      int32_t bits = 0;
+      std::memcpy(&bits,&v,sizeof(bits));
+      mem32.writeInt(focusMagic+m->offset_as_member(),bits);
+      }
+    };
+  auto putI = [&](const char* name, int32_t v) {
+    if(auto* m = vm.find_symbol_by_name(std::string("C_FOCUS.")+name))
+      mem32.writeInt(focusMagic+m->offset_as_member(),v);
+    };
+  putF("NPC_LONGRANGE",f.npc_longrange);
+  putF("NPC_RANGE1",f.npc_range1);   putF("NPC_RANGE2",f.npc_range2);
+  putF("NPC_AZI",f.npc_azi);         putF("NPC_ELEVDO",f.npc_elevdo);   putF("NPC_ELEVUP",f.npc_elevup);
+  putI("NPC_PRIO",f.npc_prio);
+  putF("ITEM_RANGE1",f.item_range1); putF("ITEM_RANGE2",f.item_range2);
+  putF("ITEM_AZI",f.item_azi);       putF("ITEM_ELEVDO",f.item_elevdo); putF("ITEM_ELEVUP",f.item_elevup);
+  putI("ITEM_PRIO",f.item_prio);
+  putF("MOB_RANGE1",f.mob_range1);   putF("MOB_RANGE2",f.mob_range2);
+  putF("MOB_AZI",f.mob_azi);         putF("MOB_ELEVDO",f.mob_elevdo);   putF("MOB_ELEVUP",f.mob_elevup);
+  putI("MOB_PRIO",f.mob_prio);
+
+  // oCNpcFocus::focusList[5]: the script takes the instance from there (SPELL_PICKLOCK_INIT_ALWAYS)
+  focusList[5] = focusMagic;
+  }
+
+/// What the scripts have written to Focus_Magic goes to the focus that the game uses
+void DirectMemory::syncFocusMage(zenkit::IFocus& focus) {
+  if(focusMagic==0)
+    return;
+  auto read = [this](const char* name, int32_t& value) {
+    auto* s = vm.find_symbol_by_name(std::string("C_FOCUS.")+name);
+    if(s!=nullptr)
+      value = mem32.readInt(focusMagic+s->offset_as_member());
+    };
+  read("NPC_PRIO", focus.npc_prio);
+  read("ITEM_PRIO",focus.item_prio);
+  read("MOB_PRIO", focus.mob_prio);
+  }
+
+/// oCSpell::Setup: the player has taken a spell. The hook reads the caster ([esp+4]) and the spell id ([ecx+84])
+void DirectMemory::eventSpellFocus(Npc& caster, int spellId) {
+  if(!hasHook(HookAdr::SpellSetup) || lastSpellFocus==spellId)
+    return;
+  lastSpellFocus = spellId;
+
+  const ptr32_t spell = mem32.alloc(256,"oCSpell");
+  if(spell==0)
+    return;
+  mem32.writeInt(spell+84,spellId);
+  HookRegs r;
+  r.ecx  = spell;
+  r.args = {int32_t(ptrOf(caster))};
+  fireHook(HookAdr::SpellSetup,r);
+  mem32.free(spell);
   }
