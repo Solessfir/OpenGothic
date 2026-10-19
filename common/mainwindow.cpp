@@ -916,7 +916,7 @@ void MainWindow::mouseWheelEvent(MouseEvent &event) {
 void MainWindow::keyDownEvent(KeyEvent &event) {
   onDesktopInput();
   // the mods of Ikarus and LeGo hook the keys of the game (oCGame::HandleEvent), once for a press
-  if(auto* w = Gothic::inst().world(); w!=nullptr && !rootMenu.isActive() && !video.isActive()) {
+  if(auto* w = Gothic::inst().world(); w!=nullptr && !rootMenu.isActive() && !video.isActive() && !dialogs.wantsText()) {
     const int32_t code = KeyCodec::keyToCode(event.key);
     if(code>0 && code<int32_t(dmaKeysDown.size()) && !dmaKeysDown[size_t(code)]) {
       dmaKeysDown[size_t(code)] = true;
@@ -1015,6 +1015,7 @@ void MainWindow::keyRepeatEvent(KeyEvent& event) {
       return;
     }
   if(uiKeyUp==&dialogs){
+    dialogs.keyRepeatEvent(event);
     if(event.isAccepted())
       return;
     }

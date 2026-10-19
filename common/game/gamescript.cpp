@@ -1154,12 +1154,23 @@ std::vector<GameScript::DlgChoice> GameScript::updateDialog(const GameScript::Dl
     ch.scriptFn = uint32_t(sub.function);
     ch.handle   = dlg.handle;
     ch.isTrade  = false;
+    if(!ch.title.empty() && ch.title[0]=='?') {
+      // Chronicles of Myrtana: "?Name" is an answer that is typed (INFOMANAGERANSWER of its scripts)
+      ch.isInput = true;
+      ch.title.erase(0,1);
+      }
     ch.sort     = int(i);
     ret.push_back(ch);
     }
 
   sort(ret);
   return ret;
+  }
+
+/// The text that the player typed for a choice of the dialog. CoM reads it from the variable INFOMANAGERANSWER
+void GameScript::setDialogAnswer(std::string_view text) {
+  if(auto* s = vm.find_symbol_by_name("INFOMANAGERANSWER"))
+    s->set_string(std::string(text));
   }
 
 void GameScript::exec(const GameScript::DlgChoice &dlg, Npc& player, Npc& npc) {
