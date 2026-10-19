@@ -95,6 +95,15 @@ void DirectMemory::setupEngineCalls() {
   // the state of the keys: MEM_KeyPressed(key) reads a byte of this table
   mem32.pin(keyEvents,9246328,uint32_t(sizeof(keyEvents)),"key events");
 
+  // UPDATE_MENU_ITEM(item, text) of CoM changes the text of an item of the menu that is open (the status screen): the
+  // menus of OpenGothic are not in the memory of the layer, the texts wait until the menu takes them
+  safeOverride("UPDATE_MENU_ITEM",[this](std::string_view item, std::string_view text) {
+    std::string name(item);
+    for(char& c:name)
+      c = char(std::toupper(static_cast<unsigned char>(c)));
+    menuTexts.emplace_back(std::move(name),std::string(text));
+    });
+
   // zCInput: there is an object, the keys are not bound by the scripts here
   const ptr32_t input = mem32.alloc(256,"zCInput");
   mem32.alloc(ZCINPUT_ZINPUT,4,"zinput*");

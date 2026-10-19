@@ -162,6 +162,15 @@ void GameScript::dmaMobCanOpen(Interactive& mob) {
     dma->eventMobCanOpen(mob);
   }
 
+void GameScript::dmaStatusScreen(bool show) {
+  if(dma!=nullptr)
+    dma->eventStatusScreen(show);
+  }
+
+auto GameScript::dmaTakeMenuTexts() -> std::vector<std::pair<std::string,std::string>> {
+  return dma==nullptr ? std::vector<std::pair<std::string,std::string>>() : dma->takeMenuTexts();
+  }
+
 void GameScript::dmaFocus(Npc& player, const Focus& focus) {
   if(dma!=nullptr)
     dma->eventFocus(player,focus);

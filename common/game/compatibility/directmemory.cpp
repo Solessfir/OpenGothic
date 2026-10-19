@@ -1,4 +1,5 @@
 #include "directmemory.h"
+#include "hookaddresses.h"
 #include "logbudget.h"
 
 #include <zenkit/DaedalusScript.hh>
@@ -231,6 +232,13 @@ void DirectMemory::tick(uint64_t dt) {
   if(!hooksReported && !hooksUnanswered.empty()) {
     hooksReported = true;
     Log::i("DMA: ", hooksUnanswered.size(), " hooks of the libraries are not answered (tab Debug, Ikarus)");
+    }
+
+  if(!resolutionFired) {
+    // oCGame::UpdateScreenResolution: the bars and the views of LeGo take the size of the screen
+    resolutionFired = true;
+    HookRegs r;
+    fireHook(HookAdr::BarUpdateResolution,r);
     }
 
   npcListTimer += dt;
@@ -541,6 +549,15 @@ void DirectMemory::setupEngineMemory() {
 
   memGame._ZCSESSION_VIEWPORT = mem32.alloc(sizeof(zCView));
   memGame.ARRAY_VIEW[0] = mem32.alloc(sizeof(zCView));
+  // the screen of the scripts is 800x600 (the scripts read it at the start, before the first frame)
+  if(auto* v = mem32.deref<zCView>(memGame._ZCSESSION_VIEWPORT)) {
+    v->PSIZEX = 800;  v->PSIZEY = 600;
+    v->VSIZEX = 8192; v->VSIZEY = 8192;
+    }
+  if(auto* v = mem32.deref<zCView>(memGame.ARRAY_VIEW[0])) {
+    v->PSIZEX = 800;  v->PSIZEY = 600;
+    v->VSIZEX = 8192; v->VSIZEY = 8192;
+    }
 
   mem32.deref<oCViewStatusBar>(memGame.HPBAR)   ->RANGE_BAR = mem32.alloc(sizeof(zCView));
   mem32.deref<oCViewStatusBar>(memGame.HPBAR)   ->VALUE_BAR = mem32.alloc(sizeof(zCView));
