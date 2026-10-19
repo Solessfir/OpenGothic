@@ -42,6 +42,14 @@ class DialogMenu : public Tempest::Widget {
     void keyUpEvent     (Tempest::KeyEvent&   event) override;
     // Touch: picks the choice under the finger; false when no choice is there
     bool tapChoice(Tempest::Point pos);
+    void keyRepeatEvent (Tempest::KeyEvent&   event) override;
+
+    /// A choice of the dialog asks for a text (CoM): the keys are characters, the screen keyboard is needed
+    bool wantsText() const { return prompt.active; }
+#ifdef OPENGOTHIC_TOUCH_UI
+    /// The player tapped the box of the text after he hid the keyboard
+    bool takeKeyboardRequest();
+#endif
 
   protected:
     void paintEvent (Tempest::PaintEvent& e) override;
@@ -122,6 +130,11 @@ class DialogMenu : public Tempest::Widget {
     void startTrade();
     void skipPhrase();
 
+    void openPrompt(const GameScript::DlgChoice& e);
+    void promptKey(Tempest::KeyEvent& e);
+    void promptDone(bool ok);
+    void paintPrompt(Tempest::Painter& p);
+
     InventoryMenu&                      trade;
     Pipe                                pipe;
 
@@ -150,4 +163,12 @@ class DialogMenu : public Tempest::Widget {
     bool                                showSubtitles       = true;
     bool                                showSubtitlesPlayer = true;
     uint64_t                            choiceAnimTime      = 0;
+
+    struct Prompt {
+      bool                  active = false;
+      std::string           text;
+      GameScript::DlgChoice choice;
+      bool                  keyboardRequest = false;
+      };
+    Prompt                              prompt;
   };
