@@ -355,6 +355,12 @@ struct zCTimer {
   int32_t FORCEDMAXFRAMETIME;
   };
 
+/// oCWorldTimer: the time of the world in ticks (250000 for an hour), a tick is a millisecond of the original engine
+struct oCWorldTimer {
+  int32_t WORLDTIME;   // zREAL, the ticks of the day
+  int32_t DAY;
+  };
+
 struct zCView {
   int32_t _VTBL;
   int32_t _ZCINPUTCALLBACK_VTBL;

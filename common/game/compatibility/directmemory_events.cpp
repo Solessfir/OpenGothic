@@ -380,3 +380,19 @@ bool DirectMemory::eventDropVob(Npc& npc, Item& item) {
   mem32.free(msg);
   return cancelled;
   }
+
+/// The player opens the inventory (oCNpc::OpenInventory). CoM hooks it to close the inventory again during a fistfight
+/// (the function that it queues calls oCNpc::CloseInventory, see takeInventoryClose).
+void DirectMemory::eventInventoryOpen(Npc& npc) {
+  if(!hasHook(HookAdr::InventoryOpen))
+    return;
+  HookRegs r;
+  r.ecx = ptrOf(npc);
+  fireHook(HookAdr::InventoryOpen,r);
+  }
+
+bool DirectMemory::takeInventoryClose() {
+  const bool ret = inventoryClose;
+  inventoryClose = false;
+  return ret;
+  }
