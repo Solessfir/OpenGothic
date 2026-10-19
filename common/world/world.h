@@ -46,6 +46,8 @@ class World final {
 
     uint32_t             npcId(const Npc* ptr) const;
     Npc*                 npcById(uint32_t id);
+    void                 forEachTrigger(const std::function<void(AbstractTrigger&)>& f) { wobj.forEachTrigger(f); }
+    void                 forEachPoint(const std::function<void(const WayPoint&)>& f) const;
     uint32_t             npcCount() const;
 
     uint32_t             mobsiId(const Interactive* ptr) const;
