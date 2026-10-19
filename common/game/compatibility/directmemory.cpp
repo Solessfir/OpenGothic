@@ -247,6 +247,12 @@ void DirectMemory::tick(uint64_t dt) {
     refreshNpcList();
     }
 
+  // oCNpc.interactmob of the player: the mob that he uses
+  if(auto* pl = gameScript.world().player()) {
+    auto* mob = pl->interactive();
+    pl->handle().compat_interact_mob = mob==nullptr ? 0 : int32_t(mobPointer(*mob));
+    }
+
   tickUi(dt);
   }
 
@@ -2172,10 +2178,10 @@ void DirectMemory::setupInstanceAliases() {
   reg("OCNPC.FIGHTTACTIC",     &N::fight_tactic);
   reg("OCNPC.FMODE",           &N::weapon);
   reg("OCNPC.VOICE",           &N::voice);
-  // the members that the VM does not have are kept in members that OpenGothic does not use: the pointer to the vob in
-  // focus (DirectMemory::eventFocus) and the mob that the character uses
-  reg("OCNPC.FOCUS_VOB",       &N::voice_pitch);
-  reg("OCNPC.INTERACTMOB",     &N::spawn_delay);
+  // the members that C_NPC does not have: the pointer to the vob in focus (DirectMemory::eventFocus) and the mob that
+  // the character uses. They have their own place, VOICEPITCH and SPAWNDELAY of the scripts are left alone.
+  reg("OCNPC.FOCUS_VOB",       &N::compat_focus_vob);
+  reg("OCNPC.INTERACTMOB",     &N::compat_interact_mob);
   reg("OCNPC.MASS",            &N::body_mass);
   reg("OCNPC.DAILY_ROUTINE",   &N::daily_routine);
   reg("OCNPC.STARTAISTATE",    &N::start_aistate);

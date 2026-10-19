@@ -2,6 +2,9 @@
 
 #include <cstring>
 
+#include <Tempest/Log>
+#include "game/compatibility/logbudget.h"
+
 #include <zenkit/addon/daedalus.hh>
 
 namespace {
@@ -51,9 +54,7 @@ auto InstanceHandles::pointerTo(const std::shared_ptr<zenkit::DaedalusInstance>&
   else
     return 0;
 
-  // the slots are used in turns: the oldest one is given away when all are taken
-  const uint32_t i = cursor;
-  cursor = (cursor+1) % SlotCount;
+  const uint32_t i = takeSlot();
   if(entries[i].inst!=nullptr)
     index.erase(entries[i].inst.get());
   else
@@ -62,6 +63,25 @@ auto InstanceHandles::pointerTo(const std::shared_ptr<zenkit::DaedalusInstance>&
   entries[i].vtbl = vtbl;
   index[inst.get()] = i;
   return base + i*SlotSize;
+  }
+
+/// A free slot, else a slot of an object that nobody else keeps (it is gone from the world), the oldest first, so that an
+/// old pointer stays the pointer of its object as long as possible. Only when every slot is taken by a living object,
+/// the oldest one is given away.
+auto InstanceHandles::takeSlot() -> uint32_t {
+  for(uint32_t n=0; n<SlotCount; ++n) {
+    const uint32_t i = (cursor+n) % SlotCount;
+    if(entries[i].inst==nullptr || entries[i].inst.use_count()==1) {
+      cursor = (i+1) % SlotCount;
+      return i;
+      }
+    }
+
+  const uint32_t i = cursor;
+  cursor = (cursor+1) % SlotCount;
+  if(Compatibility::logBudget("instancehandles:full"))
+    Tempest::Log::e("InstanceHandles: all ",SlotCount," slots belong to living objects, the pointer of the oldest one is reused");
+  return i;
   }
 
 bool InstanceHandles::contains(ptr32_t address) const {

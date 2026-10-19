@@ -86,6 +86,8 @@ class Mem32 {
     void    writeInt (ptr32_t address, int32_t v);
     int32_t readInt  (ptr32_t address);
     void    copyBytes(ptr32_t src, ptr32_t dst, uint32_t size);
+    uint8_t readByte (ptr32_t address);
+    void    writeByte(ptr32_t address, uint8_t v);
 
   private:
     enum Status:uint8_t {

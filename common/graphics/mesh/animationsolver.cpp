@@ -1,4 +1,5 @@
 #include "animationsolver.h"
+#include <Tempest/Log>
 
 #include "world/objects/interactive.h"
 #include "world/world.h"
@@ -58,8 +59,10 @@ void AnimationSolver::addOverlay(const Skeleton* sk, uint64_t time) {
   if(sk==nullptr)
     return;
   // incompatible overlay
-  if(baseSk==nullptr || sk->nodes.size()!=baseSk->nodes.size())
+  if(baseSk==nullptr || sk->nodes.size()!=baseSk->nodes.size()) {
+    Log::d("overlay '", sk->name(), "' is not compatible with the skeleton and is skipped");
     return;
+    }
   Overlay ov;
   ov.skeleton = sk;
   ov.time     = time;
