@@ -55,6 +55,7 @@ class GameScript final {
       int32_t          sort     = 0;
       uint32_t         scriptFn = 0;
       bool             isTrade  = false;
+      bool             isInput  = false;   // the title started with "?": the player types an answer (CoM: the name of the dog)
       zenkit::IInfo*   handle   = nullptr;
       };
 
@@ -168,6 +169,7 @@ class GameScript final {
     auto dialogChoices(std::shared_ptr<zenkit::INpc> self, std::shared_ptr<zenkit::INpc> npc, const std::vector<uint32_t> &except, bool includeImp) -> std::vector<DlgChoice>;
     auto updateDialog (const GameScript::DlgChoice &dlg, Npc &player, Npc &npc) -> std::vector<GameScript::DlgChoice>;
     void exec(const DlgChoice &dlg, Npc &player, Npc &npc);
+    void setDialogAnswer(std::string_view text);
 
     void  printCannotUseError         (Npc &npc, int32_t atr, int32_t nValue);
     void  printCannotCastError        (Npc &npc, int32_t plM, int32_t itM);
