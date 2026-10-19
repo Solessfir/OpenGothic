@@ -24,6 +24,7 @@ void AiQueue::save(Serialize& fout) const {
     if(i.act==AI_PrintScreen)
       fout.write(i.i2,i.s1);
     }
+  fout.write(syncIssued,syncCompleted);
   }
 
 void AiQueue::load(Serialize& fin) {
@@ -41,10 +42,15 @@ void AiQueue::load(Serialize& fin) {
     if(i.act==AI_PrintScreen)
       fin.read(i.i2,i.s1);
     }
+  syncIssued = syncCompleted = 0;
+  if(fin.version()>=56)
+    fin.read(syncIssued,syncCompleted);
   }
 
 void AiQueue::clear() {
   aiActions.clear();
+  // Cancelling a queue also releases characters waiting for its old commands.
+  syncCompleted = syncIssued;
   }
 
 void AiQueue::pushBack(AiAction&& a) {
@@ -68,7 +74,21 @@ void AiQueue::pushFront(AiQueue::AiAction&& a) {
 AiQueue::AiAction AiQueue::pop() {
   auto act = std::move(aiActions.front());
   aiActions.pop_front();
+  if(act.act==AI_Synchronize)
+    syncCompleted = uint32_t(act.i0);
   return act;
+  }
+
+uint32_t AiQueue::synchronize() {
+  AiAction a;
+  a.act = AI_Synchronize;
+  a.i0  = int32_t(++syncIssued);
+  pushBack(std::move(a));
+  return syncIssued;
+  }
+
+bool AiQueue::isSynchronized(uint32_t ticket) const {
+  return int32_t(syncCompleted-ticket)>=0;
   }
 
 int AiQueue::aiOutputOrderId() const {
@@ -176,6 +196,53 @@ AiQueue::AiAction AiQueue::aiWait(uint64_t dt) {
   AiAction a;
   a.act  = AI_Wait;
   a.i0   = int(dt);
+  return a;
+  }
+
+AiQueue::AiAction AiQueue::aiWaitTillEnd(Npc& other, uint32_t ticket) {
+  AiAction a;
+  a.act    = AI_WaitTillEnd;
+  a.target = &other;
+  a.i0     = int32_t(ticket);
+  return a;
+  }
+
+AiQueue::AiAction AiQueue::aiAimAt(Npc& other) {
+  AiAction a;
+  a.act    = AI_AimAt;
+  a.target = &other;
+  return a;
+  }
+
+AiQueue::AiAction AiQueue::aiStopAim() {
+  AiAction a;
+  a.act = AI_StopAim;
+  return a;
+  }
+
+AiQueue::AiAction AiQueue::aiShootAt(Npc& other) {
+  AiAction a = aiAimAt(other);
+  a.act = AI_ShootAt;
+  return a;
+  }
+
+AiQueue::AiAction AiQueue::aiDropItem(int32_t id) {
+  AiAction a;
+  a.act = AI_DropItem;
+  a.i0  = id;
+  return a;
+  }
+
+AiQueue::AiAction AiQueue::aiSndPlay(std::string_view name) {
+  AiAction a;
+  a.act = AI_SndPlay;
+  a.s0  = name;
+  return a;
+  }
+
+AiQueue::AiAction AiQueue::aiStopFx(std::string_view name) {
+  AiAction a = aiSndPlay(name);
+  a.act = AI_StopFx;
   return a;
   }
 

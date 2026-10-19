@@ -231,6 +231,7 @@ void GameScript::initCommon() {
   bindExternal("wld_insertnpc",                  &GameScript::wld_insertnpc);
   bindExternal("wld_removenpc",                  &GameScript::wld_removenpc);
   bindExternal("wld_insertitem",                 &GameScript::wld_insertitem);
+  bindExternal("wld_removeitem",                 &GameScript::wld_removeitem);
   bindExternal("wld_settime",                    &GameScript::wld_settime);
   bindExternal("wld_getday",                     &GameScript::wld_getday);
   bindExternal("wld_playeffect",                 &GameScript::wld_playeffect);
@@ -379,6 +380,13 @@ void GameScript::initCommon() {
   bindExternal("ai_setwalkmode",                 &GameScript::ai_setwalkmode);
   bindExternal("ai_wait",                        &GameScript::ai_wait);
   bindExternal("ai_waitms",                      &GameScript::ai_waitms);
+  bindExternal("ai_waittillend",                 &GameScript::ai_waittillend);
+  bindExternal("ai_aimat",                       &GameScript::ai_aimat);
+  bindExternal("ai_shootat",                     &GameScript::ai_shootat);
+  bindExternal("ai_stopaim",                     &GameScript::ai_stopaim);
+  bindExternal("ai_dropitem",                    &GameScript::ai_dropitem);
+  bindExternal("ai_snd_play",                    &GameScript::ai_snd_play);
+  bindExternal("ai_stopfx",                      &GameScript::ai_stopfx);
   bindExternal("ai_aligntowp",                   &GameScript::ai_aligntowp);
   bindExternal("ai_gotowp",                      &GameScript::ai_gotowp);
   bindExternal("ai_gotofp",                      &GameScript::ai_gotofp);
@@ -412,6 +420,7 @@ void GameScript::initCommon() {
   bindExternal("ai_pointatnpc",                  &GameScript::ai_pointatnpc);
 
   bindExternal("mob_hasitems",                   &GameScript::mob_hasitems);
+  bindExternal("mob_createitems",                &GameScript::mob_createitems);
   bindExternal("ai_printscreen",                 &GameScript::ai_printscreen);
 
   bindExternal("ta_min",                         &GameScript::ta_min);
@@ -993,7 +1002,7 @@ void GameScript::fixNpcPosition(Npc& npc, float angle0, float distBias) {
 
 void GameScript::eventPlayAni(Npc& npc, std::string_view ani) {
   if(dma!=nullptr)
-    dma->eventPlayAni(ani);
+    dma->eventPlayAni(npc,ani);
   }
 
 const World &GameScript::world() const {
@@ -3291,6 +3300,65 @@ void GameScript::ai_aligntowp(std::shared_ptr<zenkit::INpc> npcRef) {
     npc->aiPush(AiQueue::aiAlignToWp());
   }
 
+void GameScript::ai_waittillend(std::shared_ptr<zenkit::INpc> npcRef, std::shared_ptr<zenkit::INpc> otherRef) {
+  auto* npc = findNpc(npcRef);
+  auto* other = findNpc(otherRef);
+  if(npc!=nullptr && other!=nullptr)
+    npc->aiWaitTillEnd(*other);
+  }
+
+void GameScript::ai_aimat(std::shared_ptr<zenkit::INpc> npcRef, std::shared_ptr<zenkit::INpc> otherRef) {
+  auto* npc = findNpc(npcRef);
+  auto* other = findNpc(otherRef);
+  if(npc!=nullptr && other!=nullptr)
+    npc->aiPush(AiQueue::aiAimAt(*other));
+  }
+
+void GameScript::ai_shootat(std::shared_ptr<zenkit::INpc> npcRef, std::shared_ptr<zenkit::INpc> otherRef) {
+  auto* npc = findNpc(npcRef);
+  auto* other = findNpc(otherRef);
+  if(npc!=nullptr && other!=nullptr)
+    npc->aiPush(AiQueue::aiShootAt(*other));
+  }
+
+void GameScript::ai_stopaim(std::shared_ptr<zenkit::INpc> npcRef) {
+  if(auto* npc = findNpc(npcRef))
+    npc->aiPush(AiQueue::aiStopAim());
+  }
+
+void GameScript::ai_dropitem(std::shared_ptr<zenkit::INpc> npcRef, int itemInstance) {
+  if(itemInstance>0)
+    if(auto* npc = findNpc(npcRef))
+      npc->aiPush(AiQueue::aiDropItem(itemInstance));
+  }
+
+void GameScript::ai_snd_play(std::shared_ptr<zenkit::INpc> npcRef, std::string_view sound) {
+  std::string name(sound);
+  for(auto& c:name)
+    c = char(std::toupper(static_cast<unsigned char>(c)));
+  if(auto* npc = findNpc(npcRef))
+    npc->aiPush(AiQueue::aiSndPlay(name));
+  }
+
+void GameScript::ai_stopfx(std::shared_ptr<zenkit::INpc> npcRef, std::string_view effect) {
+  if(auto* npc = findNpc(npcRef))
+    npc->aiPush(AiQueue::aiStopFx(effect));
+  }
+
+int GameScript::wld_removeitem(std::shared_ptr<zenkit::IItem> itemRef) {
+  auto* item = findItem(itemRef.get());
+  if(item==nullptr)
+    return 0;
+  // Only remove loose world items. Inventory objects belong to their inventory.
+  for(uint32_t i=0; auto* loose = world().itmById(i); ++i) {
+    if(loose==item) {
+      world().removeItem(*loose);
+      return 1;
+      }
+    }
+  return 0;
+  }
+
 void GameScript::ai_gotowp(std::shared_ptr<zenkit::INpc> npcRef, std::string_view waypoint) {
   auto npc = findNpc(npcRef);
   if(npc==nullptr)
@@ -3512,6 +3580,25 @@ int GameScript::mob_hasitems(std::string_view tag, int item) {
   return int(world().hasItems(tag,uint32_t(item)));
   }
 
+void GameScript::mob_createitems(std::string_view tag, int itemInstance, int amount) {
+  if(itemInstance<=0 || amount<=0)
+    return;
+  auto* cls = vm.find_symbol_by_index(uint32_t(itemInstance));
+  if(cls==nullptr || cls->type()!=zenkit::DaedalusDataType::INSTANCE)
+    return;
+  for(uint32_t i=0; auto* mob = world().mobsiById(i); ++i) {
+    const auto name = mob->tag();
+    const bool matches = name.size()==tag.size() && std::equal(name.begin(),name.end(),tag.begin(),[](char a, char b) {
+      return std::toupper(static_cast<unsigned char>(a))==std::toupper(static_cast<unsigned char>(b));
+      });
+    if(mob->isContainer() && matches) {
+      mob->inventory().addItem(size_t(itemInstance),size_t(amount),world());
+      return;
+      }
+    }
+  Log::d("Mob_CreateItems: container not found: ",tag);
+  }
+
 void GameScript::ta_min(std::shared_ptr<zenkit::INpc> npcRef, int start_h, int start_m, int stop_h, int stop_m, int action, std::string_view waypoint) {
   auto npc = findNpc(npcRef);
   if(npc!=nullptr)
@@ -3666,6 +3753,17 @@ void GameScript::sort(std::vector<GameScript::DlgChoice> &dlg) {
 void GameScript::setNpcInfoKnown(const zenkit::INpc& npc, const zenkit::IInfo& info) {
   auto id = std::make_pair(vm.find_symbol_by_instance(npc)->index(),vm.find_symbol_by_instance(info)->index());
   dlgKnownInfos.insert(id);
+  }
+
+bool GameScript::setInfoKnown(Npc& npc, std::string_view infoName, bool known) {
+  auto* sym = vm.find_symbol_by_name(infoName);
+  if(sym==nullptr || !sym->is_instance_of<zenkit::IInfo>())
+    return false;
+  const auto key = std::make_pair(size_t(npc.instanceSymbol()),size_t(sym->index()));
+  if(known)
+    dlgKnownInfos.insert(key); else
+    dlgKnownInfos.erase(key);
+  return true;
   }
 
 bool GameScript::doesNpcKnowInfo(const zenkit::INpc& npc, size_t infoInstance) const {

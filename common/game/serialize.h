@@ -35,7 +35,7 @@ class SaveSnapshot;
 class Serialize {
   public:
     enum Version : uint16_t {
-      Current    = 55,
+      Current    = 56,
       MinVersion = 36,
 
       Last_2025  = 53,
