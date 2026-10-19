@@ -162,6 +162,11 @@ void GameScript::dmaMobCanOpen(Interactive& mob) {
     dma->eventMobCanOpen(mob);
   }
 
+void GameScript::dmaCsCamera(bool trigger) {
+  if(dma!=nullptr)
+    dma->eventCsCamera(trigger);
+  }
+
 void GameScript::dmaStatusScreen(bool show) {
   if(dma!=nullptr)
     dma->eventStatusScreen(show);
