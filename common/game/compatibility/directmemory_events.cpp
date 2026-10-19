@@ -327,3 +327,18 @@ void DirectMemory::eventKeyState(int key, bool down) {
   if(key>0 && size_t(key)<sizeof(keyEvents))
     keyEvents[key] = down ? 1 : 0;
   }
+
+/// The status screen of the player is shown or closed: the hooks of CoM write the texts of its items (UPDATE_MENU_ITEM)
+void DirectMemory::eventStatusScreen(bool show) {
+  const uint32_t adr = show ? HookAdr::StatusScreenShow : HookAdr::StatusScreenClose;
+  if(!hasHook(adr))
+    return;
+  HookRegs r;
+  fireHook(adr,r);
+  }
+
+auto DirectMemory::takeMenuTexts() -> std::vector<std::pair<std::string,std::string>> {
+  auto ret = std::move(menuTexts);
+  menuTexts.clear();
+  return ret;
+  }

@@ -63,6 +63,8 @@ class GameMenu : public Tempest::Widget {
 
     struct KeyEditDialog;
     struct SavNameDialog;
+    bool                                  statusMenu = false;   // the status screen of the player
+
     struct Item {
       std::string                         name;
       std::shared_ptr<zenkit::IMenuItem>  handle={};
