@@ -147,9 +147,19 @@ void GameScript::dmaKey(int key) {
     dma->eventKey(key);
   }
 
+void GameScript::dmaKeyState(int key, bool down) {
+  if(dma!=nullptr)
+    dma->eventKeyState(key,down);
+  }
+
 void GameScript::dmaZoneMusic(std::string_view name) {
   if(dma!=nullptr)
     dma->eventZoneMusic(name);
+  }
+
+void GameScript::dmaMobCanOpen(Interactive& mob) {
+  if(dma!=nullptr)
+    dma->eventMobCanOpen(mob);
   }
 
 void GameScript::dmaFocus(Npc& player, const Focus& focus) {

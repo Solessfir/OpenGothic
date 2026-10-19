@@ -312,3 +312,18 @@ void DirectMemory::eventSpellFocus(Npc& caster, int spellId) {
   fireHook(HookAdr::SpellSetup,r);
   mem32.free(spell);
   }
+
+/// The player tries to open a chest or a door that is locked: the mods can open it (the talent of picking locks of CoM)
+void DirectMemory::eventMobCanOpen(Interactive& mob) {
+  if(!hasHook(HookAdr::MobCanOpen))
+    return;
+  HookRegs r;
+  r.ecx = mobPointer(mob);
+  fireHook(HookAdr::MobCanOpen,r);
+  }
+
+/// A key is down or up: MEM_KeyPressed and MEM_KeyState of Ikarus read it
+void DirectMemory::eventKeyState(int key, bool down) {
+  if(key>0 && size_t(key)<sizeof(keyEvents))
+    keyEvents[key] = down ? 1 : 0;
+  }
