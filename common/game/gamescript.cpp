@@ -4,6 +4,7 @@
 #include <Tempest/SoundEffect>
 
 #include <cctype>
+#include <unordered_map>
 
 #include "game/compatibility/directmemory.h"
 #include "game/definitions/spelldefinitions.h"
@@ -94,13 +95,24 @@ GameScript::GameScript(GameSession &owner)
     throw std::runtime_error("Cannot find script symbol SELF, OTHER, ITEM, VICTIM, or HERO! Cannot proceed!");
 
   vmLang = Gothic::inst().settingsGetI("GAME", "language");
-  vm.register_exception_handler(zenkit::lenient_vm_exception_handler);
+  vm.register_exception_handler([](zenkit::DaedalusVm& v, const zenkit::DaedalusScriptError& exc, const zenkit::DaedalusInstruction& instr) {
+    const auto ret = zenkit::lenient_vm_exception_handler(v,exc,instr);
+    // where the script was: the first times that every error happens, so a log is not drowned
+    static std::unordered_map<std::string,int> seen;
+    if(seen.size()<200 && ++seen[exc.what()]<=2)
+      v.print_stack_trace();
+    return ret;
+    });
   Gothic::inst().setupCommonScriptClasses(vm);
   Gothic::inst().setupVmCommonApi(vm);
   aiDefaultPipe.reset(new GlobalOutput(*this));
   initCommon();
   initSettings();
   Gothic::inst().onSettingsChanged.bind(this,&GameScript::initSettings);
+  }
+
+std::string GameScript::dmaReport() {
+  return dma==nullptr ? std::string() : dma->report();
   }
 
 GameScript::~GameScript() {
@@ -3415,6 +3427,8 @@ void GameScript::equipitem(std::shared_ptr<zenkit::INpc> npcRef, int cls) {
   }
 
 void GameScript::createinvitem(std::shared_ptr<zenkit::INpc> npcRef, int itemInstance) {
+  if(itemInstance<=0)
+    return; // an empty slot of a script, the original engine does nothing
   auto self = findNpc(npcRef);
   if(self!=nullptr) {
     Item* itm = self->addItem(uint32_t(itemInstance),1);
@@ -3423,6 +3437,8 @@ void GameScript::createinvitem(std::shared_ptr<zenkit::INpc> npcRef, int itemIns
   }
 
 void GameScript::createinvitems(std::shared_ptr<zenkit::INpc> npcRef, int itemInstance, int amount) {
+  if(itemInstance<=0)
+    return;
   auto self = findNpc(npcRef);
   if(self!=nullptr && amount>0) {
     Item* itm = self->addItem(uint32_t(itemInstance),size_t(amount));

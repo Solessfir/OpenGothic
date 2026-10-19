@@ -274,6 +274,23 @@ uint32_t MoveTrigger::prevFrame(uint32_t i) const {
   return std::max<uint32_t>(i, 1) - 1;
   }
 
+int32_t MoveTrigger::moverState() const {
+  const bool atEnd = (frame==targetFrame);
+  switch(state) {
+    case Idle:
+      return frame==0 ? 2 : 0;
+    case Open:
+    case OpenTimed:
+      return atEnd ? 0 : 1;
+    case Close:
+      return frame==0 ? 2 : 3;
+    case Loop:
+    case SingleKey:
+      return 1;
+    }
+  return 0;
+  }
+
 void MoveTrigger::tick(uint64_t dt) {
   assert(state!=Idle);
   frameTime += dt;

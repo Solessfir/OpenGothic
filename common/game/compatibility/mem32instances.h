@@ -321,6 +321,22 @@ struct zError {
   int32_t SPYMUTEX;
   };
 
+/// A mover of the world as the scripts see it: the layout of zCMover of Gothic 2, see EngineClasses_G2/zCTrigger.d of Ikarus.
+/// Only the fields that mods read are filled.
+struct zCMover {
+  int32_t _VTBL;                    // 0
+  int32_t _REFCTR;
+  int32_t _HASHINDEX;
+  int32_t _HASHNEXT;
+  zString OBJECTNAME;               // 16
+  uint8_t pad0[60-36];
+  float   TRAFOOBJTOWORLD[16];      // 60
+  uint8_t pad1[404-124];
+  int32_t MOVERSTATE;               // 404, zTMoverState
+  uint8_t pad2[624-408];
+  };
+static_assert(sizeof(zCMover)==624, "layout of zCMover");
+
 struct zCTimer {
   int32_t FACTORMOTION;
   int32_t FRAMETIMEFLOAT;

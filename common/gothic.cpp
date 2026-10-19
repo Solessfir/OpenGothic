@@ -1027,6 +1027,26 @@ void Gothic::settingsSetI(std::string_view sec, std::string_view name, int val) 
   instance->onSettingsChanged();
   }
 
+bool Gothic::settingsHas(std::string_view sec, std::string_view name) {
+  if(name.empty())
+    return false;
+  return instance->iniFile->has(sec,name) || instance->baseIniFile->has(sec,name) || instance->defaults->has(sec,name);
+  }
+
+bool Gothic::modSettingsHasSection(std::string_view sec) {
+  return instance->modFile!=nullptr && instance->modFile->has(sec);
+  }
+
+bool Gothic::modSettingsHas(std::string_view sec, std::string_view name) {
+  return instance->modFile!=nullptr && !name.empty() && instance->modFile->has(sec,name);
+  }
+
+std::string_view Gothic::modSettingsGetS(std::string_view sec, std::string_view name) {
+  if(instance->modFile==nullptr || name.empty() || !instance->modFile->has(sec,name))
+    return "";
+  return instance->modFile->getS(sec,name);
+  }
+
 std::string_view Gothic::settingsGetS(std::string_view sec, std::string_view name) {
   if(name.empty())
     return "";
