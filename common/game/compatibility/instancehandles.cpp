@@ -18,7 +18,9 @@ void InstanceHandles::setup() {
     fill(s,i);
     });
   // the scripts do not change a character through its handle
-  mem.setCallbackW(Mem32::Type::instanceHandle,[](Slot&, uint32_t) {
+  mem.setCallbackW(Mem32::Type::instanceHandle,[this](Slot& s, uint32_t i) {
+    if(sync && i<entries.size() && entries[i].inst!=nullptr)
+      sync(s.raw,*entries[i].inst,true);
     });
 
   entries.resize(SlotCount);
@@ -29,6 +31,8 @@ void InstanceHandles::fill(Slot& s, uint32_t i) {
   // the rest of the object reads as zeroes
   const int32_t vtbl = (i<entries.size() && entries[i].inst!=nullptr) ? entries[i].vtbl : 0;
   std::memcpy(s.raw,&vtbl,sizeof(int32_t));
+  if(sync && i<entries.size() && entries[i].inst!=nullptr)
+    sync(s.raw,*entries[i].inst,false);
   }
 
 auto InstanceHandles::pointerTo(const std::shared_ptr<zenkit::DaedalusInstance>& inst) -> ptr32_t {

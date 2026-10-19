@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -23,6 +24,10 @@ class InstanceHandles {
 
     void     setup();
 
+    /// What lives in the memory of the object besides the table of virtual functions: the matrix of the vob, ...
+    using Sync = std::function<void(uint8_t* raw, zenkit::DaedalusInstance& inst, bool write)>;
+    void     setSync(Sync f) { sync = std::move(f); }
+
     /// 0 for an instance that is not a character and not an item
     auto     pointerTo(const std::shared_ptr<zenkit::DaedalusInstance>& inst) -> ptr32_t;
     /// null if the address is not a handle
@@ -42,6 +47,7 @@ class InstanceHandles {
     void     fill(Slot& s, uint32_t index);
 
     Mem32&   mem;
+    Sync     sync;
     ptr32_t  base   = 0;
     uint32_t cursor = 0;
     size_t   used   = 0;

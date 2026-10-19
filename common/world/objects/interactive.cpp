@@ -382,6 +382,9 @@ void Interactive::implTick(Pos& p) {
     return;
     }
 
+  if(npc.isPlayer() && needToLockpick(npc))
+    world.script().dmaMobCanOpen(*this); // the mods of Ikarus and LeGo may open it
+
   if(needToLockpick(npc)) {
     if(p.attachMode) {
       npc.world().sendPassivePerc(npc,npc,PERC_ASSESSUSEMOB);

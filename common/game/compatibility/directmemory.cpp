@@ -135,6 +135,7 @@ DirectMemory::DirectMemory(GameScript& owner, zenkit::DaedalusVm& vm) : gameScri
   setupFileFunctions();
   setupSaveSupport();
   setupFocusMagic();
+  setupEngineCalls();
 
   setupUtilityFunctions();
 
@@ -502,6 +503,9 @@ void DirectMemory::setupEngineMemory() {
   scriptVariables = mem32.alloc(uint32_t(vm.symbols().size() * sizeof(ScriptVar)),    Mem32::Type::zCParser_variables);
   scriptSymbols   = mem32.alloc(uint32_t(vm.symbols().size() * sizeof(zCPar_Symbol)), Mem32::Type::zCPar_Symbol);
   handles.setup();
+  handles.setSync([this](uint8_t* raw, zenkit::DaedalusInstance& inst, bool write) {
+    syncHandleObject(raw,inst,write);
+    });
   setupInstanceAliases();
   mem32.setCallbackR(Mem32::Type::mobHandle,[this](Compatibility::MobSlot& m, uint32_t id) {
     memoryCallback(m,id,std::memory_order::acquire);

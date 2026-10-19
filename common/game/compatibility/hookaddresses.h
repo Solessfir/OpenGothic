@@ -22,6 +22,7 @@ namespace HookAdr {
   constexpr uint32_t CreateFallDamage       = 0x681DA0; // ecx = oCNpc*
   constexpr uint32_t KeyEvent               = 0x6FD434; // oCGame::HandleEvent, the default case: esi = key
   constexpr uint32_t ZoneMusicChanged       = 0x6407C2; // edx = zSTRING* with the name of the zone
+  constexpr uint32_t MobCanOpen             = 0x7244F0; // oCMobLockable::CanOpen: ecx = the mob
   constexpr uint32_t SpellSetup             = 0x484930; // oCSpell::Setup: ecx = oCSpell*, [esp+4] = the caster
   constexpr uint32_t StatusScreenShow       = 0x47ED60;
   constexpr uint32_t StatusScreenClose      = 0x47EB50;
