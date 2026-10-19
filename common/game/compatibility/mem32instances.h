@@ -304,6 +304,11 @@ struct oWorld {
   int32_t VOBLIST_ITEMS;
   };
 
+/// A mob that a script sees as oCMobLockable (the layout is in the classes of the script, the fields are looked up by name)
+struct MobSlot {
+  uint8_t raw[1024];
+  };
+
 struct GameMgr {
   };
 

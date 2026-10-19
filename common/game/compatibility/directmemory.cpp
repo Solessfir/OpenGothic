@@ -134,6 +134,7 @@ DirectMemory::DirectMemory(GameScript& owner, zenkit::DaedalusVm& vm) : gameScri
   setupWinapiFunctions();
   setupFileFunctions();
   setupSaveSupport();
+  setupFocusMagic();
 
   setupUtilityFunctions();
 
@@ -502,6 +503,15 @@ void DirectMemory::setupEngineMemory() {
   scriptSymbols   = mem32.alloc(uint32_t(vm.symbols().size() * sizeof(zCPar_Symbol)), Mem32::Type::zCPar_Symbol);
   handles.setup();
   setupInstanceAliases();
+  mem32.setCallbackR(Mem32::Type::mobHandle,[this](Compatibility::MobSlot& m, uint32_t id) {
+    memoryCallback(m,id,std::memory_order::acquire);
+    });
+  mem32.setCallbackW(Mem32::Type::mobHandle,[this](Compatibility::MobSlot& m, uint32_t id) {
+    memoryCallback(m,id,std::memory_order::release);
+    });
+  mobBase = mem32.alloc(MobSlots*uint32_t(sizeof(Compatibility::MobSlot)),Mem32::Type::mobHandle,"oCMobLockable");
+  mobs.resize(MobSlots,nullptr);
+  mobPick.resize(MobSlots,0);
 
   // Built-in data without assumed address
   oGame_Pointer = mem32.pin(&memGame, sizeof(memGame), "oGame");
@@ -1912,125 +1922,6 @@ void DirectMemory::setupInitFileFunctions() {
     });
   }
 
-void DirectMemory::setupUiFunctions() {
-  // https://github.com/Lehona/LeGo/blob/dev/View.d
-  const int ZCVIEW__ZCVIEW     = 8017664;
-  const int ZCVIEW__OPEN       = 8023040;
-  const int ZCVIEW__CLOSE      = 8023600;
-  const int ZCVIEW_TOP         = 8021904;
-  const int ZCVIEW__SETSIZE    = 8026016;
-  const int zCVIEW__MOVE       = 8025824;
-  const int ZCVIEW__INSERTBACK = 8020272;
-  cpu.register_thiscall(ZCVIEW__ZCVIEW, [this](ptr32_t ptr, int x1, int y1, int x2, int y2, int arg) {
-    auto view = mem32.deref<zCView>(ptr);
-    if(view==nullptr) {
-      Log::e("LeGo: zCView__zCView - unable to resolve address");
-      return;
-      }
-
-    view->VPOSX  = x1;
-    view->VPOSY  = y1;
-    view->VSIZEX = x2-x1;
-    view->VSIZEY = y2-y1;
-    });
-
-  cpu.register_thiscall(ZCVIEW__OPEN, [this](ptr32_t ptr) {
-    auto view = mem32.deref<zCView>(ptr);
-    if(view==nullptr) {
-      Log::e("LeGo: zCView__Open - unable to resolve address");
-      return;
-      }
-    Log::e("LeGo: zCView__Open");
-    });
-
-  cpu.register_thiscall(ZCVIEW__CLOSE, [this](ptr32_t ptr) {
-    auto view = mem32.deref<zCView>(ptr);
-    if(view==nullptr) {
-      Log::e("LeGo: zCView__Close - unable to resolve address");
-      return;
-      }
-    });
-
-  cpu.register_thiscall(ZCVIEW_TOP, [this](ptr32_t ptr) {
-    auto view = mem32.deref<zCView>(ptr);
-    if(view==nullptr) {
-      Log::e("LeGo: zCView__Top - unable to resolve address");
-      return;
-      }
-    });
-
-  cpu.register_thiscall(ZCVIEW__SETSIZE, [this](ptr32_t ptr, int x, int y) {
-    auto view = mem32.deref<zCView>(ptr);
-    if(view==nullptr) {
-      Log::e("LeGo: zCView__SetSize - unable to resolve address");
-      return;
-      }
-
-    view->VSIZEX = x;
-    view->VSIZEY = y;
-    });
-
-  cpu.register_thiscall(zCVIEW__MOVE, [this](ptr32_t ptr, int x, int y) {
-    auto view = mem32.deref<zCView>(ptr);
-    if(view==nullptr) {
-      Log::e("LeGo: zCView__Move - unable to resolve address");
-      return;
-      }
-    view->VPOSX  = x;
-    view->VPOSY  = y;
-    });
-
-  cpu.register_thiscall(ZCVIEW__INSERTBACK, [this](ptr32_t ptr, std::string img) {
-    auto view = mem32.deref<zCView>(ptr);
-    if(view==nullptr) {
-      Log::e("LeGo: zCView__InsertBack - unable to resolve address");
-      return;
-      }
-    Log::e("LeGo: zCView__InsertBack: ", img);
-    });
-
-  // ## Textures
-  const int ZCTEXTURE__LOAD = 6239904;
-  cpu.register_stdcall(ZCTEXTURE__LOAD, [](std::string img, int flag) {
-    Log::e("LeGo: zCTexture__Load: ", img);
-    return 0;
-    });
-  }
-
-void DirectMemory::setupFontFunctions() {
-  const ptr32_t ZCFONTMAN__LOAD    = 7897808;
-  const ptr32_t ZCFONTMAN__GETFONT = 7898288;
-  cpu.register_thiscall(ZCFONTMAN__LOAD, [](ptr32_t ptr, std::string font) {
-    Log::e("LeGo: zCFontMan__Load");
-    return 1234;
-    });
-  cpu.register_thiscall(ZCFONTMAN__GETFONT, [](ptr32_t ptr, int handle) {
-    Log::e("LeGo: zCFontMan__GetFont");
-    return handle;
-    });
-  }
-
-void DirectMemory::tickUi(uint64_t dt) {
-  if(auto* vScreen = mem32.deref<zCView>(memGame._ZCSESSION_VIEWPORT)) {
-    //TODO: report correct screen size
-    vScreen->PSIZEX = 800;
-    vScreen->PSIZEY = 600;
-    }
-
-  //NOTE: PRINT_EXT
-  if(auto* vPrint = mem32.deref<const zCView>(memGame.ARRAY_VIEW[0])) {
-    auto* vList = vPrint->TEXTLINES_NEXT!=0 ? mem32.deref<const zCList>(vPrint->TEXTLINES_NEXT) : nullptr;
-    while(vList!=nullptr) {
-      if(auto* textView = mem32.deref<const zCViewText>(vList->data)) {
-        std::string dst; //TODO: avoid reallocations
-        memFromString(dst, textView->text);
-        // Log::i("zCViewText: ", dst);
-        }
-      vList = vList->next!=0 ? mem32.deref<const zCList>(vList->next) : 0;
-      }
-    }
-  }
-
 void DirectMemory::setupNpcFunctions() {
   const ptr32_t OCNPC__GETSLOTITEM = 7544720;
   cpu.register_thiscall(OCNPC__GETSLOTITEM, [](ptr32_t pHero, std::string slot) {
@@ -2225,12 +2116,14 @@ void DirectMemory::setupInstanceAliases() {
   reg("OCNPC.FIGHTTACTIC",     &N::fight_tactic);
   reg("OCNPC.FMODE",           &N::weapon);
   reg("OCNPC.VOICE",           &N::voice);
-  reg("OCNPC.VOICEPITCH",      &N::voice_pitch);
+  // the members that the VM does not have are kept in members that OpenGothic does not use: the pointer to the vob in
+  // focus (DirectMemory::eventFocus) and the mob that the character uses
+  reg("OCNPC.FOCUS_VOB",       &N::voice_pitch);
+  reg("OCNPC.INTERACTMOB",     &N::spawn_delay);
   reg("OCNPC.MASS",            &N::body_mass);
   reg("OCNPC.DAILY_ROUTINE",   &N::daily_routine);
   reg("OCNPC.STARTAISTATE",    &N::start_aistate);
   reg("OCNPC.SPAWNPOINT",      &N::spawnpoint);
-  reg("OCNPC.SPAWNDELAY",      &N::spawn_delay);
   reg("OCNPC.SENSES",          &N::senses);
   reg("OCNPC.SENSES_RANGE",    &N::senses_range);
   reg("OCNPC.AISCRIPTVARS",    &N::aivar);

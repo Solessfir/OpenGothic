@@ -290,8 +290,11 @@ void MainWindow::paintEvent(PaintEvent& event) {
       p.setBrush(Color(1.0));
 
       drawMsg(p);
+      drawDmaOverlay(p);
 
       auto focus = world->validateFocus(player.focus());
+      if(auto* pl = Gothic::inst().player())
+        world->script().dmaFocus(*pl,focus);
       paintFocus(p,focus,vp);
 
       if(auto pl = Gothic::inst().player()){
@@ -1269,6 +1272,50 @@ void MainWindow::drawMsg(Tempest::Painter& p) {
 
   const int y = std::max(10,margins().top) + int(destH) + 10;
   dialogs.drawMsg(p, y);
+  }
+
+/// The views and the texts that the scripts of Ikarus and LeGo put on the screen (bars, messages, windows of the mods)
+void MainWindow::drawDmaOverlay(Tempest::Painter& p) {
+  auto* world = Gothic::inst().world();
+  if(world==nullptr || !world->script().hasDma())
+    return;
+
+  dmaOverlay.clear();
+  world->script().dmaOverlay(dmaOverlay);
+  if(dmaOverlay.empty())
+    return;
+
+  const float sx    = float(w())/8192.f;
+  const float sy    = float(h())/8192.f;
+  const float scale = float(h())/600.f;     // the sizes of the fonts are for the screen of 800x600
+
+  auto brushColor = [](uint32_t c) {
+    return Color(float((c>>16)&0xFF)/255.f, float((c>>8)&0xFF)/255.f, float(c&0xFF)/255.f, float((c>>24)&0xFF)/255.f);
+    };
+
+  for(auto& it:dmaOverlay) {
+    const auto color = brushColor(it.color);
+    if(color.a()<=0.01f)
+      continue;
+    if(it.kind==GameScript::DmaOverlayItem::Image) {
+      const int x = int(it.x*sx), y = int(it.y*sy), iw = int(it.w*sx), ih = int(it.h*sy);
+      if(iw<=0 || ih<=0)
+        continue;
+      if(it.name=="DEFAULT.TGA") {
+        p.setBrush(color);
+        p.drawRect(x,y,iw,ih);
+        continue;
+        }
+      if(const Tempest::Texture2d* tex = Resources::loadTexture(it.name)) {
+        p.setBrush(Brush(*tex,color));
+        p.drawRect(x,y,iw,ih,0,0,tex->w(),tex->h());
+        }
+      } else {
+      const auto& fnt = Resources::font(it.font,Resources::FontType::Normal,scale);
+      fnt.drawText(p,int(it.x*sx),int(it.y*sy)+fnt.pixelSize(),it.name);
+      }
+    }
+  p.setBrush(Color(1.0));
   }
 
 void MainWindow::drawProgress(Painter &p, int x, int y, int w, int h, float v) {
