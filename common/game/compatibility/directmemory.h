@@ -65,6 +65,8 @@ class DirectMemory {
     void        clearMobs();
     void        eventMobCanOpen(Interactive& mob);
     bool        eventDropVob(Npc& npc, Item& item);
+    void        eventInventoryOpen(Npc& npc);
+    bool        takeInventoryClose();
     void        eventStatusScreen(bool show);
     void        eventCsCamera(bool trigger);
     auto        takeMenuTexts() -> std::vector<std::pair<std::string,std::string>>;
@@ -176,6 +178,11 @@ class DirectMemory {
     std::vector<uint32_t>            mobPick;     // the number of the characters of the lock that are done
     std::unordered_map<const Interactive*,uint32_t> mobIndex;
     std::vector<std::pair<std::string,std::string>> menuTexts;   // UPDATE_MENU_ITEM: the item of the menu and its new text
+    ptr32_t                          worldTimer = 0;        // oCWorldTimer of the scripts (SCALETIME, STOPTIMEATHOUR)
+    int32_t                          worldTimerBits = 0;    // what was written there last, to see the writes of the scripts
+    int32_t                          worldTimerDay  = 0;
+    bool                             worldTimerInit = false;
+    bool                             inventoryClose = false;   // oCNpc::CloseInventory was called by a script
     ptr32_t                          dropMessage = 0;       // the message of EV_DropVob that the hook is asked about
     bool                             dropCancelled = false;
     ptr32_t                          focusMagic = 0;
@@ -262,6 +269,7 @@ class DirectMemory {
     void        setupUiFunctions();
     void        setupFontFunctions();
     void        tickUi(uint64_t dt);
+    void        tickTimers(uint64_t dt);
     //
     void        setupNpcFunctions();
     void        setupWorldFunctions();

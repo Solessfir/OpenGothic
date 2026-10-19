@@ -32,6 +32,7 @@ bool DirectMemory::isHookAnswered(uint32_t address) {
     HookAdr::SpellSetup,
     HookAdr::MobCanOpen,
     HookAdr::EvDropVob,
+    HookAdr::InventoryOpen,
     HookAdr::CsCameraTrigger,
     HookAdr::CsCameraUntrigger,
     HookAdr::BarUpdateResolution,
