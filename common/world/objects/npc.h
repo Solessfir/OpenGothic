@@ -253,6 +253,7 @@ class Npc final {
     void      setToFistMode();
 
     void      aiPush(AiQueue::AiAction&& a);
+    void      aiWaitTillEnd(Npc& other);
     void      resumeAiRoutine();
 
     bool      canSwitchWeapon() const;
@@ -278,6 +279,8 @@ class Npc final {
     int32_t   activeSpellLevel() const;
     bool      aimBow();
     bool      shootBow(Interactive* focOverride = nullptr);
+    /// Diagnostic counter of projectiles actually created; resets on load.
+    uint32_t  rangedShotCount() const { return rangedProjectiles; }
     bool      hasAmmunition() const;
 
     bool      isEnemy(const Npc& other) const;
@@ -636,6 +639,8 @@ class Npc final {
     MoveAlgo                       mvAlgo;
     FightAlgo                      fghAlgo;
     uint64_t                       lastEventTime=0;
+
+    uint32_t                       rangedProjectiles = 0;
 
     float                          angleY   = 0.f;
     float                          runAng   = 0.f;

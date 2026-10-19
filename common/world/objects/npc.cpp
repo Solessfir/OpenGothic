@@ -2579,6 +2579,65 @@ void Npc::nextAiAction(AiQueue& queue, uint64_t dt) {
         }
       break;
       }
+    case AI_Synchronize:
+      break; // AiQueue::pop completes the ticket after all preceding commands.
+    case AI_WaitTillEnd:
+      if(act.target!=nullptr && act.target!=this && !act.target->isDown() &&
+         !act.target->aiQueue.isSynchronized(uint32_t(act.i0)))
+        queue.pushFront(std::move(act));
+      break;
+    case AI_AimAt:
+    case AI_ShootAt: {
+      if(act.target==nullptr || act.target->isDead() || isDown())
+        break;
+      const auto ws = weaponState();
+      if(ws!=WeaponState::Bow && ws!=WeaponState::CBow)
+        break;
+      setTarget(act.target);
+      if(implTurnTo(*act.target,dt)) {
+        queue.pushFront(std::move(act));
+        break;
+        }
+      if(act.act==AI_AimAt) {
+        if(!aimBow())
+          queue.pushFront(std::move(act));
+        } else if(hasAmmunition()) {
+        const auto state = bodyStateMasked();
+        if(state!=BS_STAND && state!=BS_AIMNEAR && state!=BS_AIMFAR && state!=BS_HIT) {
+          setAnim(Anim::Idle);
+          queue.pushFront(std::move(act));
+          break;
+          }
+        if(shootBow())
+          implAniWait(visual.pose().animationTotalTime());
+        else
+          queue.pushFront(std::move(act));
+        }
+      break;
+      }
+    case AI_StopAim:
+      setAnim(Anim::Idle);
+      setTarget(nullptr);
+      fghAlgo.onClearTarget();
+      break;
+    case AI_DropItem:
+      if(act.i0>0 && invent.itemCount(size_t(act.i0))>0) {
+        const auto count = invent.itemCount(size_t(act.i0));
+        dropItem(size_t(act.i0),1);
+        if(invent.itemCount(size_t(act.i0))==count)
+          queue.pushFront(std::move(act));
+        else
+          implAniWait(visual.pose().animationTotalTime());
+        }
+      break;
+    case AI_SndPlay:
+      if(aiPolicy<NpcProcessPolicy::AiFar2)
+        Gothic::inst().emitGlobalSound(act.s0);
+      break;
+    case AI_StopFx:
+      if(auto* fx = Gothic::inst().loadVisualFx(act.s0))
+        stopEffect(*fx);
+      break;
     case AI_Wait:
       implAiWait(uint64_t(act.i0));
       break;
@@ -4138,6 +4197,7 @@ bool Npc::shootBow(Interactive* focOverride) {
   auto& b = owner.shootBullet(*itm,*this,currentTarget,focOverride);
   if(isPlayer())
     Feedback::gameplay(Feedback::Effect::Shoot);
+  ++rangedProjectiles;
 
   invent.delItem(size_t(munition),1,*this);
   b.setOrigin(this);
@@ -4597,6 +4657,13 @@ bool Npc::isAiQueueEmpty() const {
   return aiQueue.size()==0 &&
          go2.empty() &&
          waitTime<owner.tickCount();
+  }
+
+void Npc::aiWaitTillEnd(Npc& other) {
+  if(&other==this)
+    return;
+  const uint32_t ticket = other.aiQueue.synchronize();
+  aiPush(AiQueue::aiWaitTillEnd(other,ticket));
   }
 
 bool Npc::isAiBusy() const {
