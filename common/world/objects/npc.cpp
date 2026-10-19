@@ -3549,6 +3549,12 @@ void Npc::moveItem(size_t id, Interactive &to, size_t count) {
 void Npc::sellItem(size_t id, Npc &to, size_t count) {
   if(id==owner.script().goldId()->index())
     return;
+  // mods of Ikarus and LeGo (CoM) do not let the player sell the important items
+  if(isPlayer()) {
+    if(auto* itm = invent.getItem(id))
+      if(owner.script().dmaSellItem(*this,*itm))
+        return;
+    }
   int32_t price = invent.sellPriceOf(id);
   Inventory::transfer(to.invent,invent,this,id,count,owner);
   invent.addItem(owner.script().goldId()->index(),size_t(price)*count,owner);
