@@ -2551,6 +2551,8 @@ void Npc::nextAiAction(AiQueue& queue, uint64_t dt) {
         }
       break;
     case AI_PlayAnim:{
+      if(act.s0.find("T_PET")==0 || act.s0.find("CALL ")==0)
+        Log::d("AI_PlayAni: ", act.s0, " (", isPlayer() ? "player" : "npc", ")");
       owner.script().eventPlayAni(*this, act.s0);
       if(auto sq = playAnimByName(act.s0,BS_NONE)) {
         implAniWait(uint64_t(sq->totalTime()));
@@ -3580,6 +3582,13 @@ void Npc::dropItem(size_t id, size_t count) {
     count = cnt;
   if(count<1)
     return;
+
+  // mods of Ikarus and LeGo (CoM) keep the important items
+  if(isPlayer()) {
+    if(auto* itm = invent.getItem(id))
+      if(owner.script().dmaDropVob(*this,*itm))
+        return;
+    }
 
   auto sk = visual.visualSkeleton();
   if(sk==nullptr)

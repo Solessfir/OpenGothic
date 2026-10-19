@@ -1,0 +1,90 @@
+diff --git a/include/zenkit/DaedalusVm.hh b/include/zenkit/DaedalusVm.hh
+index 17a81ee..6055808 100644
+--- a/include/zenkit/DaedalusVm.hh
++++ b/include/zenkit/DaedalusVm.hh
+@@ -638,6 +638,10 @@ namespace zenkit {
+ 		///
+ 		/// \param sym The symbol to unsafe_call.
+ 		ZKAPI void unsafe_call(DaedalusSymbol const* sym);
++
++		/// Calls a script function, registered override, or external with arguments already on the stack.
++		/// The caller is responsible for consuming the return value, as with unsafe_call.
++		ZKAPI void invoke_function(DaedalusSymbol const* sym);
+ 		ZKAPI void unsafe_jump(uint32_t address);
+ 		ZKAPI std::shared_ptr<DaedalusInstance> unsafe_get_gi();
+ 		ZKAPI void unsafe_set_gi(std::shared_ptr<DaedalusInstance> i);
+diff --git a/include/zenkit/addon/daedalus.hh b/include/zenkit/addon/daedalus.hh
+index 0773c39..0ad1a5b 100644
+--- a/include/zenkit/addon/daedalus.hh
++++ b/include/zenkit/addon/daedalus.hh
+@@ -215,6 +215,10 @@ namespace zenkit {
+ 		var int32_t bodystate_interruptable_override;
+ 		var int32_t no_focus;
+ 
++		// Not members of C_NPC. OpenGothic keeps here the members of oCNpc that the Ikarus layer lets the scripts read.
++		int32_t compat_focus_vob = 0;
++		int32_t compat_interact_mob = 0;
++
+ 		ZKAPI static void register_(DaedalusScript& s);
+ 	};
+ 
+diff --git a/src/DaedalusVm.cc b/src/DaedalusVm.cc
+index 0b4420e..49f8908 100644
+--- a/src/DaedalusVm.cc
++++ b/src/DaedalusVm.cc
+@@ -118,6 +118,41 @@ namespace zenkit {
+ 		this->jump(address);
+ 	}
+ 
++	void DaedalusVm::invoke_function(DaedalusSymbol const* sym) {
++		if (sym == nullptr || sym->type() != DaedalusDataType::FUNCTION) {
++			throw DaedalusVmException {"invoke_function: not a function"};
++		}
++
++		std::function<void(DaedalusVm&)> callback;
++		if (sym->is_external()) {
++			if (auto it = _m_externals.find(const_cast<DaedalusSymbol*>(sym)); it != _m_externals.end()) {
++				callback = it->second;
++			} else if (_m_default_external.has_value()) {
++				callback = [this, sym](DaedalusVm& vm) {
++					(*_m_default_external)(vm, *const_cast<DaedalusSymbol*>(sym));
++				};
++			} else {
++				throw DaedalusVmException {"invoke_function: no external registered for " + sym->name()};
++			}
++		} else if (auto it = _m_function_overrides.find(sym->address()); it != _m_function_overrides.end()) {
++			callback = it->second;
++		} else {
++			unsafe_call(sym);
++			return;
++		}
++
++		push_call(sym);
++		try {
++			StackGuard guard {this, sym->rtype()};
++			callback(*this);
++			guard.inhibit();
++		} catch (...) {
++			pop_call();
++			throw;
++		}
++		pop_call();
++	}
++
+ 	std::shared_ptr<DaedalusInstance> DaedalusVm::unsafe_get_gi() {
+ 		return _m_instance;
+ 	}
+@@ -699,6 +734,13 @@ namespace zenkit {
+ 			return std::get<int32_t>(v.value);
+ 		}
+ 
++		// The original engine pushes an instance as the index of its symbol, so a function with an int parameter
++		// that is called with an instance receives that index (LeGo's free() calls Bar_Delete(var int) this way).
++		if (std::holds_alternative<std::shared_ptr<DaedalusInstance>>(v.value)) {
++			auto const& inst = std::get<std::shared_ptr<DaedalusInstance>>(v.value);
++			return inst == nullptr ? 0 : static_cast<std::int32_t>(inst->symbol_index());
++		}
++
+ 		throw DaedalusVmException {"tried to pop_int but frame does not contain a int."};
+ 	}
+ 
