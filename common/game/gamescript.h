@@ -102,6 +102,7 @@ class GameScript final {
     void         dmaFocus(Npc& player, const Focus& focus);
     void         dmaStatusScreen(bool show);
     bool         dmaDropVob(Npc& npc, Item& item);
+    bool         dmaSellItem(Npc& npc, Item& item);
     void         dmaInventoryOpen(Npc& npc);
     bool         dmaTakeInventoryClose();
     void         dmaCsCamera(bool trigger);
