@@ -31,6 +31,8 @@ bool DirectMemory::isHookAnswered(uint32_t address) {
     HookAdr::OnDamageScript,
     HookAdr::SpellSetup,
     HookAdr::MobCanOpen,
+    HookAdr::CsCameraTrigger,
+    HookAdr::CsCameraUntrigger,
     HookAdr::BarUpdateResolution,
     HookAdr::StatusScreenShow,
     HookAdr::StatusScreenClose,
