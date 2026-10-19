@@ -22,7 +22,9 @@ class Mem32 {
       plain,
       zCParser,
       zCParser_variables,
-      zCPar_Symbol
+      zCPar_Symbol,
+      zCMover,
+      instanceHandle
       };
 
     using                     ptr32_t  = Compatibility::ptr32_t;
@@ -72,6 +74,10 @@ class Mem32 {
         return reinterpret_cast<T*>(derefv(address, sizeof(T)));
         }
       }
+
+    /// For the menu of the developer
+    size_t   regionCount() const { return region.size(); }
+    uint64_t bytesInUse() const;
 
     void    writeInt (ptr32_t address, int32_t v);
     int32_t readInt  (ptr32_t address);

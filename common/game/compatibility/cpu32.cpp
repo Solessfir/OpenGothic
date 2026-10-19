@@ -161,9 +161,17 @@ bool Cpu32::exec2Byte(const ptr32_t basePc, ptr32_t& pc, const uint8_t* ins, siz
       ecx = uint32_t(mem32.readInt(ptr));
       return true;
       }
+    case ASMINT_OP_floatStoreToMem: {
+      // fstp dword ptr [address]: the result of a function of C goes to the memory
+      ptr32_t ptr = readUInt32(ins, pc+2, len);
+      pc += 4;
+      int32_t bits = 0;
+      std::memcpy(&bits,&st0,sizeof(bits));
+      mem32.writeInt(ptr,bits);
+      return true;
+      }
     case ASMINT_OP_movEAXToAL:
     case ASMINT_OP_movCLToEAX:
-    case ASMINT_OP_floatStoreToMem:
     case ASMINT_OP_movMemToCL:
     case ASMINT_OP_movMemToEDX:
     case ASMINT_OP_movMemToEDI:

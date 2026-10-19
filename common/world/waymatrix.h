@@ -25,6 +25,9 @@ class WayMatrix final {
     void            addFreePoint (const Tempest::Vec3& pos, const Tempest::Vec3& dir, std::string_view name);
     void            addStartPoint(const Tempest::Vec3& pos, const Tempest::Vec3& dir, std::string_view name);
 
+    /// Every point of the world with a name: the way points and the free points
+    void            forEachPoint(const std::function<void(const WayPoint&)>& f) const;
+
     const WayPoint& startPoint() const;
     const WayPoint& deadPoint() const;
     void            buildIndex();

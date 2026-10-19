@@ -81,6 +81,8 @@ class GameScript final {
     bool         usesMemoryExtensions() const { return dma!=nullptr; }
 
     inline auto& getVm() { return vm; }
+    /// The report of the layer for Ikarus and LeGo, empty if the mod does not use them
+    auto         dmaReport() -> std::string;
     auto         questLog() const -> const QuestLog&;
 
     const World& world() const;

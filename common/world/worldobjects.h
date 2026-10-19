@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <memory>
+#include <functional>
 
 #include <zenkit/vobs/Misc.hh>
 
@@ -70,6 +71,7 @@ class WorldObjects final {
     void           detectItem(const float x, const float y, const float z, const float r, const std::function<void(Item&)>& f);
 
     uint32_t       npcId(const Npc *ptr) const;
+    void           forEachTrigger(const std::function<void(AbstractTrigger&)>& f);
     size_t         npcCount()    const { return npcArr.size(); }
     const Npc&     npc(size_t i) const { return *npcArr[i];    }
     Npc&           npc(size_t i)       { return *npcArr[i];    }
