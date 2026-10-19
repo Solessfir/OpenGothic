@@ -137,6 +137,12 @@ GameMenu::GameMenu(MenuRoot &owner, KeyCodec& keyCodec, zenkit::DaedalusVm& vm, 
   timer.start(100);
 
   textBuf.reserve(64);
+  {
+  std::string section(menuSection);
+  for(auto& ch:section)
+    ch = char(std::toupper(static_cast<unsigned char>(ch)));
+  statusMenu = section.find("STATUS")!=std::string::npos && section.find("LOG")==std::string::npos;
+  }
 
   auto* menuSectionSymbol = vm.find_symbol_by_name(menuSection);
   if(menuSectionSymbol!=nullptr) {
@@ -205,6 +211,10 @@ GameMenu::GameMenu(MenuRoot &owner, KeyCodec& keyCodec, zenkit::DaedalusVm& vm, 
   }
 
 GameMenu::~GameMenu() {
+  if(statusMenu) {
+    if(auto w = Gothic::inst().world())
+      w->script().dmaStatusScreen(false);
+    }
   Gothic::flushSettings();
   Gothic::inst().popPause();
   Resources::device().waitIdle(); // safe-delete savethumb
@@ -2186,5 +2196,12 @@ void GameMenu::setPlayer(const Npc &pl) {
     set(string_frm("MENU_ITEM_TALENT_",i,"_TITLE"), str);
     set(string_frm("MENU_ITEM_TALENT_",i,"_SKILL"), strEnum(talV->get_string(i),sk,textBuf));
     set(string_frm("MENU_ITEM_TALENT_",i),          string_frm(val,"%"));
+    }
+
+  if(statusMenu) {
+    // the mods of Ikarus and LeGo add to the status screen (CoM: the base values, the experience, the armor)
+    sc.dmaStatusScreen(true);
+    for(auto& t:sc.dmaTakeMenuTexts())
+      set(t.first,t.second);
     }
   }
