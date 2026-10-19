@@ -116,8 +116,11 @@ std::string GameScript::dmaReport() {
   }
 
 void GameScript::dmaChangeLevel(bool begin) {
-  if(dma!=nullptr)
+  if(dma!=nullptr) {
+    if(begin)
+      dma->clearMobs();
     dma->eventChangeLevel(begin);
+    }
   }
 
 void GameScript::dmaSave(Serialize& fout) {
@@ -147,6 +150,28 @@ void GameScript::dmaKey(int key) {
 void GameScript::dmaZoneMusic(std::string_view name) {
   if(dma!=nullptr)
     dma->eventZoneMusic(name);
+  }
+
+void GameScript::dmaFocus(Npc& player, const Focus& focus) {
+  if(dma!=nullptr)
+    dma->eventFocus(player,focus);
+  }
+
+void GameScript::dmaSpellFocus(Npc& caster, int spellId) {
+  if(dma!=nullptr)
+    dma->eventSpellFocus(caster,spellId);
+  }
+
+/// The focus of the magic: the mods of Ikarus change it while the game runs (the lock picking spell of CoM)
+const zenkit::IFocus& GameScript::focusMage() const {
+  if(dma!=nullptr)
+    dma->syncFocusMage(const_cast<zenkit::IFocus&>(cFocusMage));
+  return cFocusMage;
+  }
+
+void GameScript::dmaOverlay(std::vector<DmaOverlayItem>& out) {
+  if(dma!=nullptr)
+    dma->collectOverlay(out);
   }
 
 auto GameScript::dmaDamageBegin(Npc& victim, Npc& attacker, bool isSpell, int spellId, bool ranged, bool dontKill) -> DmaDamage {

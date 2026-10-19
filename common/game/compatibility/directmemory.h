@@ -16,6 +16,8 @@ class MoveTrigger;
 class Serialize;
 class Npc;
 class Item;
+class Interactive;
+class Focus;
 
 class DirectMemory {
   public:
@@ -44,6 +46,9 @@ class DirectMemory {
     bool        hasHook(uint32_t address) const;
     bool        fireHook(uint32_t address, HookRegs& regs);
 
+    /// What the scripts have put on the screen (the views and the texts of LeGo), for the drawing, see directmemory_ui.cpp
+    void        collectOverlay(std::vector<GameScript::DmaOverlayItem>& out);
+
     // events of the game, see directmemory_events.cpp
     void        eventChangeLevel(bool begin);
     void        eventSaveGame(Serialize& fout);
@@ -53,6 +58,10 @@ class DirectMemory {
     void        eventKey(int key);
     void        eventZoneMusic(std::string_view name);
     void        eventFallDamage(Npc& npc);
+    void        eventFocus(Npc& player, const Focus& focus);
+    void        eventSpellFocus(Npc& caster, int spellId);
+    void        syncFocusMage(zenkit::IFocus& focus);
+    void        clearMobs();
     void        eventDamageBegin(Npc& victim, Npc& attacker, bool isSpell, int spellId, bool ranged, GameScript::DmaDamage& d);
     void        eventDamageEnd(Npc& victim, GameScript::DmaDamage& d);
 
@@ -134,6 +143,7 @@ class DirectMemory {
     void        memoryCallback(zCPar_Symbol& s, uint32_t index, std::memory_order ord);
     auto        instancePointer(zenkit::DaedalusSymbol& sym) -> ptr32_t;
     void        memoryCallback(zCMover& m, uint32_t index, std::memory_order ord);
+    void        memoryCallback(Compatibility::MobSlot& m, uint32_t index, std::memory_order ord);
     void        memAssignString(zString& str, std::string_view cstr);
     void        memFromString(std::string& dst, const zString& str);
 
@@ -152,6 +162,28 @@ class DirectMemory {
     std::unordered_map<uint32_t,StrVar> strVars;   // by the index of the symbol
     std::vector<uint32_t>               ownedStrings;
     void        syncOwnedStrings(ptr32_t address, uint32_t size);
+    // chests and doors as oCMobLockable, the focus of the player, the focus of the magic
+    static constexpr uint32_t MobSlots = 256;
+    ptr32_t                          mobBase   = 0;
+    uint32_t                         mobCursor = 0;
+    std::vector<Interactive*>        mobs;
+    std::vector<uint32_t>            mobPick;     // the number of the characters of the lock that are done
+    std::unordered_map<const Interactive*,uint32_t> mobIndex;
+    ptr32_t                          focusMagic = 0;
+    int                              lastSpellFocus = -1;
+    auto        mobPointer(Interactive& mob) -> ptr32_t;
+    void        setupFocusMagic();
+
+    // views, textures and fonts of LeGo
+    struct FontInfo {
+      std::string name;
+      ptr32_t     object = 0;
+      };
+    std::vector<FontInfo>                  fonts;        // the handle is the index+1
+    std::unordered_map<ptr32_t,uint32_t>   fontByPtr;
+    std::unordered_map<std::string,ptr32_t> texObjects;  // the name of a texture -> its object for the scripts
+    std::unordered_map<ptr32_t,std::string> texNames;
+    std::vector<ptr32_t>                   openViews;    // the last one is in front
     std::vector<std::pair<uint32_t,uint32_t>> replaced;   // MEM_ReplaceFunc: the function and the one that takes its place
 
     ptr32_t     ASMINT_InternalStack = 0;

@@ -5,6 +5,7 @@
 #include <zenkit/CutsceneLibrary.hh>
 
 #include <memory>
+#include <vector>
 #include <set>
 #include <random>
 
@@ -23,6 +24,7 @@ class World;
 class DirectMemory;
 class Npc;
 class Item;
+class Focus;
 class VisualFx;
 class ParticleFx;
 class Serialize;
@@ -94,11 +96,23 @@ class GameScript final {
     void         dmaKey(int key);
     void         dmaZoneMusic(std::string_view name);
     void         dmaFallDamage(Npc& npc);
+    void         dmaFocus(Npc& player, const Focus& focus);
+    void         dmaSpellFocus(Npc& caster, int spellId);
     struct DmaDamage final {
       uint32_t desc     = 0;     // oSDamageDescriptor in the memory of the layer
       bool     dontKill = false;
       int      extra    = 0;     // the damage that the hook has added
       };
+    /// A view or a text of LeGo, the positions are in the virtual coordinates of Gothic (0..8192)
+    struct DmaOverlayItem final {
+      enum Kind : uint8_t { Image, Text };
+      Kind        kind  = Text;
+      float       x = 0, y = 0, w = 0, h = 0;
+      std::string name;                 // the texture or the text
+      std::string font;
+      uint32_t    color = 0xFFFFFFFFu;  // ARGB
+      };
+    void         dmaOverlay(std::vector<DmaOverlayItem>& out);
     auto         dmaDamageBegin(Npc& victim, Npc& attacker, bool isSpell, int spellId, bool ranged, bool dontKill) -> DmaDamage;
     void         dmaDamageEnd(Npc& victim, DmaDamage& d);
     auto         questLog() const -> const QuestLog&;
@@ -128,7 +142,7 @@ class GameScript final {
     const zenkit::IFocus&       focusNorm()  const { return cFocusNorm;  }
     const zenkit::IFocus&       focusMelee() const { return cFocusMelee; }
     const zenkit::IFocus&       focusRange() const { return cFocusRange; }
-    const zenkit::IFocus&       focusMage()  const { return cFocusMage;  }
+    const zenkit::IFocus&       focusMage()  const;
     const zenkit::IGuildValues& guildVal()   const { return *cGuildVal;  }
 
     std::string_view            menuMain() const;

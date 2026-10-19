@@ -6,6 +6,7 @@
 #include "utils/radialinput.h"
 
 #include "camera.h"
+#include "game/gamescript.h"
 #include "resources.h"
 
 #include <Tempest/Window>
@@ -83,6 +84,8 @@ class MainWindow : public Tempest::Window {
 
     Tempest::Size playerBarSize() const;
     void drawBar(Tempest::Painter& p, const Tempest::Texture2d *bar, int x, int y, float v, Tempest::AlignFlag flg);
+    void drawDmaOverlay(Tempest::Painter& p);
+    std::vector<GameScript::DmaOverlayItem> dmaOverlay;
     void drawMsg(Tempest::Painter& p);
     void drawProgress(Tempest::Painter& p, int x, int y, int w, int h, float v);
     void drawLoading (Tempest::Painter& p,int x,int y,int w,int h);
