@@ -24,6 +24,7 @@ class World;
 class DirectMemory;
 class Npc;
 class Item;
+class Interactive;
 class Focus;
 class VisualFx;
 class ParticleFx;
@@ -94,9 +95,11 @@ class GameScript final {
     void         dmaItemTaken(Npc& owner, Item& item);
     int          dmaChangeAttribute(Npc& npc, int attribute, int change);
     void         dmaKey(int key);
+    void         dmaKeyState(int key, bool down);
     void         dmaZoneMusic(std::string_view name);
     void         dmaFallDamage(Npc& npc);
     void         dmaFocus(Npc& player, const Focus& focus);
+    void         dmaMobCanOpen(Interactive& mob);
     void         dmaSpellFocus(Npc& caster, int spellId);
     struct DmaDamage final {
       uint32_t desc     = 0;     // oSDamageDescriptor in the memory of the layer
