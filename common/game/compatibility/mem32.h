@@ -79,6 +79,9 @@ class Mem32 {
     size_t   regionCount() const { return region.size(); }
     uint64_t bytesInUse() const;
 
+    /// For the log: the address of the last write that went through a callback
+    ptr32_t lastWriteAddress() const { return lastWrite; }
+
     void    writeInt (ptr32_t address, int32_t v);
     int32_t readInt  (ptr32_t address);
     void    copyBytes(ptr32_t src, ptr32_t dst, uint32_t size);
@@ -125,6 +128,7 @@ class Mem32 {
     void     memSyncWrite(Type       t, const Region& rgn, ptr32_t address, uint32_t size);
     void     memSyncWrite(Callback& cb, const Region& rgn, ptr32_t address, uint32_t size);
 
+    ptr32_t             lastWrite = 0;
     std::vector<Region> region;
     std::unordered_map<Type, Callback> memMap;
   };

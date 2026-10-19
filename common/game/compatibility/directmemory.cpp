@@ -132,6 +132,8 @@ DirectMemory::DirectMemory(GameScript& owner, zenkit::DaedalusVm& vm) : gameScri
   setupDirectFunctions();
 
   setupWinapiFunctions();
+  setupFileFunctions();
+  setupSaveSupport();
 
   setupUtilityFunctions();
 
@@ -511,7 +513,7 @@ void DirectMemory::setupEngineMemory() {
   mem_world.WAYNET       = BAD_BUILTIN_PTR; //TODO: add implement some proxy to waynet
   mem_world.VOBLIST_NPCS = 0; //BAD_BUILTIN_PTR; // zCListSort*
 
-  gameman_Ptr = mem32.alloc(sizeof(GameMgr));
+  gameman_Ptr = mem32.alloc(512,"CGameManager");
   if(auto v = vm.find_symbol_by_name("CurrSymbolTableLength")) {
     v->set_int(int(vm.symbols().size()));
     }
@@ -820,9 +822,12 @@ void DirectMemory::memoryCallback(zCParser& p, std::memory_order ord) {
     auto dst = findSymbolByAddress(p.stack_stackptr);
 
     if(src!=dst || dst==nullptr) {
-      if(src!=nullptr && dst!=nullptr)
-        Log::e("FIXME: unsafe jump: `\"", src->name(), "\" -> \"", dst->name(), "\""); else
-        Log::e("FIXME: unsafe jump!");
+      if(logBudget("unsafe-jump",12)) {
+        Log::e("FIXME: unsafe jump: the write to ",reinterpret_cast<void*>(uint64_t(mem32.lastWriteAddress())),", pc ",vm.pc()," to ",p.stack_stackptr," from `\"",
+               src==nullptr ? "?" : src->name().c_str(), "\" (",src==nullptr ? 0 : src->address(),") to \"",
+               dst==nullptr ? "?" : dst->name().c_str(), "\" (",dst==nullptr ? 0 : dst->address(),")");
+        vm.print_stack_trace();
+        }
       return;
       }
     vm.unsafe_jump(p.stack_stackptr - instr.size);
@@ -866,19 +871,44 @@ void DirectMemory::memoryCallback(ScriptVar& v, uint32_t index, std::memory_orde
       break;
       }
     case zenkit::DaedalusDataType::STRING: {
+      // A string of the VM and the zString that the scripts see are two copies. The scripts build a text by writing the
+      // pointer and the length of the zString (BR_Text of LeGo), the VM changes the text by assignments: what changed
+      // since the last time wins, so the memory that a script has prepared is not overwritten by a read.
+      auto& st = strVars[index];
       if(ord==std::memory_order::release) {
-        //NOTE: since string is composite object, mixing reads and writes can cause bugs
-        /*
         std::string dst;
         memFromString(dst, str);
-        sym.set_string(dst);
-        Log::d("VAR: ", sym.name(), " {", str.ptr, "} <- ", dst);
-        */
-        Log::e("Ikarus: unable to write to mapped symbol (\"", sym.name(), "\")");
+        if(!st.known || dst!=st.synced) {
+          sym.set_string(dst);
+          st.synced = dst;
+          st.known  = true;
+          }
+        // the script has put its own buffer in: it may fill it after it has set the length (STR_Split of Ikarus)
+        st.zptr = str.ptr;
+        st.zlen = str.len;
+        if(str.ptr!=st.buf && !st.owned) {
+          st.owned = true;
+          ownedStrings.push_back(index);
+          }
         } else {
-        auto& cstr = sym.get_string();
-        memAssignString(str, cstr);
-        // Log::d("VAR: ", sym.name(), " {", str.ptr, "} -> ", chr);
+        const std::string& cur = sym.get_string();
+        if(!st.known || cur!=st.synced) {
+          // the buffer is replaced only when it is the one that was made here, a script may own the other
+          const ptr32_t old = (str.ptr==st.buf) ? st.buf : 0;
+          str.ptr = mem32.realloc(old, uint32_t(cur.size()+1));
+          str.len = int32_t(cur.size());
+          if(auto* chr = reinterpret_cast<char*>(mem32.derefv(str.ptr, uint32_t(cur.size()+1)))) {
+            std::memcpy(chr, cur.data(), cur.size());
+            chr[cur.size()] = '\0';
+            }
+          st.buf    = str.ptr;
+          st.synced = cur;
+          st.known  = true;
+          if(st.owned) {
+            st.owned = false;
+            ownedStrings.erase(std::remove(ownedStrings.begin(),ownedStrings.end(),index),ownedStrings.end());
+            }
+          }
         }
       break;
       }
@@ -901,6 +931,14 @@ void DirectMemory::memoryCallback(ScriptVar& v, uint32_t index, std::memory_orde
     }
   }
 
+/// Where the data of an instance of the script is in the pretended memory
+auto DirectMemory::instancePointer(zenkit::DaedalusSymbol& sym) -> ptr32_t {
+  auto inst = sym.get_instance();
+  if(auto d = dynamic_cast<memory_instance*>(inst.get()))
+    return d->address;
+  return handles.pointerTo(inst);
+  }
+
 void DirectMemory::memoryCallback(zCPar_Symbol& s, uint32_t index, std::memory_order ord) {
   if(index>=vm.symbols().size()) {
     // should never happend
@@ -911,7 +949,13 @@ void DirectMemory::memoryCallback(zCPar_Symbol& s, uint32_t index, std::memory_o
 
   if(ord!=std::memory_order::acquire) {
     auto& sym = *vm.find_symbol_by_index(index);
-    Log::e("ikarus: write to symbol ", sym.name()," table is not implemented");
+    // the data of an instance is set by the pointer in the field "offset" of its symbol (PermMem of LeGo does it)
+    if(sym.type()==zenkit::DaedalusDataType::INSTANCE && s.offset!=0 && ptr32_t(s.offset)!=instancePointer(sym)) {
+      sym.set_instance(std::make_shared<memory_instance>(*this, ptr32_t(s.offset)));
+      return;
+      }
+    if(logBudget("symbol-write"))
+      Log::e("ikarus: write to symbol ", sym.name()," table is not implemented");
     return;
     }
 
@@ -935,9 +979,12 @@ void DirectMemory::memoryCallback(zCPar_Symbol& s, uint32_t index, std::memory_o
     return bitfield;
     };
 
-  auto symOffset = [](zenkit::DaedalusSymbol& sym) {
+  auto symOffset = [this](zenkit::DaedalusSymbol& sym) {
     if(sym.is_member()) {
       return int32_t(sym.offset_as_member());
+      }
+    else if(sym.type()==zenkit::DaedalusDataType::INSTANCE) {
+      return int32_t(instancePointer(sym));
       }
     else if(sym.type()==zenkit::DaedalusDataType::CLASS) {
       // see 'create' in LeGo
@@ -952,6 +999,9 @@ void DirectMemory::memoryCallback(zCPar_Symbol& s, uint32_t index, std::memory_o
     };
 
   auto symContent = [](zenkit::DaedalusSymbol& sym) {
+    // a member has a value only in an instance, reading it without one is an exception of the script
+    if(sym.is_member())
+      return 0;
     switch (sym.type()) {
       case zenkit::DaedalusDataType::VOID:
         return 0;
@@ -1035,11 +1085,37 @@ void DirectMemory::memReplaceFunc(zenkit::DaedalusFunction dest, zenkit::Daedalu
     return;
   if(sd->name()=="MEM_PRINTSTACKTRACE")
     return;
+  if(sd==nullptr || sf==nullptr || sd==sf)
+    return;
+
+  // Ikarus puts a jump to the other function at the beginning of the first one: every call of dest goes to func.
+  // LeGo uses it for the functions that call each other (a script cannot declare a function before it is written).
+  const uint32_t destId = sd->index();
+  const uint32_t funcId = sf->index();
+  for(auto& r:replaced) {
+    if(r.first==destId) {
+      r.second = funcId;
+      return;
+      }
+    }
+  replaced.emplace_back(destId,funcId);
+
+  vm.override_function(sd->name(),[this,destId](zenkit::DaedalusVm& vm) -> zenkit::DaedalusNakedCall {
+    for(auto& r:replaced) {
+      if(r.first!=destId)
+        continue;
+      if(auto* target = vm.find_symbol_by_index(r.second))
+        directCall(vm,*target);
+      break;
+      }
+    return zenkit::DaedalusNakedCall();
+    });
   Log::d("mem_replacefunc: ",sd->name()," -> ",sf->name());
   }
 
 void DirectMemory::ASMINT_Init() {
   const int ASMINT_InternalStackSize = 1024;
+  Log::i("DMA: ASMINT_Init (the inline assembler of Ikarus)");
 
   if(!ASMINT_InternalStack) {
     ASMINT_InternalStack = mem32.alloc(4 * ASMINT_InternalStackSize);
@@ -1198,16 +1274,57 @@ int DirectMemory::mem_insttoptr(int index) {
   return int32_t(ptr);
   }
 
+/// A script builds the text of a string variable in its own buffer and fills it after it has set the length: the variable
+/// of the VM gets the text when the buffer is written.
+void DirectMemory::syncOwnedStrings(ptr32_t address, uint32_t size) {
+  for(size_t i=0; i<ownedStrings.size(); ++i) {
+    const uint32_t index = ownedStrings[i];
+    auto it = strVars.find(index);
+    if(it==strVars.end())
+      continue;
+    auto& st = it->second;
+    if(st.zlen<=0 || st.zptr==0 || address+size<=st.zptr || address>=st.zptr+uint32_t(st.zlen))
+      continue;
+    auto* chr = reinterpret_cast<const char*>(mem32.deref(st.zptr,uint32_t(st.zlen)));
+    if(chr==nullptr)
+      continue;
+    std::string dst(chr,size_t(st.zlen));
+    if(dst!=st.synced) {
+      if(auto* sym = vm.find_symbol_by_index(index))
+        sym->set_string(dst);
+      st.synced = dst;
+      }
+    }
+  }
+
 int DirectMemory::mem_readint(int address) {
+  if(uint32_t(address)<0x1000 && logBudget("nullpage",4)) {
+    Log::e("DMA: MEM_ReadInt of the address ",address,", the stack of the script:");
+    vm.print_stack_trace();
+    }
   return mem32.readInt(ptr32_t(address));
   }
 
 void DirectMemory::mem_writeint(int address, int val) {
+  if(uint32_t(address)<0x1000 && logBudget("nullpage",4)) {
+    auto sv = [this](const char* name) -> int {
+      auto* sym = vm.find_symbol_by_name(name);
+      return sym!=nullptr && sym->type()==zenkit::DaedalusDataType::INT ? sym->get_int() : -12345;
+      };
+    Log::e("DMA: (ASMINT_InternalStack ",sv("ASMINT_InternalStack")," of ",int(ASMINT_InternalStack),", walker ",
+           sv("ASMINT_InternalStackWalker"),")");
+    Log::e("DMA: MEM_WriteInt to the address ",address,", the stack of the script:");
+    vm.print_stack_trace();
+    }
   mem32.writeInt(uint32_t(address),val);
+  if(!ownedStrings.empty())
+    syncOwnedStrings(uint32_t(address),4);
   }
 
 void DirectMemory::mem_copybytes(int src, int dst, int size) {
   mem32.copyBytes(ptr32_t(src),ptr32_t(dst),ptr32_t(size));
+  if(!ownedStrings.empty() && size>0)
+    syncOwnedStrings(ptr32_t(dst),uint32_t(size));
   }
 
 std::string DirectMemory::mem_readstring(int address) {
@@ -1289,8 +1406,12 @@ int DirectMemory::mem_getfuncidbyoffset(int off) {
     // MEM_INITALL
     return 0;
     }
-  Log::e("TODO: mem_getfuncidbyoffset ", off);
-  return 0;
+  // the function that contains this place of the code
+  if(auto* sym = findSymbolByAddress(uint32_t(off)))
+    return int(sym->index());
+  if(logBudget("getfuncidbyoffset"))
+    Log::e("mem_getfuncidbyoffset: there is no function at ", off);
+  return -1;
   }
 
 void DirectMemory::mem_assigninst(int index, int ptr) {
@@ -1308,9 +1429,6 @@ void DirectMemory::directCall(zenkit::DaedalusVm& vm, zenkit::DaedalusSymbol& fu
     return;
     }
 
-  std::span<zenkit::DaedalusSymbol> params = vm.find_parameters_for_function(&func);
-  if(params.size()>0)
-    Log::d("");
   //vm.call_function(sym);
   //zenkit::StackGuard guard {&vm, func.rtype()};
   vm.unsafe_call(&func);
@@ -1641,6 +1759,19 @@ void DirectMemory::setupUtilityFunctions() {
   const ptr32_t SINF_G2   = 8123910;
   const ptr32_t ACOSF_G2  = 8123794;
   const ptr32_t ATAN2F_G2 = 8123804;
+  const ptr32_t STRNCMP_G2 = 8254144;
+  cpu.register_cdecl(STRNCMP_G2, [this](ptr32_t a, ptr32_t b, int n) -> int32_t {
+    auto read = [this](ptr32_t p) -> std::string {
+      auto [ptr, size] = mem32.deref(p);
+      if(ptr==nullptr)
+        return std::string();
+      return std::string(reinterpret_cast<const char*>(ptr),strnlen(reinterpret_cast<const char*>(ptr),size_t(size)));
+      };
+    const auto sa = read(a);
+    const auto sb = read(b);
+    return int32_t(std::strncmp(sa.c_str(),sb.c_str(),size_t(std::max(n,0))));
+    });
+
   cpu.register_cdecl(SINF_G2,   [](float x)          { return std::sin(x);      });
   cpu.register_cdecl(ACOSF_G2,  [](float x)          { return std::acos(x);     });
   cpu.register_cdecl(ATAN2F_G2, [](float y, float x) { return std::atan2(y,x); });
@@ -1663,6 +1794,13 @@ void DirectMemory::setupHookEngine() {
     auto name = sym==nullptr ? "" : sym->name().c_str();
     // the frame and the events of the animations are answered by tick and eventPlayAni
     if(std::strcmp(name,"_FF_Hook")==0 || std::strcmp(name,"_AI_FUNCTION_EVENT")==0)
+      return;
+    if(sym!=nullptr) {
+      auto& list = hooks[uint32_t(address)];
+      if(std::find(list.begin(),list.end(),sym->index())==list.end())
+        list.push_back(sym->index());
+      }
+    if(isHookAnswered(uint32_t(address)))
       return;
     if(hooksUnanswered.size()<1000)
       hooksUnanswered.emplace_back(uint32_t(address),name);

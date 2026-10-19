@@ -1,5 +1,7 @@
 #pragma once
 
+#include <bitset>
+
 #include "utils/gamepadactivity.h"
 #include "utils/radialinput.h"
 
@@ -182,6 +184,7 @@ class MainWindow : public Tempest::Window {
     RuntimeMode               runtimeMode = R_Normal;
 
     Tempest::Widget*          uiKeyUp=nullptr;
+    std::bitset<256>          dmaKeysDown;
     Tempest::Point            dMouse;
     bool                      uiPointer=false;
     uint64_t                  mouseLookIdle=0;

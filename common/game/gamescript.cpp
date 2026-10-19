@@ -115,6 +115,58 @@ std::string GameScript::dmaReport() {
   return dma==nullptr ? std::string() : dma->report();
   }
 
+void GameScript::dmaChangeLevel(bool begin) {
+  if(dma!=nullptr)
+    dma->eventChangeLevel(begin);
+  }
+
+void GameScript::dmaSave(Serialize& fout) {
+  if(dma!=nullptr)
+    dma->eventSaveGame(fout);
+  }
+
+void GameScript::dmaLoad(Serialize& fin) {
+  if(dma!=nullptr)
+    dma->eventLoadGame(fin);
+  }
+
+void GameScript::dmaItemTaken(Npc& owner, Item& item) {
+  if(dma!=nullptr)
+    dma->eventItemTaken(owner,item);
+  }
+
+int GameScript::dmaChangeAttribute(Npc& npc, int attribute, int change) {
+  return dma==nullptr ? change : dma->eventChangeAttribute(npc,attribute,change);
+  }
+
+void GameScript::dmaKey(int key) {
+  if(dma!=nullptr)
+    dma->eventKey(key);
+  }
+
+void GameScript::dmaZoneMusic(std::string_view name) {
+  if(dma!=nullptr)
+    dma->eventZoneMusic(name);
+  }
+
+auto GameScript::dmaDamageBegin(Npc& victim, Npc& attacker, bool isSpell, int spellId, bool ranged, bool dontKill) -> DmaDamage {
+  DmaDamage ret;
+  ret.dontKill = dontKill;
+  if(dma!=nullptr)
+    dma->eventDamageBegin(victim,attacker,isSpell,spellId,ranged,ret);
+  return ret;
+  }
+
+void GameScript::dmaDamageEnd(Npc& victim, DmaDamage& d) {
+  if(dma!=nullptr)
+    dma->eventDamageEnd(victim,d);
+  }
+
+void GameScript::dmaFallDamage(Npc& npc) {
+  if(dma!=nullptr)
+    dma->eventFallDamage(npc);
+  }
+
 GameScript::~GameScript() {
   Gothic::inst().onSettingsChanged.ubind(this,&GameScript::initSettings);
   }
