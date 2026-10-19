@@ -100,6 +100,7 @@ class GameScript final {
     void         dmaFallDamage(Npc& npc);
     void         dmaFocus(Npc& player, const Focus& focus);
     void         dmaStatusScreen(bool show);
+    void         dmaCsCamera(bool trigger);
     auto         dmaTakeMenuTexts() -> std::vector<std::pair<std::string,std::string>>;
     void         dmaMobCanOpen(Interactive& mob);
     void         dmaSpellFocus(Npc& caster, int spellId);

@@ -159,6 +159,7 @@ void CsCamera::onTrigger(const TriggerEvent& evt) {
 
   timeTrigger = world.tickCount();
   world.setCurrentCs(this);
+  world.script().dmaCsCamera(true);   // mods of Ikarus and LeGo hook the cameras of the cutscenes
   enableTicks();
 
   auto& camera = world.gameSession().camera();
@@ -179,6 +180,7 @@ void CsCamera::onUntrigger(const TriggerEvent& evt) {
     return;
 
   world.setCurrentCs(nullptr);
+  world.script().dmaCsCamera(false);
 
   auto& camera = world.gameSession().camera();
   camera.setMode(Camera::Mode::Normal);
