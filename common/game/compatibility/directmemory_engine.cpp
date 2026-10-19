@@ -123,6 +123,11 @@ void DirectMemory::setupEngineCalls() {
   cpu.register_thiscall(6290896,[](ptr32_t, std::string) {});         // zCVob::SetVobName
   cpu.register_thiscall(4355760,[](ptr32_t) {});                      // CGameManager::ApplySomeSettings
 
+  // oCNpc::CloseInventory: the scripts close the inventory of the player
+  cpu.register_thiscall(7742480,[this](ptr32_t) {
+    inventoryClose = true;
+    });
+
   // zCEventMessage::SetDeleted(1): the hook of EV_DropVob finishes the message at once, the drop is cancelled
   cpu.register_thiscall(7745808,[this](ptr32_t self, int32_t flag) {
     if(self!=0 && self==dropMessage && flag!=0)

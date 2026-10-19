@@ -253,7 +253,62 @@ void DirectMemory::tick(uint64_t dt) {
     pl->handle().compat_interact_mob = mob==nullptr ? 0 : int32_t(mobPointer(*mob));
     }
 
+  tickTimers(dt);
   tickUi(dt);
+  }
+
+/// zTimer (the time of the frame) and oCWorldTimer (the time of the world) as the scripts of Ikarus and LeGo read them.
+/// A script that changes the time of the world (SCALETIME, STOPTIMEATHOUR) writes WORLDTIME, the game takes it over.
+void DirectMemory::tickTimers(uint64_t dt) {
+  auto bits = [](float f) {
+    int32_t i = 0;
+    std::memcpy(&i,&f,sizeof(i));
+    return i;
+    };
+
+  zTimer.FACTORMOTION       = bits(1.f);
+  zTimer.FRAMETIMEFLOAT     = bits(float(dt));
+  zTimer.FRAMETIMEFLOATSECS = bits(float(dt)/1000.f);
+  zTimer.FRAMETIME          = int32_t(dt);
+  zTimer.LASTTIMER          = zTimer.TOTALTIME;
+  zTimer.TOTALTIME         += int32_t(dt);
+  zTimer.TOTALTIMEFLOAT     = bits(float(zTimer.TOTALTIME));
+  zTimer.TOTALTIMEFLOATSECS = bits(float(zTimer.TOTALTIME)/1000.f);
+  zTimer.MINFRAMETIME       = 1;
+  zTimer.FORCEDMAXFRAMETIME = 1000;
+
+  auto* wt = mem32.deref<oCWorldTimer>(worldTimer);
+  if(wt==nullptr)
+    return;
+  constexpr int64_t DayMilis      = 24ll*60*60*1000;
+  constexpr double  MilisPerTick  = 3600.0*1000.0/250000.0;   // 250000 ticks make an hour
+  auto& session = gameScript.world().gameSession();
+
+  if(worldTimerInit && (wt->WORLDTIME!=worldTimerBits || wt->DAY!=worldTimerDay)) {
+    // the script has changed the time
+    float ticks = 0;
+    std::memcpy(&ticks,&wt->WORLDTIME,sizeof(ticks));
+    int64_t inDay = int64_t(double(ticks)*MilisPerTick);
+    int64_t day   = wt->DAY;
+    if(inDay<0) {
+      inDay = 0;
+      }
+    if(inDay>=DayMilis) {
+      day  += inDay/DayMilis;
+      inDay = inDay%DayMilis;
+      }
+    gtime t(day,int64_t(0),int64_t(0));
+    t.addMilis(uint64_t(inDay));
+    session.setTime(t);
+    }
+
+  const int64_t now = session.time().toInt();
+  const float   ticks = float(double(now%DayMilis)/MilisPerTick);
+  wt->WORLDTIME  = bits(ticks);
+  wt->DAY        = int32_t(now/DayMilis);
+  worldTimerBits = wt->WORLDTIME;
+  worldTimerDay  = wt->DAY;
+  worldTimerInit = true;
   }
 
 void DirectMemory::eventPlayAni(Npc& npc, std::string_view ani) {
@@ -568,7 +623,8 @@ void DirectMemory::setupEngineMemory() {
   // Built-in data without assumed address
   oGame_Pointer = mem32.pin(&memGame, sizeof(memGame), "oGame");
   memGame._ZCSESSION_WORLD = mem32.alloc(sizeof(oWorld));
-  memGame.WLDTIMER         = BAD_BUILTIN_PTR;
+  worldTimer               = mem32.alloc(sizeof(oCWorldTimer),"oCWorldTimer");
+  memGame.WLDTIMER         = worldTimer;
   memGame.TIMESTEP         = 1; // used as boolean in anim8
 
   auto& mem_world = *mem32.deref<oWorld>(memGame._ZCSESSION_WORLD);
