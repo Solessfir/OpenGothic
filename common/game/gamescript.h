@@ -83,6 +83,24 @@ class GameScript final {
     inline auto& getVm() { return vm; }
     /// The report of the layer for Ikarus and LeGo, empty if the mod does not use them
     auto         dmaReport() -> std::string;
+    /// Ikarus and LeGo (see game/compatibility): the events of the game that the libraries hook in the original engine.
+    /// All of them do nothing when the mod does not use the libraries.
+    bool         hasDma() const { return dma!=nullptr; }
+    void         dmaChangeLevel(bool begin);
+    void         dmaSave(Serialize& fout);
+    void         dmaLoad(Serialize& fin);
+    void         dmaItemTaken(Npc& owner, Item& item);
+    int          dmaChangeAttribute(Npc& npc, int attribute, int change);
+    void         dmaKey(int key);
+    void         dmaZoneMusic(std::string_view name);
+    void         dmaFallDamage(Npc& npc);
+    struct DmaDamage final {
+      uint32_t desc     = 0;     // oSDamageDescriptor in the memory of the layer
+      bool     dontKill = false;
+      int      extra    = 0;     // the damage that the hook has added
+      };
+    auto         dmaDamageBegin(Npc& victim, Npc& attacker, bool isSpell, int spellId, bool ranged, bool dontKill) -> DmaDamage;
+    void         dmaDamageEnd(Npc& victim, DmaDamage& d);
     auto         questLog() const -> const QuestLog&;
 
     const World& world() const;
