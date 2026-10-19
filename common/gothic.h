@@ -216,6 +216,11 @@ class Gothic final {
     static const CameraDefinitions&       cameraDef();
 
     static bool                           settingsHasSection(std::string_view sec);
+    static bool                           settingsHas(std::string_view sec, std::string_view name);
+    // the ini of the mod (the file of the parameter -game), empty if the game has no such
+    static bool                           modSettingsHasSection(std::string_view sec);
+    static bool                           modSettingsHas(std::string_view sec, std::string_view name);
+    static std::string_view               modSettingsGetS(std::string_view sec, std::string_view name);
     static int                            settingsGetI(std::string_view sec, std::string_view name);
     static void                           settingsSetI(std::string_view sec, std::string_view name, int val);
     static std::string_view               settingsGetS(std::string_view sec, std::string_view name);

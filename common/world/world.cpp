@@ -236,6 +236,11 @@ Npc *World::npcById(uint32_t id) {
   return nullptr;
   }
 
+void World::forEachPoint(const std::function<void(const WayPoint&)>& f) const {
+  if(wmatrix!=nullptr)
+    wmatrix->forEachPoint(f);
+  }
+
 uint32_t World::npcCount() const {
   return uint32_t(wobj.npcCount());
   }
