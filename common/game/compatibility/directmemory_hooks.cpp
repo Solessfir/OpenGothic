@@ -29,6 +29,7 @@ bool DirectMemory::isHookAnswered(uint32_t address) {
     HookAdr::CreateFallDamage,
     HookAdr::OnDamage,
     HookAdr::OnDamageScript,
+    HookAdr::SpellSetup,
     };
   return answered.find(address)!=answered.end();
   }

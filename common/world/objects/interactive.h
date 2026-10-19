@@ -65,6 +65,7 @@ class Interactive : public Vob {
     bool                isTrueDoor(const Npc& npc) const;
     bool                isLadder() const;
     std::string_view    pickLockCode() const { return pickLockStr; }
+    std::string_view    keyName() const { return keyInstance; }
     void                setAsCracked(bool c) { isLockCracked = c; }
     bool                isCracked() const { return isLockCracked; }
     bool                needToLockpick(const Npc& pl) const;
