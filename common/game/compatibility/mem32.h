@@ -24,7 +24,8 @@ class Mem32 {
       zCParser_variables,
       zCPar_Symbol,
       zCMover,
-      instanceHandle
+      instanceHandle,
+      mobHandle
       };
 
     using                     ptr32_t  = Compatibility::ptr32_t;
