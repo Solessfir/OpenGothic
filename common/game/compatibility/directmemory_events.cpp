@@ -396,3 +396,16 @@ bool DirectMemory::takeInventoryClose() {
   inventoryClose = false;
   return ret;
   }
+
+/// The player sells an item (oCViewDialogTrade::OnTransferLeft). ITEMIMPORTANTFLAG_CHECKSELLINGITEMS of CoM, read from
+/// its code in the DAT (tools/ikarus/disasm.py): an item with ITEM_IMPORTANT is not sold, the hero shows T_CANNOTTAKE.
+/// True means that the sale is cancelled.
+bool DirectMemory::eventSellItem(Npc& npc, Item& item) {
+  if(!hasHook(HookAdr::SellItem))
+    return false;
+  constexpr int32_t ITEM_IMPORTANT = 134217728;
+  if((int32_t(item.handle().flags) & ITEM_IMPORTANT)!=ITEM_IMPORTANT)
+    return false;
+  npc.playAnimByName("T_CANNOTTAKE",BS_NONE);
+  return true;
+  }

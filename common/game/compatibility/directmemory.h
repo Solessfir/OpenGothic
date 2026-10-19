@@ -66,6 +66,7 @@ class DirectMemory {
     void        eventMobCanOpen(Interactive& mob);
     bool        eventDropVob(Npc& npc, Item& item);
     void        eventInventoryOpen(Npc& npc);
+    bool        eventSellItem(Npc& npc, Item& item);
     bool        takeInventoryClose();
     void        eventStatusScreen(bool show);
     void        eventCsCamera(bool trigger);
