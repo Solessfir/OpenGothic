@@ -2133,7 +2133,8 @@ void DirectMemory::setupInstanceAliases() {
   reg("OCNPC.DAMAGETYPE",      &N::damage_type);
   reg("OCNPC.GUILD",           &N::guild);
   reg("OCNPC.LEVEL",           &N::level);
-  reg("OCNPC.MISSION",         &N::mission);
+  // the flags of the character (movlock, drunk, ...): the five ints of the missions are not used by the game
+  reg("OCNPC.BITFIELD",        &N::mission);
   reg("OCNPC.FIGHTTACTIC",     &N::fight_tactic);
   reg("OCNPC.FMODE",           &N::weapon);
   reg("OCNPC.VOICE",           &N::voice);

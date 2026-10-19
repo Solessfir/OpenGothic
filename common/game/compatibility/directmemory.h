@@ -65,6 +65,7 @@ class DirectMemory {
     void        clearMobs();
     void        eventMobCanOpen(Interactive& mob);
     void        eventStatusScreen(bool show);
+    void        eventCsCamera(bool trigger);
     auto        takeMenuTexts() -> std::vector<std::pair<std::string,std::string>>;
     void        eventDamageBegin(Npc& victim, Npc& attacker, bool isSpell, int spellId, bool ranged, GameScript::DmaDamage& d);
     void        eventDamageEnd(Npc& victim, GameScript::DmaDamage& d);
@@ -302,6 +303,7 @@ class DirectMemory {
     uint64_t    npcListTimer = 0;
     bool        hooksReported = false;
     bool        resolutionFired = false;
+    ptr32_t     csCamera = 0;
     void        refreshNpcList();
     void        setupInstanceAliases();
     auto        searchVobsByName(std::string_view name) -> std::vector<ptr32_t>;
