@@ -37,7 +37,7 @@ class InstanceHandles {
     size_t   count() const { return used; }
 
   private:
-    static constexpr uint32_t SlotCount = 4096;
+    static constexpr uint32_t SlotCount = 8192;
     static constexpr uint32_t SlotSize  = 2576;   // oCNpc is 2564 bytes
 
     struct Slot {
@@ -45,6 +45,7 @@ class InstanceHandles {
       };
 
     void     fill(Slot& s, uint32_t index);
+    auto     takeSlot() -> uint32_t;
 
     Mem32&   mem;
     Sync     sync;

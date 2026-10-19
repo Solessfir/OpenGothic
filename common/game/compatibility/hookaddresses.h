@@ -25,6 +25,7 @@ namespace HookAdr {
   constexpr uint32_t MobCanOpen             = 0x7244F0; // oCMobLockable::CanOpen: ecx = the mob
   constexpr uint32_t CsCameraTrigger        = 0x4C3270; // zCCSCamera::OnTrigger: eax = the camera
   constexpr uint32_t CsCameraUntrigger      = 0x4C3AC0; // zCCSCamera::OnUntrigger
+  constexpr uint32_t EvDropVob              = 0x7538C0; // oCNpc::EV_DropVob: ecx = oCNpc*, [esp+4] = the message with the item at +108
   constexpr uint32_t SpellSetup             = 0x484930; // oCSpell::Setup: ecx = oCSpell*, [esp+4] = the caster
   constexpr uint32_t StatusScreenShow       = 0x47ED60;
   constexpr uint32_t StatusScreenClose      = 0x47EB50;
