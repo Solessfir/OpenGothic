@@ -4,6 +4,7 @@
 
 #include <Tempest/Painter>
 #include <Tempest/Log>
+#include <Tempest/Application>
 #include <algorithm>
 #include <cassert>
 
@@ -11,6 +12,7 @@
 #include "utils/mouseutil.h"
 #include "utils/string_frm.h"
 #include "world/objects/npc.h"
+#include "world/world.h"
 #include "gothic.h"
 #include "inventorymenu.h"
 #include "resources.h"
@@ -67,6 +69,9 @@ void DialogMenu::setupSettings() {
   }
 
 void DialogMenu::tick(uint64_t dt) {
+  if(prompt.active)
+    update();   // the cursor of the text blinks
+
   if(state==State::PreStart) {
     except.clear();
     dlgTrade=false;
@@ -426,6 +431,10 @@ void DialogMenu::skipPhrase() {
   }
 
 void DialogMenu::onEntry(const GameScript::DlgChoice &e) {
+  if(pl && other && e.isInput) {
+    openPrompt(e);
+    return;
+    }
   if(pl && other) {
     selected = e;
     depth    = 1;
@@ -473,7 +482,9 @@ void DialogMenu::paintEvent(Tempest::PaintEvent &e) {
       drawTextMultiline(p,dx,dy,dw,dh,current.txt,curentIsPl);
     }
 
-  paintChoice(e);
+  if(prompt.active)
+    paintPrompt(p); else
+    paintChoice(e);
 
   for(size_t i=0;i<pscreen.size();++i){
     auto& sc   = pscreen[i];
@@ -555,6 +566,8 @@ bool DialogMenu::isChoiceMenuActive() const {
   }
 
 void DialogMenu::onSelect() {
+  if(prompt.active)
+    return;
   if(current.time>0 || haveToWaitOutput()){
     return;
     }
@@ -671,6 +684,11 @@ void DialogMenu::keyDownEvent(KeyEvent &e) {
     return;
     }
 
+  if(prompt.active) {
+    promptKey(e);
+    return;
+    }
+
   if(e.key==Event::K_Return){
     onSelect();
     return;
@@ -693,6 +711,101 @@ void DialogMenu::keyDownEvent(KeyEvent &e) {
     return;
     }
   e.ignore();
+  }
+
+void DialogMenu::keyRepeatEvent(KeyEvent& event) {
+  if(prompt.active && state!=State::Idle) {
+    promptKey(event);
+    return;
+    }
+  event.ignore();
+  }
+
+#ifdef OPENGOTHIC_TOUCH_UI
+bool DialogMenu::takeKeyboardRequest() {
+  const bool ret = prompt.active && prompt.keyboardRequest;
+  prompt.keyboardRequest = false;
+  return ret;
+  }
+#endif
+
+/// A choice that is an answer to type (CoM names the dog and the wine this way): the text goes to the scripts
+void DialogMenu::openPrompt(const GameScript::DlgChoice& e) {
+  prompt.active          = true;
+  prompt.text.clear();
+  prompt.choice          = e;
+  prompt.keyboardRequest = false;
+  update();
+  }
+
+void DialogMenu::promptKey(KeyEvent& e) {
+  e.accept();
+  if(e.key==Event::K_ESCAPE) {
+    promptDone(false);
+    return;
+    }
+  if(e.key==Event::K_Return) {
+    if(!prompt.text.empty())
+      promptDone(true);
+    return;
+    }
+  if(e.key==Event::K_Back) {
+    if(!prompt.text.empty())
+      prompt.text.pop_back();
+    update();
+    return;
+    }
+
+  // the characters (the touch keyboard sends them as the key code, they are lower case)
+  uint32_t c = e.code;
+  if(c<32 || c>126 || (e.modifier&Event::M_Ctrl))
+    return;
+  if((e.modifier&Event::M_Shift) && c>='a' && c<='z')
+    c -= 'a'-'A';
+  else if(c>='a' && c<='z' && (prompt.text.empty() || prompt.text.back()==' '))
+    c -= 'a'-'A';   // names start with a capital
+  if(prompt.text.size()<24) {
+    prompt.text.push_back(char(c));
+    update();
+    }
+  }
+
+void DialogMenu::promptDone(bool ok) {
+  prompt.active = false;
+  update();
+  if(!ok || pl==nullptr)
+    return;
+
+  auto choice    = prompt.choice;
+  choice.isInput = false;
+  pl->world().script().setDialogAnswer(prompt.text);
+  onEntry(choice);
+  }
+
+void DialogMenu::paintPrompt(Painter& p) {
+  const float scale = Gothic::interfaceScale(this);
+  const int   dw    = std::min(w(),int(520*scale));
+  const int   dh    = int(120*scale);
+  const int   padd  = int(16*scale);
+  const int   x     = (w()-dw)/2;
+#ifdef OPENGOTHIC_TOUCH_UI
+  const int   y     = int(float(h())*0.12f);   // the keyboard of the screen is on the bottom
+#else
+  const int   y     = h()-dh-int(40*scale);
+#endif
+
+  p.setBrush(Brush(Color(0.86f,0.68f,0.30f,0.95f)));
+  p.drawRect(x,y,dw,dh);
+  p.setBrush(Brush(Color(0.02f,0.025f,0.035f,0.90f)));
+  p.drawRect(x+2,y+2,dw-4,dh-4);
+
+  GthFont hi  = Resources::font(Resources::FontType::Hi,scale);
+  GthFont fnt = Resources::dialogFont(scale);
+  hi.drawText(p,x+padd,y+padd+hi.pixelSize(),dw-2*padd,0,prompt.choice.title,AlignLeft);
+
+  const bool        caret = (Application::tickCount()/500)%2==0;
+  const std::string line  = prompt.text + (caret ? "_" : " ");
+  fnt.drawText(p,x+padd,y+dh-padd,dw-2*padd,0,line,AlignLeft);
   }
 
 void DialogMenu::keyUpEvent(KeyEvent &event) {
