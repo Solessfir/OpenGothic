@@ -106,6 +106,15 @@ void WayMatrix::addStartPoint(const Vec3& pos, const Vec3& dir, std::string_view
   startPoints.emplace_back(pos,dir,name,true);
   }
 
+void WayMatrix::forEachPoint(const std::function<void(const WayPoint&)>& f) const {
+  for(auto& p:wayPoints)
+    f(p);
+  for(auto& p:freePoints)
+    f(p);
+  for(auto& p:startPoints)
+    f(p);
+  }
+
 const WayPoint &WayMatrix::startPoint() const {
   if(startPoints.size()>0)
     return startPoints[0];

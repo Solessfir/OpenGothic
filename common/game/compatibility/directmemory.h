@@ -5,7 +5,10 @@
 #include "game/gamescript.h"
 
 #include "cpu32.h"
+#include "instancehandles.h"
 #include "mem32.h"
+
+class MoveTrigger;
 
 class DirectMemory {
   public:
@@ -18,6 +21,9 @@ class DirectMemory {
     //
     auto        menuMain() const -> std::string_view;
 
+    /// What the libraries have asked for and the layer has not done, for the menu of the developer (mods/devtools)
+    auto        report() -> std::string;
+
     // hooks
     void        tick(uint64_t dt);
     void        eventPlayAni(std::string_view ani);
@@ -29,6 +35,7 @@ class DirectMemory {
     using zCTimer      = Compatibility::zCTimer;
     using oGame        = Compatibility::oGame;
     using zString      = Compatibility::zString;
+    using zCMover      = Compatibility::zCMover;
 
     struct memory_instance : public zenkit::DaedalusTransientInstance {
       explicit memory_instance(DirectMemory &owner, ptr32_t address) : owner(owner), address(address) {}
@@ -54,6 +61,7 @@ class DirectMemory {
     zenkit::DaedalusVm& vm;
     Mem32               mem32;
     Cpu32               cpu;
+    InstanceHandles     handles;
 
     uint32_t    versionHint     = 504628679; // G2
     //int32_t     invMaxItems     = 9;
@@ -96,6 +104,7 @@ class DirectMemory {
     void        memoryCallback(zCParser& p, std::memory_order ord);
     void        memoryCallback(ScriptVar& v, uint32_t index, std::memory_order ord);
     void        memoryCallback(zCPar_Symbol& s, uint32_t index, std::memory_order ord);
+    void        memoryCallback(zCMover& m, uint32_t index, std::memory_order ord);
     void        memAssignString(zString& str, std::string_view cstr);
     void        memFromString(std::string& dst, const zString& str);
 
@@ -171,4 +180,24 @@ class DirectMemory {
     //
     void        setupNpcFunctions();
     void        setupWorldFunctions();
+
+    // vobs of the world that scripts find by name: the movers are mirrored as zCMover, see Compatibility::zCMover
+    struct MoverPool {
+      ptr32_t                  base  = 0;
+      std::vector<MoveTrigger*> list;
+      const World*             world = nullptr;
+      };
+    MoverPool   movers;
+
+    // the places of the engine that the libraries want to hook, which are not answered
+    std::vector<std::pair<uint32_t,std::string>> hooksUnanswered;
+    void        buildMoverPool();
+
+    // the characters of the world as a list for the scripts (MEM_World.voblist_npcs), made again once in a while
+    ptr32_t     npcList      = 0;
+    uint64_t    npcListTimer = 0;
+    bool        hooksReported = false;
+    void        refreshNpcList();
+    void        setupInstanceAliases();
+    auto        searchVobsByName(std::string_view name) -> std::vector<ptr32_t>;
   };
