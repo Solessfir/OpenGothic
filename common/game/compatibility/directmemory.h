@@ -56,12 +56,14 @@ class DirectMemory {
     void        eventItemTaken(Npc& owner, Item& item);
     int         eventChangeAttribute(Npc& npc, int attribute, int change);
     void        eventKey(int key);
+    void        eventKeyState(int key, bool down);
     void        eventZoneMusic(std::string_view name);
     void        eventFallDamage(Npc& npc);
     void        eventFocus(Npc& player, const Focus& focus);
     void        eventSpellFocus(Npc& caster, int spellId);
     void        syncFocusMage(zenkit::IFocus& focus);
     void        clearMobs();
+    void        eventMobCanOpen(Interactive& mob);
     void        eventDamageBegin(Npc& victim, Npc& attacker, bool isSpell, int spellId, bool ranged, GameScript::DmaDamage& d);
     void        eventDamageEnd(Npc& victim, GameScript::DmaDamage& d);
 
@@ -170,9 +172,12 @@ class DirectMemory {
     std::vector<uint32_t>            mobPick;     // the number of the characters of the lock that are done
     std::unordered_map<const Interactive*,uint32_t> mobIndex;
     ptr32_t                          focusMagic = 0;
+    uint8_t                          keyEvents[1100] = {};   // MEM_KeyPressed reads it (the table of the keys of the engine)
     int                              lastSpellFocus = -1;
     auto        mobPointer(Interactive& mob) -> ptr32_t;
     void        setupFocusMagic();
+    void        setupEngineCalls();
+    void        syncHandleObject(uint8_t* raw, zenkit::DaedalusInstance& inst, bool write);
 
     // views, textures and fonts of LeGo
     struct FontInfo {
