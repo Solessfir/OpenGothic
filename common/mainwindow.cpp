@@ -201,6 +201,11 @@ MainWindow::~MainWindow() {
   takeWidget(&mobileUi);
 #endif
   removeAllWidgets();
+#ifdef OPENGOTHIC_TOUCH_UI
+  // the sprites of the touch controls are copied to the inventory: give them all back while the atlas is alive
+  inventory.setTouchSprites(Tempest::Sprite(),Tempest::Sprite());
+  androidControls.releaseIcons();
+#endif
   // unload
   Gothic::inst().setGame(std::unique_ptr<GameSession>());
   }

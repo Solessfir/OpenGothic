@@ -123,6 +123,12 @@ void DirectMemory::setupEngineCalls() {
   cpu.register_thiscall(6290896,[](ptr32_t, std::string) {});         // zCVob::SetVobName
   cpu.register_thiscall(4355760,[](ptr32_t) {});                      // CGameManager::ApplySomeSettings
 
+  // zCEventMessage::SetDeleted(1): the hook of EV_DropVob finishes the message at once, the drop is cancelled
+  cpu.register_thiscall(7745808,[this](ptr32_t self, int32_t flag) {
+    if(self!=0 && self==dropMessage && flag!=0)
+      dropCancelled = true;
+    });
+
   // zCInput: there is an object, the keys are not bound by the scripts here
   const ptr32_t input = mem32.alloc(256,"zCInput");
   mem32.alloc(ZCINPUT_ZINPUT,4,"zinput*");

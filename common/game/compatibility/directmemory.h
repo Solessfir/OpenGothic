@@ -64,6 +64,7 @@ class DirectMemory {
     void        syncFocusMage(zenkit::IFocus& focus);
     void        clearMobs();
     void        eventMobCanOpen(Interactive& mob);
+    bool        eventDropVob(Npc& npc, Item& item);
     void        eventStatusScreen(bool show);
     void        eventCsCamera(bool trigger);
     auto        takeMenuTexts() -> std::vector<std::pair<std::string,std::string>>;
@@ -175,6 +176,8 @@ class DirectMemory {
     std::vector<uint32_t>            mobPick;     // the number of the characters of the lock that are done
     std::unordered_map<const Interactive*,uint32_t> mobIndex;
     std::vector<std::pair<std::string,std::string>> menuTexts;   // UPDATE_MENU_ITEM: the item of the menu and its new text
+    ptr32_t                          dropMessage = 0;       // the message of EV_DropVob that the hook is asked about
+    bool                             dropCancelled = false;
     ptr32_t                          focusMagic = 0;
     uint8_t                          keyEvents[1100] = {};   // MEM_KeyPressed reads it (the table of the keys of the engine)
     int                              lastSpellFocus = -1;

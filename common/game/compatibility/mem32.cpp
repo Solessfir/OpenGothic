@@ -132,7 +132,7 @@ const void* Mem32::deref(ptr32_t address, uint32_t size) {
     if(Compatibility::logBudget("mem32:deref")) Log::e("deref: address translation failure: ", reinterpret_cast<void*>(uint64_t(address)));
     return nullptr;
     }
-  if(r->address+r->size < address+size) {
+  if(uint64_t(r->address)+r->size < uint64_t(address)+size) {
     if(Compatibility::logBudget("mem32:deref")) Log::e("deref: memmory block is too small: ", reinterpret_cast<void*>(uint64_t(address)), " ", size);
     return nullptr;
     }
@@ -148,7 +148,7 @@ void* Mem32::derefv(ptr32_t address, uint32_t size) {
     if(Compatibility::logBudget("mem32:deref")) Log::e("deref: address translation failure: ", reinterpret_cast<void*>(uint64_t(address)));
     return nullptr;
     }
-  if(rgn->address+rgn->size < address+size) {
+  if(uint64_t(rgn->address)+rgn->size < uint64_t(address)+size) {
     if(Compatibility::logBudget("mem32:deref")) Log::e("deref: memmory block is too small: ", reinterpret_cast<void*>(uint64_t(address)), " ", size);
     return nullptr;
     }
@@ -204,6 +204,16 @@ void Mem32::writeInt(ptr32_t address, int32_t v) {
     return;
     }
 
+  if(uint64_t(address-rgn->address)+4 > rgn->size) {
+    // the four bytes go over the end of the block: the rest belongs to the next one (or to nobody)
+    uint8_t bytes[4] = {};
+    std::memcpy(bytes,&v,4);
+    for(uint32_t i=0; i<4; ++i)
+      writeByte(address+i,bytes[i]);
+    lastWrite = address;
+    return;
+    }
+
   memSyncRead(rgn->type, *rgn, address, 4); // memory hazzards othwerwise!
   const ptr32_t dAddr = address-rgn->address;
   auto ptr = reinterpret_cast<uint8_t*>(rgn->real)+dAddr;
@@ -221,12 +231,43 @@ int32_t Mem32::readInt(ptr32_t address) {
 
   const auto    rgn   = *r;
   const ptr32_t dAddr = address-rgn.address;
+  if(uint64_t(dAddr)+4 > rgn.size) {
+    // the four bytes go over the end of the block: the rest belongs to the next one (or to nobody)
+    uint8_t bytes[4] = {};
+    for(uint32_t i=0; i<4; ++i)
+      bytes[i] = readByte(address+i);
+    int32_t ret = 0;
+    std::memcpy(&ret,bytes,4);
+    return ret;
+    }
   memSyncRead(rgn.type, rgn, address, 4);
 
   auto ptr = reinterpret_cast<uint8_t*>(rgn.real)+dAddr;
   int32_t ret = 0;
   std::memcpy(&ret,ptr,4);
   return ret;
+  }
+
+/// One byte of the memory, 0 where nothing lives
+uint8_t Mem32::readByte(ptr32_t address) {
+  const auto r = translate(address);
+  if(r==nullptr)
+    return 0;
+  const auto    rgn   = *r;
+  const ptr32_t dAddr = address-rgn.address;
+  memSyncRead(rgn.type, rgn, address, 1);
+  return reinterpret_cast<uint8_t*>(rgn.real)[dAddr];
+  }
+
+void Mem32::writeByte(ptr32_t address, uint8_t v) {
+  auto rgn = translate(address);
+  if(rgn==nullptr) {
+    if(Compatibility::logBudget("mem32:writebyte")) Log::e("mem_writeint: the end of the block is not mapped: ", reinterpret_cast<void*>(uint64_t(address)));
+    return;
+    }
+  memSyncRead(rgn->type, *rgn, address, 1);
+  reinterpret_cast<uint8_t*>(rgn->real)[address-rgn->address] = v;
+  memSyncWrite(rgn->type, *rgn, address, 1);
   }
 
 void Mem32::copyBytes(ptr32_t psrc, ptr32_t pdst, uint32_t size) {
@@ -412,7 +453,7 @@ bool Mem32::implRealloc(ptr32_t address, uint32_t nsize) {
 Mem32::Region* Mem32::implTranslate(ptr32_t address) {
   // TODO: binary-search
   for(auto& rgn:region) {
-    if(rgn.address<=address && address<rgn.address+rgn.size && rgn.status!=S_Unused)
+    if(rgn.address<=address && uint64_t(address)<uint64_t(rgn.address)+rgn.size && rgn.status!=S_Unused)
       return &rgn;
     }
   return nullptr;

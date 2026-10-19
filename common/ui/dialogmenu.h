@@ -85,6 +85,7 @@ class DialogMenu : public Tempest::Widget {
     enum {
       MAX_PRINT = 3,
       ANIM_TIME = 200,
+      QUEUE_WAIT_MAX = 10000,
       };
 
     enum class State : uint8_t {
@@ -121,6 +122,7 @@ class DialogMenu : public Tempest::Widget {
     bool aiClose();
 
     bool haveToWaitOutput() const;
+    bool haveToWaitQueues() const;
     bool hasPrintMsg() const;
     bool haveToShowSubtitles(bool isPl) const;
 
@@ -163,6 +165,7 @@ class DialogMenu : public Tempest::Widget {
     bool                                showSubtitles       = true;
     bool                                showSubtitlesPlayer = true;
     uint64_t                            choiceAnimTime      = 0;
+    uint64_t                            queueWaitTime       = 0;   // how long the actions of the characters keep the choices back
 
     struct Prompt {
       bool                  active = false;

@@ -69,6 +69,12 @@ void DialogMenu::setupSettings() {
   }
 
 void DialogMenu::tick(uint64_t dt) {
+  {
+  // the choices wait until the characters finish what the script queued (as the original engine does): the scripts of
+  // CoM depend on it, the player could finish the petting of the dog before the dog even came
+  const bool busy = state==State::Active && ((pl && !pl->isAiQueueEmpty()) || (other && other!=pl && !other->isAiQueueEmpty()));
+  queueWaitTime   = busy ? queueWaitTime+dt : 0;
+  }
   if(prompt.active)
     update();   // the cursor of the text blinks
 
@@ -379,6 +385,7 @@ void DialogMenu::close() {
   other=nullptr;
   depth=0;
   dlgTrade=false;
+  prompt = Prompt();
   current.time=0;
   choice.clear();
   state=State::Idle;
@@ -406,6 +413,13 @@ bool DialogMenu::haveToWaitOutput() const {
     return true;
     }
   return false;
+  }
+
+/// the limit is for a queue that never ends, so that the dialog is never stuck
+bool DialogMenu::haveToWaitQueues() const {
+  if(queueWaitTime==0 || queueWaitTime>QUEUE_WAIT_MAX)
+    return false;
+  return true;
   }
 
 bool DialogMenu::haveToShowSubtitles(bool isPl) const {
@@ -562,7 +576,7 @@ void DialogMenu::paintChoice(PaintEvent &e) {
   }
 
 bool DialogMenu::isChoiceMenuActive() const {
-  return choice.size()!=0 && current.time==0 && !haveToWaitOutput() && trade.isOpen()==InventoryMenu::State::Closed;
+  return choice.size()!=0 && current.time==0 && !haveToWaitOutput() && !haveToWaitQueues() && trade.isOpen()==InventoryMenu::State::Closed;
   }
 
 void DialogMenu::onSelect() {
@@ -735,11 +749,14 @@ void DialogMenu::openPrompt(const GameScript::DlgChoice& e) {
   prompt.text.clear();
   prompt.choice          = e;
   prompt.keyboardRequest = false;
+  Log::d("DialogMenu: text prompt '",e.title,"' is open");
   update();
   }
 
 void DialogMenu::promptKey(KeyEvent& e) {
   e.accept();
+  Log::d("DialogMenu: prompt key ",int(e.key)," code ",e.code,
+         " modifiers ",int(e.modifier)," length ",prompt.text.size());
   if(e.key==Event::K_ESCAPE) {
     promptDone(false);
     return;
