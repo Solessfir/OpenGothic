@@ -305,6 +305,7 @@ class GameScript final {
     bool wld_isnextfpavailable(std::shared_ptr<zenkit::INpc> self, std::string_view name);
     bool wld_ismobavailable   (std::shared_ptr<zenkit::INpc> self, std::string_view name);
     void wld_setmobroutine    (int h, int m, std::string_view name, int st);
+    void wld_setobjectroutine (int h, int m, std::string_view name, int st);
     int  wld_getmobstate      (std::shared_ptr<zenkit::INpc> npc, std::string_view scheme);
     void wld_assignroomtoguild(std::string_view name, int g);
     bool wld_detectnpc        (std::shared_ptr<zenkit::INpc> npcRef, int inst, int state, int guild);
