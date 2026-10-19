@@ -170,6 +170,7 @@ class GameScript final {
     auto updateDialog (const GameScript::DlgChoice &dlg, Npc &player, Npc &npc) -> std::vector<GameScript::DlgChoice>;
     void exec(const DlgChoice &dlg, Npc &player, Npc &npc);
     void setDialogAnswer(std::string_view text);
+    bool setInfoKnown(Npc& npc, std::string_view infoName, bool known);
 
     void  printCannotUseError         (Npc &npc, int32_t atr, int32_t nValue);
     void  printCannotCastError        (Npc &npc, int32_t plM, int32_t itM);
@@ -291,6 +292,8 @@ class GameScript final {
     auto hlp_getnpc          (int instanceSymbol) -> std::shared_ptr<zenkit::INpc>;
 
     void wld_insertitem      (int itemInstance, std::string_view spawnpoint);
+    int  wld_removeitem      (std::shared_ptr<zenkit::IItem> itemRef);
+    void mob_createitems     (std::string_view tag, int itemInstance, int amount);
     void wld_insertnpc       (int npcInstance, std::string_view spawnpoint);
     void wld_removenpc       (int npcInstance);
     void wld_settime         (int hour, int minute);
@@ -441,6 +444,13 @@ class GameScript final {
     void ai_setwalkmode      (std::shared_ptr<zenkit::INpc> npcRef, int modeBits);
     void ai_wait             (std::shared_ptr<zenkit::INpc> npcRef, float ms);
     void ai_waitms           (std::shared_ptr<zenkit::INpc> npcRef, int ms);
+    void ai_waittillend      (std::shared_ptr<zenkit::INpc> npcRef, std::shared_ptr<zenkit::INpc> otherRef);
+    void ai_aimat            (std::shared_ptr<zenkit::INpc> npcRef, std::shared_ptr<zenkit::INpc> otherRef);
+    void ai_shootat          (std::shared_ptr<zenkit::INpc> npcRef, std::shared_ptr<zenkit::INpc> otherRef);
+    void ai_stopaim          (std::shared_ptr<zenkit::INpc> npcRef);
+    void ai_dropitem         (std::shared_ptr<zenkit::INpc> npcRef, int itemInstance);
+    void ai_snd_play         (std::shared_ptr<zenkit::INpc> npcRef, std::string_view sound);
+    void ai_stopfx           (std::shared_ptr<zenkit::INpc> npcRef, std::string_view effect);
     void ai_aligntowp        (std::shared_ptr<zenkit::INpc> npcRef);
     void ai_gotowp           (std::shared_ptr<zenkit::INpc> npcRef, std::string_view waypoint);
     void ai_gotofp           (std::shared_ptr<zenkit::INpc> npcRef, std::string_view waypoint);

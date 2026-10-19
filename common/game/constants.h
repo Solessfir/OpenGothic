@@ -391,6 +391,15 @@ enum Action:uint32_t {
   AI_LookAt,
   AI_WhirlToNpc,
   AI_TurnAway,
+  // Append new actions: the numeric values are stored in savegames.
+  AI_Synchronize,
+  AI_WaitTillEnd,
+  AI_AimAt,
+  AI_StopAim,
+  AI_ShootAt,
+  AI_DropItem,
+  AI_SndPlay,
+  AI_StopFx,
   };
 
 

@@ -250,106 +250,140 @@ void DirectMemory::tick(uint64_t dt) {
   tickUi(dt);
   }
 
-void DirectMemory::eventPlayAni(std::string_view ani) {
-  // oCNPC__EV_PlayAni -> _AI_FUNCTION_EVENT
-  //TODO: propper hook-engine
+void DirectMemory::eventPlayAni(Npc& npc, std::string_view ani) {
   if(ani.find("CALL ")!=0)
     return;
-  //Log::d("LeGo::eventPlayAni: ", ani);
-#if 0
 
-  if(auto* sym = vm.find_symbol_by_name("_AI_FUNCTION_EVENT")) {
-    vm.push_string(ani);
-    vm.call_function(sym);
-    // vm.unsafe_jump(sym->address()+0x1b); // jump over asm-related stuff
+  std::vector<std::string_view> tokens;
+  auto rest = ani.substr(5);
+  for(;;) {
+    const auto end = rest.find(' ');
+    tokens.push_back(rest.substr(0,end));
+    if(end==std::string_view::npos)
+      break;
+    rest.remove_prefix(end+1);
+    }
+
+  auto integer = [](std::string_view text, int32_t& value) {
+    const auto result = std::from_chars(text.data(),text.data()+text.size(),value);
+    return result.ec==std::errc() && result.ptr==text.data()+text.size();
+    };
+  int32_t functionId = 0;
+  std::string_view format;
+  size_t firstArg = 0;
+  if(tokens.size()==1) {
+    if(!integer(tokens.front(),functionId))
+      return;
+    } else {
+    format = tokens.front();
+    firstArg = 1;
+    if(format.empty() || format.find_first_not_of("INS")!=std::string_view::npos ||
+       tokens.size()!=format.size()+2 || !integer(tokens.back(),functionId)) {
+      Log::e("Ikarus: invalid AI_Function call: ",ani);
+      return;
+      }
+    }
+
+  auto* function = vm.find_symbol_by_index(uint32_t(functionId));
+  if(function==nullptr || function->type()!=zenkit::DaedalusDataType::FUNCTION)
+    return;
+  const auto params = vm.find_parameters_for_function(function);
+  if(params.size()!=format.size()) {
+    Log::e("Ikarus: AI_Function argument count for ",function->name());
     return;
     }
-  return;
-#endif
 
-  auto toInt = [](std::string_view ss) {
-    int32_t i  = 0;
-    auto err = std::from_chars(ss.data(), ss.data()+ss.size(), i).ec;
-    if(err!=std::errc())
-      return 0;
-    return i;
-    };
-
-  auto toStr = [](std::string_view ss) {
-    std::string ret;
-    ret.reserve(ss.size());
-    for(size_t i=0; i<ss.size(); ++i) {
-      if(ss[i]=='\\' && i+1<ss.size()) {
-        ++i;
-        if(ss[i]=='_') {
-          ret.push_back(' ');
-          continue;
+  // Decode and validate everything before changing the VM stack or global instances.
+  std::vector<int32_t> ints(format.size());
+  std::vector<std::string> strings(format.size());
+  std::vector<std::shared_ptr<zenkit::DaedalusInstance>> instances(format.size());
+  static constexpr std::string_view sequences = "0123456abtnvfr789ABCDEFGHIJKLMNO_";
+  auto unescape = [](std::string_view text) {
+    std::string value;
+    for(size_t i=0; i<text.size(); ++i) {
+      char c = text[i];
+      if(c=='\\' && i+1<text.size()) {
+        c = text[++i];
+        if(c=='x' && i+2<text.size()) {
+          unsigned byte = 0;
+          const auto result = std::from_chars(text.data()+i+1,text.data()+i+3,byte,16);
+          if(result.ec==std::errc() && result.ptr==text.data()+i+3) {
+            value.push_back(char(byte));
+            i += 2;
+            continue;
+            }
+          }
+        if(c!='\\') {
+          const auto index = sequences.find(c);
+          if(index!=std::string_view::npos)
+            c = char(index);
           }
         }
-      ret.push_back(ss[i]);
+      value.push_back(c);
       }
-    return ret;
+    return value;
     };
 
-  auto v   = ani.substr(5);
-  auto tok = v.substr(0, v.find(' '));
-  v = v.substr(v.find(' ')+1);
-
-  std::string_view args[10];
-  for(int i=0; i<10; ++i) {
-    size_t n = v.find(' ');
-    args[i] = v.substr(0, n);
-    if(n==std::string_view::npos)
-      break;
-    v = v.substr(n+1);
-    }
-
-  if(tok.size()>0 && std::isdigit(tok[0])) {
-    auto fncID = toInt(args[0]);
-    if(auto* sym = vm.find_symbol_by_index(uint32_t(fncID))) {
-      vm.call_function(sym);
+  for(size_t i=0; i<format.size(); ++i) {
+    const auto type = params[i].type();
+    if(format[i]=='S') {
+      if(type!=zenkit::DaedalusDataType::STRING)
+        return;
+      strings[i] = unescape(tokens[firstArg+i]);
+      } else {
+      if(!integer(tokens[firstArg+i],ints[i]))
+        return;
+      if(format[i]=='N') {
+        if(type!=zenkit::DaedalusDataType::INSTANCE)
+          return;
+        if(ints[i]!=0) {
+          auto* symbol = vm.find_symbol_by_index(uint32_t(ints[i]));
+          if(symbol==nullptr || symbol->type()!=zenkit::DaedalusDataType::INSTANCE)
+            return;
+          instances[i] = symbol->get_instance();
+          }
+        } else if(type!=zenkit::DaedalusDataType::INT && type!=zenkit::DaedalusDataType::FLOAT &&
+                  type!=zenkit::DaedalusDataType::FUNCTION) {
+        return;
+        }
       }
-    return;
-    }
-  if(tok=="I") {
-    auto fncID = toInt(args[1]);
-    if(auto* sym = vm.find_symbol_by_index(uint32_t(fncID))) {
-      vm.call_function(sym, toInt(args[0]));
-      }
-    return;
-    }
-  if(tok=="S") {
-    auto fncID = toInt(args[1]);
-    if(auto* sym = vm.find_symbol_by_index(uint32_t(fncID))) {
-      //NOTE: need support in ZenKit, to use call_function with string&&
-      std::string arg0 = toStr(args[0]);
-      vm.call_function(sym, std::string_view(arg0));
-      }
-    return;
-    }
-  if(tok=="SS") {
-    auto fncID = toInt(args[2]);
-    if(auto* sym = vm.find_symbol_by_index(uint32_t(fncID))) {
-      std::string arg0 = toStr(args[0]);
-      std::string arg1 = toStr(args[1]);
-      vm.call_function(sym, std::string_view(arg0), std::string_view(arg1));
-      }
-    return;
-    }
-  if(tok=="NSII") {
-    auto fncID = toInt(args[4]);
-    auto npcID = toInt(args[0]);
-    auto npcS  = vm.find_symbol_by_index(uint32_t(npcID));
-    auto inst  = (npcS!=nullptr && npcS->type()==zenkit::DaedalusDataType::INSTANCE) ? npcS->get_instance() : nullptr;
-    if(auto* sym = vm.find_symbol_by_index(uint32_t(fncID))) {
-      (void)sym;
-      //NOTE: need support in ZenKit, to use call_function for externals
-      // vm.call_function(sym, inst, args[1], float(toInt(args[2])), float(toInt(args[3])));
-      }
-    return;
     }
 
-  Log::d("Ikarus: skip ai-call: ", ani);
+  struct Context {
+    zenkit::DaedalusVm& vm;
+    std::shared_ptr<zenkit::DaedalusInstance> self, other, item, instance;
+    ~Context() {
+      vm.global_self()->set_instance(self);
+      vm.global_other()->set_instance(other);
+      vm.global_item()->set_instance(item);
+      vm.unsafe_set_gi(instance);
+      }
+    } context{vm,vm.global_self()->get_instance(),vm.global_other()->get_instance(),
+              vm.global_item()->get_instance(),vm.unsafe_get_gi()};
+  vm.global_self()->set_instance(npc.handlePtr());
+  vm.global_other()->set_instance(nullptr);
+  vm.global_item()->set_instance(nullptr);
+  vm.unsafe_set_gi(npc.handlePtr());
+
+  for(size_t i=0; i<format.size(); ++i) {
+    if(format[i]=='S')
+      vm.push_string(strings[i]);
+    else if(format[i]=='N')
+      vm.push_instance(instances[i]);
+    else if(params[i].type()==zenkit::DaedalusDataType::FLOAT)
+      vm.push_float(intBitsToFloat(ints[i]));
+    else
+      vm.push_int(ints[i]);
+    }
+  vm.invoke_function(function);
+  if(function->has_return()) {
+    switch(function->rtype()) {
+      case zenkit::DaedalusDataType::STRING:   (void)vm.pop_string();   break;
+      case zenkit::DaedalusDataType::INSTANCE: (void)vm.pop_instance(); break;
+      case zenkit::DaedalusDataType::FLOAT:    (void)vm.pop_float();    break;
+      default:                               (void)vm.pop_int();      break;
+      }
+    }
   }
 
 void DirectMemory::setupFunctionTable() {
