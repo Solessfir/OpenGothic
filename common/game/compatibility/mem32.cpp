@@ -208,6 +208,7 @@ void Mem32::writeInt(ptr32_t address, int32_t v) {
   const ptr32_t dAddr = address-rgn->address;
   auto ptr = reinterpret_cast<uint8_t*>(rgn->real)+dAddr;
   std::memcpy(ptr,&v,4);
+  lastWrite = address;
   memSyncWrite(rgn->type, *rgn, address, 4);
   }
 

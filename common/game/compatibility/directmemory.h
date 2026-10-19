@@ -4,11 +4,18 @@
 
 #include "game/gamescript.h"
 
+#include <map>
+#include <unordered_map>
+#include <vector>
+
 #include "cpu32.h"
 #include "instancehandles.h"
 #include "mem32.h"
 
 class MoveTrigger;
+class Serialize;
+class Npc;
+class Item;
 
 class DirectMemory {
   public:
@@ -27,6 +34,27 @@ class DirectMemory {
     // hooks
     void        tick(uint64_t dt);
     void        eventPlayAni(std::string_view ani);
+
+    /// The state of the registers and of the stack at a place that the libraries hook. The scripts of the hooks read and
+    /// write them (ECX, EAX, ..., MEM_ReadInt(ESP+4)); what they leave there is what the caller gets back.
+    struct HookRegs {
+      uint32_t             eax = 0, ecx = 0, edx = 0, ebx = 0, ebp = 0, esi = 0, edi = 0;
+      std::vector<int32_t> args;    // [esp+4], [esp+8], ...
+      };
+    bool        hasHook(uint32_t address) const;
+    bool        fireHook(uint32_t address, HookRegs& regs);
+
+    // events of the game, see directmemory_events.cpp
+    void        eventChangeLevel(bool begin);
+    void        eventSaveGame(Serialize& fout);
+    void        eventLoadGame(Serialize& fin);
+    void        eventItemTaken(Npc& owner, Item& item);
+    int         eventChangeAttribute(Npc& npc, int attribute, int change);
+    void        eventKey(int key);
+    void        eventZoneMusic(std::string_view name);
+    void        eventFallDamage(Npc& npc);
+    void        eventDamageBegin(Npc& victim, Npc& attacker, bool isSpell, int spellId, bool ranged, GameScript::DmaDamage& d);
+    void        eventDamageEnd(Npc& victim, GameScript::DmaDamage& d);
 
   private:
     using ptr32_t      = Mem32::ptr32_t;
@@ -104,6 +132,7 @@ class DirectMemory {
     void        memoryCallback(zCParser& p, std::memory_order ord);
     void        memoryCallback(ScriptVar& v, uint32_t index, std::memory_order ord);
     void        memoryCallback(zCPar_Symbol& s, uint32_t index, std::memory_order ord);
+    auto        instancePointer(zenkit::DaedalusSymbol& sym) -> ptr32_t;
     void        memoryCallback(zCMover& m, uint32_t index, std::memory_order ord);
     void        memAssignString(zString& str, std::string_view cstr);
     void        memFromString(std::string& dst, const zString& str);
@@ -112,6 +141,18 @@ class DirectMemory {
     void        memPrintstacktraceImplementation();
     void        memSendToSpy(int cat, std::string_view msg);
     void        memReplaceFunc(zenkit::DaedalusFunction dest, zenkit::DaedalusFunction func);
+    struct StrVar {
+      std::string synced;      // the text that the zString and the symbol had the last time they were the same
+      ptr32_t     buf   = 0;   // the buffer of the characters that this layer has made
+      bool        known = false;
+      ptr32_t     zptr  = 0;   // the buffer that a script has put into the zString, and its length
+      int32_t     zlen  = 0;
+      bool        owned = false;
+      };
+    std::unordered_map<uint32_t,StrVar> strVars;   // by the index of the symbol
+    std::vector<uint32_t>               ownedStrings;
+    void        syncOwnedStrings(ptr32_t address, uint32_t size);
+    std::vector<std::pair<uint32_t,uint32_t>> replaced;   // MEM_ReplaceFunc: the function and the one that takes its place
 
     ptr32_t     ASMINT_InternalStack = 0;
     ptr32_t     ASMINT_CallTarget    = 0;
@@ -188,6 +229,29 @@ class DirectMemory {
       const World*             world = nullptr;
       };
     MoverPool   movers;
+
+    // the places of the engine that the libraries have hooked: address -> indices of the functions of the scripts
+    std::unordered_map<uint32_t,std::vector<uint32_t>> hooks;
+    static bool isHookAnswered(uint32_t address);
+    auto        ptrOf(Npc& npc) -> ptr32_t;
+    auto        ptrOf(Item& item) -> ptr32_t;
+
+    // files of the scripts (LeGo keeps the handles of PermMem in the savegame through the functions of Windows)
+    struct VirtualHandle {
+      std::string name;
+      uint32_t    pos   = 0;
+      bool        write = false;
+      };
+    std::map<std::string,std::vector<uint8_t>>  vfs;
+    std::unordered_map<uint32_t,VirtualHandle>  vhandles;
+    uint32_t                                    nextVHandle = 0x1000;
+    uint32_t                                    lastError   = 0;
+    ptr32_t                                     saveSlotBlock = 0;
+    void        setupFileFunctions();
+    void        setupSaveSupport();
+    void        setSelectedSlot(int slot);
+    static auto vfsKey(std::string_view name) -> std::string;
+    static void dumpFile(const char* what, const std::string& name, const std::vector<uint8_t>& data);
 
     // the places of the engine that the libraries want to hook, which are not answered
     std::vector<std::pair<uint32_t,std::string>> hooksUnanswered;
