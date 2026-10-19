@@ -27,6 +27,7 @@ namespace HookAdr {
   constexpr uint32_t CsCameraUntrigger      = 0x4C3AC0; // zCCSCamera::OnUntrigger
   constexpr uint32_t EvDropVob              = 0x7538C0; // oCNpc::EV_DropVob: ecx = oCNpc*, [esp+4] = the message with the item at +108
   constexpr uint32_t InventoryOpen          = 0x762250; // oCNpc::OpenInventory: the hook of CoM closes it again in a fistfight
+  constexpr uint32_t SellItem               = 0x68B840; // oCViewDialogTrade::OnTransferLeft: the player sells the selected item
   constexpr uint32_t SpellSetup             = 0x484930; // oCSpell::Setup: ecx = oCSpell*, [esp+4] = the caster
   constexpr uint32_t StatusScreenShow       = 0x47ED60;
   constexpr uint32_t StatusScreenClose      = 0x47EB50;
