@@ -342,3 +342,15 @@ auto DirectMemory::takeMenuTexts() -> std::vector<std::pair<std::string,std::str
   menuTexts.clear();
   return ret;
   }
+
+/// A camera of a cutscene starts or ends (zCCSCamera::OnTrigger and OnUntrigger): CoM keeps the state of its cutscenes
+void DirectMemory::eventCsCamera(bool trigger) {
+  const uint32_t adr = trigger ? HookAdr::CsCameraTrigger : HookAdr::CsCameraUntrigger;
+  if(!hasHook(adr))
+    return;
+  if(csCamera==0)
+    csCamera = mem32.alloc(512,"zCCSCamera");
+  HookRegs r;
+  r.eax = csCamera;
+  fireHook(adr,r);
+  }
