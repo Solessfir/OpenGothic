@@ -245,6 +245,7 @@ void GameScript::initCommon() {
   bindExternal("wld_isnextfpavailable",          &GameScript::wld_isnextfpavailable);
   bindExternal("wld_ismobavailable",             &GameScript::wld_ismobavailable);
   bindExternal("wld_setmobroutine",              &GameScript::wld_setmobroutine);
+  bindExternal("wld_setobjectroutine",           &GameScript::wld_setobjectroutine);
   bindExternal("wld_getmobstate",                &GameScript::wld_getmobstate);
   bindExternal("wld_assignroomtoguild",          &GameScript::wld_assignroomtoguild);
   bindExternal("wld_detectnpc",                  &GameScript::wld_detectnpc);
@@ -1983,6 +1984,11 @@ bool GameScript::wld_ismobavailable(std::shared_ptr<zenkit::INpc> self, std::str
   }
 
 void GameScript::wld_setmobroutine(int h, int m, std::string_view name, int st) {
+  world().setMobRoutine(gtime(h,m), name, st);
+  }
+
+/// Wld_SetObjectRoutine of Gothic 2 (Addon): the same as for the mobs, the object is found by the name
+void GameScript::wld_setobjectroutine(int h, int m, std::string_view name, int st) {
   world().setMobRoutine(gtime(h,m), name, st);
   }
 

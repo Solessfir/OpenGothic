@@ -104,6 +104,25 @@ void DirectMemory::setupEngineCalls() {
     menuTexts.emplace_back(std::move(name),std::string(text));
     });
 
+  // zSinCosApprox(angle, &sin, &cos): the sprites of LeGo rotate with it
+  cpu.register_cdecl(6269632,[this](float angle, ptr32_t sinPtr, ptr32_t cosPtr) {
+    auto bits = [](float f) {
+      int32_t i = 0;
+      std::memcpy(&i,&f,sizeof(i));
+      return i;
+      };
+    if(sinPtr!=0)
+      mem32.writeInt(sinPtr,bits(std::sin(angle)));
+    if(cosPtr!=0)
+      mem32.writeInt(cosPtr,bits(std::cos(angle)));
+    });
+
+  // what the scripts do to the objects of the engine that the layer does not have: they are made and removed without
+  // any effect (MEM_DeleteVob, MEM_RenameVob, MEM_ApplyGothOpt)
+  cpu.register_thiscall(7864512,[](ptr32_t, ptr32_t) {});            // oCWorld::RemoveVob
+  cpu.register_thiscall(6290896,[](ptr32_t, std::string) {});         // zCVob::SetVobName
+  cpu.register_thiscall(4355760,[](ptr32_t) {});                      // CGameManager::ApplySomeSettings
+
   // zCInput: there is an object, the keys are not bound by the scripts here
   const ptr32_t input = mem32.alloc(256,"zCInput");
   mem32.alloc(ZCINPUT_ZINPUT,4,"zinput*");
