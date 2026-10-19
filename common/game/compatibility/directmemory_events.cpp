@@ -231,7 +231,7 @@ void DirectMemory::memoryCallback(Compatibility::MobSlot& m, uint32_t index, std
   text("KEYINSTANCE",mob->keyName());
   }
 
-/// The player looks at a character, an item or a mob: oCNpc.focus_vob is the pointer (kept in a member that the VM has)
+/// The player looks at a character, an item or a mob: oCNpc.focus_vob is the pointer
 void DirectMemory::eventFocus(Npc& player, const Focus& focus) {
   int32_t ptr = 0;
   if(focus.npc!=nullptr)
@@ -240,7 +240,7 @@ void DirectMemory::eventFocus(Npc& player, const Focus& focus) {
     ptr = int32_t(ptrOf(*focus.item));
   else if(focus.interactive!=nullptr)
     ptr = int32_t(mobPointer(*focus.interactive));
-  player.handle().voice_pitch = ptr;
+  player.handle().compat_focus_vob = ptr;
   }
 
 // --- the magic: Focus_Magic of the scripts is a place in the memory that the lock picking spell of CoM changes
@@ -353,4 +353,30 @@ void DirectMemory::eventCsCamera(bool trigger) {
   HookRegs r;
   r.eax = csCamera;
   fireHook(adr,r);
+  }
+
+/// The player drops an item (oCNpc::EV_DropVob). The hook of CoM keeps the important items: it plays "no" and finishes
+/// the message at once, true means that the drop is cancelled.
+bool DirectMemory::eventDropVob(Npc& npc, Item& item) {
+  if(!hasHook(HookAdr::EvDropVob))
+    return false;
+
+  // oCMsgManipulate: the item is at +108
+  const ptr32_t msg = mem32.alloc(128,"oCMsgManipulate");
+  if(msg==0)
+    return false;
+  mem32.writeInt(msg+108,int32_t(ptrOf(item)));
+
+  dropMessage   = msg;
+  dropCancelled = false;
+  HookRegs r;
+  r.ecx = ptrOf(npc);
+  r.args.push_back(int32_t(msg));
+  fireHook(HookAdr::EvDropVob,r);
+
+  const bool cancelled = dropCancelled;
+  dropMessage   = 0;
+  dropCancelled = false;
+  mem32.free(msg);
+  return cancelled;
   }
