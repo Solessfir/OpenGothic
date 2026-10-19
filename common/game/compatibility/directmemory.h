@@ -64,6 +64,8 @@ class DirectMemory {
     void        syncFocusMage(zenkit::IFocus& focus);
     void        clearMobs();
     void        eventMobCanOpen(Interactive& mob);
+    void        eventStatusScreen(bool show);
+    auto        takeMenuTexts() -> std::vector<std::pair<std::string,std::string>>;
     void        eventDamageBegin(Npc& victim, Npc& attacker, bool isSpell, int spellId, bool ranged, GameScript::DmaDamage& d);
     void        eventDamageEnd(Npc& victim, GameScript::DmaDamage& d);
 
@@ -171,6 +173,7 @@ class DirectMemory {
     std::vector<Interactive*>        mobs;
     std::vector<uint32_t>            mobPick;     // the number of the characters of the lock that are done
     std::unordered_map<const Interactive*,uint32_t> mobIndex;
+    std::vector<std::pair<std::string,std::string>> menuTexts;   // UPDATE_MENU_ITEM: the item of the menu and its new text
     ptr32_t                          focusMagic = 0;
     uint8_t                          keyEvents[1100] = {};   // MEM_KeyPressed reads it (the table of the keys of the engine)
     int                              lastSpellFocus = -1;
@@ -298,6 +301,7 @@ class DirectMemory {
     ptr32_t     npcList      = 0;
     uint64_t    npcListTimer = 0;
     bool        hooksReported = false;
+    bool        resolutionFired = false;
     void        refreshNpcList();
     void        setupInstanceAliases();
     auto        searchVobsByName(std::string_view name) -> std::vector<ptr32_t>;

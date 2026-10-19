@@ -190,8 +190,8 @@ void DirectMemory::setupFontFunctions() {
 /// Every frame: the size of the screen, the texts of the screen that are shown for a time
 void DirectMemory::tickUi(uint64_t dt) {
   if(auto* vScreen = mem32.deref<zCView>(memGame._ZCSESSION_VIEWPORT)) {
-    vScreen->PSIZEX = float(ScreenW);
-    vScreen->PSIZEY = float(ScreenH);
+    vScreen->PSIZEX = ScreenW;
+    vScreen->PSIZEY = ScreenH;
     }
 
   // the texts that have a time (Print_Ext with a time, PrintS) are removed from the list when it is over
