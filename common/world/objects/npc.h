@@ -359,6 +359,7 @@ class Npc final {
     void      buyItem    (size_t id, Npc& from,          size_t count=1);
     void      dropItem   (size_t id,                     size_t count=1);
     void      clearInventory();
+    void      notifyItemTaken(Item* it);
     Item*     currentArmor();
     Item*     currentMeleeWeapon();
     Item*     currentRangedWeapon();

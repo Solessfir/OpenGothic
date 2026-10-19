@@ -912,6 +912,15 @@ void MainWindow::mouseWheelEvent(MouseEvent &event) {
 
 void MainWindow::keyDownEvent(KeyEvent &event) {
   onDesktopInput();
+  // the mods of Ikarus and LeGo hook the keys of the game (oCGame::HandleEvent), once for a press
+  if(auto* w = Gothic::inst().world(); w!=nullptr && !rootMenu.isActive() && !video.isActive()) {
+    const int32_t code = KeyCodec::keyToCode(event.key);
+    if(code>0 && code<int32_t(dmaKeysDown.size()) && !dmaKeysDown[size_t(code)]) {
+      dmaKeysDown[size_t(code)] = true;
+      w->script().dmaKey(code);
+      }
+    }
+
   if(video.isActive()){
     event.accept();
     video.keyDownEvent(event);
@@ -1013,6 +1022,11 @@ void MainWindow::keyRepeatEvent(KeyEvent& event) {
   }
 
 void MainWindow::keyUpEvent(KeyEvent &event) {
+  {
+  const int32_t code = KeyCodec::keyToCode(event.key);
+  if(code>0 && code<int32_t(dmaKeysDown.size()))
+    dmaKeysDown[size_t(code)] = false;
+  }
   if(uiKeyUp==&video){
     video.keyUpEvent(event);
     if(event.isAccepted())
