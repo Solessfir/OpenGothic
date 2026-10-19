@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <cstddef>
+#include <cstring>
 #include <vector>
 #include <functional>
 #include <string>
@@ -65,6 +66,7 @@ class Cpu32 {
     uint32_t              ecx = 0;
     uint32_t              edx = 0;
     uint32_t              esp = 0;
+    float                 st0 = 0;   // the register of the floating point: the result of the functions of C
 
     std::unordered_map<ptr32_t, std::function<void(Cpu32&)>> stdcall_Overrides;
 
@@ -83,9 +85,14 @@ class Cpu32 {
 
     template<class R, class...Args>
     void     callExternal(const std::function<R(Args...)>& callback) {
-      auto v = std::make_tuple(this->pop<Args>()...);
+      // NOTE: the arguments of a function are evaluated in an unspecified order (GCC goes from the last to the first),
+      // the elements of a braced list are evaluated from the first to the last: the arguments are popped in order
+      std::tuple<Args...> v{this->pop<Args>()...};
       if constexpr(std::is_same<void,R>::value) {
         std::apply(callback, std::move(v));
+        } else
+      if constexpr(std::is_same<float,R>::value) {
+        this->st0 = std::apply(callback, std::move(v));
         } else {
         auto r = std::apply(callback, std::move(v));
         this->eax = uint32_t(r);
@@ -105,6 +112,17 @@ inline int32_t Cpu32::pop<int>() {
   auto ret = stack.back();
   stack.pop_back();
   return int32_t(ret);
+  }
+
+template<>
+inline float Cpu32::pop<float>() {
+  if(stack.size()==0)
+    return 0;
+  uint32_t bits = stack.back();
+  stack.pop_back();
+  float ret = 0;
+  std::memcpy(&ret,&bits,sizeof(ret));
+  return ret;
   }
 
 template<>

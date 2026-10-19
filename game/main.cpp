@@ -20,6 +20,7 @@
 #endif
 
 #include "utils/crashlog.h"
+#include "utils/gamelog.h"
 #include "mainwindow.h"
 #include "gothic.h"
 #include "build.h"
@@ -87,6 +88,7 @@ int main(int argc,const char** argv) {
   try {
     static Tempest::WFile logFile("log.txt");
     Tempest::Log::setOutputCallback([](Tempest::Log::Mode mode, const char* text) {
+      GameLog::push(mode==Tempest::Log::Error ? GameLog::Error : mode==Tempest::Log::Debug ? GameLog::Debug : GameLog::Info, text);
       logFile.write(text,std::strlen(text));
       logFile.write("\n",1);
       // A few hundred lines per load, so the log can stay readable while the game runs
@@ -95,6 +97,11 @@ int main(int argc,const char** argv) {
       });
     }
   catch(...) {
+    // the log is kept in the memory anyway, for the menu of the developer
+    Tempest::Log::setOutputCallback([](Tempest::Log::Mode mode, const char* text) {
+      GameLog::push(mode==Tempest::Log::Error ? GameLog::Error : mode==Tempest::Log::Debug ? GameLog::Debug : GameLog::Info, text);
+      std::fprintf(stderr,"%s\n",text);
+      });
     Tempest::Log::e("unable to setup logfile - fallback to console log");
     }
   CrashLog::setup();

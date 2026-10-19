@@ -1,4 +1,5 @@
 #include "mem32.h"
+#include "logbudget.h"
 
 #include <Tempest/Log>
 #include <cassert>
@@ -128,11 +129,11 @@ void Mem32::free(ptr32_t address) {
 const void* Mem32::deref(ptr32_t address, uint32_t size) {
   auto r = translate(address);
   if(r==nullptr) {
-    Log::e("deref: address translation failure: ", reinterpret_cast<void*>(uint64_t(address)));
+    if(Compatibility::logBudget("mem32:deref")) Log::e("deref: address translation failure: ", reinterpret_cast<void*>(uint64_t(address)));
     return nullptr;
     }
   if(r->address+r->size < address+size) {
-    Log::e("deref: memmory block is too small: ", reinterpret_cast<void*>(uint64_t(address)), " ", size);
+    if(Compatibility::logBudget("mem32:deref")) Log::e("deref: memmory block is too small: ", reinterpret_cast<void*>(uint64_t(address)), " ", size);
     return nullptr;
     }
   const auto rgn = *r;
@@ -144,15 +145,15 @@ const void* Mem32::deref(ptr32_t address, uint32_t size) {
 void* Mem32::derefv(ptr32_t address, uint32_t size) {
   auto rgn = translate(address);
   if(rgn==nullptr) {
-    Log::e("deref: address translation failure: ", reinterpret_cast<void*>(uint64_t(address)));
+    if(Compatibility::logBudget("mem32:deref")) Log::e("deref: address translation failure: ", reinterpret_cast<void*>(uint64_t(address)));
     return nullptr;
     }
   if(rgn->address+rgn->size < address+size) {
-    Log::e("deref: memmory block is too small: ", reinterpret_cast<void*>(uint64_t(address)), " ", size);
+    if(Compatibility::logBudget("mem32:deref")) Log::e("deref: memmory block is too small: ", reinterpret_cast<void*>(uint64_t(address)), " ", size);
     return nullptr;
     }
   if(rgn->status==S_Callback) {
-    Log::e("deref: unable to deref callback-memory: ", reinterpret_cast<void*>(uint64_t(address)));
+    if(Compatibility::logBudget("mem32:deref")) Log::e("deref: unable to deref callback-memory: ", reinterpret_cast<void*>(uint64_t(address)));
     return nullptr;
     }
   // memSyncRead(rgn->type, rgn, address, size);
@@ -163,7 +164,7 @@ void* Mem32::derefv(ptr32_t address, uint32_t size) {
 auto Mem32::deref(ptr32_t address) -> std::tuple<void*, uint32_t> {
   auto r = translate(address);
   if(r==nullptr) {
-    Log::e("deref: address translation failure: ", reinterpret_cast<void*>(uint64_t(address)));
+    if(Compatibility::logBudget("mem32:deref")) Log::e("deref: address translation failure: ", reinterpret_cast<void*>(uint64_t(address)));
     return {nullptr,0};
     }
 
@@ -172,6 +173,14 @@ auto Mem32::deref(ptr32_t address) -> std::tuple<void*, uint32_t> {
   const uint32_t size  = rgn.size - dAddr;
   memSyncRead(rgn.type, rgn, address, size);
   return {reinterpret_cast<uint8_t*>(rgn.real)+dAddr, size};
+  }
+
+uint64_t Mem32::bytesInUse() const {
+  uint64_t ret = 0;
+  for(auto& r:region)
+    if(r.status!=S_Unused)
+      ret += r.size;
+  return ret;
   }
 
 void Mem32::compactage() {
@@ -205,7 +214,7 @@ void Mem32::writeInt(ptr32_t address, int32_t v) {
 int32_t Mem32::readInt(ptr32_t address) {
   const auto r = translate(address);
   if(r==nullptr) {
-    Log::e("mem_readint:  address translation failure: ", reinterpret_cast<void*>(uint64_t(address)));
+    if(Compatibility::logBudget("mem32:mem_readint")) Log::e("mem_readint:  address translation failure: ", reinterpret_cast<void*>(uint64_t(address)));
     return 0;
     }
 
@@ -223,11 +232,11 @@ void Mem32::copyBytes(ptr32_t psrc, ptr32_t pdst, uint32_t size) {
   auto s = translate(psrc);
   auto d = translate(pdst);
   if(s==nullptr || s->status==S_Unused) {
-    Log::e("mem_copybytes: address translation failure: ", reinterpret_cast<void*>(uint64_t(psrc)));
+    if(Compatibility::logBudget("mem32:mem_copybytes")) Log::e("mem_copybytes: address translation failure: ", reinterpret_cast<void*>(uint64_t(psrc)));
     return;
     }
   if(d==nullptr || d->status==S_Unused) {
-    Log::e("mem_copybytes: address translation failure: ", reinterpret_cast<void*>(uint64_t(pdst)));
+    if(Compatibility::logBudget("mem32:mem_copybytes")) Log::e("mem_copybytes: address translation failure: ", reinterpret_cast<void*>(uint64_t(pdst)));
     return;
     }
   const auto    src   = *s;
@@ -237,11 +246,11 @@ void Mem32::copyBytes(ptr32_t psrc, ptr32_t pdst, uint32_t size) {
   size_t dOff = pdst - dst.address;
   size_t sz   = size;
   if(src.size<sOff+size) {
-    Log::e("mem_copybytes: copy-size exceed source block size: ", size);
+    if(Compatibility::logBudget("mem32:mem_copybytes")) Log::e("mem_copybytes: copy-size exceed source block size: ", size);
     sz = std::min(src.size-sOff,sz);
     }
   if(dst.size<dOff+size) {
-    Log::e("mem_copybytes: copy-size exceed destination block size: ", size);
+    if(Compatibility::logBudget("mem32:mem_copybytes")) Log::e("mem_copybytes: copy-size exceed destination block size: ", size);
     sz = std::min(dst.size-dOff,sz);
     }
   memSyncRead(src.type, src, ptr32_t(src.address+sOff), uint32_t(sz));
@@ -286,7 +295,7 @@ Mem32::ptr32_t Mem32::realloc(ptr32_t address, uint32_t size) {
   auto src = translate(address);
   if(src==nullptr) {
     if(address!=0) {
-      Log::e("realloc: address translation failure: ", reinterpret_cast<void*>(uint64_t(address)));
+      if(Compatibility::logBudget("mem32:realloc")) Log::e("realloc: address translation failure: ", reinterpret_cast<void*>(uint64_t(address)));
       compactage();
       return 0;
       }

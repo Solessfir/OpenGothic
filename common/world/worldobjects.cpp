@@ -376,6 +376,12 @@ std::unique_ptr<Npc> WorldObjects::takeNpc(const Npc* ptr) {
   return nullptr;
   }
 
+void WorldObjects::forEachTrigger(const std::function<void(AbstractTrigger&)>& f) {
+  for(auto* i:triggers)
+    if(i!=nullptr)
+      f(*i);
+  }
+
 void WorldObjects::removeNpc(Npc& npc) {
   auto ptr = takeNpc(&npc);
   if(ptr==nullptr)

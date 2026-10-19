@@ -19,6 +19,9 @@ class MoveTrigger : public AbstractTrigger {
 
     void tick(uint64_t dt) override;
 
+    /// The state as the original engine tells it (zTMoverState of zCMover): 0 open, 1 opening, 2 closed, 3 closing
+    int32_t moverState() const;
+
   private:
     enum State : int32_t {
       Idle         = 0,
