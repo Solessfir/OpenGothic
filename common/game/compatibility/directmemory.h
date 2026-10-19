@@ -35,7 +35,7 @@ class DirectMemory {
 
     // hooks
     void        tick(uint64_t dt);
-    void        eventPlayAni(std::string_view ani);
+    void        eventPlayAni(Npc& npc, std::string_view ani);
 
     /// The state of the registers and of the stack at a place that the libraries hook. The scripts of the hooks read and
     /// write them (ECX, EAX, ..., MEM_ReadInt(ESP+4)); what they leave there is what the caller gets back.
