@@ -11,6 +11,7 @@
 #include "sound/soundfx.h"
 #include "utils/string_frm.h"
 #include "world.h"
+#include "game/gamescript.h"
 #include "gamemusic.h"
 #include "gothic.h"
 #include "resources.h"
@@ -254,6 +255,8 @@ void WorldSound::tickSoundZone(Npc& player) {
   if(currentZone==zone && currentTags==tags)
     return;
 
+  if(currentZone!=zone && zone!=nullptr)
+    owner.script().dmaZoneMusic(zone->name); // mods of Ikarus and LeGo: the player has entered a place
   currentZone = zone;
   currentTags = tags;
 
