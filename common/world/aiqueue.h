@@ -39,6 +39,8 @@ class AiQueue {
     void     pushFront(AiAction&& a);
     AiAction pop();
     int      aiOutputOrderId() const;
+    uint32_t synchronize();
+    bool     isSynchronized(uint32_t ticket) const;
 
     void     onWldItemRemoved(const Item& itm);
 
@@ -55,6 +57,13 @@ class AiQueue {
     static AiAction aiPlayAnim(std::string_view ani);
     static AiAction aiPlayAnimBs(std::string_view ani, BodyState bs);
     static AiAction aiWait(uint64_t dt);
+    static AiAction aiWaitTillEnd(Npc& other, uint32_t ticket);
+    static AiAction aiAimAt(Npc& other);
+    static AiAction aiStopAim();
+    static AiAction aiShootAt(Npc& other);
+    static AiAction aiDropItem(int32_t id);
+    static AiAction aiSndPlay(std::string_view name);
+    static AiAction aiStopFx(std::string_view name);
     static AiAction aiStandup();
     static AiAction aiStandupQuick();
     static AiAction aiGoToPoint(const WayPoint &to);
@@ -95,5 +104,7 @@ class AiQueue {
 
   private:
     std::deque<AiAction> aiActions;
+    uint32_t            syncIssued = 0;
+    uint32_t            syncCompleted = 0;
   };
 
