@@ -60,6 +60,30 @@ void DirectMemory::syncHandleObject(uint8_t* raw, zenkit::DaedalusInstance& inst
     return;
     }
 
+  if(item!=nullptr) {
+    // the texts and the numbers of an item (the lines of a recipe), the scripts read them through _@S(item.text[0]) and
+    // MEM_ReadStringArray: Ikarus has the strings of the engine, 20 bytes each
+    auto* isym = dynamic_cast<zenkit::IItem*>(&inst);
+    auto* tsym = vm.find_symbol_by_name("OCITEM.TEXT");
+    auto* csym = vm.find_symbol_by_name("OCITEM.COUNT");
+    if(isym!=nullptr && tsym!=nullptr && csym!=nullptr) {
+      const size_t tOff = tsym->offset_as_member();
+      const size_t cOff = csym->offset_as_member();
+      for(uint32_t i=0; i<zenkit::IItem::text_count; ++i) {
+        const size_t at = tOff + i*sizeof(zString);
+        if(at+sizeof(zString)<=InstanceHandles::SlotSize) {
+          auto* zs = reinterpret_cast<zString*>(raw+at);
+          if(zs->ptr==0 || zs->len!=int32_t(isym->text[i].size()))
+            memAssignString(*zs,isym->text[i]);
+          }
+        if(cOff+(i+1)*sizeof(int32_t)<=InstanceHandles::SlotSize) {
+          const int32_t cnt = isym->count[i];
+          std::memcpy(raw+cOff+i*sizeof(int32_t),&cnt,sizeof(cnt));
+          }
+        }
+      }
+    }
+
   const float a = npc!=nullptr ? npc->rotationRad() : 0.f;
   const float c = std::cos(a), s = std::sin(a);
   m[0] = c;  m[1] = 0; m[2]  = s;  m[3]  = pos.x;

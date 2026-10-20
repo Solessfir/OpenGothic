@@ -68,6 +68,7 @@ class DirectMemory {
     void        eventInventoryOpen(Npc& npc);
     bool        eventSellItem(Npc& npc, Item& item);
     void        eventEquipItem(Npc& npc, Item& item, bool equip);
+    bool        eventDropUnconscious(Npc& npc);
     bool        eventFinishingMove(Npc& npc, Npc& target);
     void        noteAiPlayAni(Npc& npc, std::string_view name);
     size_t      eventPickLockLength(Interactive& mob, size_t length);
@@ -131,6 +132,12 @@ class DirectMemory {
     ptr32_t     focusList[6]    = {};
 
     ptr32_t     scriptVariables = 0;
+    // the variables of the script in the pretended memory: a slot (20 bytes) holds a variable, five elements of an int
+    // array or an element of a string array; the arrays of the scripts (PLAYER_TALENT_COOKING[...]) are read by pointer
+    std::vector<uint32_t> varSlotFirst;   // the symbol -> its first slot
+    std::vector<uint32_t> varSlotSym;     // the slot -> the symbol
+    auto        varAddress(uint32_t symbol, uint32_t element = 0) const -> ptr32_t;
+    auto        varSymbolAt(ptr32_t address) const -> int64_t;   // the index of the symbol, -1 if it is not a variable
     ptr32_t     scriptSymbols   = 0;
 
     void        setupFunctionTable();
@@ -176,7 +183,7 @@ class DirectMemory {
       int32_t     zlen  = 0;
       bool        owned = false;
       };
-    std::unordered_map<uint32_t,StrVar> strVars;   // by the index of the symbol
+    std::unordered_map<uint32_t,StrVar> strVars;   // by the slot of the variable
     std::vector<uint32_t>               ownedStrings;
     void        syncOwnedStrings(ptr32_t address, uint32_t size);
     // chests and doors as oCMobLockable, the focus of the player, the focus of the magic
@@ -204,6 +211,8 @@ class DirectMemory {
     std::vector<PendingInfo>         pendingInfos;   // oCInfo objects that the scripts got from the manager of the dialogs
     std::unordered_map<ptr32_t,std::string> decoVobs;  // the vobs that scripts insert (MEM_InsertVob): pointer -> visual
     bool                             quiversPending = false;
+    bool                             inDropUnconscious = false;   // the hook of oCNpc::DropUnconscious is running
+    bool                             keepHandWeapons   = false;   // and it has taken the weapons from the hands
     ptr32_t                          dropMessage = 0;       // the message of EV_DropVob that the hook is asked about
     bool                             dropCancelled = false;
     ptr32_t                          focusMagic = 0;

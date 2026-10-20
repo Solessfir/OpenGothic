@@ -589,7 +589,9 @@ bool Npc::checkHealth(bool onChange, bool allowUnconscious) {
 
 void Npc::onNoHealth(bool death, HitSound sndMask) {
   invent.switchActiveWeapon(*this,Item::NSLOT);
-  visual.dropWeapon(*this);
+  // CoM: in some scenes the hero keeps the weapon when he falls unconscious
+  if(death || !owner.script().dmaDropUnconscious(*this))
+    visual.dropWeapon(*this);
   visual.dropShield(*this);
   dropTorch();
   visual.setToFightMode(WeaponState::NoWeapon);
