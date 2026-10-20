@@ -970,6 +970,9 @@ void Npc::setPhysic(DynamicWorld::NpcItem &&item) {
   physic.setUserPointer(this);
   physic.setPosition(Vec3{x,y,z});
   physic.setRotation(angle);
+  // the scale of the model (Mdl_SetModelScale) is set by the script before the body exists, or the body is new
+  if(sz[0]!=1.f || sz[1]!=1.f || sz[2]!=1.f)
+    physic.setScale(Vec3{sz[0],sz[1],sz[2]});
   }
 
 void Npc::setFatness(float f) {
