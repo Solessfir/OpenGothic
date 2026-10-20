@@ -1671,6 +1671,8 @@ void PlayerControl::processPickLock(Npc& pl, Interactive& inter, KeyCodec::Actio
     return;
 
   auto cmp = inter.pickLockCode();
+  // mods of Ikarus and LeGo (CoM): the talent and the bonus shorten the code that has to be entered
+  cmp = cmp.substr(0,script.dmaPickLockLength(inter,cmp.size()));
   while(pickLockProgress<cmp.size()) {
     auto c = cmp[pickLockProgress];
     if(c=='l' || c=='L' || c=='r' || c=='R')

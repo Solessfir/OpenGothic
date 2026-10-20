@@ -29,7 +29,7 @@ index 0773c39..0ad1a5b 100644
  	};
  
 diff --git a/src/DaedalusVm.cc b/src/DaedalusVm.cc
-index 0b4420e..49f8908 100644
+index 0b4420e..b5257d5 100644
 --- a/src/DaedalusVm.cc
 +++ b/src/DaedalusVm.cc
 @@ -118,6 +118,41 @@ namespace zenkit {
@@ -74,6 +74,42 @@ index 0b4420e..49f8908 100644
  	std::shared_ptr<DaedalusInstance> DaedalusVm::unsafe_get_gi() {
  		return _m_instance;
  	}
+@@ -330,7 +365,7 @@ namespace zenkit {
+ 					auto result = ref->get_int(idx, context.get()) + value;
+ 					ref->set_int(result, idx, context.get());
+ 				} else if (ref->is_member()) {
+-					ZKLOGE("DaedalusVm", "Accessing member \"%s\" without an instance set", ref->name().c_str());
++					ZKLOGE("DaedalusVm", "Accessing member \"%s\" without an instance set (in %s)", ref->name().c_str(), (_m_call_stack.empty() || _m_call_stack.back().function == nullptr) ? "?" : _m_call_stack.back().function->name().c_str());
+ 				}
+ 
+ 				break;
+@@ -348,7 +383,7 @@ namespace zenkit {
+ 					auto result = ref->get_int(idx, context.get()) - value;
+ 					ref->set_int(result, idx, context.get());
+ 				} else if (ref->is_member()) {
+-					ZKLOGE("DaedalusVm", "Accessing member \"%s\" without an instance set", ref->name().c_str());
++					ZKLOGE("DaedalusVm", "Accessing member \"%s\" without an instance set (in %s)", ref->name().c_str(), (_m_call_stack.empty() || _m_call_stack.back().function == nullptr) ? "?" : _m_call_stack.back().function->name().c_str());
+ 				}
+ 				break;
+ 			}
+@@ -365,7 +400,7 @@ namespace zenkit {
+ 					auto result = ref->get_int(idx, context.get()) * value;
+ 					ref->set_int(result, idx, context.get());
+ 				} else if (ref->is_member()) {
+-					ZKLOGE("DaedalusVm", "Accessing member \"%s\" without an instance set", ref->name().c_str());
++					ZKLOGE("DaedalusVm", "Accessing member \"%s\" without an instance set (in %s)", ref->name().c_str(), (_m_call_stack.empty() || _m_call_stack.back().function == nullptr) ? "?" : _m_call_stack.back().function->name().c_str());
+ 				}
+ 
+ 				break;
+@@ -387,7 +422,7 @@ namespace zenkit {
+ 					auto result = ref->get_int(idx, context.get()) / value;
+ 					ref->set_int(result, idx, context.get());
+ 				} else if (ref->is_member()) {
+-					ZKLOGE("DaedalusVm", "Accessing member \"%s\" without an instance set", ref->name().c_str());
++					ZKLOGE("DaedalusVm", "Accessing member \"%s\" without an instance set (in %s)", ref->name().c_str(), (_m_call_stack.empty() || _m_call_stack.back().function == nullptr) ? "?" : _m_call_stack.back().function->name().c_str());
+ 				}
+ 
+ 				break;
 @@ -699,6 +734,13 @@ namespace zenkit {
  			return std::get<int32_t>(v.value);
  		}
@@ -86,5 +122,59 @@ index 0b4420e..49f8908 100644
 +		}
 +
  		throw DaedalusVmException {"tried to pop_int but frame does not contain a int."};
+ 	}
+ 
+@@ -787,7 +829,7 @@ namespace zenkit {
+ 				throw DaedalusNoContextError {s};
+ 			}
+ 
+-			ZKLOGE("DaedalusVm", "Accessing member \"%s\" without an instance set", s->name().c_str());
++			ZKLOGE("DaedalusVm", "Accessing member \"%s\" without an instance set (in %s)", s->name().c_str(), (_m_call_stack.empty() || _m_call_stack.back().function == nullptr) ? "?" : _m_call_stack.back().function->name().c_str());
+ 			return empty;
+ 		}
+ 
+@@ -1070,7 +1112,7 @@ namespace zenkit {
+ 				throw DaedalusNoContextError {sym};
+ 			}
+ 
+-			ZKLOGE("DaedalusVm", "Accessing member \"%s\" without an instance set", sym->name().c_str());
++			ZKLOGE("DaedalusVm", "Accessing member \"%s\" without an instance set (in %s)", sym->name().c_str(), (_m_call_stack.empty() || _m_call_stack.back().function == nullptr) ? "?" : _m_call_stack.back().function->name().c_str());
+ 			return 0;
+ 		}
+ 
+@@ -1090,7 +1132,7 @@ namespace zenkit {
+ 				throw DaedalusNoContextError {sym};
+ 			}
+ 
+-			ZKLOGE("DaedalusVm", "Accessing member \"%s\" without an instance set", sym->name().c_str());
++			ZKLOGE("DaedalusVm", "Accessing member \"%s\" without an instance set (in %s)", sym->name().c_str(), (_m_call_stack.empty() || _m_call_stack.back().function == nullptr) ? "?" : _m_call_stack.back().function->name().c_str());
+ 			return 0;
+ 		}
+ 
+@@ -1109,7 +1151,7 @@ namespace zenkit {
+ 		    !(_m_flags & DaedalusVmExecutionFlag::ALLOW_NULL_INSTANCE_ACCESS)) {
+ 			ref->set_int(value, index, context.get());
+ 		} else if (ref->is_member()) {
+-			ZKLOGE("DaedalusVm", "Accessing member \"%s\" without an instance set", ref->name().c_str());
++			ZKLOGE("DaedalusVm", "Accessing member \"%s\" without an instance set (in %s)", ref->name().c_str(), (_m_call_stack.empty() || _m_call_stack.back().function == nullptr) ? "?" : _m_call_stack.back().function->name().c_str());
+ 		}
+ 	}
+ 
+@@ -1125,7 +1167,7 @@ namespace zenkit {
+ 		    !(_m_flags & DaedalusVmExecutionFlag::ALLOW_NULL_INSTANCE_ACCESS)) {
+ 			ref->set_float(value, index, context.get());
+ 		} else if (ref->is_member()) {
+-			ZKLOGE("DaedalusVm", "Accessing member \"%s\" without an instance set", ref->name().c_str());
++			ZKLOGE("DaedalusVm", "Accessing member \"%s\" without an instance set (in %s)", ref->name().c_str(), (_m_call_stack.empty() || _m_call_stack.back().function == nullptr) ? "?" : _m_call_stack.back().function->name().c_str());
+ 		}
+ 	}
+ 
+@@ -1141,7 +1183,7 @@ namespace zenkit {
+ 		    !(_m_flags & DaedalusVmExecutionFlag::ALLOW_NULL_INSTANCE_ACCESS)) {
+ 			ref->set_string(value, index, context.get());
+ 		} else if (ref->is_member()) {
+-			ZKLOGE("DaedalusVm", "Accessing member \"%s\" without an instance set", ref->name().c_str());
++			ZKLOGE("DaedalusVm", "Accessing member \"%s\" without an instance set (in %s)", ref->name().c_str(), (_m_call_stack.empty() || _m_call_stack.back().function == nullptr) ? "?" : _m_call_stack.back().function->name().c_str());
+ 		}
  	}
  

@@ -69,6 +69,9 @@ class DirectMemory {
     bool        eventSellItem(Npc& npc, Item& item);
     bool        eventFinishingMove(Npc& npc, Npc& target);
     void        noteAiPlayAni(Npc& npc, std::string_view name);
+    size_t      eventPickLockLength(Interactive& mob, size_t length);
+    void        eventSpellBegin();
+    bool        spellKeepsItem(int spellId);
     bool        hidesPartyFocus() const;
     bool        takeInventoryClose();
     void        eventStatusScreen(bool show);
@@ -187,8 +190,15 @@ class DirectMemory {
     int32_t                          worldTimerDay  = 0;
     bool                             worldTimerInit = false;
     bool                             inventoryClose = false;   // oCNpc::CloseInventory was called by a script
+    bool                             lockOpenedByScript = false;   // a script has opened a lock since the cast started
     bool                             finishHook = false;       // the hook of the finishing move is running
     bool                             finishRefused = false;    // and it has queued T_NO for the player
+    struct PendingInfo {
+      ptr32_t ptr   = 0;
+      size_t  id    = 0;
+      int32_t told  = 0;
+      };
+    std::vector<PendingInfo>         pendingInfos;   // oCInfo objects that the scripts got from the manager of the dialogs
     ptr32_t                          dropMessage = 0;       // the message of EV_DropVob that the hook is asked about
     bool                             dropCancelled = false;
     ptr32_t                          focusMagic = 0;
@@ -276,6 +286,7 @@ class DirectMemory {
     void        setupFontFunctions();
     void        tickUi(uint64_t dt);
     void        tickTimers(uint64_t dt);
+    void        tickInfos();
     //
     void        setupNpcFunctions();
     void        setupWorldFunctions();
