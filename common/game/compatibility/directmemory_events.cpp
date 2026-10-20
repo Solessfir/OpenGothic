@@ -480,6 +480,23 @@ static bool equalsNoCase(std::string_view a, std::string_view b) {
   return true;
   }
 
+/// A character falls unconscious (oCNpc::DropUnconscious). OCNPC__DROPUNCONSCIOUS_HOOK of CoM (read from the DAT): in the
+/// fights of the arena, in Q205 and in Q306 the hero does not drop the weapon from his hands, the hook takes it out of the
+/// hands (RemoveFromSlot) and puts it back. True means that the weapon stays.
+bool DirectMemory::eventDropUnconscious(Npc& npc) {
+  if(!hasHook(HookAdr::DropUnconscious))
+    return false;
+  HookRegs r;
+  r.esi = ptrOf(npc);
+  inDropUnconscious = true;
+  keepHandWeapons   = false;
+  fireHook(HookAdr::DropUnconscious,r);
+  inDropUnconscious = false;
+  const bool keep = keepHandWeapons;
+  keepHandWeapons = false;
+  return keep;
+  }
+
 /// A character equips or unequips a bow or a crossbow (oCNpc::EquipItem, oCNpc::UnequipItem). The hooks _EVT_QUIVER_EQUIP and
 /// _EVT_QUIVER_UNEQUIP of CoM (read from the DAT) hang the quiver on the back of the character or take it down.
 void DirectMemory::eventEquipItem(Npc& npc, Item& item, bool equip) {
@@ -538,12 +555,17 @@ void DirectMemory::setupQuiverFunctions() {
     npc->setDecor(std::move(mesh),slot);
     return 1;
     });
-  safe("OCNPC_REMOVEFROMSLOT", [npcOf,quiverSlot](std::shared_ptr<zenkit::INpc> npcRef, std::string_view slot, int /*retVal*/, int /*slotId*/) -> int {
+  safe("OCNPC_REMOVEFROMSLOT", [this,npcOf,quiverSlot](std::shared_ptr<zenkit::INpc> npcRef, std::string_view slot, int /*retVal*/, int /*slotId*/) -> int {
+    // OCNPC__DROPUNCONSCIOUS_HOOK takes the weapons from the hands only for the scenes where the hero has to keep them
+    if(inDropUnconscious && (equalsNoCase(slot,"ZS_RIGHTHAND") || equalsNoCase(slot,"ZS_LEFTHAND")))
+      keepHandWeapons = true;
     auto* npc = npcOf(npcRef);
     if(npc!=nullptr && quiverSlot(slot))
       npc->clearDecor(slot);
     return 0;
     });
+
+  cpu.register_thiscall(7566816,[](ptr32_t) {});   // oCNpc::DropAllInHand: OpenGothic drops the weapon itself (Npc::onNoHealth)
 
   // the quivers of the characters of the world: the scripts walk through oWorld.voblist_npcs, here the hook of equipping is
   // given to every character with a bow, a frame later (the characters of the world exist then)

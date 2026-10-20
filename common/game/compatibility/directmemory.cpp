@@ -623,7 +623,26 @@ void DirectMemory::setupEngineMemory() {
   mem32.pin(&spawnRange, SPAWN_INSERTRANGE, sizeof(spawnRange), "spawnRange");
 
   // Storage for local variables, so script may address them thru pointers
-  scriptVariables = mem32.alloc(uint32_t(vm.symbols().size() * sizeof(ScriptVar)),    Mem32::Type::zCParser_variables);
+  {
+    const size_t n = vm.symbols().size();
+    varSlotFirst.assign(n,0);
+    varSlotSym.clear();
+    varSlotSym.reserve(n+n/16);
+    for(size_t i=0; i<n; ++i) {
+      auto* s = vm.find_symbol_by_index(uint32_t(i));
+      uint32_t slots = 1;
+      if(s!=nullptr && !s->is_member() && s->count()>1) {
+        if(s->type()==zenkit::DaedalusDataType::INT || s->type()==zenkit::DaedalusDataType::FLOAT)
+          slots = (s->count()+4)/5;
+        else if(s->type()==zenkit::DaedalusDataType::STRING)
+          slots = s->count();
+        }
+      varSlotFirst[i] = uint32_t(varSlotSym.size());
+      for(uint32_t k=0; k<slots; ++k)
+        varSlotSym.push_back(uint32_t(i));
+      }
+    }
+  scriptVariables = mem32.alloc(uint32_t(varSlotSym.size() * sizeof(ScriptVar)),      Mem32::Type::zCParser_variables);
   scriptSymbols   = mem32.alloc(uint32_t(vm.symbols().size() * sizeof(zCPar_Symbol)), Mem32::Type::zCPar_Symbol);
   handles.setup();
   handles.setSync([this](uint8_t* raw, zenkit::DaedalusInstance& inst, bool write) {
@@ -994,14 +1013,35 @@ void DirectMemory::memoryCallback(zCParser& p, std::memory_order ord) {
     }
   }
 
-void DirectMemory::memoryCallback(ScriptVar& v, uint32_t index, std::memory_order ord) {
-  if(index>=vm.symbols().size()) {
+ptr32_t DirectMemory::varAddress(uint32_t symbol, uint32_t element) const {
+  if(symbol>=varSlotFirst.size())
+    return 0;
+  const uint32_t first = varSlotFirst[symbol];
+  auto* s = vm.find_symbol_by_index(symbol);
+  if(s!=nullptr && (s->type()==zenkit::DaedalusDataType::INT || s->type()==zenkit::DaedalusDataType::FLOAT))
+    return scriptVariables + (first + element/5)*ptr32_t(sizeof(ScriptVar)) + (element%5)*4;
+  return scriptVariables + (first + element)*ptr32_t(sizeof(ScriptVar));
+  }
+
+int64_t DirectMemory::varSymbolAt(ptr32_t address) const {
+  if(address<scriptVariables)
+    return -1;
+  const uint64_t slot = (address-scriptVariables)/sizeof(ScriptVar);
+  if(slot>=varSlotSym.size())
+    return -1;
+  return varSlotSym[slot];
+  }
+
+void DirectMemory::memoryCallback(ScriptVar& v, uint32_t slot, std::memory_order ord) {
+  if(slot>=varSlotSym.size() || varSlotSym[slot]>=vm.symbols().size()) {
     // should never happend
     Log::d("ikarus: symbol table is corrupted");
     assert(false);
     return;
     }
 
+  const uint32_t index = varSlotSym[slot];
+  const uint32_t sub   = slot - varSlotFirst[index];   // the part of the array
   auto& str = v.data;
   auto& sym = *vm.find_symbol_by_index(index);
   if(sym.is_member()) {
@@ -1010,23 +1050,28 @@ void DirectMemory::memoryCallback(ScriptVar& v, uint32_t index, std::memory_orde
     }
 
   switch (sym.type()) {
-    case zenkit::DaedalusDataType::FLOAT: {
-      if(ord==std::memory_order::release) {
-        //TODO
-        Log::e("Ikarus: unable to write to mapped symbol (\"", sym.name(), "\")");
-        } else {
-        auto val = sym.get_float();
-        str._VTBL = floatBitsToInt(val); // first 4 bytes
-        Log::d("VAR: ", sym.name(), " -> ", val);
-        }
-      break;
-      }
+    case zenkit::DaedalusDataType::FLOAT:
     case zenkit::DaedalusDataType::INT: {
-      if(ord==std::memory_order::release) {
-        sym.set_int(str._VTBL);
-        } else {
-        auto val = sym.get_int();
-        str._VTBL = val; // first 4 bytes
+      // a slot is five ints: the elements of an array go one after another (the memory is read before it is written, so
+      // the other elements of the slot are fresh)
+      int32_t*       w   = reinterpret_cast<int32_t*>(&str);
+      const bool     isF = sym.type()==zenkit::DaedalusDataType::FLOAT;
+      const uint32_t cnt = std::max<uint32_t>(sym.count(),1);
+      const uint32_t e0  = sub*5;
+      const uint32_t n   = e0<cnt ? std::min<uint32_t>(5,cnt-e0) : 0;
+      for(uint32_t k=0; k<n; ++k) {
+        const uint16_t el = uint16_t(e0+k);
+        if(ord==std::memory_order::release) {
+          if(isF) {
+            float f = 0;
+            std::memcpy(&f,&w[k],sizeof(f));
+            sym.set_float(f,el);
+            } else {
+            sym.set_int(w[k],el);
+            }
+          } else {
+          w[k] = isF ? floatBitsToInt(sym.get_float(el)) : sym.get_int(el);
+          }
         }
       break;
       }
@@ -1034,12 +1079,12 @@ void DirectMemory::memoryCallback(ScriptVar& v, uint32_t index, std::memory_orde
       // A string of the VM and the zString that the scripts see are two copies. The scripts build a text by writing the
       // pointer and the length of the zString (BR_Text of LeGo), the VM changes the text by assignments: what changed
       // since the last time wins, so the memory that a script has prepared is not overwritten by a read.
-      auto& st = strVars[index];
+      auto& st = strVars[slot];
       if(ord==std::memory_order::release) {
         std::string dst;
         memFromString(dst, str);
         if(!st.known || dst!=st.synced) {
-          sym.set_string(dst);
+          sym.set_string(dst,uint16_t(sub));
           st.synced = dst;
           st.known  = true;
           }
@@ -1048,10 +1093,10 @@ void DirectMemory::memoryCallback(ScriptVar& v, uint32_t index, std::memory_orde
         st.zlen = str.len;
         if(str.ptr!=st.buf && !st.owned) {
           st.owned = true;
-          ownedStrings.push_back(index);
+          ownedStrings.push_back(slot);
           }
         } else {
-        const std::string& cur = sym.get_string();
+        const std::string& cur = sym.get_string(uint16_t(sub));
         if(!st.known || cur!=st.synced) {
           // the buffer is replaced only when it is the one that was made here, a script may own the other
           const ptr32_t old = (str.ptr==st.buf) ? st.buf : 0;
@@ -1066,7 +1111,7 @@ void DirectMemory::memoryCallback(ScriptVar& v, uint32_t index, std::memory_orde
           st.known  = true;
           if(st.owned) {
             st.owned = false;
-            ownedStrings.erase(std::remove(ownedStrings.begin(),ownedStrings.end(),index),ownedStrings.end());
+            ownedStrings.erase(std::remove(ownedStrings.begin(),ownedStrings.end(),slot),ownedStrings.end());
             }
           }
         }
@@ -1158,7 +1203,7 @@ void DirectMemory::memoryCallback(zCPar_Symbol& s, uint32_t index, std::memory_o
     return 0;
     };
 
-  auto symContent = [](zenkit::DaedalusSymbol& sym) {
+  auto symContent = [this](zenkit::DaedalusSymbol& sym) {
     // a member has a value only in an instance, reading it without one is an exception of the script
     if(sym.is_member())
       return 0;
@@ -1166,14 +1211,20 @@ void DirectMemory::memoryCallback(zCPar_Symbol& s, uint32_t index, std::memory_o
       case zenkit::DaedalusDataType::VOID:
         return 0;
       case zenkit::DaedalusDataType::FLOAT:
+        if(sym.count()>1)
+          return int32_t(varAddress(sym.index()));   // an array: the pointer to the elements
         return floatBitsToInt(sym.get_float());
       case zenkit::DaedalusDataType::INT:
+        if(sym.count()>1)
+          return int32_t(varAddress(sym.index()));
         return int32_t(sym.get_int());
       case zenkit::DaedalusDataType::FUNCTION:
         if(sym.is_const())
           return int32_t(sym.address());
         return int32_t(sym.get_int());
       case zenkit::DaedalusDataType::STRING:
+        // the pointer to the strings (PermMem of LeGo reads the structures of the classes from them)
+        return int32_t(varAddress(sym.index()));
       case zenkit::DaedalusDataType::CLASS:
       case zenkit::DaedalusDataType::PROTOTYPE:
       case zenkit::DaedalusDataType::INSTANCE:
@@ -1329,7 +1380,7 @@ void DirectMemory::setupMemoryFunctions() {
 auto DirectMemory::_takeref(zenkit::DaedalusVm& vm) -> zenkit::DaedalusNakedCall {
   if(vm.top_is_reference()) {
     auto [ref, idx, context] = vm.pop_reference();
-    if(idx!=0) {
+    if(idx!=0 && ref->is_member()) {
       Log::e("Ikarus: _takeref - unable take reference to array element");
       vm.push_int(int32_t(0xBAD10000));
       return zenkit::DaedalusNakedCall();
@@ -1341,13 +1392,25 @@ auto DirectMemory::_takeref(zenkit::DaedalusVm& vm) -> zenkit::DaedalusNakedCall
         vm.push_int(int32_t(ptr + ref->offset_as_member()));
         return zenkit::DaedalusNakedCall();
         }
+      // a member of an item that the script holds as C_ITEM: its place in the memory of the handle is the member of oCItem
+      if(dynamic_cast<zenkit::IItem*>(context.get())!=nullptr) {
+        if(const ptr32_t handle = handles.pointerTo(context)) {
+          const std::string_view full = ref->name();
+          const auto dot = full.find('.');
+          const std::string alias = "OCITEM." + std::string(dot==std::string_view::npos ? full : full.substr(dot+1));
+          if(auto* a = vm.find_symbol_by_name(alias)) {
+            vm.push_int(int32_t(handle + ptr32_t(a->offset_as_member())));
+            return zenkit::DaedalusNakedCall();
+            }
+          }
+        }
       Log::e("Ikarus: _takeref - unable take reference to struct element");
       vm.push_int(int32_t(0xBAD10000));
       return zenkit::DaedalusNakedCall();
       }
 
     const uint32_t id  = ref->index();
-    const ptr32_t  ptr = scriptVariables + id*ptr32_t(sizeof(ScriptVar));
+    const ptr32_t  ptr = varAddress(id,idx);
     if(false && ref->type()==zenkit::DaedalusDataType::STRING) {
       if(auto* s = mem32.deref<zString>(ptr))
         memAssignString(*s, ref->get_string(0));
@@ -1378,7 +1441,7 @@ auto DirectMemory::_takeref(zenkit::DaedalusVm& vm) -> zenkit::DaedalusNakedCall
       }
     else if(inst!=nullptr) {
       // HACK: ScriptVar doesn't really have any backing of data
-      const ptr32_t ptr = scriptVariables + inst->symbol_index()*ptr32_t(sizeof(ScriptVar));
+      const ptr32_t ptr = varAddress(inst->symbol_index());
       vm.push_int(int32_t(ptr));
       return zenkit::DaedalusNakedCall();
       }
@@ -1404,10 +1467,9 @@ std::shared_ptr<zenkit::DaedalusInstance> DirectMemory::mem_ptrtoinst(ptr32_t ad
     if(auto inst = handles.instanceAt(address))
       return inst;
     }
-  if(scriptVariables<=address && address<scriptVariables + ptr32_t(vm.symbols().size())*ptr32_t(sizeof(ScriptVar))) {
+  if(const int64_t sId = varSymbolAt(address); sId>=0) {
     // HACK: need to be consistent with _takeref
-    uint32_t sId = (address-scriptVariables)/ptr32_t(sizeof(ScriptVar));
-    auto     sym = vm.find_symbol_by_index(sId);
+    auto     sym = vm.find_symbol_by_index(uint32_t(sId));
     if(sym!=nullptr && sym->type()==zenkit::DaedalusDataType::INSTANCE)
       return sym->get_instance();
     }
@@ -1430,7 +1492,7 @@ int DirectMemory::mem_insttoptr(int index) {
 
   // Log::d("MEM_InstToPtr: not a memory instance");
   // HACK: ScriptVar doesn't really have any backing of data
-  const ptr32_t ptr = scriptVariables + inst->symbol_index()*ptr32_t(sizeof(ScriptVar));
+  const ptr32_t ptr = varAddress(inst->symbol_index());
   return int32_t(ptr);
   }
 
@@ -1438,8 +1500,8 @@ int DirectMemory::mem_insttoptr(int index) {
 /// of the VM gets the text when the buffer is written.
 void DirectMemory::syncOwnedStrings(ptr32_t address, uint32_t size) {
   for(size_t i=0; i<ownedStrings.size(); ++i) {
-    const uint32_t index = ownedStrings[i];
-    auto it = strVars.find(index);
+    const uint32_t slot  = ownedStrings[i];
+    auto it = strVars.find(slot);
     if(it==strVars.end())
       continue;
     auto& st = it->second;
@@ -1450,8 +1512,11 @@ void DirectMemory::syncOwnedStrings(ptr32_t address, uint32_t size) {
       continue;
     std::string dst(chr,size_t(st.zlen));
     if(dst!=st.synced) {
-      if(auto* sym = vm.find_symbol_by_index(index))
-        sym->set_string(dst);
+      if(slot<varSlotSym.size()) {
+        const uint32_t index = varSlotSym[slot];
+        if(auto* sym = vm.find_symbol_by_index(index))
+          sym->set_string(dst,uint16_t(slot-varSlotFirst[index]));
+        }
       st.synced = dst;
       }
     }
@@ -1771,24 +1836,25 @@ void DirectMemory::setupStringsFunctions() {
 
   const ptr32_t STR_FROMCHAR = 4198592;
   cpu.register_thiscall(STR_FROMCHAR, [this](ptr32_t self, ptr32_t pchr) {
-    if(self<scriptVariables)
+    const int64_t id = varSymbolAt(self);
+    if(id<0)
       return; // error
 
-    const uint32_t id = (self - scriptVariables)/ptr32_t(sizeof(ScriptVar));
-    const auto     sx = vm.find_symbol_by_index(id);
+    const auto     sx = vm.find_symbol_by_index(uint32_t(id));
     if(sx==nullptr || sx->type()!=zenkit::DaedalusDataType::STRING)
       return;
+    const uint16_t el = uint16_t((self-scriptVariables)/ptr32_t(sizeof(ScriptVar)) - varSlotFirst[size_t(id)]);
 
     auto [ptr, size] = mem32.deref(pchr);
     const char* chr = reinterpret_cast<const char*>(ptr);
     if(chr==nullptr || size==0) {
-      sx->set_string("");
+      sx->set_string("",el);
       return;
       }
     size_t strsz = 0;
     while(chr[strsz] && strsz<size)
       ++strsz;
-    sx->set_string(std::string(chr, strsz));
+    sx->set_string(std::string(chr, strsz),el);
     });
   }
 

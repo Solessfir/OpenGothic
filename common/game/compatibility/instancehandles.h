@@ -36,9 +36,10 @@ class InstanceHandles {
 
     size_t   count() const { return used; }
 
+    static constexpr uint32_t SlotSize  = 2576;   // oCNpc is 2564 bytes
+
   private:
     static constexpr uint32_t SlotCount = 8192;
-    static constexpr uint32_t SlotSize  = 2576;   // oCNpc is 2564 bytes
 
     struct Slot {
       uint8_t raw[SlotSize] = {};
