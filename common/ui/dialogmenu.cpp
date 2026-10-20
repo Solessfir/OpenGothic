@@ -265,6 +265,17 @@ bool DialogMenu::isNpcInDialog(const Npc* npc) const {
   return npc==pl || npc==other || npc==nullptr || std::find(guests.begin(),guests.end(),npc)!=guests.end();
   }
 
+/// the gestures of the hands of everyone in the dialog, except one who is about to speak
+void DialogMenu::stopGestures(Npc* except) {
+  if(pl!=nullptr && pl!=except)
+    pl->stopDlgAnim();
+  if(other!=nullptr && other!=except)
+    other->stopDlgAnim();
+  for(auto g:guests)
+    if(g!=except)
+      g->stopDlgAnim();
+  }
+
 bool DialogMenu::aiOutput(Npc &npc, std::string_view msg) {
   const bool guest = std::find(guests.begin(),guests.end(),&npc)!=guests.end();
   if(&npc!=pl && &npc!=other && !guest){
@@ -282,6 +293,7 @@ bool DialogMenu::aiOutput(Npc &npc, std::string_view msg) {
     if(pl!=nullptr)
       pl->stopDlgAnim();
     }
+  stopGestures(&npc);   // those who spoke before him: a trialog has more than two characters
 
   current.txt     = Gothic::inst().messageByName(msg);
   current.msgTime = Gothic::inst().messageTime(msg);
@@ -479,6 +491,13 @@ void DialogMenu::skipPhrase() {
       pl->setAiOutputBarrier(0,false);
     if(other!=nullptr)
       other->setAiOutputBarrier(0,false);
+    // the speaker of a trialog can be a guest: his next line waits for the barrier of the line that is skipped, and the gestures of the
+    // hands end with the line, as in the original
+    for(auto g:guests)
+      g->setAiOutputBarrier(0,false);
+    if(speaker!=nullptr)
+      speaker->setAiOutputBarrier(0,false);
+    stopGestures(nullptr);
     if(pl!=nullptr && pl->world().script().dmaInCamera()) {
       // oCNpc::StopRunningOU of CoM (OCNPC__STOPRUNNINGOU_REPLACEKILLOUSOUND): in a camera of a cutscene the line is skipped, the
       // sound is not killed, the scripts time the cuts of the camera to the voices

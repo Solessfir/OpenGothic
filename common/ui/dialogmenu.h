@@ -133,6 +133,7 @@ class DialogMenu : public Tempest::Widget {
 
     void startTrade();
     void skipPhrase();
+    void stopGestures(Npc* except);
 
     void openPrompt(const GameScript::DlgChoice& e);
     void promptKey(Tempest::KeyEvent& e);
