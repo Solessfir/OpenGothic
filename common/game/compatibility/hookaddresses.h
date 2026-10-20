@@ -31,6 +31,7 @@ namespace HookAdr {
   constexpr uint32_t HideFocusParty         = 0x6C36DB; // CoM: the party members (AIVAR[15]) are not in the focus of the player with a weapon
   constexpr uint32_t FinishingMove          = 0x751AF0; // oCNpc::EV_FinishingMove: ecx = oCNpc* of the player
   constexpr uint32_t PickLockLength         = 0x723EE2; // oCMobLockable: esi = the mob, the hook leaves the length of the code in ecx
+  constexpr uint32_t MovingCutscene         = 0x69B9F1; // oCAIHuman::Moving: CoM replaces the check of the global cutscene (ISINCAMERA, ISINFINALBOARDS)
   constexpr uint32_t SpellSetup             = 0x484930; // oCSpell::Setup: ecx = oCSpell*, [esp+4] = the caster
   constexpr uint32_t StatusScreenShow       = 0x47ED60;
   constexpr uint32_t StatusScreenClose      = 0x47EB50;

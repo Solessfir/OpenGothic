@@ -171,6 +171,10 @@ bool GameScript::dmaTakeInventoryClose() {
   return dma!=nullptr && dma->takeInventoryClose();
   }
 
+bool GameScript::dmaInFinalBoards() const {
+  return dma!=nullptr && dma->inFinalBoards();
+  }
+
 bool GameScript::dmaHidesPartyFocus() const {
   return dma!=nullptr && dma->hidesPartyFocus();
   }
