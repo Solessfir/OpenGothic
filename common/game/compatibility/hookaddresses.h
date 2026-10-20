@@ -35,6 +35,7 @@ namespace HookAdr {
   constexpr uint32_t SpellSetup             = 0x484930; // oCSpell::Setup: ecx = oCSpell*, [esp+4] = the caster
   constexpr uint32_t EquipItem              = 0x7323C0; // oCNpc::EquipItem: ecx = oCNpc*, [esp+4] = the item (the quivers of CoM)
   constexpr uint32_t UnequipItem            = 0x7326C0; // oCNpc::UnequipItem
+  constexpr uint32_t DropUnconscious        = 0x735FAB; // oCNpc::DropUnconscious: esi = oCNpc*, CoM keeps the weapons of the hero in some scenes
   constexpr uint32_t StatusScreenShow       = 0x47ED60;
   constexpr uint32_t StatusScreenClose      = 0x47EB50;
   }

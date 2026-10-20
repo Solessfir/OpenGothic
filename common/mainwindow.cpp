@@ -241,7 +241,16 @@ void MainWindow::setupUi() {
   Gothic::inst().onPrint       .bind(&dialogs,&DialogMenu::print);
 
   Gothic::inst().onIntroChapter.bind(&chapter, &ChapterScreen::show);
-  Gothic::inst().onShowDocument.bind(&document,&DocumentMenu::show);
+  Gothic::inst().onShowDocument.bind(this,&MainWindow::showDocument);
+  }
+
+/// A letter or a recipe that the player reads from the inventory. The inventory of CoM stays on the screen over the page, so
+/// with the mods of Ikarus it is closed, as the original engine does it for the documents.
+void MainWindow::showDocument(const DocumentMenu::Show& doc) {
+  auto* world = Gothic::inst().world();
+  if(world!=nullptr && world->script().hasDma() && inventory.isOpen()==InventoryMenu::State::Equip)
+    inventory.close();
+  document.show(doc);
   }
 
 void MainWindow::paintEvent(PaintEvent& event) {

@@ -126,6 +126,7 @@ class MainWindow : public Tempest::Window {
     void onSettings();
 
     void setupUi();
+    void showDocument(const DocumentMenu::Show& doc);
 
     void render() override;
 

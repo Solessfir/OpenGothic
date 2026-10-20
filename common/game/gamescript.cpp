@@ -211,6 +211,10 @@ bool GameScript::dmaSellItem(Npc& npc, Item& item) {
   return dma!=nullptr && dma->eventSellItem(npc,item);
   }
 
+bool GameScript::dmaDropUnconscious(Npc& npc) {
+  return dma!=nullptr && dma->eventDropUnconscious(npc);
+  }
+
 void GameScript::dmaEquipItem(Npc& npc, Item& item, bool equip) {
   if(dma!=nullptr)
     dma->eventEquipItem(npc,item,equip);
@@ -1406,7 +1410,9 @@ int GameScript::invokeState(Npc* npc, Npc* oth, Npc* vic, ScriptFn fn) {
   return ret;
   }
 
-void GameScript::invokeItem(Npc *npc, ScriptFn fn) {
+/// The function of an item (on_state, on_equip, on_unequip) runs with self = the character and item = the item, as in the
+/// original engine: CoM reads ITEM.HP in the functions that read the recipes.
+void GameScript::invokeItem(Npc *npc, ScriptFn fn, Item* itm) {
   if(fn==size_t(-1) || fn == 0)
     return;
   auto functionSymbol = vm.find_symbol_by_index(uint32_t(fn.ptr));
@@ -1415,6 +1421,11 @@ void GameScript::invokeItem(Npc *npc, ScriptFn fn) {
     return;
 
   ScopeVar self(*vm.global_self(), npc->handlePtr());
+  if(itm!=nullptr) {
+    ScopeVar item(*vm.global_item(), itm->handlePtr());
+    vm.call_function<void>(functionSymbol);
+    return;
+    }
   vm.call_function<void>(functionSymbol);
   }
 
