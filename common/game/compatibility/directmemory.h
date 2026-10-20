@@ -186,6 +186,7 @@ class DirectMemory {
     std::vector<uint32_t>            mobPick;     // the number of the characters of the lock that are done
     std::unordered_map<const Interactive*,uint32_t> mobIndex;
     std::vector<std::pair<std::string,std::string>> menuTexts;   // UPDATE_MENU_ITEM: the item of the menu and its new text
+    ptr32_t                          parserBase = 0;        // where zCParser (the parser of the engine) is in the memory
     ptr32_t                          worldTimer = 0;        // oCWorldTimer of the scripts (SCALETIME, STOPTIMEATHOUR)
     int32_t                          worldTimerBits = 0;    // what was written there last, to see the writes of the scripts
     int32_t                          worldTimerDay  = 0;

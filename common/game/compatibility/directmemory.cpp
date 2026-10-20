@@ -592,6 +592,7 @@ void DirectMemory::setupEngineMemory() {
   mem32.pin(&zTimer,        MEMINT_zTimer_Address,          sizeof(zTimer), "zTimer");
   mem32.pin(&zFactory_Ptr,  ZFACTORY,                       4, "zFactory*");
   mem32.pin(&fontMan_Ptr,   ZFONTMAN,                       4, "zCFontMan*");
+  parserBase = ContentParserAddress;
   mem32.pin(ContentParserAddress, sizeof(zCParser), Mem32::Type::zCParser);
   mem32.pin(&focusList, OCNPCFOCUS__FOCUSLIST_G2, sizeof(focusList), "OCNPCFOCUS__FOCUSLIST_G2");
 
@@ -963,6 +964,11 @@ void DirectMemory::memoryCallback(zCParser& p, std::memory_order ord) {
     p.stack_stackptr = vm.pc() + trap.size;
     }
   else {
+    // only the position of the stack is a jump, the other fields of the parser (the symbols, the data of a structure that
+    // LeGo has unarchived) are written without a jump
+    if(mem32.lastWriteAddress()!=parserBase+ptr32_t(offsetof(zCParser,stack_stackptr)))
+      return;
+
     // the write to the position of the stack is a jump of the script; a wild value is not followed
     if(vm.pc()>=vm.size()) {
       if(logBudget("unsafe-jump-pc",4))

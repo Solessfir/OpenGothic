@@ -265,6 +265,7 @@ void Mem32::writeByte(ptr32_t address, uint8_t v) {
     if(Compatibility::logBudget("mem32:writebyte")) Log::e("mem_writeint: the end of the block is not mapped: ", reinterpret_cast<void*>(uint64_t(address)));
     return;
     }
+  lastWrite = address;
   memSyncRead(rgn->type, *rgn, address, 1);
   reinterpret_cast<uint8_t*>(rgn->real)[address-rgn->address] = v;
   memSyncWrite(rgn->type, *rgn, address, 1);
@@ -284,6 +285,7 @@ void Mem32::copyBytes(ptr32_t psrc, ptr32_t pdst, uint32_t size) {
   const auto    src   = *s;
   const auto    dst   = *d;
 
+  lastWrite = pdst;
   size_t sOff = psrc - src.address;
   size_t dOff = pdst - dst.address;
   size_t sz   = size;
