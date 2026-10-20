@@ -364,7 +364,7 @@ void GameMenu::initAndroidOptions() {
   if(back==nullptr || sourceLabel==nullptr || sourceChoice==nullptr) return;
   size_t end=0;
   for(size_t i=0;i<std::size(hItems);++i) if(hItems[i].handle!=nullptr) end=i+1;
-  if(end+2>std::size(hItems)) return;
+  if(end+4>std::size(hItems)) return;
   Item label, choice;
   label.name="ANDROID_QUICKSAVES_LABEL";
   label.handle=std::make_shared<zenkit::IMenuItem>(*sourceLabel->handle);
@@ -380,6 +380,20 @@ void GameMenu::initAndroidOptions() {
   for(int i=1;i<=20;++i) choice.handle->text[0]+="|"+std::to_string(i);
   choice.handle->text[1]="Default: one quicksave. 1-20: rotate through separate quicksave slots.";
   label.handle->text[1]=choice.handle->text[1];
+
+  Item touchLabel, touchChoice;
+  touchLabel.name="ANDROID_TOUCH_BUTTONS_LABEL";
+  touchLabel.handle=std::make_shared<zenkit::IMenuItem>(*sourceLabel->handle);
+  touchLabel.img=sourceLabel->img;
+  touchLabel.handle->text[0]="Touch UI";
+  touchChoice.name="ANDROID_TOUCH_BUTTONS";
+  touchChoice.handle=std::make_shared<zenkit::IMenuItem>(*sourceChoice->handle);
+  touchChoice.img=sourceChoice->img;
+  touchChoice.handle->on_chg_set_option_section="GAME";
+  touchChoice.handle->on_chg_set_option="touchButtons";
+  touchChoice.handle->text[0]="None|Icons|Icons and text";
+  touchChoice.handle->text[1]="How the touch buttons are drawn. Hidden buttons still work.";
+  touchLabel.handle->text[1]=touchChoice.handle->text[1];
 
   std::vector<int> rows;
   std::vector<std::pair<int,int>> positions;
@@ -398,7 +412,7 @@ void GameMenu::initAndroidOptions() {
     }
   std::sort(rows.begin(),rows.end());
   rows.erase(std::unique(rows.begin(),rows.end()),rows.end());
-  const int step=4500/int(rows.size()+1);
+  const int step=4500/int(rows.size()+2);
   for(auto& item:hItems) {
     if(item.handle==nullptr || item.name=="MENUITEM_GAME_HEADLINE") continue;
     item.handle=std::make_shared<zenkit::IMenuItem>(*item.handle);
@@ -410,11 +424,16 @@ void GameMenu::initAndroidOptions() {
     }
   label.handle->pos_y=1700+int(rows.size())*step;
   choice.handle->pos_y=label.handle->pos_y+choiceOffset;
+  touchLabel.handle->pos_y=label.handle->pos_y+step;
+  touchChoice.handle->pos_y=touchLabel.handle->pos_y+choiceOffset;
   const size_t index=size_t(back-hItems);
-  std::move_backward(hItems+index,hItems+end,hItems+end+2);
+  std::move_backward(hItems+index,hItems+end,hItems+end+4);
   hItems[index]=std::move(label);
   hItems[index+1]=std::move(choice);
+  hItems[index+2]=std::move(touchLabel);
+  hItems[index+3]=std::move(touchChoice);
   updateItem(hItems[index+1]);
+  updateItem(hItems[index+3]);
 #endif
   }
 

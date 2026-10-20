@@ -602,6 +602,17 @@ void DialogMenu::mouseMoveEvent(MouseEvent& event) {
     }
   }
 
+bool DialogMenu::tapChoice(Point pos) {
+  if(state==State::Idle || trade.isOpen()!=InventoryMenu::State::Closed || !isChoiceMenuActive())
+    return false;
+  const size_t id = choiceAt(pos);
+  if(id>=choice.size())
+    return false;
+  dlgSel = id;
+  onSelect();
+  return true;
+  }
+
 size_t DialogMenu::choiceAt(Point pos) const {
   // Same layout as paintChoice.
   const float scale = Gothic::interfaceScale(this);

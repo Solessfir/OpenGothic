@@ -29,6 +29,8 @@ class MenuRoot : public Tempest::Widget {
     void directionalInput(bool right, bool repeat=false, bool touchNavigation=true);
     bool canAdjustValue();
     void adjustValue(int steps);
+    void tapItem(Tempest::Point pos);
+    // Taps outside the menu panel close it like Back
     void setPlayer(const Npc& pl);
     void processMusicTheme();
 

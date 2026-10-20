@@ -40,6 +40,8 @@ class DialogMenu : public Tempest::Widget {
 
     void keyDownEvent   (Tempest::KeyEvent&   event) override;
     void keyUpEvent     (Tempest::KeyEvent&   event) override;
+    // Touch: picks the choice under the finger; false when no choice is there
+    bool tapChoice(Tempest::Point pos);
 
   protected:
     void paintEvent (Tempest::PaintEvent& e) override;
