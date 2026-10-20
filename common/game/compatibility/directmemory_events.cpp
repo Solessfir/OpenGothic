@@ -531,6 +531,18 @@ void DirectMemory::setupQuiverFunctions() {
     return equalsNoCase(slot,"ZS_BOW") || equalsNoCase(slot,"ZS_CROSSBOW");
     };
 
+  // CoM changes the armor of a character with Mdl_SetVisualBody(npc, npc.body_visualName, npc.bitfield..., armor): it reads the visual
+  // of the character from the members of oCNpc that the VM does not have. The visual stays, the armor is put on.
+  safe("NPC_CHANGEARMOR", [npcOf](std::shared_ptr<zenkit::INpc> slf, int armor){
+    auto* npc = npcOf(slf);
+    if(npc==nullptr || armor<=0)
+      return;
+    if(npc->itemCount(uint32_t(armor))==0)
+      npc->addItem(uint32_t(armor),1);
+    npc->useItem(uint32_t(armor),Item::NSLOT,true);
+    Log::d("Npc_ChangeArmor: ",npc->displayName());
+    });
+
   safe("MEM_GETANYWP", [](){
     return std::string("WP");
     });
