@@ -196,9 +196,9 @@ DirectMemory::DirectMemory(GameScript& owner, zenkit::DaedalusVm& vm) : gameScri
     npc.setDirection(wp->direction());
     });
   //
-  safeOverrideFunction("LOG_MOVETOTOP", [](std::string_view topic) {
-    // need to have a projection of 'OCLOGMANAGER_PTR' into mem32
-    Log::e("not implemented call [LOG_MOVETOTOP]");
+  safeOverrideFunction("LOG_MOVETOTOP", [this](std::string_view topic) {
+    // the script of the mod moves the entry in the list of the engine, the journal of OpenGothic is a list of its own
+    gameScript.logMoveToTop(topic);
     });
 
   // Disable some high-level functions, until basic stuff is done
@@ -211,6 +211,7 @@ DirectMemory::DirectMemory(GameScript& owner, zenkit::DaedalusVm& vm) : gameScri
   dummyfy("WRITENOP",    [](int,int){}); // hook-related mess
   dummyfy("MEM_SETKEYS", [](std::string_view,int,int){});
   setupQuiverFunctions();
+  setupTrialogFunctions();
   }
 
 bool DirectMemory::isRequired(zenkit::DaedalusScript& vm) {
@@ -257,6 +258,7 @@ void DirectMemory::tick(uint64_t dt) {
   tickInfos();
   tickUi(dt);
   tickQuivers();
+  tickVobStates();
   }
 
 /// What the scripts wrote to the oCInfo objects (OCINFO.TOLD) goes to the dialogs of the game

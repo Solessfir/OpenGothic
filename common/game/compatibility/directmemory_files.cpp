@@ -215,6 +215,11 @@ void DirectMemory::eventSaveGame(Serialize& fout) {
   for(auto& f:vfs)
     dumpFile("saved",f.first,f.second);
 
+  fout.setEntry("game/dmavobs");
+  fout.write(uint32_t(vobStates.size()));
+  for(auto& i:vobStates)
+    fout.write(i.first,uint8_t(i.second.show ? 1 : 0),uint8_t(i.second.collide ? 1 : 0));
+
   fout.setEntry("game/dma");
   fout.write(uint32_t(vfs.size()));
   for(auto& f:vfs) {
@@ -228,6 +233,18 @@ void DirectMemory::eventSaveGame(Serialize& fout) {
 void DirectMemory::eventLoadGame(Serialize& fin) {
   vfs.clear();
   vhandles.clear();
+  vobStates.clear();
+  if(fin.setEntry("game/dmavobs")) {
+    uint32_t count = 0;
+    fin.read(count);
+    for(uint32_t i=0; i<count; ++i) {
+      std::string key;
+      uint8_t     show = 1, collide = 1;
+      fin.read(key,show,collide);
+      vobStates[key] = VobState{show!=0,collide!=0};
+      }
+    vobStatesPending = true;
+    }
   if(fin.setEntry("game/dma")) {
     uint32_t count = 0;
     fin.read(count);
@@ -247,6 +264,8 @@ void DirectMemory::eventLoadGame(Serialize& fin) {
   }
 
 void DirectMemory::eventChangeLevel(bool begin) {
+  if(!begin)
+    vobStatesPending = true;
   HookRegs r;
   fireHook(begin ? HookAdr::ChangeLevelBegin : HookAdr::ChangeLevelEnd,r);
   }

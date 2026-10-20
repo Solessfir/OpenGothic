@@ -1,6 +1,7 @@
 #include "world.h"
 #include "worlddata.h"
 #include "utils/saveloadprofile.h"
+#include "world/objects/vob.h"
 
 #include <functional>
 #include <future>
@@ -582,6 +583,13 @@ CsCamera* World::currentCs() const {
   }
 
 bool World::isCutsceneLock() const {
+  // CoM replaces the check of the global cutscene in oCAIHuman::Moving with ISINCAMERA: the player does not move while a camera
+  // of a cutscene runs, whatever the vob of the camera says
+  if(script().dmaInCamera())
+    return true;
+  // CoM: while the commands of a scene hold the hero (he walks to a way point, plays an animation) the player does nothing
+  if(npcPlayer!=nullptr && script().hasDma() && npcPlayer->isScriptDriven())
+    return true;
   if(auto cs = wobj.currentCs())
     return !cs->isPlayerMovable();
   // CoM: the final boards of the end of the game
@@ -878,6 +886,47 @@ void World::addSound(const zenkit::VirtualObject& vob) {
   else if(vob.type==zenkit::VirtualObjectType::oCZoneMusicDefault) {
     wsound.setDefaultZone(reinterpret_cast<const zenkit::VZoneMusicDefault&>(vob));
     }
+  }
+
+static std::string upperName(std::string_view name) {
+  std::string ret(name);
+  for(char& c:ret)
+    c = char(std::toupper(static_cast<unsigned char>(c)));
+  return ret;
+  }
+
+void World::registerVob(std::string_view name, Vob* vob) {
+  if(!name.empty() && vob!=nullptr)
+    vobNames.emplace(upperName(name),vob);
+  }
+
+void World::unregisterVob(std::string_view name, Vob* vob) {
+  if(name.empty())
+    return;
+  auto range = vobNames.equal_range(upperName(name));
+  for(auto i=range.first; i!=range.second; ++i)
+    if(i->second==vob) {
+      vobNames.erase(i);
+      return;
+      }
+  }
+
+size_t World::setVobVisual(std::string_view name, bool show, bool collide) {
+  size_t count = 0;
+  auto   range = vobNames.equal_range(upperName(name));
+  for(auto i=range.first; i!=range.second; ++i) {
+    i->second->setVobVisual(show,collide);
+    ++count;
+    }
+  return count;
+  }
+
+bool World::vobPosition(std::string_view name, Tempest::Vec3& pos) const {
+  auto range = vobNames.equal_range(upperName(name));
+  if(range.first==range.second)
+    return false;
+  pos = range.first->second->position();
+  return true;
   }
 
 void World::invalidateVobIndex() {

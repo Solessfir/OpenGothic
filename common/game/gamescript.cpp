@@ -211,6 +211,18 @@ bool GameScript::dmaSellItem(Npc& npc, Item& item) {
   return dma!=nullptr && dma->eventSellItem(npc,item);
   }
 
+bool GameScript::dmaInCamera() const {
+  return dma!=nullptr && dma->inCamera();
+  }
+
+bool GameScript::dmaSaveDisabled() const {
+  return dma!=nullptr && dma->saveDisabled();
+  }
+
+bool GameScript::dmaDialogCameraOff() const {
+  return dma!=nullptr && dma->dialogCameraDisabled();
+  }
+
 bool GameScript::dmaDropUnconscious(Npc& npc) {
   return dma!=nullptr && dma->eventDropUnconscious(npc);
   }
@@ -1818,6 +1830,16 @@ Npc* GameScript::findNpc(const std::shared_ptr<zenkit::INpc>& handle) {
   if(handle==nullptr)
     return nullptr;
   assert(handle->user_ptr); // engine bug, if null
+  auto* npc = reinterpret_cast<Npc*>(handle->user_ptr);
+  if(dma!=nullptr)
+    npc = dma->triaRedirect(npc);   // a trialog: the self of the scripts is who speaks
+  return npc;
+  }
+
+Npc* GameScript::findNpcRaw(const std::shared_ptr<zenkit::INpc>& handle) {
+  if(handle==nullptr)
+    return nullptr;
+  assert(handle->user_ptr); // engine bug, if null
   return reinterpret_cast<Npc*>(handle->user_ptr);
   }
 
@@ -2380,6 +2402,8 @@ int GameScript::npc_getdisttowp(std::shared_ptr<zenkit::INpc> npcRef, std::strin
       return int32_t(ret); else
       return std::numeric_limits<int32_t>::max();
     } else {
+    if(wp==nullptr)
+      Log::d("Npc_GetDistToWP: no way point '",wpname,"'");
     return std::numeric_limits<int32_t>::max();
     }
   }
@@ -3202,7 +3226,7 @@ int GameScript::npc_getactivespelllevel(std::shared_ptr<zenkit::INpc> npcRef) {
   }
 
 void GameScript::ai_processinfos(std::shared_ptr<zenkit::INpc> npcRef) {
-  auto npc = findNpc(npcRef);
+  auto npc = findNpcRaw(npcRef);
   auto pl  = owner.player();
   if(pl!=nullptr && npc!=nullptr) {
     aiOutOrderId=0;
@@ -3224,7 +3248,7 @@ void GameScript::ai_output(std::shared_ptr<zenkit::INpc> selfRef, std::shared_pt
   }
 
 void GameScript::ai_stopprocessinfos(std::shared_ptr<zenkit::INpc> selfRef) {
-  auto self = findNpc(selfRef);
+  auto self = findNpcRaw(selfRef);
   if(self) {
     self->aiPush(AiQueue::aiStopProcessInfo(aiOutOrderId));
     ++aiOutOrderId;
@@ -3692,6 +3716,10 @@ void GameScript::log_settopicstatus(std::string_view topicName, int status) {
     quests.setStatus(topicName,QuestLog::Status(status));
   }
 
+void GameScript::logMoveToTop(std::string_view topic) {
+  quests.moveToTop(topic);
+  }
+
 void GameScript::log_addentry(std::string_view topicName, std::string_view entry) {
   quests.addEntry(topicName,entry);
   }
@@ -3815,6 +3843,8 @@ void GameScript::snd_play3d(std::shared_ptr<zenkit::INpc> npcRef, std::string_vi
   }
 
 void GameScript::exitsession() {
+  if(auto* pl = world().player())
+    Log::i("ExitSession called by the script, the player is at ",pl->position().x," ",pl->position().y," ",pl->position().z);
   owner.exitSession();
   }
 
