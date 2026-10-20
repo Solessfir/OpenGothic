@@ -112,6 +112,7 @@ class GameScript final {
     bool         dmaSpellKeepsItem(int spellId);
     /// The mods of Ikarus and LeGo (CoM) keep the party members out of the focus of a player with a weapon
     bool         dmaHidesPartyFocus() const;
+    bool         dmaInFinalBoards() const;
     void         dmaInventoryOpen(Npc& npc);
     bool         dmaTakeInventoryClose();
     void         dmaCsCamera(bool trigger);

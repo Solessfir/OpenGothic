@@ -73,6 +73,7 @@ class DirectMemory {
     void        eventSpellBegin();
     bool        spellKeepsItem(int spellId);
     bool        hidesPartyFocus() const;
+    bool        inFinalBoards();
     bool        takeInventoryClose();
     void        eventStatusScreen(bool show);
     void        eventCsCamera(bool trigger);
