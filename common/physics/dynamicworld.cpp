@@ -93,6 +93,10 @@ struct DynamicWorld::NpcBody : btRigidBody {
 
   float         maxR     = 0;
 
+  // the box of the model at the scale 1, see NpcItem::setScale
+  Tempest::Vec3 baseMin  = {};
+  Tempest::Vec3 baseMax  = {};
+
   Tempest::Vec3 offsetCenter(float c, float s) const {
     auto off = bboxCen;
     return Tempest::Vec3(off.x*c - off.z*s,
@@ -146,20 +150,24 @@ struct DynamicWorld::NpcBodyList final {
     frozen.reserve(1024);
     }
 
-  NpcBody* create(const Tempest::Vec3 &min, const Tempest::Vec3 &max) {
+  /// The shape and the sizes of the body from the box of the model
+  static btCollisionShape* makeShape(const Tempest::Vec3 &min, const Tempest::Vec3 &max,
+                                     float& radius, float& height, float& ghostPadding) {
     auto  size    = max - min;
-    float radius  = std::min(size.y*0.5f, std::min(size.x, size.z))*0.5f; // npc-to-landscape collision size
-    float height  = size.y;
+    radius        = std::min(size.y*0.5f, std::min(size.x, size.z))*0.5f; // npc-to-landscape collision size
+    height        = size.y;
 
     // ghostPadding = 90;
-    float ghostPadding = height*0.5f;
-    float cHeight      = std::max(height-2.f*radius-ghostPadding, 0.f);
+    ghostPadding  = height*0.5f;
+    float cHeight = std::max(height-2.f*radius-ghostPadding, 0.f);
 
     //NOTE: it seem vanilla uses elipsoids at some point, at least for npc-2-npc collisions
-    btCollisionShape* shape = new HumShape(radius, cHeight);
-    //btCollisionShape* shape = new btCylinderShape(CollisionWorld::toMeters(Tempest::Vec3(radius, height*0.5f, radius)));
-    //btCollisionShape* shape = new btCapsuleShape(CollisionWorld::toMeters(radius), CollisionWorld::toMeters(height));
-    NpcBody*          obj   = new NpcBody(shape);
+    return new HumShape(radius, cHeight);
+    }
+
+  NpcBody* create(const Tempest::Vec3 &min, const Tempest::Vec3 &max) {
+    float radius = 0, height = 0, ghostPadding = 0;
+    NpcBody* obj = new NpcBody(makeShape(min,max,radius,height,ghostPadding));
 
     btTransform trans;
     trans.setIdentity();
@@ -167,6 +175,34 @@ struct DynamicWorld::NpcBodyList final {
     obj->setUserIndex(C_Ghost);
     obj->setCollisionFlags(btCollisionObject::CF_NO_CONTACT_RESPONSE);
 
+    obj->baseMin = min;
+    obj->baseMax = max;
+    setSizes(*obj,min,max,radius,height,ghostPadding);
+
+    add(obj);
+    return obj;
+    }
+
+  /// The body of a character that the scripts have scaled (Mdl_SetModelScale): the box of the model changes, the collision
+  /// follows it
+  void rescale(NpcBody& obj, const Tempest::Vec3& scale) {
+    const Tempest::Vec3 a = obj.baseMin*scale;
+    const Tempest::Vec3 b = obj.baseMax*scale;
+    const Tempest::Vec3 min(std::min(a.x,b.x),std::min(a.y,b.y),std::min(a.z,b.z));
+    const Tempest::Vec3 max(std::max(a.x,b.x),std::max(a.y,b.y),std::max(a.z,b.z));
+
+    float radius = 0, height = 0, ghostPadding = 0;
+    auto* shape  = makeShape(min,max,radius,height,ghostPadding);
+    delete obj.getCollisionShape();
+    obj.setCollisionShape(shape);
+    obj.maxRXZ = 0;
+    obj.maxRY  = 0;
+    setSizes(obj,min,max,radius,height,ghostPadding);
+    }
+
+  void setSizes(NpcBody& body, const Tempest::Vec3 &min, const Tempest::Vec3 &max,
+                float radius, float height, float ghostPadding) {
+    NpcBody* obj = &body;
     obj->h      = height;
     obj->gPadd  = ghostPadding;
 
@@ -192,9 +228,6 @@ struct DynamicWorld::NpcBodyList final {
     maxRY  = std::max(maxRY,  obj->maxRY);
 
     obj->maxR = std::max(obj->maxRXZ, obj->maxRY);
-
-    add(obj);
-    return obj;
     }
 
   void add(NpcBody* b){
@@ -1258,8 +1291,13 @@ void DynamicWorld::NpcItem::setRotation(float a) {
   obj->angle = float(a*M_PI)/180.f - float(M_PI_2);
   }
 
-void DynamicWorld::NpcItem::setScale(const Tempest::Vec3&) {
-  // NOP for now
+/// The collision of a character is the box of its model: when a script scales the model (the giant rats of CoM are small),
+/// the body follows it
+void DynamicWorld::NpcItem::setScale(const Tempest::Vec3& sz) {
+  if(obj==nullptr)
+    return;
+  owner->npcList->rescale(*obj,sz);
+  owner->npcList->onMove(*obj);
   }
 
 void DynamicWorld::NpcItem::debugDraw(DbgPainter& p) const {
