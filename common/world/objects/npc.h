@@ -166,6 +166,8 @@ class Npc final {
     void       setStateItem  (MeshObjects::Mesh&& itm, std::string_view slot);
     void       setAmmoItem   (MeshObjects::Mesh&& itm, std::string_view slot);
     void       clearSlotItem (std::string_view slot);
+    void       setDecor      (MeshObjects::Mesh&& itm, std::string_view slot);
+    void       clearDecor    (std::string_view slot);
     void       setPhysic     (DynamicWorld::NpcItem&& item);
     void       setFatness    (float f);
     void       setScale      (float x,float y,float z);

@@ -211,6 +211,11 @@ bool GameScript::dmaSellItem(Npc& npc, Item& item) {
   return dma!=nullptr && dma->eventSellItem(npc,item);
   }
 
+void GameScript::dmaEquipItem(Npc& npc, Item& item, bool equip) {
+  if(dma!=nullptr)
+    dma->eventEquipItem(npc,item,equip);
+  }
+
 bool GameScript::dmaDropVob(Npc& npc, Item& item) {
   return dma!=nullptr && dma->eventDropVob(npc,item);
   }
