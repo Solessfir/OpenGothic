@@ -1287,6 +1287,7 @@ void DirectMemory::memPrintstacktraceImplementation() {
 
 void DirectMemory::memSendToSpy(int cat, std::string_view msg) {
   Log::d("[zpy]: ", msg);
+
   }
 
 void DirectMemory::memReplaceFunc(zenkit::DaedalusFunction dest, zenkit::DaedalusFunction func) {
