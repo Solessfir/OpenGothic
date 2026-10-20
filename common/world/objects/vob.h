@@ -39,6 +39,9 @@ class Vob {
     virtual bool  setMobState(std::string_view scheme, int32_t st);
 
     virtual bool  isDynamic() const;
+
+    /// zCVob.showVisual and the dynamic collision, a script of a mod changes them (CHANGEVOBCOLLISION of CoM)
+    virtual void  setVobVisual(bool show, bool collideDynamic);
     virtual float extendedSearchRadius() const;
 
   protected:
@@ -53,6 +56,7 @@ class Vob {
 
     Tempest::Matrix4x4                pos, local;
     Vob*                              parent = nullptr;
+    std::string                       registeredName;
 
     void          recalculateTransform();
   };

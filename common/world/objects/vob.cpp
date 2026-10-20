@@ -44,6 +44,11 @@ Vob::Vob(Vob* parent, World& owner, const zenkit::VirtualObject& vob, Flags flag
     local = m;
     }
 
+  if(!vob.vob_name.empty()) {
+    registeredName = vob.vob_name;
+    owner.registerVob(registeredName,this);
+    }
+
   for(auto& i:vob.children) {
     auto p = Vob::load(this,owner,*i,flags);
     if(p!=nullptr)
@@ -52,6 +57,11 @@ Vob::Vob(Vob* parent, World& owner, const zenkit::VirtualObject& vob, Flags flag
   }
 
 Vob::~Vob() {
+  if(!registeredName.empty())
+    world.unregisterVob(registeredName,this);
+  }
+
+void Vob::setVobVisual(bool, bool) {
   }
 
 Vec3 Vob::position() const {

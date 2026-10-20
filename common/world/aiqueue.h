@@ -41,6 +41,17 @@ class AiQueue {
     int      aiOutputOrderId() const;
     uint32_t synchronize();
     bool     isSynchronized(uint32_t ticket) const;
+    /// the commands of the queue in words, for the developer tools
+    auto     describe(size_t max = 12) const -> std::string;
+    /// the commands that wait in the queue, taken out with the counters of the synchronization (AI_StartState of a mod must not
+    /// throw them away, Trialoge of LeGo queue the lines of the character after the command that starts its state)
+    struct Saved final {
+      std::deque<AiAction> actions;
+      uint32_t             completed = 0;
+      };
+    auto     take() -> Saved;
+    uint32_t syncDone() const { return syncCompleted; }
+    void     restore(Saved&& s);
 
     void     onWldItemRemoved(const Item& itm);
 
@@ -58,6 +69,7 @@ class AiQueue {
     static AiAction aiPlayAnimBs(std::string_view ani, BodyState bs);
     static AiAction aiWait(uint64_t dt);
     static AiAction aiWaitTillEnd(Npc& other, uint32_t ticket);
+    static AiAction aiForceFall();
     static AiAction aiAimAt(Npc& other);
     static AiAction aiStopAim();
     static AiAction aiShootAt(Npc& other);
