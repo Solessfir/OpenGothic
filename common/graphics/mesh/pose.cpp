@@ -882,19 +882,28 @@ const Animation::Sequence* Pose::setAnimItem(const AnimationSolver &solver, Npc 
   }
 
 bool Pose::stopItemStateAnim(const AnimationSolver& solver, uint64_t tickCount) {
-  if(itemUseSt<0)
-    return true;
   itemUseDestSt = -1;
-  for(auto& i:lay)
-    if(i.bs==BS_ITEMINTERACT) {
-      auto next = solveNext(solver,i);
-      if(next==nullptr)
-        continue;
+  for(size_t k=0; k<lay.size(); ) {
+    auto& i = lay[k];
+    if(i.bs!=BS_ITEMINTERACT) {
+      ++k;
+      continue;
+      }
+    auto next = itemUseSt>=0 ? solveNext(solver,i) : nullptr;
+    if(next!=nullptr) {
       onRemoveLayer(i);
       i.seq   = next;
       i.sAnim = tickCount;
       onAddLayer(i);
+      ++k;
+      continue;
       }
+    // There is no animation that leaves the state (T_<scheme>_S0_2_STAND is not in the script of the model, the mods have their own
+    // items): the character must not stay in it for ever, he would not be able to walk.
+    onRemoveLayer(i);
+    lay.erase(lay.begin()+std::ptrdiff_t(k));
+    itemUseSt = -1;
+    }
   return true;
   }
 
