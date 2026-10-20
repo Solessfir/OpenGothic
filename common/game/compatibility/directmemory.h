@@ -352,4 +352,5 @@ class DirectMemory {
     void        refreshNpcList();
     void        setupInstanceAliases();
     auto        searchVobsByName(std::string_view name) -> std::vector<ptr32_t>;
+    auto        vobNamesSearchedByScripts() -> std::vector<std::string>;
   };
