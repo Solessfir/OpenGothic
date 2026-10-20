@@ -194,7 +194,10 @@ bool MoveAlgo::implTick(uint64_t dt, MvFlags moveFlg) {
   const auto dp    = (!grav && state!=Slide) ? npcMoveSpeed(dt,moveFlg) : npcFallSpeed(dt);
   if(grav)
     fallTop = std::max(fallTop, pos0.y);
-  const bool walk  = bool(npc.wlkMode & WalkBit::WM_Walk) && (state==Run);
+  // the walk mode does not let a character step into the void, but a jump has to go off the edge, whatever the walk mode is
+  // (the scripts of the mods set NPC_WALK for the whole scene)
+  const bool jumping = bs==BS_JUMP || npc.isJumpAnim() || npc.isFlyAnim() || npc.isCutsceneJump();
+  const bool walk  = bool(npc.wlkMode & WalkBit::WM_Walk) && (state==Run) && !jumping;
 
   DynamicWorld::CollisionTest info;
   if(!tryMove(dp,info)) {

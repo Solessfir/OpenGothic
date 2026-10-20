@@ -1311,11 +1311,13 @@ void Gothic::introducechapter(std::string_view title, std::string_view subtitle,
   }
 
 bool Gothic::playvideo(std::string_view name) {
+  Log::i("PlayVideo: ",name);
   onVideo(name);
   return true;
   }
 
 bool Gothic::playvideoex(std::string_view name, bool, bool) {
+  Log::i("PlayVideoEx: ",name);
   onVideo(name);
   return true;
   }
