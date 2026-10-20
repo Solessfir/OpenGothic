@@ -584,7 +584,8 @@ CsCamera* World::currentCs() const {
 bool World::isCutsceneLock() const {
   if(auto cs = wobj.currentCs())
     return !cs->isPlayerMovable();
-  return false;
+  // CoM: the final boards of the end of the game
+  return script().dmaInFinalBoards();
   }
 
 void World::enableCollizionZone(CollisionZone& z) {
