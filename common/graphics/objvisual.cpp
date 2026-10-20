@@ -23,6 +23,7 @@ ObjVisual::ObjVisual(ObjVisual&& other) {
       break;
     case M_Mesh:
       mesh = std::move(other.mesh);
+      break;
     case M_Pfx:
       pfx = std::move(other.pfx);
       break;
@@ -30,6 +31,11 @@ ObjVisual::ObjVisual(ObjVisual&& other) {
       bundle = std::move(other.bundle);
       break;
     }
+  staticDraw    = other.staticDraw;
+  mdlStaticMesh = other.mdlStaticMesh;
+  mdlShown      = other.mdlShown;
+  animMode      = other.animMode;
+  animStrength  = other.animStrength;
   }
 
 ObjVisual& ObjVisual::operator =(ObjVisual&& other) {
@@ -46,6 +52,7 @@ ObjVisual& ObjVisual::operator =(ObjVisual&& other) {
       break;
     case M_Mesh:
       mesh = std::move(other.mesh);
+      break;
     case M_Pfx:
       pfx = std::move(other.pfx);
       break;
@@ -53,6 +60,11 @@ ObjVisual& ObjVisual::operator =(ObjVisual&& other) {
       bundle = std::move(other.bundle);
       break;
     }
+  staticDraw    = other.staticDraw;
+  mdlStaticMesh = other.mdlStaticMesh;
+  mdlShown      = other.mdlShown;
+  animMode      = other.animMode;
+  animStrength  = other.animStrength;
   return *this;
   }
 
@@ -129,6 +141,10 @@ void ObjVisual::setVisual(const zenkit::VirtualObject& vob, World& world, bool s
   cleanup();
 
   const bool       enableCollision = vob.cd_dynamic;    // collide with player
+  this->staticDraw   = staticDraw;
+  this->animMode     = vob.anim_mode;
+  this->animStrength = vob.anim_strength;
+  this->mdlShown     = vob.show_visual;
   std::string_view visName         = vob.visual->name;  // *.PFX; *.TGA; *.3DS; *.MDS; *.ASC; *.MMS
 
   if(visName.empty())
@@ -169,6 +185,7 @@ void ObjVisual::setVisual(const zenkit::VirtualObject& vob, World& world, bool s
       mdl.proto = view;
       mdl.view.setYTranslationEnable(false);
       mdl.view.setVisual(view->skeleton.get());
+      mdlStaticMesh = (view->skeleton==nullptr || view->skeleton->animation()==nullptr) && enableCollision;
 
       if(vob.show_visual) {
         if((view->skeleton==nullptr || view->skeleton->animation()==nullptr) && enableCollision)
@@ -227,6 +244,59 @@ void ObjVisual::setObjMatrix(const Tempest::Matrix4x4& obj) {
       break;
     case M_Bundle:
       bundle.setObjMatrix(obj);
+      break;
+    }
+  }
+
+void ObjVisual::setShown(bool show, int collide, World& world, const Tempest::Matrix4x4& obj) {
+  switch(type) {
+    case M_Mesh: {
+      if(mesh.proto==nullptr)
+        break;
+      if(!show) {
+        mesh.view = MeshObjects::Mesh();
+        } else
+      if(mesh.view.isEmpty()) {
+        mesh.view = world.addStaticView(mesh.proto,staticDraw);
+        mesh.view.setWind(animMode,animStrength);
+        mesh.view.setObjMatrix(obj);
+        }
+      if(collide==0) {
+        mesh.physic = PhysicMesh();
+        } else
+      if(collide>0 && mesh.physic.isEmpty()) {
+        mesh.physic = PhysicMesh(*mesh.proto,*world.physic(),false);
+        mesh.physic.setObjMatrix(obj);
+        }
+      break;
+      }
+    case M_Mdl: {
+      if(mdl.proto==nullptr)
+        break;
+      if(!show && mdlShown) {
+        mdl.view.setVisualBody(world,MeshObjects::Mesh());
+        mdlShown = false;
+        } else
+      if(show && !mdlShown) {
+        if(mdlStaticMesh)
+          mdl.view.setVisualBody(world,world.addStaticView(mdl.proto,true)); else
+          mdl.view.setVisualBody(world,world.addView(mdl.proto));
+        mdl.view.setObjMatrix(obj,true);
+        mdlShown = true;
+        }
+      if(collide==0) {
+        mdl.physic = PhysicMesh();
+        } else
+      if(collide>0 && mdl.physic.isEmpty()) {
+        mdl.physic = PhysicMesh(*mdl.proto,*world.physic(),true);
+        mdl.physic.setSkeleton(mdl.proto->skeleton.get());
+        mdl.physic.setObjMatrix(obj);
+        }
+      break;
+      }
+    case M_None:
+    case M_Pfx:
+    case M_Bundle:
       break;
     }
   }

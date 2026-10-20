@@ -75,6 +75,11 @@ class DirectMemory {
     void        eventSpellBegin();
     bool        spellKeepsItem(int spellId);
     bool        hidesPartyFocus() const;
+    bool        dialogCameraDisabled() const { return dialogCameraOff; }
+    bool        saveDisabled() const { return saveOff; }
+    bool        inCamera();
+    /// Trialoge of LeGo: the commands for the self of the scripts go to the character who speaks now
+    auto        triaRedirect(Npc* npc) -> Npc*;
     bool        inFinalBoards();
     bool        takeInventoryClose();
     void        eventStatusScreen(bool show);
@@ -211,6 +216,16 @@ class DirectMemory {
     std::vector<PendingInfo>         pendingInfos;   // oCInfo objects that the scripts got from the manager of the dialogs
     std::unordered_map<ptr32_t,std::string> decoVobs;  // the vobs that scripts insert (MEM_InsertVob): pointer -> visual
     bool                             quiversPending = false;
+    Npc*                             triaOriginal = nullptr;   // the character of the dialog (the self of the scripts) while a trialog runs
+    Npc*                             triaCurrent  = nullptr;   // who speaks now
+    bool                             saveOff = false;           // ENABLESAVEGAME(FALSE) of CoM: no saving in the scenes
+    bool                             dialogCameraOff = false;   // DIACAM_DISABLE of CoM patched oCAICamera::StartDialogCam
+    struct VobState {
+      bool show = true;
+      bool collide = true;
+      };
+    std::map<std::string,VobState>   vobStates;          // CHANGEVOBCOLLISION of the scripts: "WORLD|VOB" -> the state
+    bool                             vobStatesPending = false;
     bool                             inDropUnconscious = false;   // the hook of oCNpc::DropUnconscious is running
     bool                             keepHandWeapons   = false;   // and it has taken the weapons from the hands
     ptr32_t                          dropMessage = 0;       // the message of EV_DropVob that the hook is asked about
@@ -221,7 +236,9 @@ class DirectMemory {
     auto        mobPointer(Interactive& mob) -> ptr32_t;
     void        setupFocusMagic();
     void        setupQuiverFunctions();
+    void        setupTrialogFunctions();
     void        tickQuivers();
+    void        tickVobStates();
     void        setupEngineCalls();
     void        syncHandleObject(uint8_t* raw, zenkit::DaedalusInstance& inst, bool write);
 

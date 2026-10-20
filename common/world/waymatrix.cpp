@@ -143,8 +143,10 @@ const WayPoint* WayMatrix::findWayPoint(std::string_view name) const {
   auto it = std::lower_bound(indexPoints.begin(),indexPoints.end(),name,[](const WayPoint* a, std::string_view b){
     return a->name<b;
     });
-  if(it!=indexPoints.end() && !(*it)->isFreePoint() && name==(*it)->name)
-    return *it;
+  // a way point can share its name with a free point or with a start point (CoM: START_KM): the index is not stable between them
+  for(; it!=indexPoints.end() && name==(*it)->name; ++it)
+    if(!(*it)->isFreePoint())
+      return *it;
   return nullptr;
   }
 

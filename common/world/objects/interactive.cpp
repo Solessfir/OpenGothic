@@ -644,12 +644,28 @@ float Interactive::qDistTo(const Npc &npc, const Interactive::Pos &to) const {
   return npc.qDistTo(p);
   }
 
+void Interactive::setVobVisual(bool show, bool) {
+  visual.setShown(show,-1,world,transform());
+  }
+
 void Interactive::implAddItem(std::string_view name) {
+  // the worlds of mods write the list as "ITEM:1, ITEM_2:3": the spaces around the names are not a part of them
+  auto trim = [](std::string_view s) {
+    while(!s.empty() && std::isspace(static_cast<unsigned char>(s.front())))
+      s.remove_prefix(1);
+    while(!s.empty() && std::isspace(static_cast<unsigned char>(s.back())))
+      s.remove_suffix(1);
+    return s;
+    };
+  name = trim(name);
+  if(name.empty())
+    return;
+
   size_t sep = name.find(':');
   if(sep!=std::string::npos) {
-    auto itm = name.substr(0,sep);
-    long count = std::strtol(name.data()+sep+1,nullptr,10);
-    if(count>0)
+    auto itm = trim(name.substr(0,sep));
+    long count = std::strtol(std::string(name.substr(sep+1)).c_str(),nullptr,10);
+    if(count>0 && !itm.empty())
       invent.addItem(itm,size_t(count),world);
     } else {
     invent.addItem(name,1,world);

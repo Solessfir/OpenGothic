@@ -105,6 +105,10 @@ class GameScript final {
     bool         dmaSellItem(Npc& npc, Item& item);
     void         dmaEquipItem(Npc& npc, Item& item, bool equip);
     bool         dmaDropUnconscious(Npc& npc);
+    bool         dmaDialogCameraOff() const;
+    bool         dmaSaveDisabled() const;
+    bool         dmaInCamera() const;
+    void         logMoveToTop(std::string_view topic);
     bool         dmaFinishingMove(Npc& npc, Npc& target);
     size_t       dmaPickLockLength(Interactive& mob, size_t length);
     /// The names of the categories of the inventory in the scripts of CoM (TXT_INV_CAT: all, weapons, armor, magic, ...),
@@ -286,6 +290,7 @@ class GameScript final {
     Npc*  findNpc(zenkit::DaedalusSymbol* s);
     Npc*  findNpc(zenkit::INpc*           handle);
     Npc*  findNpc(const std::shared_ptr<zenkit::INpc>& handle);
+    Npc*  findNpcRaw(const std::shared_ptr<zenkit::INpc>& handle);
     Npc*  findNpcById (const std::shared_ptr<zenkit::DaedalusInstance>& handle);
     Npc*  findNpcById (size_t id);
     auto  findInfo    (size_t id) -> zenkit::IInfo*;
