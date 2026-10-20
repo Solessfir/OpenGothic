@@ -103,6 +103,7 @@ class GameScript final {
     void         dmaStatusScreen(bool show);
     bool         dmaDropVob(Npc& npc, Item& item);
     bool         dmaSellItem(Npc& npc, Item& item);
+    void         dmaEquipItem(Npc& npc, Item& item, bool equip);
     bool         dmaFinishingMove(Npc& npc, Npc& target);
     size_t       dmaPickLockLength(Interactive& mob, size_t length);
     /// The names of the categories of the inventory in the scripts of CoM (TXT_INV_CAT: all, weapons, armor, magic, ...),
