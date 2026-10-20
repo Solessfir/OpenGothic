@@ -1160,7 +1160,8 @@ void MainWindow::paintFocus(Painter& p, const Focus& focus, const Matrix4x4& vp)
     iy = h();
   fnt.drawText(p,ix,iy,name);
 
-  if(focus.npc!=nullptr && !focus.npc->isDead()) {
+  if(focus.npc!=nullptr && !focus.npc->isDead() &&
+     !(focus.npc->handle().aivar[15]!=0 && world->script().dmaHidesPartyFocus())) {   // CoM: no bar for the companions
     float hp = float(focus.npc->attribute(ATR_HITPOINTS))/float(focus.npc->attribute(ATR_HITPOINTSMAX));
     drawBar(p,barHp, w()/2,std::max(10,margins().top), hp, AlignHCenter|AlignTop);
     }
