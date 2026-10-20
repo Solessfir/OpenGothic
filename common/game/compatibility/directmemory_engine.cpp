@@ -20,6 +20,7 @@ static constexpr uint32_t ZCVOB__SETPOSITIONWORLD    = 6404976;
 static constexpr uint32_t OCNPC__GETMODEL            = 7571232;
 static constexpr uint32_t ZCMODEL__STARTANIMATION    = 5746544;
 static constexpr uint32_t ZCMODEL__ISANIMATIONACTIVE  = 5727888;
+static constexpr uint32_t OCINFOMANAGER__GETINFORMATION = 7350544;
 
 /// The matrix of the vob (zCVob.trafoObjToWorld) is at 60 in the memory of a character and of an item
 static constexpr size_t   TRAFO = 60;
@@ -173,6 +174,21 @@ void DirectMemory::setupEngineCalls() {
   // the model of a character is the character here, an animation is started as AI_PlayAni does it
   cpu.register_thiscall(OCNPC__GETMODEL,[](ptr32_t self) -> int32_t {
     return int32_t(self);
+    });
+
+  // oCInfoManager::GetInformation(id): an oCInfo of the memory. SetDialogueToldProperty of CoM writes OCINFO.TOLD, the game takes
+  // it over in tickInfos
+  cpu.register_thiscall(OCINFOMANAGER__GETINFORMATION,[this](ptr32_t, int32_t id) -> int32_t {
+    const ptr32_t obj = mem32.alloc(128,"oCInfo");
+    if(obj==0)
+      return 0;
+    auto* told = vm.find_symbol_by_name("OCINFO.TOLD");
+    const int32_t off = told==nullptr ? -1 : int32_t(told->offset_as_member());
+    const int32_t now = gameScript.isInfoTold(size_t(id)) ? 1 : 0;
+    if(off>=0)
+      mem32.writeInt(obj+ptr32_t(off),now);
+    pendingInfos.push_back({obj,size_t(id),now});
+    return int32_t(obj);
     });
 
   // zCModel::IsAnimationActive(name): ANIISACTIVE of CoM, the animation is among the layers that the character plays
