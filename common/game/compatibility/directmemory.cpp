@@ -2197,6 +2197,28 @@ auto DirectMemory::report() -> std::string {
     ret += buf;
     }
 
+  // the names that the scripts of the mod search (MEM_SearchVobByName("...")) and the world does not have as a mover: the
+  // other vobs (the decorations, the chests, the visuals that are switched) are not in the layer yet
+  {
+  std::vector<std::string> names = vobNamesSearchedByScripts();
+  size_t found = 0;
+  std::string missing;
+  size_t      missingCount = 0;
+  for(auto& n:names) {
+    if(!searchVobsByName(n).empty()) {
+      ++found;
+      continue;
+      }
+    ++missingCount;
+    if(missingCount<=150)
+      missing += "  " + n + "\n";
+    }
+  std::snprintf(buf,sizeof(buf),"vob names searched by the scripts: %zu, movers of this world among them: %zu, not found: %zu (names of the other worlds too)\n",
+                names.size(),found,missingCount);
+  ret += buf;
+  ret += missing;
+  }
+
   std::snprintf(buf,sizeof(buf),"hooks that nobody answers: %zu\n",hooksUnanswered.size());
   ret += buf;
   for(auto& h:hooksUnanswered) {
@@ -2246,6 +2268,40 @@ void DirectMemory::memoryCallback(zCMover& m, uint32_t index, std::memory_order 
   m.TRAFOOBJTOWORLD[3]  = pos.x;
   m.TRAFOOBJTOWORLD[7]  = pos.y;
   m.TRAFOOBJTOWORLD[11] = pos.z;
+  }
+
+/// The constant names in the calls MEM_SearchVobByName("NAME") and MEM_SearchAllVobsByName("NAME") of the whole script
+auto DirectMemory::vobNamesSearchedByScripts() -> std::vector<std::string> {
+  std::vector<std::string> ret;
+  auto* one = vm.find_symbol_by_name("MEM_SEARCHVOBBYNAME");
+  auto* all = vm.find_symbol_by_name("MEM_SEARCHALLVOBSBYNAME");
+  if(one==nullptr && all==nullptr)
+    return ret;
+  const uint32_t oneAddr = one!=nullptr ? one->address() : uint32_t(-1);
+  const uint32_t allAddr = all!=nullptr ? all->address() : uint32_t(-1);
+
+  uint32_t prevSymbol = uint32_t(-1);
+  for(uint32_t i=0; i<vm.size();) {
+    auto instr = vm.instruction_at(i);
+    i += instr.size;
+    if(instr.op==zenkit::DaedalusOpcode::BL && (instr.address==oneAddr || instr.address==allAddr)) {
+      if(prevSymbol!=uint32_t(-1)) {
+        auto* s = vm.find_symbol_by_index(prevSymbol);
+        if(s!=nullptr && s->type()==zenkit::DaedalusDataType::STRING && s->is_const() && s->count()>0) {
+          std::string name = s->get_string(0);
+          for(char& c:name)
+            c = char(std::toupper(static_cast<unsigned char>(c)));
+          if(!name.empty() && std::find(ret.begin(),ret.end(),name)==ret.end())
+            ret.push_back(std::move(name));
+          }
+        }
+      prevSymbol = uint32_t(-1);
+      continue;
+      }
+    prevSymbol = instr.op==zenkit::DaedalusOpcode::PUSHV ? instr.symbol : uint32_t(-1);
+    }
+  std::sort(ret.begin(),ret.end());
+  return ret;
   }
 
 auto DirectMemory::searchVobsByName(std::string_view name) -> std::vector<ptr32_t> {
