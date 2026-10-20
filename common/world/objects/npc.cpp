@@ -4609,6 +4609,13 @@ void Npc::addRoutine(gtime s, gtime e, uint32_t callback, std::string_view point
 void Npc::excRoutine(size_t callback) {
   routines.clear();
   owner.script().invokeState(this,currentOther,currentVictim,callback);
+  if(!isPlayer() && !isTalk() && !isDown() && currentTarget==nullptr && owner.script().hasDma() && aiState.funcIni.isValid()) {
+    // The scenes of the mods (CoM) move a character to another place with the new routine (B_StartOtherRoutine, TeleportNpcToWP): the state
+    // of the old routine must not go on, the character would walk back to its free point (Ezekiel on the ship, after the teleport to the beach)
+    clearGoTo();
+    clearAiQueue();
+    clearState(false);
+    }
   // aiState.eTime = gtime();
   }
 
