@@ -200,13 +200,15 @@ void Mem32::compactage() {
   }
 
 void Mem32::writeInt(ptr32_t address, int32_t v) {
-  auto rgn = translate(address);
-  if(rgn==nullptr) {
+  auto r = translate(address);
+  if(r==nullptr) {
     Log::e("mem_writeint: address translation failure: ", reinterpret_cast<void*>(uint64_t(address)));
     return;
     }
+  // a copy: the callbacks of the memory allocate, and the table of the regions moves
+  const Region rgn = *r;
 
-  if(uint64_t(address-rgn->address)+4 > rgn->size) {
+  if(uint64_t(address-rgn.address)+4 > rgn.size) {
     // the four bytes go over the end of the block: the rest belongs to the next one (or to nobody)
     uint8_t bytes[4] = {};
     std::memcpy(bytes,&v,4);
@@ -216,12 +218,12 @@ void Mem32::writeInt(ptr32_t address, int32_t v) {
     return;
     }
 
-  memSyncRead(rgn->type, *rgn, address, 4); // memory hazzards othwerwise!
-  const ptr32_t dAddr = address-rgn->address;
-  auto ptr = reinterpret_cast<uint8_t*>(rgn->real)+dAddr;
+  memSyncRead(rgn.type, rgn, address, 4); // memory hazzards othwerwise!
+  const ptr32_t dAddr = address-rgn.address;
+  auto ptr = reinterpret_cast<uint8_t*>(rgn.real)+dAddr;
   std::memcpy(ptr,&v,4);
   lastWrite = address;
-  memSyncWrite(rgn->type, *rgn, address, 4);
+  memSyncWrite(rgn.type, rgn, address, 4);
   }
 
 int32_t Mem32::readInt(ptr32_t address) {
@@ -262,15 +264,16 @@ uint8_t Mem32::readByte(ptr32_t address) {
   }
 
 void Mem32::writeByte(ptr32_t address, uint8_t v) {
-  auto rgn = translate(address);
-  if(rgn==nullptr) {
+  auto r = translate(address);
+  if(r==nullptr) {
     if(Compatibility::logBudget("mem32:writebyte")) Log::e("mem_writeint: the end of the block is not mapped: ", reinterpret_cast<void*>(uint64_t(address)));
     return;
     }
+  const Region rgn = *r;   // a copy, see writeInt
   lastWrite = address;
-  memSyncRead(rgn->type, *rgn, address, 1);
-  reinterpret_cast<uint8_t*>(rgn->real)[address-rgn->address] = v;
-  memSyncWrite(rgn->type, *rgn, address, 1);
+  memSyncRead(rgn.type, rgn, address, 1);
+  reinterpret_cast<uint8_t*>(rgn.real)[address-rgn.address] = v;
+  memSyncWrite(rgn.type, rgn, address, 1);
   }
 
 void Mem32::copyBytes(ptr32_t psrc, ptr32_t pdst, uint32_t size) {
