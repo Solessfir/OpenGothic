@@ -118,6 +118,20 @@ void MainWindow::paintControllerOverlay(PaintEvent& event,int top) {
 #endif
   }
 
+void MainWindow::applyEquipmentWheel(size_t id) {
+  auto pl   = Gothic::inst().player();
+  auto item = pl!=nullptr ? pl->getItem(id) : nullptr;
+  if(item==nullptr || !QuickSlots::canPin(*item)) {
+    player.controllerEquip(id);
+    return;
+    }
+  // Consumables and documents retain their normal scripted use restrictions.
+  if(pl->isDown() || pl->isAiBusy() || pl->interactive()!=nullptr || pl->isSwim() || pl->isDive() ||
+     pl->weaponState()!=WeaponState::NoWeapon || !pl->canSwitchWeapon())
+    return;
+  pl->useItem(id);
+  }
+
 void MainWindow::controllerQuickSlot(size_t slot,bool toggleDraw) {
   auto pl=Gothic::inst().player();
   if(pl==nullptr || pl->isDown() || pl->isMonster() || pl->isAiBusy() || pl->interactive()!=nullptr ||
@@ -425,6 +439,8 @@ void MainWindow::tickGamepad() {
                            (touchWeapon==WeaponState::Fist || touchWeapon==WeaponState::W1H || touchWeapon==WeaponState::W2H) &&
                            !Gothic::inst().isPause() && Gothic::inst().checkLoading()==Gothic::LoadState::Idle);
   mobileUi.setMenuAdjustment(rootMenu.canAdjustValue() && !video.isActive());
+  mobileUi.setMenuOpen(rootMenu.isActive() || video.isActive() || chapter.isActive() || console.isActive() ||
+                       Gothic::inst().checkLoading()!=Gothic::LoadState::Idle);
   mobileUi.setLockPicking(inventory.isOpen()==InventoryMenu::State::LockPicking);
   mobileUi.setInventoryNavigation(controllerContext()==Context::Inventory &&
                                   Gothic::inst().checkLoading()==Gothic::LoadState::Idle);
@@ -554,7 +570,7 @@ void MainWindow::tickGamepad() {
             auto item=pl!=nullptr ? pl->getItem(selected) : nullptr;
             if(item!=nullptr && QuickSlots::assign(*pl,quickSlot,*item)) controllerQuickSlot(quickSlot,false);
             }
-          else player.controllerEquip(selected);
+          else applyEquipmentWheel(selected);
           }
         }
       return;

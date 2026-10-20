@@ -1,9 +1,11 @@
 #pragma once
 
+#include <Tempest/Texture2d>
 #include <Tempest/Widget>
 
 #include <functional>
 #include <unordered_map>
+#include <vector>
 #include "utils/multifingertap.h"
 #include "utils/touchadjustment.h"
 
@@ -39,6 +41,8 @@ class TouchInput : public Tempest::Widget {
     enum class WheelPhase : uint8_t { Begin, Move, Apply, Cancel };
     using WheelHandler = std::function<bool(Command,WheelPhase,Tempest::Point)>;
     using AdjustmentHandler = std::function<void(int)>;
+    enum class ItemPhase : uint8_t { Begin, Move, Hold, Tap, Release, Cancel };
+    using ItemHandler = std::function<bool(ItemPhase,Tempest::Point)>;
 
     explicit TouchInput(CommandHandler command, WheelHandler wheel, AdjustmentHandler adjust);
 
@@ -50,12 +54,18 @@ class TouchInput : public Tempest::Widget {
 
     void            setTouchEnabled(bool enabled);
     std::function<void()> onTouchStarted;
+    std::function<void(Tempest::Point)> onTap;
+    // Touches on inventory cells; Begin returns whether the touch landed on one
+    ItemHandler     onItemTouch;
     void            setGesturesEnabled(bool enabled);
     void            setSaveDeleteEnabled(bool enabled);
     void            setAnalogMovement(bool enabled);
     void            setSwimming(bool enabled) { swimming = enabled; }
     void            setClassicAction(bool held);
     void            setDebugOverlay(bool enabled);
+    // 0: nothing drawn, 1: icons, 2: icons and labels
+    void            setButtonStyle(int style);
+    void            setMenuOpen(bool open);
     void            setDebugLeftInset(int inset);
     void            setDebugSafeArea(Tempest::Rect area);
     void            setMenuAdjustment(bool enabled);
@@ -79,6 +89,7 @@ class TouchInput : public Tempest::Widget {
       Button,
       Gesture,
       MultiTap,
+      Item,
       };
 
     struct Touch {
@@ -92,6 +103,8 @@ class TouchInput : public Tempest::Widget {
       bool           actionSent = false;
       bool           pendingWheel = false;
       bool           wheelMoved = false;
+      bool           moved = false;
+      bool           held = false;
       };
 
     void updateMovement(const Tempest::Point& pos);
@@ -107,16 +120,23 @@ class TouchInput : public Tempest::Widget {
     void captureTap(int pointer, const Touch& touch);
     float tapSlop() const;
     int  movementRadius() const;
-    Tempest::Rect buttonRect(size_t index) const;
+    struct ButtonShape {
+      Tempest::PointF center;
+      float           radius = 0;
+      };
+    ButtonShape buttonShape(size_t index) const;
+    bool buttonShown(size_t index) const;
+    int  buttonAt(Tempest::Point pos) const;
+    bool buttonPressed(Command command) const;
     bool blockVisible() const;
-    Tempest::Rect blockRect() const;
-    void drawBlock(Tempest::Painter& p) const;
+    void drawControls(Tempest::Painter& p);
+    void drawDebug(Tempest::Painter& p);
 
-    static constexpr int LookBoundaryPercent = 84;
-    static constexpr Command Buttons[] = {Command::Back,Command::Inventory,Command::Jump,Command::Weapon,Command::Accept};
+    static constexpr Command Buttons[] = {Command::Back,Command::Inventory,Command::Jump,Command::Weapon,Command::Accept,Command::Block};
     static constexpr float DirectionThreshold = 0.35f;
     static constexpr uint64_t ActionHoldMs = 180;
     static constexpr uint64_t WheelHoldMs = 400;
+    static constexpr uint64_t ItemHoldMs = 450;
 
     CommandHandler command;
     WheelHandler wheel;
@@ -144,6 +164,9 @@ class TouchInput : public Tempest::Widget {
     bool            analogMovement = false;
     bool            swimming = false;
     bool            debugOverlay = false;
+    int             buttonStyle = 2;
+    bool            menuOpen = false;
+    std::vector<Tempest::Texture2d> textures;
     bool            classicCombat = true;
     bool            classicAction = false;
     bool            uiActive = false;
