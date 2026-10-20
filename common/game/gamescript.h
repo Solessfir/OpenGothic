@@ -105,6 +105,9 @@ class GameScript final {
     bool         dmaSellItem(Npc& npc, Item& item);
     bool         dmaFinishingMove(Npc& npc, Npc& target);
     size_t       dmaPickLockLength(Interactive& mob, size_t length);
+    /// The names of the categories of the inventory in the scripts of CoM (TXT_INV_CAT: all, weapons, armor, magic, ...),
+    /// empty for the games that do not have the categories
+    const std::vector<std::string>& inventoryCategoryNames();
     /// oCInfo.told of the engine (SetDialogueToldProperty of CoM): the dialog has been told, false lets it be told again
     bool         isInfoTold (size_t infoInstance);
     void         setInfoTold(size_t infoInstance, bool told);
@@ -543,6 +546,8 @@ class GameScript final {
     uint64_t                                                    svmBarrier=0;
 
     std::set<std::pair<size_t,size_t>>                          dlgKnownInfos;
+    std::vector<std::string>                                    invCategoryNames;
+    bool                                                        invCategoryNamesInit = false;
     std::vector<std::shared_ptr<zenkit::IInfo>>                 dialogsInfo;
     zenkit::CutsceneLibrary                                     dialogs;
     std::unordered_map<size_t,AiState>                          aiStates;

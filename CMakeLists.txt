@@ -147,6 +147,7 @@ set(BUILD_SQUISH_WITH_SSE2     OFF CACHE INTERNAL "")
 set(ZK_ENABLE_ASAN             OFF CACHE INTERNAL "")
 set(ZK_ENABLE_DEPRECATION      OFF CACHE INTERNAL "")
 
+include(cmake/zenkitpatch.cmake)
 add_subdirectory(lib/ZenKit)
 target_link_libraries(${PROJECT_NAME} zenkit)
 
