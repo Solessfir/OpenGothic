@@ -189,9 +189,12 @@ DirectMemory::DirectMemory(GameScript& owner, zenkit::DaedalusVm& vm) : gameScri
       return;
       }
     auto npcRef = this->vm.find_symbol_by_index(uint32_t(npcId))->get_instance();
-    if(npcRef==nullptr || npcRef->user_ptr==nullptr)
+    if(npcRef==nullptr || npcRef->user_ptr==nullptr) {
+      Log::d("TeleportNpcToWP: ",wpName,": the character #",npcId," is not in the world");
       return;
+      }
     auto& npc = *reinterpret_cast<Npc*>(npcRef->user_ptr);
+    Log::d("TeleportNpcToWP: ",npc.displayName()," -> ",wpName);
     npc.setPosition (wp->position());
     npc.setDirection(wp->direction());
     });
