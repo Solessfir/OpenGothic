@@ -92,6 +92,10 @@ target_sources(${PROJECT_NAME} PRIVATE ${OPENGOTHIC_SOURCES} ${ObjCSOURCES})
 add_subdirectory(shader)
 target_link_libraries(${PROJECT_NAME} GothicShaders)
 
+# touch control images
+add_subdirectory(assets/touch)
+target_link_libraries(${PROJECT_NAME} TouchAssets)
+
 # editor icons and such
 if(NOT ANDROID)
   add_subdirectory(spacer/assets)

@@ -60,6 +60,11 @@ class InventoryMenu : public Tempest::Widget {
     void  draw(Tempest::Encoder<Tempest::CommandBuffer>& cmd);
     void  paintNumOverlay(Tempest::PaintEvent& e);
     void  controllerAction(int action, bool repeat=false);
+    // Touch: tap a cell to select it and tap it again to use it; hold a consumable or document to pin it to the equipment wheel.
+    bool  touchBegin(Tempest::Point pos);
+    void  touchHold();
+    void  touchMove(Tempest::Point pos);
+    void  touchEnd(bool tap);
     void  openWheel(Npc& pl, WheelKind kind=WheelKind::Equipment);
     void  openQuickWheel(Npc& pl, size_t slot);
     bool  isWheelOpen() const { return wheelActive; }
@@ -135,6 +140,9 @@ class InventoryMenu : public Tempest::Widget {
     size_t                    assignmentItem = size_t(-1);
     size_t                    assignmentCell = size_t(-1);
     int                       assignmentDirection = -1;
+    bool                      touchWasSelected = false;
+    bool                      touchHeld = false;
+    const char*               pinLabel = nullptr;
     uint64_t                  assignmentUntil = 0;
     void                      drawWheel(Tempest::Painter& p, DrawPass pass);
     size_t                    wheelPageSize() const;
