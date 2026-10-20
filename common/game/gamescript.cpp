@@ -175,6 +175,19 @@ bool GameScript::dmaHidesPartyFocus() const {
   return dma!=nullptr && dma->hidesPartyFocus();
   }
 
+void GameScript::dmaSpellBegin() {
+  if(dma!=nullptr)
+    dma->eventSpellBegin();
+  }
+
+bool GameScript::dmaSpellKeepsItem(int spellId) {
+  return dma!=nullptr && dma->spellKeepsItem(spellId);
+  }
+
+size_t GameScript::dmaPickLockLength(Interactive& mob, size_t length) {
+  return dma==nullptr ? length : dma->eventPickLockLength(mob,length);
+  }
+
 bool GameScript::dmaFinishingMove(Npc& npc, Npc& target) {
   return dma!=nullptr && dma->eventFinishingMove(npc,target);
   }
@@ -3794,6 +3807,27 @@ bool GameScript::setInfoKnown(Npc& npc, std::string_view infoName, bool known) {
     dlgKnownInfos.insert(key); else
     dlgKnownInfos.erase(key);
   return true;
+  }
+
+bool GameScript::isInfoTold(size_t infoInstance) {
+  auto* sym = vm.find_symbol_by_index(uint32_t(infoInstance));
+  if(sym==nullptr || !sym->is_instance_of<zenkit::IInfo>())
+    return false;
+  auto info = std::dynamic_pointer_cast<zenkit::IInfo>(sym->get_instance());
+  return info!=nullptr && dlgKnownInfos.find(std::make_pair(size_t(info->npc),infoInstance))!=dlgKnownInfos.end();
+  }
+
+void GameScript::setInfoTold(size_t infoInstance, bool told) {
+  auto* sym = vm.find_symbol_by_index(uint32_t(infoInstance));
+  if(sym==nullptr || !sym->is_instance_of<zenkit::IInfo>())
+    return;
+  auto info = std::dynamic_pointer_cast<zenkit::IInfo>(sym->get_instance());
+  if(info==nullptr)
+    return;
+  const auto key = std::make_pair(size_t(info->npc),infoInstance);
+  if(told)
+    dlgKnownInfos.insert(key); else
+    dlgKnownInfos.erase(key);
   }
 
 bool GameScript::doesNpcKnowInfo(const zenkit::INpc& npc, size_t infoInstance) const {

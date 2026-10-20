@@ -208,8 +208,11 @@ void DirectMemory::memoryCallback(Compatibility::MobSlot& m, uint32_t index, std
     const int32_t bf = get(offset("BITFIELD"));
     const bool    nowLocked = (bf&1)!=0;
     mobPick[index] = uint32_t(bf)>>2;
-    if(nowLocked!=locked && !mob->pickLockCode().empty())
+    if(nowLocked!=locked && !mob->pickLockCode().empty()) {
       mob->setAsCracked(!nowLocked);
+      if(!nowLocked)
+        lockOpenedByScript = true;
+      }
     return;
     }
 
@@ -434,4 +437,35 @@ bool DirectMemory::eventFinishingMove(Npc& npc, Npc& target) {
 void DirectMemory::noteAiPlayAni(Npc& npc, std::string_view name) {
   if(finishHook && npc.isPlayer() && name.size()==4 && (name=="T_NO" || name=="t_no"))
     finishRefused = true;
+  }
+
+/// The code of a lock that the player has to enter (oCMobLockable): HANDLE_SETPROPERPICKLOCKSTRLEN of CoM shortens it by
+/// the talent and by the bonus (GETPICKLOCKSTRLEN). Returns the length that has to be entered.
+size_t DirectMemory::eventPickLockLength(Interactive& mob, size_t length) {
+  if(!hasHook(HookAdr::PickLockLength))
+    return length;
+  HookRegs r;
+  r.esi = mobPointer(mob);
+  r.ecx = uint32_t(length);
+  fireHook(HookAdr::PickLockLength,r);
+  const int32_t len = int32_t(r.ecx);
+  if(len<0)
+    return 0;
+  return std::min(size_t(len),length);
+  }
+
+/// A spell starts to be cast: no lock is opened yet
+void DirectMemory::eventSpellBegin() {
+  lockOpenedByScript = false;
+  }
+
+/// The scroll of the lock picking spell of CoM (SPL_PICKLOCK) is spent only when the spell has opened the lock: the
+/// player may let the key go early, the progress stays in the lock (the number of the character that is done).
+bool DirectMemory::spellKeepsItem(int spellId) {
+  auto* sym = vm.find_symbol_by_name("SPL_PICKLOCK");
+  if(sym==nullptr || sym->type()!=zenkit::DaedalusDataType::INT || sym->get_int()!=spellId)
+    return false;
+  const bool opened = lockOpenedByScript;
+  lockOpenedByScript = false;
+  return !opened;
   }

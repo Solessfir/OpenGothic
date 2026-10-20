@@ -104,6 +104,12 @@ class GameScript final {
     bool         dmaDropVob(Npc& npc, Item& item);
     bool         dmaSellItem(Npc& npc, Item& item);
     bool         dmaFinishingMove(Npc& npc, Npc& target);
+    size_t       dmaPickLockLength(Interactive& mob, size_t length);
+    /// oCInfo.told of the engine (SetDialogueToldProperty of CoM): the dialog has been told, false lets it be told again
+    bool         isInfoTold (size_t infoInstance);
+    void         setInfoTold(size_t infoInstance, bool told);
+    void         dmaSpellBegin();
+    bool         dmaSpellKeepsItem(int spellId);
     /// The mods of Ikarus and LeGo (CoM) keep the party members out of the focus of a player with a weapon
     bool         dmaHidesPartyFocus() const;
     void         dmaInventoryOpen(Npc& npc);
