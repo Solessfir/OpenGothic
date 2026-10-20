@@ -254,7 +254,25 @@ void DirectMemory::tick(uint64_t dt) {
     }
 
   tickTimers(dt);
+  tickInfos();
   tickUi(dt);
+  }
+
+/// What the scripts wrote to the oCInfo objects (OCINFO.TOLD) goes to the dialogs of the game
+void DirectMemory::tickInfos() {
+  if(pendingInfos.empty())
+    return;
+  auto* told = vm.find_symbol_by_name("OCINFO.TOLD");
+  const int32_t off = told==nullptr ? -1 : int32_t(told->offset_as_member());
+  for(auto& i:pendingInfos) {
+    if(off>=0) {
+      const int32_t v = mem32.readInt(i.ptr+ptr32_t(off));
+      if(v!=i.told)
+        gameScript.setInfoTold(i.id,v!=0);
+      }
+    mem32.free(i.ptr);
+    }
+  pendingInfos.clear();
   }
 
 /// zTimer (the time of the frame) and oCWorldTimer (the time of the world) as the scripts of Ikarus and LeGo read them.
