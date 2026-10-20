@@ -19,6 +19,7 @@ static constexpr uint32_t OCGAME__TRIGGERCHANGELEVEL = 7109360;
 static constexpr uint32_t ZCVOB__SETPOSITIONWORLD    = 6404976;
 static constexpr uint32_t OCNPC__GETMODEL            = 7571232;
 static constexpr uint32_t ZCMODEL__STARTANIMATION    = 5746544;
+static constexpr uint32_t ZCMODEL__ISANIMATIONACTIVE  = 5727888;
 
 /// The matrix of the vob (zCVob.trafoObjToWorld) is at 60 in the memory of a character and of an item
 static constexpr size_t   TRAFO = 60;
@@ -172,6 +173,19 @@ void DirectMemory::setupEngineCalls() {
   // the model of a character is the character here, an animation is started as AI_PlayAni does it
   cpu.register_thiscall(OCNPC__GETMODEL,[](ptr32_t self) -> int32_t {
     return int32_t(self);
+    });
+
+  // zCModel::IsAnimationActive(name): ANIISACTIVE of CoM, the animation is among the layers that the character plays
+  cpu.register_thiscall(ZCMODEL__ISANIMATIONACTIVE,[this](ptr32_t self, std::string name) -> int32_t {
+    auto* npc = npcOf(handles.instanceAt(self));
+    if(npc==nullptr)
+      return 0;
+    for(char& c:name)
+      c = char(std::toupper(static_cast<unsigned char>(c)));
+    for(auto& l:npc->animationLayers())
+      if(l.name==name)
+        return 1;
+    return 0;
     });
 
   cpu.register_thiscall(ZCMODEL__STARTANIMATION,[this](ptr32_t self, std::string name, int) -> int32_t {

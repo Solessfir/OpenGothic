@@ -175,6 +175,10 @@ bool GameScript::dmaHidesPartyFocus() const {
   return dma!=nullptr && dma->hidesPartyFocus();
   }
 
+bool GameScript::dmaFinishingMove(Npc& npc, Npc& target) {
+  return dma!=nullptr && dma->eventFinishingMove(npc,target);
+  }
+
 bool GameScript::dmaSellItem(Npc& npc, Item& item) {
   return dma!=nullptr && dma->eventSellItem(npc,item);
   }
@@ -1184,7 +1188,8 @@ std::vector<GameScript::DlgChoice> GameScript::updateDialog(const GameScript::Dl
     ch.scriptFn = uint32_t(sub.function);
     ch.handle   = dlg.handle;
     ch.isTrade  = false;
-    if(!ch.title.empty() && ch.title[0]=='?') {
+    // only where the scripts have the variable of the answer (the original Gothic 1 and 2 do not)
+    if(!ch.title.empty() && ch.title[0]=='?' && dma!=nullptr && vm.find_symbol_by_name("INFOMANAGERANSWER")!=nullptr) {
       // Chronicles of Myrtana: "?Name" is an answer that is typed (INFOMANAGERANSWER of its scripts)
       ch.isInput = true;
       ch.title.erase(0,1);
@@ -3291,6 +3296,8 @@ void GameScript::ai_startstate(std::shared_ptr<zenkit::INpc> selfRef, int func, 
 
 void GameScript::ai_playani(std::shared_ptr<zenkit::INpc> npcRef, std::string_view name) {
   auto npc = findNpc(npcRef);
+  if(npc!=nullptr && dma!=nullptr)
+    dma->noteAiPlayAni(*npc,name);
   if(npc!=nullptr)
     npc->aiPush(AiQueue::aiPlayAnim(name));
   }

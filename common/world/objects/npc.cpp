@@ -2551,7 +2551,7 @@ void Npc::nextAiAction(AiQueue& queue, uint64_t dt) {
         }
       break;
     case AI_PlayAnim:{
-      if(act.s0.find("T_PET")==0 || act.s0.find("CALL ")==0)
+      if(act.s0.find("T_PET")==0 || act.s0.find("CALL ")==0 || act.s0=="T_NO")
         Log::d("AI_PlayAni: ", act.s0, " (", isPlayer() ? "player" : "npc", ")");
       owner.script().eventPlayAni(*this, act.s0);
       if(auto sq = playAnimByName(act.s0,BS_NONE)) {
@@ -3943,9 +3943,20 @@ bool Npc::finishingMove() {
   if(currentTarget==nullptr || !canFinish(*currentTarget))
     return false;
 
+  // mods of Ikarus and LeGo (CoM) hook the finishing move of the player
+  if(isPlayer() && !isFinishingMove() && owner.script().dmaFinishingMove(*this,*currentTarget))
+    return false;
+
   if(doAttack(Anim::AttackFinish,BS_HIT)) {
-    currentTarget->hnpc->attribute[ATR_HITPOINTS] = 0;
-    currentTarget->checkHealth(true,false);
+    if(owner.script().hasDma()) {
+      // the mods of Ikarus and LeGo hook ChangeAttribute (CoM keeps its important characters alive, hit points stay 1)
+      currentTarget->changeAttribute(ATR_HITPOINTS,-currentTarget->hnpc->attribute[ATR_HITPOINTS],false);
+      if(currentTarget->hnpc->attribute[ATR_HITPOINTS]>0)
+        return true;
+      } else {
+      currentTarget->hnpc->attribute[ATR_HITPOINTS] = 0;
+      currentTarget->checkHealth(true,false);
+      }
     owner.sendPassivePerc(*this,*this,*currentTarget,PERC_ASSESSMURDER);
     return true;
     }

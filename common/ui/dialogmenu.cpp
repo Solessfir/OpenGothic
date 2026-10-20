@@ -72,7 +72,9 @@ void DialogMenu::tick(uint64_t dt) {
   {
   // the choices wait until the characters finish what the script queued (as the original engine does): the scripts of
   // CoM depend on it, the player could finish the petting of the dog before the dog even came
-  const bool busy = state==State::Active && ((pl && !pl->isAiQueueEmpty()) || (other && other!=pl && !other->isAiQueueEmpty()));
+  // only for the games that have the mods of Ikarus and LeGo: the original Gothic 1 and 2 show the choices at once
+  const bool mods = pl!=nullptr && pl->world().script().hasDma();
+  const bool busy = mods && state==State::Active && (!pl->isAiQueueEmpty() || (other && other!=pl && !other->isAiQueueEmpty()));
   queueWaitTime   = busy ? queueWaitTime+dt : 0;
   }
   if(prompt.active)
