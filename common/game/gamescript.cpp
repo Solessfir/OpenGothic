@@ -171,6 +171,10 @@ bool GameScript::dmaTakeInventoryClose() {
   return dma!=nullptr && dma->takeInventoryClose();
   }
 
+bool GameScript::dmaHidesPartyFocus() const {
+  return dma!=nullptr && dma->hidesPartyFocus();
+  }
+
 bool GameScript::dmaSellItem(Npc& npc, Item& item) {
   return dma!=nullptr && dma->eventSellItem(npc,item);
   }

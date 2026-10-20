@@ -34,6 +34,7 @@ bool DirectMemory::isHookAnswered(uint32_t address) {
     HookAdr::EvDropVob,
     HookAdr::InventoryOpen,
     HookAdr::SellItem,
+    HookAdr::HideFocusParty,
     HookAdr::CsCameraTrigger,
     HookAdr::CsCameraUntrigger,
     HookAdr::BarUpdateResolution,
@@ -41,6 +42,10 @@ bool DirectMemory::isHookAnswered(uint32_t address) {
     HookAdr::StatusScreenClose,
     };
   return answered.find(address)!=answered.end();
+  }
+
+bool DirectMemory::hidesPartyFocus() const {
+  return hasHook(HookAdr::HideFocusParty);
   }
 
 bool DirectMemory::hasHook(uint32_t address) const {
