@@ -116,6 +116,7 @@ class Interactive : public Vob {
     Tempest::Matrix4x4  mapBone(std::string_view nodeName) const;
 
     void                moveEvent() override;
+    void                setVobVisual(bool show, bool collideDynamic) override;
     float               extendedSearchRadius() const override;
     virtual void        onStateChanged(){}
 

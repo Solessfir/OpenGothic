@@ -29,6 +29,8 @@ class DialogMenu : public Tempest::Widget {
     void dialogCamera(Camera& camera);
 
     void openPipe(Npc &player, Npc& npc, AiOuputPipe*& out);
+    /// a character that speaks in the dialog besides the two of it (a trialog of the mods)
+    void addGuest(Npc& guest);
     bool isNpcInDialog(const Npc* npc) const;
 
     bool isActive() const;
@@ -146,6 +148,8 @@ class DialogMenu : public Tempest::Widget {
     GameScript::DlgChoice               selected;
     Npc*                                pl   =nullptr;
     Npc*                                other=nullptr;
+    std::vector<Npc*>                   guests;      // the other speakers of a trialog
+    Npc*                                speaker=nullptr;   // who speaks now (the camera of the dialog looks at him)
     size_t                              dlgSel=0;
     uint32_t                            depth=0;
     std::vector<uint32_t>               except;
@@ -153,6 +157,11 @@ class DialogMenu : public Tempest::Widget {
     State                               state=State::Idle;
     Entry                               current;
     Tempest::SoundEffect                currentSnd;
+    struct Lingering final {
+      Tempest::SoundEffect snd;
+      uint64_t             time = 0;
+      };
+    std::vector<Lingering>              lingering;   // the sound of a line that was skipped in a camera of a cutscene: it goes on
     bool                                curentIsPl=false;
     bool                                dlgTrade=false;
     int32_t                             mobsiState=-1;

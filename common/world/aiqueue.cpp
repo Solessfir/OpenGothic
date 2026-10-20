@@ -1,6 +1,7 @@
 #include "aiqueue.h"
 
 #include <limits>
+#include <string>
 #include "game/serialize.h"
 
 // actions that keep an item class in i0
@@ -85,6 +86,57 @@ uint32_t AiQueue::synchronize() {
   a.i0  = int32_t(++syncIssued);
   pushBack(std::move(a));
   return syncIssued;
+  }
+
+auto AiQueue::describe(size_t max) const -> std::string {
+  static const char* names[] = {
+    "None","LookAtNpc","StopLookAt","RemoveWeapon","TurnToNpc","GoToNpc","GoToNextFp","GoToPoint","StartState","PlayAnim",
+    "PlayAnimBs","Wait","StandUp","StandUpQuick","EquipArmor","EquipBestArmor","EquipMelee","EquipRange","UseMob","UseItem",
+    "UseItemToState","Teleport","DrawWeaponMelee","DrawWeaponRange","DrawSpell","Attack","Flee","Dodge","UnEquipWeapons",
+    "UnEquipArmor","Output","OutputSvm","OutputSvmOverlay","ProcessInfo","StopProcessInfo","ContinueRoutine","AlignToFp",
+    "AlignToWp","SetNpcsToState","SetWalkMode","FinishingMove","DrawWeapon","TakeItem","GotoItem","PointAtNpc","PointAt",
+    "StopPointAt","PrintScreen","LookAt","WhirlToNpc","TurnAway","Synchronize","WaitTillEnd","AimAt","StopAim","ShootAt",
+    "DropItem","SndPlay","StopFx","ForceFall"
+    };
+  std::string ret;
+  size_t n = 0;
+  for(auto& i:aiActions) {
+    if(n++>=max) {
+      ret += " ...";
+      break;
+      }
+    const size_t id = size_t(i.act);
+    ret += ' ';
+    ret += id<sizeof(names)/sizeof(names[0]) ? names[id] : "?";
+    if(i.act==AI_WaitTillEnd && i.target!=nullptr)
+      ret += "(" + std::string("ticket ") + std::to_string(i.i0) + ")";
+    if(!i.s0.empty())
+      ret += "(" + i.s0.substr(0,40) + ")";
+    }
+  if(ret.empty())
+    ret = " (empty)";
+  return ret;
+  }
+
+auto AiQueue::take() -> Saved {
+  Saved s;
+  s.actions   = std::move(aiActions);
+  s.completed = syncCompleted;
+  aiActions.clear();
+  return s;
+  }
+
+void AiQueue::restore(Saved&& s) {
+  for(auto& i:aiActions)
+    s.actions.push_back(std::move(i));
+  aiActions     = std::move(s.actions);
+  syncCompleted = s.completed;
+  }
+
+AiQueue::AiAction AiQueue::aiForceFall() {
+  AiAction a;
+  a.act = AI_ForceFall;
+  return a;
   }
 
 bool AiQueue::isSynchronized(uint32_t ticket) const {

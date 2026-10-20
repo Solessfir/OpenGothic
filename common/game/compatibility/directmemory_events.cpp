@@ -13,6 +13,7 @@
 #include "game/inventory.h"
 #include "world/objects/npc.h"
 #include "world/world.h"
+#include "gothic.h"
 
 using namespace Tempest;
 using namespace Compatibility;
@@ -567,11 +568,52 @@ void DirectMemory::setupQuiverFunctions() {
 
   cpu.register_thiscall(7566816,[](ptr32_t) {});   // oCNpc::DropAllInHand: OpenGothic drops the weapon itself (Npc::onNoHealth)
 
+  // ENABLESAVEGAME and ENABLELOADSAVEGAME of CoM switch the items of the menu of the original engine: the scenes do not let the
+  // player save (the camera of a cutscene, the final boards)
+  safe("ENABLESAVEGAME",     [this](int enable){ saveOff = enable==0; });
+  safe("ENABLELOADSAVEGAME", [this](int enable){ saveOff = enable==0; });
+  safe("ENABLELOADGAME",     [](int){ });
+
+  // DIACAM_DISABLE and DIACAM_ENABLE of CoM write a return into the first instruction of zCAICamera::StartDialogCam: the scenes
+  // with their own cameras (zCCSCamera) have no camera of the dialog that fights with them
+  safe("DIACAM_DISABLE", [this](){ dialogCameraOff = true;  });
+  safe("DIACAM_ENABLE",  [this](){ dialogCameraOff = false; });
+
+  // CHANGEVOBCOLLISION(name, staticVob, collStat, collDyn, showVisual) writes the bits of zCVob.bitfield0 of the vobs of the
+  // name: the scripts of CoM hide and show the decorations of the quests and switch their collision
+  safe("CHANGEVOBCOLLISION", [this](std::string_view name, int /*staticVob*/, int /*collStat*/, int collDyn, int showVisual) {
+    auto& w = gameScript.world();
+    std::string key(w.name());
+    key += '|';
+    for(char c:name)
+      key += char(std::toupper(static_cast<unsigned char>(c)));
+    vobStates[key] = VobState{showVisual!=0,collDyn!=0};
+    w.setVobVisual(name,showVisual!=0,collDyn!=0);
+    });
+
   // the quivers of the characters of the world: the scripts walk through oWorld.voblist_npcs, here the hook of equipping is
   // given to every character with a bow, a frame later (the characters of the world exist then)
   safe("INIT_QUIVERS_ALWAYS", [this](){
     quiversPending = true;
     });
+  }
+
+/// The states of the vobs that the scripts have changed are applied again to the world that was loaded (a savegame, a change of
+/// the level): the vobs of the world are made from the ZEN file with the state of the file
+void DirectMemory::tickVobStates() {
+  if(!vobStatesPending)
+    return;
+  auto& w = gameScript.world();
+  if(w.npcCount()==0)
+    return;
+  vobStatesPending = false;
+
+  const std::string prefix = std::string(w.name())+"|";
+  for(auto& i:vobStates) {
+    if(i.first.compare(0,prefix.size(),prefix)!=0)
+      continue;
+    w.setVobVisual(std::string_view(i.first).substr(prefix.size()),i.second.show,i.second.collide);
+    }
   }
 
 void DirectMemory::tickQuivers() {
@@ -588,4 +630,79 @@ void DirectMemory::tickQuivers() {
     if(auto* bow = npc->currentRangedWeapon())
       eventEquipItem(*npc,*bow,true);
     }
+  }
+
+/// Trialoge of LeGo (TRIA_Invite, TRIA_Start, TRIA_Next, TRIA_Finish: the talks of three and more characters, about 1300 calls in
+/// CoM). The library lets one character, the self of the dialog, speak for all of them: at every TRIA_Next it swaps the name, the
+/// voice, the visual and the place in the memory of the objects of the engine, which is not here. Here the commands that the
+/// script gives to the self go to the character who speaks now (GameScript::findNpc), and the dialog accepts his lines.
+auto DirectMemory::triaRedirect(Npc* npc) -> Npc* {
+  if(triaCurrent==nullptr || npc==nullptr || npc!=triaOriginal)
+    return npc;
+  auto* running = vm.find_symbol_by_name("TRIA_RUNNING");
+  if(running==nullptr || running->get_int()==0)
+    return npc;
+  return triaCurrent;
+  }
+
+void DirectMemory::setupTrialogFunctions() {
+  auto safe = [&](std::string_view name, auto hook) {
+    auto f = vm.find_symbol_by_name(name);
+    if(f==nullptr || f->type()!=zenkit::DaedalusDataType::FUNCTION)
+      return;
+    vm.override_function(name,hook);
+    };
+  if(vm.find_symbol_by_name("TRIA_NEXT")==nullptr)
+    return;
+
+  auto intVar = [this](std::string_view name) -> int {
+    auto* s = vm.find_symbol_by_name(name);
+    return s!=nullptr && s->type()==zenkit::DaedalusDataType::INT ? s->get_int() : 0;
+    };
+  auto npcAt = [this](ptr32_t ptr) -> Npc* {
+    auto inst = handles.instanceAt(ptr);
+    if(inst==nullptr || dynamic_cast<zenkit::INpc*>(inst.get())==nullptr || inst->user_ptr==nullptr)
+      return nullptr;
+    return reinterpret_cast<Npc*>(inst->user_ptr);
+    };
+
+  // the swaps of the memory are not needed
+  safe("_TRIA_COPY",         [](int, int){});
+  safe("_TRIA_COPYNPC",      [](int){});
+  safe("_TRIA_NEXT",         [](int){});
+  safe("_TRIA_UPDATEVISUAL", [](std::shared_ptr<zenkit::INpc>, int){});
+
+  safe("TRIA_NEXT", [=,this](std::shared_ptr<zenkit::INpc> ref) {
+    if(intVar("TRIA_RUNNING")==0 || ref==nullptr || ref->user_ptr==nullptr)
+      return;
+    auto* next = reinterpret_cast<Npc*>(ref->user_ptr);
+    auto* hero = gameScript.world().player();
+    auto* self = npcAt(ptr32_t(intVar("TRIA_SELF")));
+    if(next==nullptr || hero==nullptr || self==nullptr || next==hero)
+      return;
+    if(triaOriginal!=self) {
+      triaOriginal = self;
+      triaCurrent  = self;
+      }
+
+    // what was said goes first (TRIA_Wait), then the next one begins
+    auto* cur = triaCurrent;
+    hero->aiWaitTillEnd(*cur);
+    cur ->aiWaitTillEnd(*hero);
+    hero->aiWaitTillEnd(*cur);
+    if(next!=cur)
+      next->aiWaitTillEnd(*hero);
+    triaCurrent = next;
+    if(next!=self)
+      Gothic::inst().onDialogGuest(*next);
+    });
+
+  safe("_TRIA_FINISH", [this]() {
+    if(auto* s = vm.find_symbol_by_name("TRIA_RUNNING"))
+      s->set_int(0);
+    if(auto* s = vm.find_symbol_by_name("TRIA_CPTR"))
+      s->set_int(0);
+    triaCurrent  = nullptr;
+    triaOriginal = nullptr;
+    });
   }

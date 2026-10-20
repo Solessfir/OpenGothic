@@ -130,7 +130,27 @@ void MoveTrigger::emitSound(std::string_view snd,bool freeSlot) const {
   sfx.play();
   }
 
+void MoveTrigger::setVobVisual(bool show, bool collideDynamic) {
+  hidden = !show;
+  if(hidden) {
+    view = MeshObjects::Mesh();
+    } else {
+    invalidateView();
+    }
+  if(!collideDynamic) {
+    physic = PhysicMesh();
+    } else
+  if(physic.isEmpty()) {
+    if(auto mesh = Resources::loadMesh(visualName)) {
+      physic = PhysicMesh(*mesh,*world.physic(),true);
+      physic.setObjMatrix(transform());
+      }
+    }
+  }
+
 void MoveTrigger::invalidateView() {
+  if(hidden)
+    return;
   if(isDynamic() && !view.isEmpty())
     return;
 

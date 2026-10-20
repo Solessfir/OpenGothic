@@ -126,6 +126,8 @@ class MainWindow : public Tempest::Window {
     void onSettings();
 
     void setupUi();
+    bool sceneLocksUi() const;
+    uint64_t sceneLockTime = 0;   // how long the scene of a mod has held the player
     void showDocument(const DocumentMenu::Show& doc);
 
     void render() override;

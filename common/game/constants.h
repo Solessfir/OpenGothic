@@ -400,6 +400,7 @@ enum Action:uint32_t {
   AI_DropItem,
   AI_SndPlay,
   AI_StopFx,
+  AI_ForceFall,    // the jump of a cutscene of a mod: the character goes off the edge
   };
 
 

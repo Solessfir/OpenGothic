@@ -21,6 +21,9 @@ class ObjVisual {
     void setVisual(const zenkit::IItem& visual, World& world, bool staticDraw);
     void setVisual(const zenkit::VirtualObject& visual, World& world, bool staticDraw);
     void setObjMatrix(const Tempest::Matrix4x4& obj);
+    /// A script of a mod shows or hides the visual and switches the collision of the vob (zCVob.showVisual, cdDyn).
+    /// collide: 1 on, 0 off, -1 unchanged
+    void setShown(bool show, int collide, World& world, const Tempest::Matrix4x4& obj);
 
     void setSlotItem(MeshObjects::Mesh&& itm, std::string_view slot);
 
@@ -65,6 +68,13 @@ class ObjVisual {
       VobBundle  bundle;
       };
     Type type = M_None;
+
+    // what the visual needs to come back after a script has hidden it
+    bool                staticDraw   = false;
+    bool                mdlStaticMesh = false;
+    bool                mdlShown     = true;
+    zenkit::AnimationType animMode   = zenkit::AnimationType::NONE;
+    float               animStrength = 0;
 
     void cleanup();
     void setType(Type t);
