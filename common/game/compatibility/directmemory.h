@@ -67,6 +67,7 @@ class DirectMemory {
     bool        eventDropVob(Npc& npc, Item& item);
     void        eventInventoryOpen(Npc& npc);
     bool        eventSellItem(Npc& npc, Item& item);
+    void        eventEquipItem(Npc& npc, Item& item, bool equip);
     bool        eventFinishingMove(Npc& npc, Npc& target);
     void        noteAiPlayAni(Npc& npc, std::string_view name);
     size_t      eventPickLockLength(Interactive& mob, size_t length);
@@ -201,6 +202,8 @@ class DirectMemory {
       int32_t told  = 0;
       };
     std::vector<PendingInfo>         pendingInfos;   // oCInfo objects that the scripts got from the manager of the dialogs
+    std::unordered_map<ptr32_t,std::string> decoVobs;  // the vobs that scripts insert (MEM_InsertVob): pointer -> visual
+    bool                             quiversPending = false;
     ptr32_t                          dropMessage = 0;       // the message of EV_DropVob that the hook is asked about
     bool                             dropCancelled = false;
     ptr32_t                          focusMagic = 0;
@@ -208,6 +211,8 @@ class DirectMemory {
     int                              lastSpellFocus = -1;
     auto        mobPointer(Interactive& mob) -> ptr32_t;
     void        setupFocusMagic();
+    void        setupQuiverFunctions();
+    void        tickQuivers();
     void        setupEngineCalls();
     void        syncHandleObject(uint8_t* raw, zenkit::DaedalusInstance& inst, bool write);
 
