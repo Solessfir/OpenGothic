@@ -616,6 +616,7 @@ class Npc final {
 
     // ai state
     uint64_t                       aniWaitTime=0;
+    uint64_t                       animRetrySince = 0;   // an animation of the queue that cannot start
     size_t                         aiLockSize = 0;    // the commands of a script that hold the player
     uint64_t                       aiLockTime = 0;
     size_t                         aiWatchSize = 0;   // progress of the queue seen by the characters that wait for it
