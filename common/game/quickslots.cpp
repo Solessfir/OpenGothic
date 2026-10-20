@@ -7,6 +7,17 @@
 #include "utils/string_frm.h"
 #include "utils/quickslotinput.h"
 
+#include <algorithm>
+#include <sstream>
+
+static std::vector<std::string> pinnedNames() {
+  std::vector<std::string> names;
+  std::istringstream in{std::string(Gothic::settingsGetS("QuickSlots","Wheel"))};
+  for(std::string name; in>>name;)
+    names.push_back(std::move(name));
+  return names;
+  }
+
 QuickSlots::Kind QuickSlots::kind(const Item& item) {
   if((item.mainFlag()&(ITM_CAT_NF|ITM_CAT_FF))!=0) return Kind::Weapons;
   if(item.isSpellOrRune()) return Kind::Magic;
@@ -62,4 +73,42 @@ Item* QuickSlots::resolve(Npc& player,size_t slot) {
       }
     }
   return nullptr;
+  }
+
+bool QuickSlots::canPin(const Item& item) {
+  const auto k = kind(item);
+  return k==Kind::Potions || k==Kind::Food || k==Kind::Documents;
+  }
+
+bool QuickSlots::isPinned(Npc& player, const Item& item) {
+  auto symbol = player.world().script().findSymbol(item.clsId());
+  if(symbol==nullptr) return false;
+  const auto names = pinnedNames();
+  return std::find(names.begin(),names.end(),symbol->name())!=names.end();
+  }
+
+bool QuickSlots::togglePinned(Npc& player, const Item& item) {
+  auto symbol = player.world().script().findSymbol(item.clsId());
+  if(symbol==nullptr || !canPin(item)) return false;
+  auto names = pinnedNames();
+  if(auto it=std::find(names.begin(),names.end(),symbol->name()); it!=names.end())
+    names.erase(it); else
+    names.push_back(symbol->name());
+  std::string value;
+  for(auto& name:names)
+    value += (value.empty() ? "" : " ")+name;
+  Gothic::settingsSetS("QuickSlots","Wheel",value);
+  Gothic::flushSettings();
+  return true;
+  }
+
+std::vector<size_t> QuickSlots::pinned(Npc& player) {
+  std::vector<size_t> ret;
+  auto& script = player.world().script();
+  for(auto& name:pinnedNames()) {
+    const size_t id = script.findSymbolIndex(name);
+    if(auto item=player.getItem(id); item!=nullptr && item->count()>0 && item->checkCond(player))
+      ret.push_back(id);
+    }
+  return ret;
   }
