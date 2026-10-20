@@ -29,7 +29,7 @@ index 0773c39..0ad1a5b 100644
  	};
  
 diff --git a/src/DaedalusVm.cc b/src/DaedalusVm.cc
-index 0b4420e..b5257d5 100644
+index 0b4420e..02c2090 100644
 --- a/src/DaedalusVm.cc
 +++ b/src/DaedalusVm.cc
 @@ -118,6 +118,41 @@ namespace zenkit {
@@ -110,7 +110,19 @@ index 0b4420e..b5257d5 100644
  				}
  
  				break;
-@@ -699,6 +734,13 @@ namespace zenkit {
+@@ -548,8 +583,9 @@ namespace zenkit {
+ 		// Move function arguments further back, since we're currently at the call instruction and the
+ 		// arguments for the next call have already been pushed.
+ 		_m_stack_ptr -= params.size();
+-		for (size_t i = 0; i < params.size(); ++i) {
+-			_m_stack[_m_stack_ptr + locals_size + i] = std::move(_m_stack[_m_stack_ptr + i]);
++		// the ranges overlap when there are fewer locals than parameters: move from the last one
++		for (size_t i = params.size(); i > 0; --i) {
++			_m_stack[_m_stack_ptr + locals_size + (i - 1)] = std::move(_m_stack[_m_stack_ptr + (i - 1)]);
+ 		}
+ 
+ 		for (auto& l : locals) {
+@@ -699,6 +735,13 @@ namespace zenkit {
  			return std::get<int32_t>(v.value);
  		}
  
@@ -124,7 +136,7 @@ index 0b4420e..b5257d5 100644
  		throw DaedalusVmException {"tried to pop_int but frame does not contain a int."};
  	}
  
-@@ -787,7 +829,7 @@ namespace zenkit {
+@@ -787,7 +830,7 @@ namespace zenkit {
  				throw DaedalusNoContextError {s};
  			}
  
@@ -133,7 +145,7 @@ index 0b4420e..b5257d5 100644
  			return empty;
  		}
  
-@@ -1070,7 +1112,7 @@ namespace zenkit {
+@@ -1070,7 +1113,7 @@ namespace zenkit {
  				throw DaedalusNoContextError {sym};
  			}
  
@@ -142,7 +154,7 @@ index 0b4420e..b5257d5 100644
  			return 0;
  		}
  
-@@ -1090,7 +1132,7 @@ namespace zenkit {
+@@ -1090,7 +1133,7 @@ namespace zenkit {
  				throw DaedalusNoContextError {sym};
  			}
  
@@ -151,7 +163,7 @@ index 0b4420e..b5257d5 100644
  			return 0;
  		}
  
-@@ -1109,7 +1151,7 @@ namespace zenkit {
+@@ -1109,7 +1152,7 @@ namespace zenkit {
  		    !(_m_flags & DaedalusVmExecutionFlag::ALLOW_NULL_INSTANCE_ACCESS)) {
  			ref->set_int(value, index, context.get());
  		} else if (ref->is_member()) {
@@ -160,7 +172,7 @@ index 0b4420e..b5257d5 100644
  		}
  	}
  
-@@ -1125,7 +1167,7 @@ namespace zenkit {
+@@ -1125,7 +1168,7 @@ namespace zenkit {
  		    !(_m_flags & DaedalusVmExecutionFlag::ALLOW_NULL_INSTANCE_ACCESS)) {
  			ref->set_float(value, index, context.get());
  		} else if (ref->is_member()) {
@@ -169,7 +181,7 @@ index 0b4420e..b5257d5 100644
  		}
  	}
  
-@@ -1141,7 +1183,7 @@ namespace zenkit {
+@@ -1141,7 +1184,7 @@ namespace zenkit {
  		    !(_m_flags & DaedalusVmExecutionFlag::ALLOW_NULL_INSTANCE_ACCESS)) {
  			ref->set_string(value, index, context.get());
  		} else if (ref->is_member()) {
