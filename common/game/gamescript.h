@@ -194,6 +194,8 @@ class GameScript final {
     void exec(const DlgChoice &dlg, Npc &player, Npc &npc);
     void setDialogAnswer(std::string_view text);
     bool setInfoKnown(Npc& npc, std::string_view infoName, bool known);
+    /// -1: no such info, otherwise what the condition of the info says for the npc and the player (the dialog that does not appear)
+    int  debugInfoCondition(Npc& npc, Npc& player, std::string_view infoName, bool& known, std::string& detail);
 
     void  printCannotUseError         (Npc &npc, int32_t atr, int32_t nValue);
     void  printCannotCastError        (Npc &npc, int32_t plM, int32_t itM);

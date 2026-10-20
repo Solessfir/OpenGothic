@@ -195,7 +195,13 @@ DirectMemory::DirectMemory(GameScript& owner, zenkit::DaedalusVm& vm) : gameScri
       }
     auto& npc = *reinterpret_cast<Npc*>(npcRef->user_ptr);
     Log::d("TeleportNpcToWP: ",npc.displayName()," -> ",wpName);
-    npc.setPosition (wp->position());
+    // the same place as the character that is inserted at the way point: on the ground under it. Way points hang about 50 above the floor,
+    // a character that is put at the point itself stands on the furniture whose top is higher (Martha of Silbach on the counter)
+    auto pos = wp->position();
+    const float drop = wp->position().y-wp->groundPos.y;
+    if(drop>0.f && drop<200.f)
+      pos = wp->groundPos;
+    npc.setPosition (pos);
     npc.setDirection(wp->direction());
     });
   //
