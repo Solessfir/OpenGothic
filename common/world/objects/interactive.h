@@ -67,6 +67,7 @@ class Interactive : public Vob {
     std::string_view    pickLockCode() const { return pickLockStr; }
     std::string_view    keyName() const { return keyInstance; }
     void                setAsCracked(bool c) { isLockCracked = c; }
+    void                setPickLockCode(std::string_view s) { pickLockStr = s; }
     bool                isCracked() const { return isLockCracked; }
     bool                needToLockpick(const Npc& pl) const;
 
