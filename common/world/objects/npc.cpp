@@ -433,8 +433,11 @@ bool Npc::performOutput(const AiQueue::AiAction &act) {
     return true; // don't waste CPU on far-away svm-talks
   //if(act.act!=AI_OutputSvmOverlay && bodyStateMasked()!=BS_STAND)
   //  return false;
-  if(act.act==AI_Output           && outputPipe->output   (*this,act.s0))
+  if(act.act==AI_Output           && outputPipe->output   (*this,act.s0)) {
+    if(owner.script().hasDma())
+      Log::d("[",owner.tickCount(),"] ",displayName().data(),": ",act.s0);
     return true;
+    }
   auto svm = owner.script().messageFromSvm(act.s0,hnpc->voice);
   if(act.act==AI_OutputSvm        && outputPipe->outputSvm(*this,svm))
     return true;
@@ -4612,8 +4615,9 @@ void Npc::excRoutine(size_t callback) {
   if(!isPlayer() && !isTalk() && !isDown() && currentTarget==nullptr && owner.script().hasDma() && aiState.funcIni.isValid()) {
     // The scenes of the mods (CoM) move a character to another place with the new routine (B_StartOtherRoutine, TeleportNpcToWP): the state
     // of the old routine must not go on, the character would walk back to its free point (Ezekiel on the ship, after the teleport to the beach)
+    // (the commands in the queue stay: the scripts that queue the change of the routine of the character queue the rest of the scene
+    // for him as well, Fabio of Q102)
     clearGoTo();
-    clearAiQueue();
     clearState(false);
     }
   // aiState.eTime = gtime();
