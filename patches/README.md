@@ -7,7 +7,7 @@
   `Bar_Delete(var int)` of LeGo is called with an instance);
 - `INpc::compat_focus_vob` / `compat_interact_mob` - the members of oCNpc that C_NPC does not have.
 
-After `git submodule update --init` apply the patch (the patch fails when it was applied already):
+CMake applies the patch by itself (`cmake/zenkitpatch.cmake`, before ZenKit is added): a clean clone, the Android build and the CI need nothing more. A tree that has it already is left alone. By hand (the patch fails when it was applied already):
 
 ```bash
 git -C lib/ZenKit apply --ignore-whitespace ../../patches/zenkit-opengothic.patch
