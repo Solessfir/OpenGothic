@@ -409,3 +409,29 @@ bool DirectMemory::eventSellItem(Npc& npc, Item& item) {
   npc.playAnimByName("T_CANNOTTAKE",BS_NONE);
   return true;
   }
+
+/// The player starts a finishing move (oCNpc::EV_FinishingMove). EV_FINISHINGMOVE_HOOK of CoM (read from its code in the
+/// DAT): it keeps FINISHANIM, the flag of its own animations of the finishing move, and for an unconscious character
+/// with NPC_FLAG_IMPORTANT it plays "no" and lengthens the sleep. OpenGothic does not start the move then.
+bool DirectMemory::eventFinishingMove(Npc& npc, Npc& target) {
+  if(!hasHook(HookAdr::FinishingMove))
+    return false;
+  // the hook reads the victim from oCNpc.focus_vob: with a weapon in the hand the focus of OpenGothic skips a character
+  // that is down, the original engine has him in the focus
+  npc.handle().compat_focus_vob = int32_t(ptrOf(target));
+  HookRegs r;
+  r.ecx = ptrOf(npc);
+  finishHook    = true;
+  finishRefused = false;
+  fireHook(HookAdr::FinishingMove,r);
+  finishHook = false;
+  // the hook refuses an important character (T_NO): the move does not start, the hero only shakes his head
+  const bool refused = finishRefused;
+  finishRefused = false;
+  return refused;
+  }
+
+void DirectMemory::noteAiPlayAni(Npc& npc, std::string_view name) {
+  if(finishHook && npc.isPlayer() && name.size()==4 && (name=="T_NO" || name=="t_no"))
+    finishRefused = true;
+  }

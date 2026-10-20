@@ -67,6 +67,8 @@ class DirectMemory {
     bool        eventDropVob(Npc& npc, Item& item);
     void        eventInventoryOpen(Npc& npc);
     bool        eventSellItem(Npc& npc, Item& item);
+    bool        eventFinishingMove(Npc& npc, Npc& target);
+    void        noteAiPlayAni(Npc& npc, std::string_view name);
     bool        hidesPartyFocus() const;
     bool        takeInventoryClose();
     void        eventStatusScreen(bool show);
@@ -185,6 +187,8 @@ class DirectMemory {
     int32_t                          worldTimerDay  = 0;
     bool                             worldTimerInit = false;
     bool                             inventoryClose = false;   // oCNpc::CloseInventory was called by a script
+    bool                             finishHook = false;       // the hook of the finishing move is running
+    bool                             finishRefused = false;    // and it has queued T_NO for the player
     ptr32_t                          dropMessage = 0;       // the message of EV_DropVob that the hook is asked about
     bool                             dropCancelled = false;
     ptr32_t                          focusMagic = 0;
