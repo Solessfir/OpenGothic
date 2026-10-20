@@ -95,6 +95,7 @@ Mem32::ptr32_t Mem32::alloc(uint32_t size, const char* comment) {
       return 0;
       }
     rgn->status  = S_Allocated;
+    rgn->type    = Type::plain;
     rgn->comment = comment;
     return rgn->address;
     }
@@ -120,6 +121,7 @@ void Mem32::free(ptr32_t address) {
     std::free(region[i].real);
     region[i].real   = nullptr;
     region[i].status = S_Unused;
+    region[i].type   = Type::plain;
     compactage();
     return;
     }
@@ -486,7 +488,11 @@ void Mem32::memSyncRead(Type type, const Region& rgn, ptr32_t address, uint32_t 
     return;
   auto m = memMap.find(type);
   if(m==memMap.end()) {
-    throw std::logic_error("DMA: callback is not provided for callback memory!");
+    // a region of a type without callbacks: the memory is read as it is, an exception would end the game
+    if(Compatibility::logBudget("mem32:nocallback"))
+      Log::e("memSyncRead: callback is not provided for callback memory: ", reinterpret_cast<void*>(uint64_t(address)),
+             " (type ",uint32_t(type)," region ",reinterpret_cast<void*>(uint64_t(rgn.address))," size ",rgn.size,")");
+    return;
     }
   memSyncRead(m->second, rgn, address, size);
   }
@@ -508,7 +514,9 @@ void Mem32::memSyncWrite(Type type, const Region& rgn, ptr32_t address, uint32_t
     return;
   auto m = memMap.find(type);
   if(m==memMap.end()) {
-    Log::e("memSyncWrite: unable to write to mapped memory: ", reinterpret_cast<void*>(uint64_t(address)));
+    Log::e("memSyncWrite: unable to write to mapped memory: ", reinterpret_cast<void*>(uint64_t(address)),
+           " (type ",uint32_t(type)," region ",reinterpret_cast<void*>(uint64_t(rgn.address))," size ",rgn.size," \"",
+           rgn.comment!=nullptr ? rgn.comment : "","\")");
     return;
     }
   memSyncWrite(m->second, rgn, address, size);
@@ -516,7 +524,8 @@ void Mem32::memSyncWrite(Type type, const Region& rgn, ptr32_t address, uint32_t
 
 void Mem32::memSyncWrite(Callback& cb, const Region& rgn, ptr32_t address, uint32_t size) {
   if(!cb.write) {
-    Log::e("memSyncWrite: unable to write to mapped memory: ", reinterpret_cast<void*>(uint64_t(address)));
+    Log::e("memSyncWrite: there is no writer of the memory: ", reinterpret_cast<void*>(uint64_t(address)),
+           " (region ",reinterpret_cast<void*>(uint64_t(rgn.address))," size ",rgn.size,")");
     return;
     }
 
