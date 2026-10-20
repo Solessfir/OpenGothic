@@ -104,6 +104,7 @@ class GameScript final {
     bool         dmaDropVob(Npc& npc, Item& item);
     bool         dmaSellItem(Npc& npc, Item& item);
     void         dmaEquipItem(Npc& npc, Item& item, bool equip);
+    bool         dmaDropUnconscious(Npc& npc);
     bool         dmaFinishingMove(Npc& npc, Npc& target);
     size_t       dmaPickLockLength(Interactive& mob, size_t length);
     /// The names of the categories of the inventory in the scripts of CoM (TXT_INV_CAT: all, weapons, armor, magic, ...),
@@ -202,7 +203,7 @@ class GameScript final {
 
     void invokeState(const std::shared_ptr<zenkit::INpc>& hnpc, const std::shared_ptr<zenkit::INpc>& hother, const char* name);
     int  invokeState(Npc* npc, Npc* other, Npc *victim, ScriptFn fn);
-    void invokeItem (Npc* npc, ScriptFn fn);
+    void invokeItem (Npc* npc, ScriptFn fn, Item* itm = nullptr);
     int  invokeMana (Npc& npc, Npc* target, int mana);
     int  invokeManaRelease (Npc& npc, Npc* target, int mana);
     void invokeSpell(Npc& npc, Npc *target, Item&  fn);
