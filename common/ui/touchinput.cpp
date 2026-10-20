@@ -9,6 +9,8 @@
 #include "utils/twofingerswipe.h"
 #include "utils/touchmovement.h"
 
+#include "touchasset.h"
+
 #include <algorithm>
 #include <cmath>
 
@@ -49,12 +51,14 @@ void TouchInput::setDebugSafeArea(Rect area) {
   }
 
 void TouchInput::paintEvent(Tempest::PaintEvent& e) {
-  if(!debugOverlay)
-    return;
-
   Painter p(e);
-  if(blockVisible())
-    drawBlock(p);
+  if(buttonStyle>0 && touchEnabled)
+    drawControls(p);
+  if(debugOverlay)
+    drawDebug(p);
+  }
+
+void TouchInput::drawDebug(Painter& p) {
   const auto gold = Color(0.843f,0.761f,0.631f,0.28f);
   const auto active = Color(1.f,0.85f,0.4f,0.95f);
   const float scale = 1.4f*std::min(Gothic::interfaceScale(this),float(h())/720.f);
@@ -63,15 +67,11 @@ void TouchInput::paintEvent(Tempest::PaintEvent& e) {
   const int pad = std::max(8,int(12*scale));
   const int line = font.pixelSize();
   const int moveEnd = w()/2;
-  const int lookEnd = (w()*LookBoundaryPercent)/100;
+  const int lookEnd = (w()*3)/4;
   p.setPen(Pen(gold,Painter::Alpha,std::max(1.f,scale)));
   p.setBrush(gold);
   p.drawLine(moveEnd,0,moveEnd,h());
-  p.drawLine(lookEnd,0,lookEnd,h());
 
-  auto label = [&](int x,int y,int width,std::string_view text) {
-    font.drawTextShadow(p,x,y,width,2*line,text,AlignHCenter);
-    };
   const auto safe=debugSafeArea.isEmpty() ? Rect(0,0,w(),h()) : debugSafeArea;
   const int leftX=safe.x+pad;
   const int leftWidth=moveEnd-pad-leftX, rightX=moveEnd+pad, rightWidth=lookEnd-moveEnd-2*pad;
@@ -118,34 +118,6 @@ void TouchInput::paintEvent(Tempest::PaintEvent& e) {
       legend("Hold Action + movement up / sides: attack");
       legend("Hold Action + pull straight down: block");
       }
-    }
-
-  const char* names[] = {"Back / Menu","Inventory","Jump","Draw / Sheathe",
-                        uiActive ? "Accept" : (classicCombat ? "Action" : "Use / Attack")};
-  for(int i=0;i<5;++i) {
-    const auto rect = buttonRect(size_t(i));
-    bool pressed = false;
-    for(const auto& [id,touch]:touches)
-      pressed |= touch.role==Role::Button && touch.command==Buttons[i];
-    if(pressed) {
-      p.setBrush(Color(0.8f,0.6f,0.2f,0.18f));
-      p.drawRect(rect);
-      }
-    p.setBrush(gold);
-    p.drawLine(rect.x,rect.y,rect.x+rect.w,rect.y);
-    if(i==2) {
-      p.drawLine(rect.x,rect.y,rect.x,rect.y+rect.h);
-      p.drawLine(rect.x,rect.y+rect.h,rect.x+rect.w,rect.y+rect.h);
-      }
-    const int textLeft=std::max(rect.x,safe.x)+pad;
-    const int textRight=std::min(rect.x+rect.w,safe.x+safe.w)-pad;
-    const int textY=std::max(rect.y,safe.y)+(std::min(rect.y+rect.h,safe.y+safe.h)-std::max(rect.y,safe.y))/2;
-    label(textLeft,textY,textRight-textLeft,names[i]);
-    if(i==4 && canLock && touchEnabled && !uiActive)
-      detail.drawTextShadow(p,textLeft,textY+line,textRight-textLeft,2*line,targetLocked ? "Drag: unlock" : "Drag: lock",AlignHCenter);
-    if((i==0 || i==1 || i==3) && touchEnabled && !uiActive)
-      detail.drawTextShadow(p,textLeft,textY+line,textRight-textLeft,2*line,
-                           i==0 ? "Hold: System" : (i==1 ? "Hold: Character" : "Hold: Equipment"),AlignHCenter);
     }
 
   auto cross = [&](Point pos,int radius) {
@@ -202,15 +174,12 @@ void TouchInput::mouseDownEvent(Tempest::MouseEvent& e) {
   touch.last   = e.pos();
   touch.pressedAt = Application::tickCount();
 
-  int button = -1;
-  for(size_t i=0;i<std::size(Buttons);++i)
-    if(buttonRect(i).contains(e.pos()))
-      button = int(i);
-  // Jump does nothing in the water and sits where camera drags start.
+  int button = buttonAt(e.pos());
+  // Jump does nothing in the water, so a touch there turns the camera instead.
   if(swimming && !uiActive && button>=0 && Buttons[button]==Command::Jump)
     button = -1;
 
-  const bool onBlock=blockVisible() && blockRect().contains(e.pos());
+  const bool onBlock=button>=0 && Buttons[button]==Command::Block;
   multiTap.down(e.mouseID,float(e.x),float(e.y),touch.pressedAt,
                 (saveDeleteEnabled || (gesturesEnabled && !uiActive)) && wheelPointer<0);
   if(tapCaptured || multiTap.ready()) {
@@ -248,6 +217,9 @@ void TouchInput::mouseDownEvent(Tempest::MouseEvent& e) {
         }
       }
     }
+  else if(uiActive && onItemTouch && onItemTouch(ItemPhase::Begin,e.pos())) {
+    touch.role = Role::Item;
+    }
   else if(uiActive && menuAdjustment && e.x>=w()/2) {
     if(adjustmentPointer>=0) return;
     touch.role=Role::Adjust;
@@ -267,8 +239,7 @@ void TouchInput::mouseDownEvent(Tempest::MouseEvent& e) {
     lookPointer = e.mouseID;
     }
   touches[e.mouseID] = touch;
-  if(debugOverlay || blockVisible())
-    update();
+  update();
   }
 
 void TouchInput::mouseDragEvent(Tempest::MouseEvent& e) {
@@ -277,9 +248,17 @@ void TouchInput::mouseDragEvent(Tempest::MouseEvent& e) {
   if(it==touches.end())
     return;
   auto& touch = it->second;
+  const auto travel = e.pos()-touch.anchor;
+  touch.moved |= std::hypot(float(travel.x),float(travel.y))>=tapSlop();
   if(touch.role==Role::MultiTap) {
     touch.last=e.pos();
     update();
+    return;
+    }
+  if(touch.role==Role::Item) {
+    touch.last=e.pos();
+    if(onItemTouch)
+      onItemTouch(ItemPhase::Move,e.pos());
     return;
     }
   if(touch.role==Role::Gesture) {
@@ -319,8 +298,7 @@ void TouchInput::mouseDragEvent(Tempest::MouseEvent& e) {
     lookDelta += e.pos()-touch.last;
     }
   touch.last = e.pos();
-  if(debugOverlay || blockVisible())
-    update();
+  update();
   }
 
 void TouchInput::mouseUpEvent(Tempest::MouseEvent& e) {
@@ -352,7 +330,7 @@ void TouchInput::mouseUpEvent(Tempest::MouseEvent& e) {
     releaseGesture();
     if(e.mouseID==gestureFirst) gestureFirst=-1;
     if(e.mouseID==gestureSecond) gestureSecond=-1;
-    touches.erase(it);
+    touches.erase(e.mouseID);
     update();
     return;
     }
@@ -360,49 +338,60 @@ void TouchInput::mouseUpEvent(Tempest::MouseEvent& e) {
     const auto action=it->second.command;
     moveWheel(it->second,e.pos());
     wheelPointer=-1;
-    touches.erase(it);
+    touches.erase(e.mouseID);
     wheel(action,WheelPhase::Apply,e.pos());
     update();
     return;
     }
-  if(it->second.role==Role::Adjust) {
-    adjustValue(it->second,e.pos());
-    adjustmentPointer=-1;
-    adjustmentDrag.reset();
-    touches.erase(e.mouseID);
+  // Callbacks below may open or close a menu, which resets every touch: take this one out of the map first.
+  auto touch = it->second;
+  touches.erase(it);
+  if(touch.role==Role::Item) {
+    if(onItemTouch)
+      onItemTouch(touch.moved || touch.held ? ItemPhase::Release : ItemPhase::Tap,e.pos());
     update();
     return;
     }
-  if(it->second.role==Role::Move) {
+
+  const auto travel = e.pos()-touch.anchor;
+  // Swipes keep navigating; a finger lifted in place points at the menu item under it.
+  const bool menuTap = uiActive && !touch.moved && std::hypot(float(travel.x),float(travel.y))<tapSlop() &&
+                       (touch.role==Role::Adjust || touch.role==Role::Move);
+  if(touch.role==Role::Adjust) {
+    adjustValue(touch,e.pos());
+    adjustmentPointer=-1;
+    adjustmentDrag.reset();
+    if(menuTap && onTap) onTap(e.pos());
+    update();
+    return;
+    }
+  if(touch.role==Role::Move) {
     movePointer = -1;
     moveAxis = PointF();
     setDirection(Command::Up,false);
     setDirection(Command::Down,false);
     setDirection(Command::Left,false);
     setDirection(Command::Right,false);
+    if(menuTap && onTap) onTap(e.pos());
     }
-  else if(it->second.role==Role::Look) {
+  else if(touch.role==Role::Look) {
     lookPointer = -1;
     }
   else {
-    if(it->second.command==Command::Block)
+    if(touch.command==Command::Block)
       blockPointer = -1;
-    if(it->second.pendingWheel || it->second.pendingButton) {
-      const auto action=it->second.command;
-      touches.erase(it);
-      command(action,true);
-      command(action,false);
+    if(touch.pendingWheel || touch.pendingButton) {
+      command(touch.command,true);
+      command(touch.command,false);
       update();
       return;
       }
-    if(it->second.pendingAction)
+    if(touch.pendingAction)
       command(Command::TapAccept,true);
-    else if(it->second.actionSent)
-      command(it->second.command,false);
+    else if(touch.actionSent)
+      command(touch.command,false);
     }
-  touches.erase(it);
-  if(debugOverlay || blockVisible())
-    update();
+  update();
   }
 
 void TouchInput::setTouchEnabled(bool enabled) {
@@ -426,6 +415,18 @@ void TouchInput::setSaveDeleteEnabled(bool enabled) {
   // Never reinterpret a tap that started in another menu or in gameplay.
   reset();
   saveDeleteEnabled=enabled;
+  update();
+  }
+
+void TouchInput::setButtonStyle(int style) {
+  if(buttonStyle==style) return;
+  buttonStyle=style;
+  update();
+  }
+
+void TouchInput::setMenuOpen(bool open) {
+  if(menuOpen==open) return;
+  menuOpen=open;
   update();
   }
 
@@ -482,52 +483,148 @@ void TouchInput::setDebugContext(bool classic, bool ui, bool lockAllowed, bool l
   update();
   }
 
-Rect TouchInput::buttonRect(size_t index) const {
-  // Hit testing and the optional debug overlay use exactly the same bounds.
-  const int left = w()*LookBoundaryPercent/100;
-  const int width = w()-left;
-  constexpr int menuHeightPercent = 23;
-  const int jumpTop = h()*(2*menuHeightPercent)/100;
-  const int attackTop = h()*64/100;
-  if(index<2) {
-    const int top=h()*int(index)*menuHeightPercent/100;
-    const int bottom=h()*int(index+1)*menuHeightPercent/100;
-    return Rect(left,top,width,bottom-top);
+TouchInput::ButtonShape TouchInput::buttonShape(size_t index) const {
+  // Laid out on a 720 px tall reference screen: Attack in the bottom-right corner, three actions on an arc around it
+  // within the thumb's reach, and the two buttons with hold wheels in the top-right corner.
+  const auto  m      = margins();
+  const float right  = float(w()-m.right);
+  const float top    = float(m.top);
+  const float bottom = float(h()-m.bottom);
+  const float u      = float(h())/720.f;
+  const PointF attack(right-100.f*u,bottom-114.f*u);
+  auto arc = [&](float degrees) {
+    const float a = degrees*3.14159265f/180.f;
+    return PointF(attack.x+255.f*u*std::cos(a),attack.y-255.f*u*std::sin(a));
+    };
+  switch(Buttons[index]) {
+    case Command::Back:      return {PointF(right-52.f*u,top+56.f*u),28.f*u};
+    case Command::Inventory: return {PointF(right-52.f*u,top+156.f*u),28.f*u};
+    case Command::Block:     return {arc(180.f),42.f*u};
+    case Command::Jump:      return {arc(140.f),42.f*u};
+    case Command::Weapon:    return {arc(100.f),42.f*u};
+    default:                 return {attack,78.f*u};
     }
-  if(index==4)
-    return Rect(left,attackTop,width,h()-attackTop);
-  const int sideWidth=std::min(width,h()*30/100);
-  return Rect(index==2 ? left-sideWidth : left,jumpTop,
-              index==2 ? sideWidth : width,attackTop-jumpTop);
+  }
+
+bool TouchInput::buttonShown(size_t index) const {
+  const auto c = Buttons[index];
+  // The inventory needs no buttons: cells are tapped directly and a tap on free space closes it
+  if(uiActive)
+    return !inventoryNavigation && (c==Command::Back || c==Command::Accept);
+  return c!=Command::Block || blockVisible();
+  }
+
+int TouchInput::buttonAt(Point pos) const {
+  // A touch a little outside a button still counts, and the gap between two buttons goes to the nearer one.
+  int   best = -1;
+  float bestDistance = 1.35f;
+  for(size_t i=0;i<std::size(Buttons);++i) {
+    if(!buttonShown(i))
+      continue;
+    const auto  b = buttonShape(i);
+    const float d = std::hypot(float(pos.x)-b.center.x,float(pos.y)-b.center.y)/b.radius;
+    if(d<bestDistance) {
+      bestDistance = d;
+      best = int(i);
+      }
+    }
+  return best;
+  }
+
+bool TouchInput::buttonPressed(Command c) const {
+  for(const auto& [id,touch]:touches)
+    if(touch.role==Role::Button && touch.command==c)
+      return true;
+  return false;
   }
 
 bool TouchInput::blockVisible() const {
   return touchEnabled && !classicCombat && !uiActive && canBlock;
   }
 
-Rect TouchInput::blockRect() const {
-  // Keep Block beside Attack, with a shared top edge and enough room for a thumb.
-  const auto attack = buttonRect(4);
-  const auto jump = buttonRect(2);
-  return Rect(jump.x,attack.y,jump.w,attack.h);
-  }
-
-void TouchInput::drawBlock(Painter& p) const {
-  const auto rect = blockRect();
-  const float scale = 1.4f*std::min(Gothic::interfaceScale(this),float(h())/720.f);
-  const bool pressed = blockPointer>=0;
-  if(pressed) {
-    p.setBrush(Color(0.8f,0.6f,0.2f,0.18f));
-    p.drawRect(rect);
+void TouchInput::drawControls(Painter& p) {
+  enum Image : uint8_t { Attack, Use, Block, Jump, Draw, Sheathe, Menu, Inventory, Pressed };
+  if(textures.empty()) {
+    for(auto name:{"touch_attack.png","touch_use.png","touch_block.png","touch_jump.png","touch_draw.png","touch_sheathe.png",
+                   "touch_menu.png","touch_inventory.png","touch_pressed.png"})
+      textures.push_back(Resources::loadTexturePm(TouchAsset::pixmap(name)));
     }
-  const auto gold = Color(0.843f,0.761f,0.631f,0.28f);
-  p.setBrush(gold);
-  p.setPen(Pen(gold,Painter::Alpha,std::max(1.f,scale)));
-  // Jump and Attack already draw the shared edges.
-  p.drawLine(rect.x,rect.y+rect.h,rect.x,rect.y);
+  // Nothing over game menus, videos and loading screens; dialogue and documents keep Back and Accept
+  if(menuOpen)
+    return;
 
-  const auto& font = Resources::font(scale);
-  font.drawTextShadow(p,rect.x,rect.y+(rect.h+font.pixelSize())/2,rect.w,font.pixelSize(),"Block",AlignHCenter);
+  const float u     = float(h())/720.f;
+  const float scale = std::min(Gothic::interfaceScale(this),float(h())/720.f);
+  const auto& font  = Resources::font(scale);
+  const auto& small = Resources::font(scale*0.8f);
+  const bool  armed = canLock;
+
+  // The images leave room around the button: a circle fills 97% of its image, a rounded square 220 of 256 px.
+  auto image = [&](Image i,PointF center,float size,float alpha=1.f) {
+    const auto& t = textures[i];
+    const int   s = int(size);
+    p.setBrush(Brush(t,Color(1.f,1.f,1.f,alpha),PaintDevice::Alpha,ClampMode::ClampToEdge));
+    p.drawRect(int(center.x-size*0.5f),int(center.y-size*0.5f),s,s,0,0,t.w(),t.h());
+    };
+  auto below = [&](PointF center,float radius,std::string_view text,std::string_view hint) {
+    if(buttonStyle<2)
+      return;
+    const int width = int(radius*4.f);
+    const int y     = int(center.y+radius)+font.pixelSize()+int(2.f*u);
+    font.drawTextShadow(p,int(center.x)-width/2,y,width,font.pixelSize(),text,AlignHCenter);
+    if(!hint.empty())
+      small.drawTextShadow(p,int(center.x)-width/2,y+small.pixelSize(),width,small.pixelSize(),hint,AlignHCenter);
+    };
+  auto left = [&](PointF center,float radius,std::string_view text,std::string_view hint) {
+    if(buttonStyle<2)
+      return;
+    const int width = int(240.f*u);
+    const int x     = int(center.x-radius*1.4f)-width;
+    const int y     = int(center.y)-(hint.empty() ? -font.pixelSize()/2 : 0);
+    font.drawTextShadow(p,x,y,width,font.pixelSize(),text,AlignRight);
+    if(!hint.empty())
+      small.drawTextShadow(p,x,y+small.pixelSize(),width,small.pixelSize(),hint,AlignRight);
+    };
+
+  for(size_t i=0;i<std::size(Buttons);++i) {
+    if(!buttonShown(i))
+      continue;
+    const auto c = Buttons[i];
+    if(uiActive && c!=Command::Back && c!=Command::Accept)
+      continue;
+    const auto b = buttonShape(i);
+    const float d = 2.f*b.radius;
+    switch(c) {
+      case Command::Back:
+        image(Menu,b.center,d*256.f/220.f);
+        left(b.center,b.radius,uiActive ? "Back" : "Menu",uiActive ? "" : "Hold: System");
+        break;
+      case Command::Inventory:
+        image(Inventory,b.center,d*256.f/220.f);
+        left(b.center,b.radius,"Inventory","Hold: Character");
+        break;
+      case Command::Jump:
+        image(Jump,b.center,d/0.97f,swimming ? 0.4f : 1.f);
+        below(b.center,b.radius,"Jump","");
+        break;
+      case Command::Weapon:
+        image(armed ? Sheathe : Draw,b.center,d/0.97f);
+        below(b.center,b.radius,armed ? "Sheathe" : "Draw","Hold: Equipment");
+        break;
+      case Command::Block:
+        image(Block,b.center,d/0.97f);
+        below(b.center,b.radius,"Block","");
+        break;
+      default:
+        image(armed && !uiActive ? Attack : Use,b.center,d/0.97f);
+        below(b.center,b.radius,uiActive ? "Accept" : (armed ? (classicCombat ? "Action" : "Attack") : "Use"),"");
+        break;
+      }
+    const bool pressed = c==Command::Block ? blockPointer>=0 : buttonPressed(c);
+    if(pressed)
+      image(Pressed,b.center,d);
+    }
+
   }
 
 void TouchInput::tick() {
@@ -547,6 +644,14 @@ void TouchInput::tick() {
     return;
     }
   for(auto& [id,touch]:touches) {
+    if(touch.role==Role::Item) {
+      if(!touch.held && !touch.moved && now-touch.pressedAt>=ItemHoldMs) {
+        touch.held = true;
+        if(onItemTouch)
+          onItemTouch(ItemPhase::Hold,touch.last);
+        }
+      continue;
+      }
     // Short button taps fire on release; reserve the joining window for a multi-finger gesture.
     if(multiTap.joining(now)) continue;
     if(touch.pendingWheel && now-touch.pressedAt>=WheelHoldMs) {
@@ -692,6 +797,9 @@ void TouchInput::reset() {
       command(touch.second.command,false);
   for(size_t i=0;i<4;++i)
     setDirection(Command(i),false);
+  for(auto& [id,touch]:touches)
+    if(touch.role==Role::Item && onItemTouch)
+      onItemTouch(ItemPhase::Cancel,Point());
   touches.clear();
   adjustmentPointer=-1;
   adjustmentDrag.reset();
