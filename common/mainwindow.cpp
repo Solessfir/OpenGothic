@@ -53,6 +53,34 @@ MainWindow::MainWindow(Device& device)
     {
   Gothic::inst().onSettingsChanged.bind(this,&MainWindow::onSettings);
   onSettings();
+#if defined(__MOBILE_PLATFORM__)
+  mobileUi.onTap=[this](Point pos) {
+    if(!video.isActive() && dialogs.isActive() && !rootMenu.isActive() && dialogs.tapChoice(pos-dialogs.pos()))
+      return;
+    if(video.isActive() || chapter.isActive() || (dialogs.isActive() && !rootMenu.isActive())) {
+      // Same as Back: skips the video, the chapter screen or the current line of dialogue
+      onTouchCommand(TouchInput::Command::Back,true);
+      onTouchCommand(TouchInput::Command::Back,false);
+      }
+    else if(rootMenu.isActive()) rootMenu.tapItem(pos-rootMenu.pos());
+    else if(inventory.isActive() && !inventory.isWheelOpen() && !dialogs.isActive() &&
+            inventory.isOpen()!=InventoryMenu::State::LockPicking)
+      inventory.close();
+    };
+  mobileUi.onItemTouch=[this](TouchInput::ItemPhase phase, Point pos) {
+    using Phase=TouchInput::ItemPhase;
+    if(phase==Phase::Begin)
+      return inventory.isActive() && !inventory.isWheelOpen() && !rootMenu.isActive() && !dialogs.isActive() &&
+             inventory.touchBegin(pos-inventory.pos());
+    switch(phase) {
+      case Phase::Move: inventory.touchMove(pos-inventory.pos()); break;
+      case Phase::Hold: inventory.touchHold(); break;
+      case Phase::Tap:  inventory.touchEnd(true); break;
+      default:          inventory.touchEnd(false); break;
+      }
+    return true;
+    };
+#endif
 #if defined(__ANDROID__)
   mobileUi.onTouchStarted=[this] { setControllerInput(false); };
   if(!std::filesystem::exists("Gamepad.ini")) {
@@ -185,10 +213,10 @@ void MainWindow::setupUi() {
   addWidget(&inventory);
   addWidget(&chapter);
   addWidget(&video);
+  addWidget(&rootMenu);
 #if defined(__MOBILE_PLATFORM__)
   addWidget(&mobileUi);
 #endif
-  addWidget(&rootMenu);
 
   rootMenu.setMainMenu();
 
@@ -557,11 +585,13 @@ void MainWindow::tickMouse(uint64_t dt) {
 
 
 void MainWindow::applySystemWheelSelection(size_t selected,bool touch) {
-  const char* settings[]={"showFps",touch ? "touchControls" : "gamepadControls","centerPlayerBars","useGothic1Controls","vibration"};
+  const char* settings[]={"showFps",touch ? "touchButtons" : "gamepadControls","centerPlayerBars","useGothic1Controls","vibration"};
   if(selected>=std::size(settings)) return;
-  const auto section=selected==1 ? "DEBUG" : "GAME";
+  const auto section=selected==1 && !touch ? "DEBUG" : "GAME";
   const auto setting=settings[selected];
-  Gothic::settingsSetI(section,setting,!Gothic::settingsGetI(section,setting));
+  if(selected==1 && touch)
+    Gothic::settingsSetI(section,setting,(Gothic::settingsGetI(section,setting)+1)%3); else
+    Gothic::settingsSetI(section,setting,!Gothic::settingsGetI(section,setting));
   Gothic::flushSettings();
   Feedback::play(Feedback::Effect::Confirm);
   }
@@ -606,7 +636,7 @@ bool MainWindow::onTouchWheel(TouchInput::Command command, TouchInput::WheelPhas
      chapter.isActive() || document.isActive() || dialogs.isActive() || console.isActive()) return true;
   if(command==TouchInput::Command::Weapon) {
     Feedback::play(Feedback::Effect::Confirm);
-    player.controllerEquip(selected);
+    applyEquipmentWheel(selected);
     }
   else if(command==TouchInput::Command::Back) {
     applySystemWheelSelection(selected,true);
@@ -796,6 +826,7 @@ void MainWindow::onTouchCommand(TouchInput::Command command, bool pressed) {
 void MainWindow::onSettings() {
 #if defined(__MOBILE_PLATFORM__)
   mobileUi.setDebugOverlay(Gothic::settingsGetI("DEBUG", "touchControls")!=0);
+  mobileUi.setButtonStyle(Gothic::settingsGetI("GAME", "touchButtons"));
 #if defined(__ANDROID__)
   if(controllerConnected) mobileUi.setDebugOverlay(false);
 #endif

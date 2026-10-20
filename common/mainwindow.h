@@ -103,6 +103,7 @@ class MainWindow : public Tempest::Window {
     void processMouse(Tempest::MouseEvent& event, bool enable);
     void tickMouse(uint64_t dt);
     void tickGamepad();
+    void applyEquipmentWheel(size_t item);
     void applySystemWheelSelection(size_t selected, bool touch=false);
     void updateControllerOverlay();
     void paintControllerOverlay(Tempest::PaintEvent& event, int top);

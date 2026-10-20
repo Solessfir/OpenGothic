@@ -446,6 +446,8 @@ void InventoryMenu::mouseMoveEvent(MouseEvent& e) {
 bool InventoryMenu::selectCellAt(Point pos) {
   // Same layout as drawAll: the chest or trader grid on the left, the player grid on the right.
   const int    padd   = 43;
+  const int    left   = std::max(padd,margins().left);
+  const int    right  = w()-std::max(padd,margins().right);
   const int    wcount = int(columsCount);
   const int    hcount = int(rowsCount());
   const auto   cell   = slotSize();
@@ -455,14 +457,14 @@ bool InventoryMenu::selectCellAt(Point pos) {
 
   auto inGrid = [&](int x0) { return pos.x>=x0 && pos.x<x0+wcount*cell.w; };
   uint8_t pg = 0;
-  if(pageOth!=nullptr && inGrid(padd))
+  if(pageOth!=nullptr && inGrid(left))
     pg = 0;
-  else if(state!=State::Ransack && inGrid(w()-padd-wcount*cell.w))
+  else if(state!=State::Ransack && inGrid(right-wcount*cell.w))
     pg = 1;
   else
     return false;
 
-  const int  x0  = pg==0 ? padd : w()-padd-wcount*cell.w;
+  const int  x0  = pg==0 ? left : right-wcount*cell.w;
   auto&      sel = pageOth!=nullptr ? pageLocal[pg] : pageLocal[1];
   auto&      inv = pageOth!=nullptr ? *(pg==0 ? pageOth : pagePl) : *pagePl;
   const size_t id = (sel.scroll+size_t((pos.y-y0)/cell.h))*columsCount + size_t((pos.x-x0)/cell.w);
@@ -528,6 +530,52 @@ void InventoryMenu::paintNumOverlay(PaintEvent& e) {
 
   Painter p(e);
   drawAll(p,*player,DrawPass::Front);
+  if(pinLabel!=nullptr && Application::tickCount()<assignmentUntil) {
+    // In the middle of the screen, where the finger holding the item does not cover it
+    const float scale = Gothic::interfaceScale(this);
+    const auto& fnt   = Resources::font(scale*1.2f);
+    const auto  text  = std::string_view(pinLabel)=="Added" ? "Added to the equipment wheel" : "Removed from the equipment wheel";
+    fnt.drawTextShadow(p,0,h()/2,w(),fnt.pixelSize(),text,AlignHCenter);
+    }
+  }
+
+bool InventoryMenu::touchBegin(Point pos) {
+  touchHeld = false;
+  if(player==nullptr || state==State::Closed || state==State::LockPicking || wheelActive)
+    return false;
+  const auto before = page;
+  const auto sel    = activePageSel().sel;
+  if(!selectCellAt(pos))
+    return false;
+  touchWasSelected = before==page && sel==activePageSel().sel;
+  return true;
+  }
+
+void InventoryMenu::touchHold() {
+  touchHeld = true;
+  if(player==nullptr || state==State::Closed || !activePage().is(&player->inventory()))
+    return;
+  auto item = activePage().get(activePageSel().sel);
+  if(!item.isValid() || !QuickSlots::togglePinned(*player,*item))
+    return;
+  pinLabel        = QuickSlots::isPinned(*player,*item) ? "Added" : "Removed";
+  assignmentItem  = item->clsId();
+  assignmentCell  = activePageSel().sel;
+  assignmentUntil = Application::tickCount()+1500;
+  Feedback::play(Feedback::Effect::Confirm);
+  update();
+  }
+
+void InventoryMenu::touchMove(Point) {
+  }
+
+void InventoryMenu::touchEnd(bool tap) {
+  if(tap && touchWasSelected && !touchHeld) {
+    onItemAction(Item::NSLOT);
+    takeTimer.stop();
+    takeCount = 0;
+    }
+  touchHeld = false;
   }
 
 Size InventoryMenu::slotSize() const {
@@ -799,7 +847,7 @@ void InventoryMenu::drawSlot(Painter &p, DrawPass pass, const Inventory::Iterato
     auto fnt = Resources::font(scale);
 
     if(&page==&active && id==sel.sel && id==assignmentCell && it->clsId()==assignmentItem &&
-       assignmentDirection>=0 && Application::tickCount()<assignmentUntil) {
+       assignmentDirection>=0 && pinLabel==nullptr && Application::tickCount()<assignmentUntil) {
       const auto label=QuickSlots::directions[assignmentDirection];
       fnt.drawText(p,x,y+fnt.pixelSize(),slotSize().w,fnt.pixelSize(),label,AlignHCenter);
       }
@@ -925,6 +973,7 @@ void InventoryMenu::controllerAction(int action, bool repeat) {
     const auto item=activePage().get(activePageSel().sel);
     const size_t direction=size_t(action-int(A::AssignUp));
     if(item.isValid() && QuickSlots::assign(*player,direction,*item)) {
+      pinLabel=nullptr;
       assignmentItem=item->clsId();
       assignmentCell=activePageSel().sel;
       assignmentDirection=int(direction);
@@ -987,6 +1036,10 @@ void InventoryMenu::openWheel(Npc& pl, WheelKind kind) {
     if((it->mainFlag()&(ITM_CAT_NF|ITM_CAT_FF))!=0 || (it->isSpellOrRune() && it.slot()!=Item::NSLOT))
       wheelItems.push_back(it->clsId());
     }
+  if(!utilityMenu)
+    for(auto id:QuickSlots::pinned(pl))
+      if(std::find(wheelItems.begin(),wheelItems.end(),id)==wheelItems.end())
+        wheelItems.push_back(id);
   wheelActive=true; wheelPageId=0; wheelSelected=-1; wheelCentered=true;
   wheelKind=kind; wheelTouch=false;
   wheelHoverPage=0;
@@ -1128,7 +1181,9 @@ void InventoryMenu::drawWheel(Painter& p,DrawPass pass) {
   const int footerTop=int(cy+layout.outer)+pad;
   const int footerLeft=int(cx-layout.outer);
   const int footerWidth=int(2*layout.outer);
-  const Color gold(0.843f,0.761f,0.631f,0.85f);
+  // Same palette as the touch buttons: a see-through dark fill, a light gold ring and a warm glow for the selection
+  const Color fill(0.047f,0.039f,0.031f,0.55f), ring(0.843f,0.761f,0.631f,0.6f), divider(0.843f,0.761f,0.631f,0.35f);
+  const Color glow(0.94f,0.78f,0.47f,0.32f), amber(0.94f,0.77f,0.54f,1.f);
 
   p.pushState();
   auto point=[&](float radius,float angle) {
@@ -1145,22 +1200,30 @@ void InventoryMenu::drawWheel(Painter& p,DrawPass pass) {
       if(r0>0.f) p.drawTriangle(p0.x,p0.y,0.f,0.f,p2.x,p2.y,0.f,0.f,p3.x,p3.y,0.f,0.f);
       }
     };
+  const float ringWidth=std::max(2.f,2.f*scale);
+  const float center=inner*0.7f;
   if(pass==DrawPass::Back) {
-    band(0.f,layout.outer,0.f,2.f*float(M_PI),Color(0.035f,0.026f,0.015f,0.88f));
+    band(0.f,layout.outer,0.f,2.f*float(M_PI),fill);
     for(size_t i=0;i<count;++i) {
       const bool pageButton=!utilityMenu && wheelPageSize()==6 && i>=6;
       const bool hovered=pageButton && wheelHoverPage==(i==6 ? -1 : 1);
-      if(int(i)==wheelSelected || hovered)
-        band(inner,layout.outer,float(i)*step-step/2,float(i)*step+step/2,Color(0.7f,0.47f,0.18f,0.35f));
+      if(int(i)==wheelSelected || hovered) {
+        const float a0=float(i)*step-step/2, a1=float(i)*step+step/2;
+        band(center,layout.outer,a0,a1,glow);
+        // A bright arc along the outer edge of the selected slice
+        const float inset=std::min(0.06f,step*0.1f);
+        band(layout.outer-2.f*ringWidth,layout.outer,a0+inset,a1-inset,amber);
+        }
       }
-    band(layout.outer-std::max(1.5f,scale),layout.outer,0.f,2.f*float(M_PI),gold);
-    band(inner-1.f,inner,0.f,2.f*float(M_PI),Color(0.843f,0.761f,0.631f,0.4f));
-    p.setBrush(gold);
-    p.setPen(Pen(Color(0.843f,0.761f,0.631f,0.4f),Painter::Alpha,std::max(1.f,scale)));
+    band(layout.outer-ringWidth,layout.outer,0.f,2.f*float(M_PI),ring);
+    band(0.f,center,0.f,2.f*float(M_PI),fill);
+    band(center-std::max(1.f,scale),center,0.f,2.f*float(M_PI),Color(0.843f,0.761f,0.631f,0.45f));
+    p.setBrush(divider);
+    p.setPen(Pen(divider,Painter::Alpha,std::max(1.f,scale)));
     if(count>1) {
       for(size_t i=0;i<count;++i) {
         const float angle=float(i)*step-step/2;
-        p.drawLine(point(inner,angle),point(layout.outer,angle));
+        p.drawLine(point(center,angle),point(layout.outer-ringWidth,angle));
         }
       }
     }
@@ -1173,15 +1236,22 @@ void InventoryMenu::drawWheel(Painter& p,DrawPass pass) {
     if(pass==DrawPass::Back && item)
       renderer.drawItem(at.x-cell/2,at.y-cell/2,cell,cell,*item);
     if(pass==DrawPass::Front && item && item->isEquipped()) {
-      const float angle=float(i)*step;
-      const float halfArc=step*0.4f/3.f;
-      band(layout.outer-std::max(4.f,3.f*scale),layout.outer,angle-halfArc,angle+halfArc,
-           Color(0.95f,0.78f,0.42f,1.f));
+      // A small amber dot near the ring marks what is equipped
+      const auto  dot=point(layout.outer-4.f*ringWidth,float(i)*step);
+      const float r=std::max(3.f,4.f*scale);
+      p.setBrush(amber);
+      for(int s=0;s<16;++s) {
+        const float a=float(s)*2.f*float(M_PI)/16.f, b=float(s+1)*2.f*float(M_PI)/16.f;
+        p.drawTriangle(dot.x,dot.y,0.f,0.f,
+                       int(float(dot.x)+std::sin(a)*r),int(float(dot.y)-std::cos(a)*r),0.f,0.f,
+                       int(float(dot.x)+std::sin(b)*r),int(float(dot.y)-std::cos(b)*r),0.f,0.f);
+        }
       }
     if(pass==DrawPass::Front && (utilityMenu || pageButton)) {
       const auto fpsLabel=Gothic::settingsGetI("GAME","showFps")!=0 ? "FPS: On" : "FPS: Off";
       const auto debugLabel=wheelTouch ?
-          (Gothic::settingsGetI("DEBUG","touchControls")!=0 ? "Touch debug\nOn" : "Touch debug\nOff") :
+          (Gothic::settingsGetI("GAME","touchButtons")==0 ? "Touch UI\nNone" :
+           (Gothic::settingsGetI("GAME","touchButtons")==1 ? "Touch UI\nIcons" : "Touch UI\nIcons and text")) :
           (Gothic::settingsGetI("DEBUG","gamepadControls")!=0 ? "Gamepad controls\nOn" : "Gamepad controls\nOff");
       const auto hudLabel=Gothic::settingsGetI("GAME","centerPlayerBars")!=0 ? "HUD\nCentered" : "HUD\nClassic";
       const auto combatLabel=Gothic::settingsGetI("GAME","useGothic1Controls")!=0 ? "Combat\nClassic" : "Combat\nModern";
@@ -1190,27 +1260,27 @@ void InventoryMenu::drawWheel(Painter& p,DrawPass pass) {
       const auto label=wheelKind==WheelKind::System ? systemLabels[i] :
                        (wheelKind==WheelKind::Character ? (i==0 ? "Stats" : "Journal") : (i==6 ? "<" : ">"));
       const bool twoLines=wheelKind==WheelKind::System && i!=0;
-      font.drawText(p,at.x-cell,at.y+(twoLines ? 0 : line/2),2*cell,twoLines ? 2*line : line,label,AlignHCenter);
+      font.drawTextShadow(p,at.x-cell,at.y+(twoLines ? 0 : line/2),2*cell,twoLines ? 2*line : line,label,AlignHCenter);
       }
     }
   if(pass==DrawPass::Front) {
     // Gothic fonts position text by its baseline, not by the top of its box.
-    const int centerWidth=int(inner*1.8f);
+    const int centerWidth=int(center*1.9f);
     const char* centerLabel=!wheelTouch && wheelSelected>=0 ? "Selected" : "Cancel";
-    font.drawText(p,int(cx)-centerWidth/2,int(cy)+line/2,centerWidth,line,centerLabel,AlignHCenter);
+    font.drawTextShadow(p,int(cx)-centerWidth/2,int(cy)+line/2,centerWidth,line,centerLabel,AlignHCenter);
     auto item=utilityMenu ? nullptr : player->getItem(wheelSelection());
     const auto pages=std::max<size_t>(1,(wheelItems.size()+wheelPageSize()-1)/wheelPageSize());
     const auto categoryTitle=wheelFilter==QuickSlots::Kind::Empty ? std::string_view("Equipment") : QuickSlots::title(wheelFilter);
     string_frm pagedTitle(categoryTitle," ",wheelPageId+1," / ",pages);
     const std::string_view title=wheelKind==WheelKind::System ? "System" :
                                  (wheelKind==WheelKind::Character ? "Character" : (pages>1 ? std::string_view(pagedTitle.c_str()) : categoryTitle));
-    font.drawText(p,footerLeft,int(cy-layout.outer)-pad,footerWidth,line,title,AlignHCenter);
+    font.drawTextShadow(p,footerLeft,int(cy-layout.outer)-pad,footerWidth,line,title,AlignHCenter);
     const std::string_view name=item ? item->description() : (wheelItems.empty() && !utilityMenu ? "No usable items" : "");
     string_frm itemLabel(name,item && item->isEquipped() ? " (Equipped)" : "");
-    font.drawText(p,footerLeft+pad,footerTop+line,footerWidth-2*pad,2*line,itemLabel.c_str(),AlignHCenter);
+    font.drawTextShadow(p,footerLeft+pad,footerTop+line,footerWidth-2*pad,2*line,itemLabel.c_str(),AlignHCenter);
     if(pages>1) {
       const std::string_view hint=wheelTouch ? "Hold < / > to change page" : std::string_view(wheelPageHint);
-      font.drawText(p,footerLeft+pad,footerTop+layout.footer-pad,footerWidth-2*pad,line,hint,AlignHCenter);
+      font.drawTextShadow(p,footerLeft+pad,footerTop+layout.footer-pad,footerWidth-2*pad,line,hint,AlignHCenter);
       }
     }
   p.popState();
