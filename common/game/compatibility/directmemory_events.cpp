@@ -12,6 +12,7 @@
 #include "world/objects/item.h"
 #include "game/inventory.h"
 #include "world/objects/npc.h"
+#include "world/world.h"
 
 using namespace Tempest;
 using namespace Compatibility;
@@ -468,4 +469,101 @@ bool DirectMemory::spellKeepsItem(int spellId) {
   const bool opened = lockOpenedByScript;
   lockOpenedByScript = false;
   return !opened;
+  }
+
+static bool equalsNoCase(std::string_view a, std::string_view b) {
+  if(a.size()!=b.size())
+    return false;
+  for(size_t i=0; i<a.size(); ++i)
+    if(std::toupper(static_cast<unsigned char>(a[i]))!=std::toupper(static_cast<unsigned char>(b[i])))
+      return false;
+  return true;
+  }
+
+/// A character equips or unequips a bow or a crossbow (oCNpc::EquipItem, oCNpc::UnequipItem). The hooks _EVT_QUIVER_EQUIP and
+/// _EVT_QUIVER_UNEQUIP of CoM (read from the DAT) hang the quiver on the back of the character or take it down.
+void DirectMemory::eventEquipItem(Npc& npc, Item& item, bool equip) {
+  const uint32_t adr = equip ? HookAdr::EquipItem : HookAdr::UnequipItem;
+  if(!hasHook(adr))
+    return;
+  HookRegs r;
+  r.ecx = ptrOf(npc);
+  r.args.push_back(int32_t(ptrOf(item)));
+  fireHook(adr,r);
+  }
+
+/// MEM_InsertVob, oCNpc::PutInSlot and oCNpc::RemoveFromSlot as the quivers of CoM use them (REFRESHBOWQUIVERMODEL, REMOVEQUIVER):
+/// a vob with the visual "ItRw_Quiver_<arrows>.3ds" is put in the slot ZS_CROSSBOW (for a bow) or ZS_BOW (for a crossbow) of the
+/// character, then the script deletes the vob from the world, the model keeps its reference. Here the vob is only the name of
+/// the visual until it is put in a slot; the slot is a decoration of the model.
+void DirectMemory::setupQuiverFunctions() {
+  auto safe = [&](std::string_view name, auto hook) {
+    auto f = vm.find_symbol_by_name(name);
+    if(f==nullptr || f->type()!=zenkit::DaedalusDataType::FUNCTION)
+      return;
+    vm.override_function(name,hook);
+    };
+
+  auto npcOf = [](const std::shared_ptr<zenkit::INpc>& ref) -> Npc* {
+    if(ref==nullptr || ref->user_ptr==nullptr)
+      return nullptr;
+    return reinterpret_cast<Npc*>(ref->user_ptr);
+    };
+  auto quiverSlot = [](std::string_view slot) {
+    return equalsNoCase(slot,"ZS_BOW") || equalsNoCase(slot,"ZS_CROSSBOW");
+    };
+
+  safe("MEM_GETANYWP", [](){
+    return std::string("WP");
+    });
+  safe("MEM_INSERTVOB", [this](std::string_view visual, std::string_view /*wp*/) -> int {
+    const ptr32_t vob = mem32.alloc(16,"zCVob");
+    if(vob!=0)
+      decoVobs[vob] = std::string(visual);
+    return int(vob);
+    });
+  safe("MEM_DELETEVOB", [this](int vob) {
+    auto it = decoVobs.find(ptr32_t(vob));
+    if(it==decoVobs.end())
+      return;
+    decoVobs.erase(it);
+    mem32.free(ptr32_t(vob));
+    });
+  safe("OCNPC_PUTINSLOT", [this,npcOf,quiverSlot](std::shared_ptr<zenkit::INpc> npcRef, std::string_view slot, int vob, int /*slotId*/) -> int {
+    auto it = decoVobs.find(ptr32_t(vob));
+    auto* npc = npcOf(npcRef);
+    if(npc==nullptr || it==decoVobs.end() || !quiverSlot(slot))
+      return 0;
+    auto mesh = npc->world().addView(it->second);
+    npc->setDecor(std::move(mesh),slot);
+    return 1;
+    });
+  safe("OCNPC_REMOVEFROMSLOT", [npcOf,quiverSlot](std::shared_ptr<zenkit::INpc> npcRef, std::string_view slot, int /*retVal*/, int /*slotId*/) -> int {
+    auto* npc = npcOf(npcRef);
+    if(npc!=nullptr && quiverSlot(slot))
+      npc->clearDecor(slot);
+    return 0;
+    });
+
+  // the quivers of the characters of the world: the scripts walk through oWorld.voblist_npcs, here the hook of equipping is
+  // given to every character with a bow, a frame later (the characters of the world exist then)
+  safe("INIT_QUIVERS_ALWAYS", [this](){
+    quiversPending = true;
+    });
+  }
+
+void DirectMemory::tickQuivers() {
+  if(!quiversPending)
+    return;
+  auto& world = gameScript.world();
+  if(world.npcCount()==0)
+    return;
+  quiversPending = false;
+  for(uint32_t i=0, n=world.npcCount(); i<n; ++i) {
+    auto* npc = world.npcById(i);
+    if(npc==nullptr || npc->handlePtr()==nullptr)
+      continue;
+    if(auto* bow = npc->currentRangedWeapon())
+      eventEquipItem(*npc,*bow,true);
+    }
   }

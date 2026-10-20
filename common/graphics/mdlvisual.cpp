@@ -225,6 +225,46 @@ void MdlVisual::setSlotItem(MeshObjects::Mesh &&itm, std::string_view bone) {
   syncAttaches();
   }
 
+/// A visual that a script of a mod hangs on a bone (oCNpc::PutInSlot of Ikarus: the quiver of CoM). Unlike the items of
+/// the inventory it stays when the character is hit.
+void MdlVisual::setDecor(MeshObjects::Mesh&& itm, std::string_view bone) {
+  if(bone.empty() || skeleton==nullptr)
+    return;
+
+  size_t id = skeleton->findNode(bone);
+  if(id==size_t(-1))
+    return;
+
+  for(auto& i:decor) {
+    if(i.boneId==id) {
+      i.view=std::move(itm);
+      syncAttaches();
+      return;
+      }
+    }
+
+  MeshAttach slt;
+  slt.bone = skeleton->nodes[id].name;
+  bind(slt,std::move(itm),slt.bone);
+  decor.push_back(std::move(slt));
+  syncAttaches();
+  }
+
+void MdlVisual::clearDecor(std::string_view bone) {
+  size_t id = skeleton==nullptr ? size_t(-1) : skeleton->findNode(bone);
+  if(id==size_t(-1))
+    return;
+
+  for(size_t i=0;i<decor.size();++i) {
+    if(decor[i].boneId==id) {
+      decor[i] = std::move(decor.back());
+      decor.pop_back();
+      syncAttaches();
+      return;
+      }
+    }
+  }
+
 void MdlVisual::setStateItem(MeshObjects::Mesh&& a, std::string_view bone) {
   bind(stateItm,std::move(a),bone);
   syncAttaches();
@@ -883,6 +923,8 @@ void MdlVisual::rebindAttaches(const Skeleton& to) {
     rebindAttaches(*i,to);
   for(auto& i:item)
     rebindAttaches(i,to);
+  for(auto& i:decor)
+    rebindAttaches(i,to);
   for(auto& i:attach)
     rebindAttaches(i,to);
   for(auto& i:effects)
@@ -903,6 +945,8 @@ void MdlVisual::syncAttaches() {
   for(auto i:mesh)
     syncAttaches(*i);
   for(auto& i:item)
+    syncAttaches(i);
+  for(auto& i:decor)
     syncAttaches(i);
   for(auto& i:attach)
     syncAttaches(i);
