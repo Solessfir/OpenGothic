@@ -27,6 +27,7 @@ static constexpr uint32_t ZCTEXTURE__LOAD    = 6239904;
 static constexpr uint32_t ZCFONTMAN__LOAD    = 7897808;
 static constexpr uint32_t ZCFONTMAN__GETFONT = 7898288;
 static constexpr uint32_t ZCFONT__GETFONTX   = 7902448;
+static constexpr uint32_t ZCFONT__GETFONTNAME = 7902368;
 static constexpr uint32_t ZCFONT__GETFONTY   = 7902432;
 
 /// The virtual size of the screen of Gothic: the positions and the sizes of views and texts are from 0 to 8192
@@ -69,6 +70,8 @@ void DirectMemory::setupUiFunctions() {
     view->COLOR     = int32_t(0xFFFFFFFF);
     view->ALPHA     = 255;
     view->FONTCOLOR = int32_t(0xFFFFFFFF);
+    // a view has the default font as in the engine: LeGo saves its name (GetFontName) and sets it back after the load
+    view->FONT      = int32_t(fonts[fontHandle("FONT_OLD_10_WHITE.TGA")-1].object);
     view->VPOSX     = x1;
     view->VPOSY     = y1;
     view->VSIZEX    = x2-x1;
@@ -148,21 +151,26 @@ void DirectMemory::setupUiFunctions() {
     });
   }
 
+/// The handle (the index+1) of a font, the font is made when it is asked for the first time
+uint32_t DirectMemory::fontHandle(std::string_view font) {
+  std::string name;
+  for(char c:font)
+    name.push_back(char(std::toupper(static_cast<unsigned char>(c))));
+  for(size_t i=0; i<fonts.size(); ++i)
+    if(fonts[i].name==name)
+      return uint32_t(i+1);
+  FontInfo f;
+  f.name   = name;
+  f.object = mem32.alloc(64,"zCFont");
+  fonts.push_back(f);
+  fontByPtr[f.object] = uint32_t(fonts.size()-1);
+  return uint32_t(fonts.size());
+  }
+
 /// The fonts: a script asks for a handle and for the object, the object is the name of the font
 void DirectMemory::setupFontFunctions() {
   cpu.register_thiscall(ZCFONTMAN__LOAD,[this](ptr32_t, std::string font) -> int32_t {
-    std::string name;
-    for(char c:font)
-      name.push_back(char(std::toupper(static_cast<unsigned char>(c))));
-    for(size_t i=0; i<fonts.size(); ++i)
-      if(fonts[i].name==name)
-        return int32_t(i+1);
-    FontInfo f;
-    f.name   = name;
-    f.object = mem32.alloc(64,"zCFont");
-    fonts.push_back(f);
-    fontByPtr[f.object] = uint32_t(fonts.size()-1);
-    return int32_t(fonts.size());
+    return int32_t(fontHandle(font));
     });
 
   cpu.register_thiscall(ZCFONTMAN__GETFONT,[this](ptr32_t, int handle) -> int32_t {
@@ -177,6 +185,18 @@ void DirectMemory::setupFontFunctions() {
     if(it==fontByPtr.end())
       return 0;
     return int32_t(textWidth(fonts[it->second].name,txt));
+    });
+
+  // zCFont::GetFontName() returns a zSTRING by value: the script gives the place for it (CALL_RetValIsZString) and takes
+  // the text from it afterwards (CALL_RetValAszString). LeGo asks for it when it saves a view: the font has to come back
+  // after the load.
+  cpu.register_thiscall(ZCFONT__GETFONTNAME,[this](ptr32_t self, ptr32_t out) -> int32_t {
+    auto* z = mem32.deref<zString>(out);
+    if(z==nullptr)
+      return 0;
+    auto it = fontByPtr.find(self);
+    memAssignString(*z,it==fontByPtr.end() ? std::string_view("FONT_OLD_10_WHITE.TGA") : std::string_view(fonts[it->second].name));
+    return int32_t(out);
     });
 
   cpu.register_thiscall(ZCFONT__GETFONTY,[this](ptr32_t self) -> int32_t {
