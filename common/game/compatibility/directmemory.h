@@ -215,6 +215,7 @@ class DirectMemory {
       std::string name;
       ptr32_t     object = 0;
       };
+    uint32_t    fontHandle(std::string_view font);
     std::vector<FontInfo>                  fonts;        // the handle is the index+1
     std::unordered_map<ptr32_t,uint32_t>   fontByPtr;
     std::unordered_map<std::string,ptr32_t> texObjects;  // the name of a texture -> its object for the scripts
