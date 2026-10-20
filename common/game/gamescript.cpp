@@ -188,6 +188,17 @@ bool GameScript::dmaSpellKeepsItem(int spellId) {
   return dma!=nullptr && dma->spellKeepsItem(spellId);
   }
 
+const std::vector<std::string>& GameScript::inventoryCategoryNames() {
+  if(!invCategoryNamesInit) {
+    invCategoryNamesInit = true;
+    auto* sym = vm.find_symbol_by_name("TXT_INV_CAT");
+    if(sym!=nullptr && sym->type()==zenkit::DaedalusDataType::STRING)
+      for(uint32_t i=0; i<sym->count(); ++i)
+        invCategoryNames.push_back(sym->get_string(uint16_t(i)));
+    }
+  return invCategoryNames;
+  }
+
 size_t GameScript::dmaPickLockLength(Interactive& mob, size_t length) {
   return dma==nullptr ? length : dma->eventPickLockLength(mob,length);
   }
