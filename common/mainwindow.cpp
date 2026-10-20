@@ -180,10 +180,10 @@ void MainWindow::setupUi() {
   addWidget(&inventory);
   addWidget(&chapter);
   addWidget(&video);
+  addWidget(&rootMenu);
 #if defined(__MOBILE_PLATFORM__)
   addWidget(&mobileUi);
 #endif
-  addWidget(&rootMenu);
 
   rootMenu.setMainMenu();
 
