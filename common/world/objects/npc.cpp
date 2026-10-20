@@ -961,6 +961,14 @@ void Npc::clearSlotItem(std::string_view slot) {
   visual.clearSlotItem(slot);
   }
 
+void Npc::setDecor(MeshObjects::Mesh&& itm, std::string_view slot) {
+  visual.setDecor(std::move(itm),slot);
+  }
+
+void Npc::clearDecor(std::string_view slot) {
+  visual.clearDecor(slot);
+  }
+
 void Npc::updateWeaponSkeleton() {
   visual.updateWeaponSkeleton(invent.currentMeleeWeapon(),invent.currentRangedWeapon());
   }

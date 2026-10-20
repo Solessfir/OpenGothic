@@ -210,7 +210,7 @@ DirectMemory::DirectMemory(GameScript& owner, zenkit::DaedalusVm& vm) : gameScri
     };
   dummyfy("WRITENOP",    [](int,int){}); // hook-related mess
   dummyfy("MEM_SETKEYS", [](std::string_view,int,int){});
-  dummyfy("INIT_QUIVERS_ALWAYS", [](){}); // requires sorted npc list
+  setupQuiverFunctions();
   }
 
 bool DirectMemory::isRequired(zenkit::DaedalusScript& vm) {
@@ -256,6 +256,7 @@ void DirectMemory::tick(uint64_t dt) {
   tickTimers(dt);
   tickInfos();
   tickUi(dt);
+  tickQuivers();
   }
 
 /// What the scripts wrote to the oCInfo objects (OCINFO.TOLD) goes to the dialogs of the game

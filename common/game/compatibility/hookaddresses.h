@@ -33,6 +33,8 @@ namespace HookAdr {
   constexpr uint32_t PickLockLength         = 0x723EE2; // oCMobLockable: esi = the mob, the hook leaves the length of the code in ecx
   constexpr uint32_t MovingCutscene         = 0x69B9F1; // oCAIHuman::Moving: CoM replaces the check of the global cutscene (ISINCAMERA, ISINFINALBOARDS)
   constexpr uint32_t SpellSetup             = 0x484930; // oCSpell::Setup: ecx = oCSpell*, [esp+4] = the caster
+  constexpr uint32_t EquipItem              = 0x7323C0; // oCNpc::EquipItem: ecx = oCNpc*, [esp+4] = the item (the quivers of CoM)
+  constexpr uint32_t UnequipItem            = 0x7326C0; // oCNpc::UnequipItem
   constexpr uint32_t StatusScreenShow       = 0x47ED60;
   constexpr uint32_t StatusScreenClose      = 0x47EB50;
   }

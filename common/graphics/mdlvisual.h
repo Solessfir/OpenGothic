@@ -54,6 +54,8 @@ class MdlVisual final {
     void                           setSlotItem   (MeshObjects::Mesh&& itm,  std::string_view bone);
     void                           setStateItem  (MeshObjects::Mesh&& itm,  std::string_view bone);
     void                           clearSlotItem (std::string_view bone);
+    void                           setDecor      (MeshObjects::Mesh&& itm,  std::string_view bone);
+    void                           clearDecor    (std::string_view bone);
     bool                           setFightMode  (zenkit::MdsFightMode mode);
     void                           dropWeapon    (Npc& owner);
     void                           dropShield    (Npc& owner);
@@ -162,6 +164,7 @@ class MdlVisual final {
     MeshAttach                     head, sword, bow, shield;
     MeshAttach                     ammunition, stateItm;
     std::vector<MeshAttach>        item;
+    std::vector<MeshAttach>        decor;   // visuals that scripts of mods hang on the model (quivers), not dropped by a hit
     std::vector<MeshAttach>        attach;
 
     std::vector<PfxSlot>           effects;
