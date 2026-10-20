@@ -176,6 +176,11 @@ void DirectMemory::setupEngineCalls() {
     return int32_t(self);
     });
 
+  // 0x688A70(this = a character, int on): CoM turns off with FALSE what its scripts call the detection of the chasm
+  // (Q304 every frame for the bodyguards of the trap, Q204 for the hero). The original engine stops a character that walks
+  // to the edge of a cliff; OpenGothic has no such detection, there is nothing to turn off.
+  cpu.register_thiscall(6851184,[](ptr32_t, int32_t) {});
+
   // oCInfoManager::GetInformation(id): an oCInfo of the memory. SetDialogueToldProperty of CoM writes OCINFO.TOLD, the game takes
   // it over in tickInfos
   cpu.register_thiscall(OCINFOMANAGER__GETINFORMATION,[this](ptr32_t, int32_t id) -> int32_t {

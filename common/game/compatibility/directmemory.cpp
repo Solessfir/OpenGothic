@@ -907,6 +907,8 @@ uint32_t DirectMemory::traceBackExpression(zenkit::DaedalusVm& vm, uint32_t pc) 
   }
 
 const zenkit::DaedalusSymbol* DirectMemory::findSymbolByAddress(uint32_t addr) {
+  if(symbolsByAddress.empty())
+    return nullptr;
   auto fn = std::lower_bound(symbolsByAddress.begin(), symbolsByAddress.end(), addr, [](const zenkit::DaedalusSymbol* l, uint32_t r){
     return l->address()<r;
     });
@@ -961,6 +963,12 @@ void DirectMemory::memoryCallback(zCParser& p, std::memory_order ord) {
     p.stack_stackptr = vm.pc() + trap.size;
     }
   else {
+    // the write to the position of the stack is a jump of the script; a wild value is not followed
+    if(vm.pc()>=vm.size()) {
+      if(logBudget("unsafe-jump-pc",4))
+        Log::e("DMA: the write to the position of the stack outside the code, pc ",vm.pc());
+      return;
+      }
     auto instr = vm.instruction_at(vm.pc());
 
     auto src = findSymbolByAddress(vm.pc() - instr.size);
@@ -1538,6 +1546,25 @@ void DirectMemory::setupDirectFunctions() {
   vm.override_function("memint_stackpushint",   [this](zenkit::DaedalusVm& vm) { return memint_stackpushint (vm); });
   vm.override_function("memint_stackpushinst",  [this](zenkit::DaedalusVm& vm) { return memint_stackpushinst(vm); });
   vm.override_function("memint_stackpushvar",   [this](zenkit::DaedalusVm& vm) { return memint_stackpushvar (vm); });
+
+  // The text of a zSTRING that a call of the engine has returned by value (the place was given by CALL_RetValIsZString): the
+  // original takes it with the patched code of the parser (MEMINT_StrAssign), here it is read at once. The zSTRING is freed.
+  vm.override_function("CALL_RetValAszString",[this]() -> std::string {
+    auto* res = vm.find_symbol_by_name("CALLINT_RESULT");
+    if(res==nullptr || res->type()!=zenkit::DaedalusDataType::INT)
+      return std::string();
+    const ptr32_t ptr = ptr32_t(res->get_int());
+    std::string   ret;
+    if(ptr!=0) {
+      if(auto* z = mem32.deref<zString>(ptr)) {
+        memFromString(ret,*z);
+        mem32.free(z->ptr);
+        }
+      mem32.free(ptr);
+      res->set_int(0);
+      }
+    return ret;
+    });
 
   vm.override_function("memint_popstring",      [this](zenkit::DaedalusVm& vm) { return memint_popstring(vm);     });
 
