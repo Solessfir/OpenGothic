@@ -189,6 +189,11 @@ class Npc final {
 
     bool       isJumpAnim() const;
     bool       isFlyAnim() const;
+    /// a script drives the character with commands of the queue (the cutscenes of the mods): the player does not control him. A queue
+    /// that does not move for a minute does not hold him.
+    bool       isScriptDriven();
+    /// a jump of a cutscene of a mod (T_CUTSCENEJUMP_START): the character goes off the edge, the careful walk does not stop him
+    bool       isCutsceneJump() const;
     bool       isFalling() const;
     bool       isFallingDeep() const;
     bool       isSlide() const;
@@ -384,6 +389,9 @@ class Npc final {
 
     bool      isAiQueueEmpty() const;
     bool      isAiBusy() const;
+    std::string debugAiQueue() const;
+    void      setOutputPipe(AiOuputPipe* p) { outputPipe = p; }
+    bool      haveOutputPipe(const AiOuputPipe* p) const { return outputPipe==p; }
     void      clearAiQueue();
 
     auto      currentWayPoint() const -> const WayPoint* { return currentFp; }
@@ -608,6 +616,15 @@ class Npc final {
 
     // ai state
     uint64_t                       aniWaitTime=0;
+    size_t                         aiLockSize = 0;    // the commands of a script that hold the player
+    uint64_t                       aiLockTime = 0;
+    size_t                         aiWatchSize = 0;   // progress of the queue seen by the characters that wait for it
+    uint32_t                       aiWatchSync = 0;
+    uint64_t                       aiWatchTime = 0;
+    Tempest::Vec3                  jumpFrom = {};
+    uint64_t                       jumpUntil = 0;     // the jump of a cutscene lasts until then (ms of the world)     // where a jump of a cutscene started (AI_ForceFall)
+    uint64_t                       goStuckTime=0;     // how long a walking character has not moved (the scenes of the mods)
+    Tempest::Vec3                  goStuckPos = {};
     uint64_t                       waitTime=0;
     uint64_t                       faiWaitTime=0;
     uint64_t                       outWaitTime=0;

@@ -33,6 +33,8 @@ class QuestLog final {
     Quest& add      (std::string_view name, Section s);
     void   setStatus(std::string_view name, Status  s);
     void   addEntry (std::string_view name, std::string_view entry);
+    /// the journal shows the newest topic first: LOG_MoveToTop of the mods makes a topic the newest
+    void   moveToTop(std::string_view name);
 
     void   save(Serialize &fout);
     void   load(Serialize &fin);

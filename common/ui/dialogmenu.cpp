@@ -74,7 +74,10 @@ void DialogMenu::tick(uint64_t dt) {
   // CoM depend on it, the player could finish the petting of the dog before the dog even came
   // only for the games that have the mods of Ikarus and LeGo: the original Gothic 1 and 2 show the choices at once
   const bool mods = pl!=nullptr && pl->world().script().hasDma();
-  const bool busy = mods && state==State::Active && (!pl->isAiQueueEmpty() || (other && other!=pl && !other->isAiQueueEmpty()));
+  bool busy = mods && state==State::Active && (!pl->isAiQueueEmpty() || (other && other!=pl && !other->isAiQueueEmpty()));
+  if(mods && state==State::Active)
+    for(auto g:guests)
+      busy = busy || !g->isAiQueueEmpty();
   queueWaitTime   = busy ? queueWaitTime+dt : 0;
   }
   if(prompt.active)
@@ -105,6 +108,14 @@ void DialogMenu::tick(uint64_t dt) {
   if(cursorShape()!=cursor)
     setCursorShape(cursor);
 #endif
+  for(size_t i=0; i<lingering.size();) {
+    if(lingering[i].time<=dt) {
+      lingering.erase(lingering.begin()+ptrdiff_t(i));
+      } else {
+      lingering[i].time -= dt;
+      ++i;
+      }
+    }
 
   if(isChoiceMenuActive()) {
     if(choiceAnimTime+dt>ANIM_TIME)
@@ -164,7 +175,8 @@ Size DialogMenu::processTextMultiline(Painter* p, int x, int y, int w, int h, st
   Size ret = {0,0};
   if(!isPl && other!=nullptr) {
     y += fnt.pixelSize();
-    auto txt  = other->displayName();
+    // in a trialog the name is the name of the one who speaks
+    auto txt  = (speaker!=nullptr && speaker!=pl) ? speaker->displayName() : other->displayName();
     auto sz   = fnt.textSize(w,txt.data());
     if(p!=nullptr)
       fnt.drawText(*p,x+(w-sz.w)/2,y,txt.data());
@@ -205,8 +217,12 @@ bool DialogMenu::isMobsiDialog() const {
 
 void DialogMenu::dialogCamera(Camera& camera) {
   if(pl && other){
-    auto p0 = pl   ->cameraBone();
-    auto p1 = other->cameraBone();
+    // in a trialog the camera follows who speaks
+    Npc* partner = other;
+    if(speaker!=nullptr && speaker!=pl && std::find(guests.begin(),guests.end(),speaker)!=guests.end())
+      partner = speaker;
+    auto p0 = pl     ->cameraBone();
+    auto p1 = partner->cameraBone();
     camera.setTarget((p0+p1)*0.5f + Vec3(0,50,0));
     p0 -= p1;
 
@@ -235,14 +251,23 @@ void DialogMenu::openPipe(Npc &player, Npc &npc, AiOuputPipe *&out) {
   state  = State::PreStart;
   }
 
+void DialogMenu::addGuest(Npc& guest) {
+  if(state==State::Idle || &guest==pl || &guest==other)
+    return;
+  if(std::find(guests.begin(),guests.end(),&guest)==guests.end())
+    guests.push_back(&guest);
+  guest.setOutputPipe(&pipe);
+  }
+
 bool DialogMenu::isNpcInDialog(const Npc* npc) const {
   if(state==State::Idle)
     return false;
-  return npc==pl || npc==other || npc==nullptr;
+  return npc==pl || npc==other || npc==nullptr || std::find(guests.begin(),guests.end(),npc)!=guests.end();
   }
 
 bool DialogMenu::aiOutput(Npc &npc, std::string_view msg) {
-  if(&npc!=pl && &npc!=other){
+  const bool guest = std::find(guests.begin(),guests.end(),&npc)!=guests.end();
+  if(&npc!=pl && &npc!=other && !guest){
     Log::e("unexpected aiOutput call: ",msg.data());
     return true;
     }
@@ -263,6 +288,7 @@ bool DialogMenu::aiOutput(Npc &npc, std::string_view msg) {
   current.time    = current.msgTime + (dlgAnimation ? ANIM_TIME*2 : 0);
   currentSnd      = soundDevice.load(Resources::loadSoundBuffer(string_frm(msg,".wav")));
   curentIsPl      = (pl==&npc);
+  speaker         = &npc;
 
   currentSnd.play();
   npc.setAiOutputBarrier(current.msgTime,false);
@@ -383,6 +409,15 @@ void DialogMenu::close() {
   auto prevPl  = pl;
   auto prevNpc = other;
 
+  if(pl!=nullptr) {
+    // the guests of a trialog go back to the speech that is not a dialog
+    for(auto g:guests)
+      if(g->haveOutputPipe(&pipe))
+        g->setOutputPipe(pl->world().script().openAiOuput());
+    }
+  guests.clear();
+  speaker = nullptr;
+
   pl=nullptr;
   other=nullptr;
   depth=0;
@@ -414,6 +449,9 @@ bool DialogMenu::haveToWaitOutput() const {
   if(other && other->haveOutput()){
     return true;
     }
+  for(auto g:guests)
+    if(g->haveOutput())
+      return true;
   return false;
   }
 
@@ -441,7 +479,17 @@ void DialogMenu::skipPhrase() {
       pl->setAiOutputBarrier(0,false);
     if(other!=nullptr)
       other->setAiOutputBarrier(0,false);
-    currentSnd   = SoundEffect();
+    if(pl!=nullptr && pl->world().script().dmaInCamera()) {
+      // oCNpc::StopRunningOU of CoM (OCNPC__STOPRUNNINGOU_REPLACEKILLOUSOUND): in a camera of a cutscene the line is skipped, the
+      // sound is not killed, the scripts time the cuts of the camera to the voices
+      Lingering l;
+      l.time = current.time;
+      l.snd  = std::move(currentSnd);
+      lingering.push_back(std::move(l));
+      currentSnd = SoundEffect();
+      } else {
+      currentSnd = SoundEffect();
+      }
     current.time = 1;
     }
   }
@@ -777,12 +825,36 @@ void DialogMenu::promptKey(KeyEvent& e) {
 
   // the characters (the touch keyboard sends them as the key code, they are lower case)
   uint32_t c = e.code;
-  if(c<32 || c>126 || (e.modifier&Event::M_Ctrl))
+  if(e.modifier&Event::M_Ctrl)
     return;
-  if((e.modifier&Event::M_Shift) && c>='a' && c<='z')
-    c -= 'a'-'A';
-  else if(c>='a' && c<='z' && (prompt.text.empty() || prompt.text.back()==' '))
-    c -= 'a'-'A';   // names start with a capital
+  const bool capital = (e.modifier&Event::M_Shift) || prompt.text.empty() || prompt.text.back()==' ';   // names start with a capital
+  if(c>126) {
+    // the Polish letters: the scripts and the fonts of the mods use the code page 1250 (the lower case, the upper case)
+    static const struct { uint32_t uni; uint8_t lower, upper; } pl[] = {
+      {0x105,0xB9,0xA5}, {0x107,0xE6,0xC6}, {0x119,0xEA,0xCA}, {0x142,0xB3,0xA3}, {0x144,0xF1,0xD1},
+      {0x0F3,0xF3,0xD3}, {0x15B,0x9C,0x8C}, {0x17A,0x9F,0x8F}, {0x17C,0xBF,0xAF},
+      {0x104,0xB9,0xA5}, {0x106,0xE6,0xC6}, {0x118,0xEA,0xCA}, {0x141,0xB3,0xA3}, {0x143,0xF1,0xD1},
+      {0x0D3,0xF3,0xD3}, {0x15A,0x9C,0x8C}, {0x179,0x9F,0x8F}, {0x17B,0xBF,0xAF},
+      };
+    uint32_t mapped = 0;
+    for(auto& i:pl)
+      if(i.uni==c) {
+        // an upper case letter of the keyboard (the entries after the first nine) or the start of the name
+        const bool upperKey = (&i-pl)>=9;
+        mapped = (upperKey || capital) ? i.upper : i.lower;
+        break;
+        }
+    if(mapped==0)
+      return;
+    c = mapped;
+    } else {
+    if(c<32)
+      return;
+    if((e.modifier&Event::M_Shift) && c>='a' && c<='z')
+      c -= 'a'-'A';
+    else if(c>='a' && c<='z' && (prompt.text.empty() || prompt.text.back()==' '))
+      c -= 'a'-'A';
+    }
   if(prompt.text.size()<24) {
     prompt.text.push_back(char(c));
     update();

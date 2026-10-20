@@ -37,6 +37,7 @@ class MoveTrigger : public AbstractTrigger {
       };
 
     void     moveEvent() override;
+    void     setVobVisual(bool show, bool collideDynamic) override;
     void     preProcessTrigger(State prev = Idle);
     void     postProcessTrigger();
 
@@ -69,6 +70,7 @@ class MoveTrigger : public AbstractTrigger {
     std::string                          visualName;
     uint64_t                             stayOpenTime;
 
+    bool                                 hidden      = false;   // a script has hidden the visual (showVisual)
     State                                state       = Idle;
     uint64_t                             frameTime   = 0;
     uint32_t                             frame       = 0;

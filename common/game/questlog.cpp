@@ -1,6 +1,8 @@
 #include "questlog.h"
 #include "serialize.h"
 
+#include <algorithm>
+
 QuestLog::QuestLog() {
   }
 
@@ -25,6 +27,14 @@ void QuestLog::setStatus(std::string_view name, QuestLog::Status s) {
 void QuestLog::addEntry(std::string_view name, std::string_view entry) {
   if(auto m = find(name))
     m->entry.emplace_back(entry);
+  }
+
+void QuestLog::moveToTop(std::string_view name) {
+  for(size_t i=0; i<quests.size(); ++i)
+    if(quests[i].name==name) {
+      std::rotate(quests.begin()+ptrdiff_t(i),quests.begin()+ptrdiff_t(i)+1,quests.end());
+      return;
+      }
   }
 
 QuestLog::Quest *QuestLog::find(std::string_view name) {

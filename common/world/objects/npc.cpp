@@ -22,6 +22,12 @@
 
 using namespace Tempest;
 
+/// how long AI_WaitTillEnd waits for a character before the scene goes on (ms)
+static constexpr uint64_t WAIT_TILL_END_MAX = 30000;
+
+/// a character that walks to a way point and does not move for that long is carried there (the scenes of the mods; ms)
+static constexpr uint64_t GO_STUCK_MAX = 12000;
+
 static std::string_view humansTorchOverlay = "_TORCH.MDS";
 
 std::string_view Npc::Routine::wayPointName() const {
@@ -421,6 +427,8 @@ bool Npc::performOutput(const AiQueue::AiAction &act) {
     return false;
   if(aiOutputBarrier>owner.tickCount() && act.target==this && !isPlayer())
     return false;
+  if(act.act==AI_Output && act.s0.empty())
+    return true; // no text, no sound: only the place in the order of the lines (TRIA_Start of LeGo)
   if(aiPolicy>=NpcProcessPolicy::AiFar)
     return true; // don't waste CPU on far-away svm-talks
   //if(act.act!=AI_OutputSvmOverlay && bodyStateMasked()!=BS_STAND)
@@ -1090,6 +1098,23 @@ bool Npc::isJumpAnim() const {
   return visual.pose().isJumpAnim();
   }
 
+bool Npc::isScriptDriven() {
+  if(aiQueue.size()==0 && go2.empty()) {
+    aiLockTime = 0;
+    return false;
+    }
+  const uint64_t now = owner.tickCount();
+  if(aiLockTime==0 || aiLockSize!=aiQueue.size()) {
+    aiLockSize = aiQueue.size();
+    aiLockTime = now;
+    }
+  return now-aiLockTime < 60000;
+  }
+
+bool Npc::isCutsceneJump() const {
+  return jumpUntil>owner.tickCount();
+  }
+
 bool Npc::isFlyAnim() const {
   return visual.pose().isFlyAnim();
   }
@@ -1518,8 +1543,33 @@ bool Npc::implGoTo(uint64_t dt) {
   }
 
 bool Npc::implGoTo(uint64_t dt, float destDist) {
-  if(go2.flag==GT_No)
+  if(go2.flag==GT_No) {
+    goStuckTime = 0;
     return false;
+    }
+
+  // a scene of a mod waits for the characters that it sends to the way points (AI_WaitTillEnd): one that is blocked by a collision
+  // that the scripts should have switched off would hold the scene for ever
+  const Npc* player = owner.player();
+  if(go2.wp!=nullptr && !isInAir() && !isSwim() && !isDive() && !isDown() && interactive()==nullptr && owner.script().hasDma() &&
+     aiQueue.size()>0 && player!=nullptr && (player->position()-position()).length()<4000.f &&   // the commands of a script near the player
+     (go2.flag==GT_Way || go2.flag==GT_NextFp || go2.flag==GT_Point)) {
+    if((position()-goStuckPos).length()>60.f) {
+      goStuckPos  = position();
+      goStuckTime = 0;
+      } else {
+      goStuckTime += dt;
+      if(goStuckTime>GO_STUCK_MAX) {
+        Log::i("[",displayName().data(),"] has not moved for ",GO_STUCK_MAX/1000," seconds on the way to a way point, it is carried there");
+        setPosition(go2.wp->position());
+        goStuckPos  = position();
+        goStuckTime = 0;
+        }
+      }
+    } else {
+    goStuckTime = 0;
+    goStuckPos  = position();
+    }
 
   if(isInAir() || interactive()!=nullptr) {
     mvAlgo.tick(dt);
@@ -2532,6 +2582,13 @@ void Npc::nextAiAction(AiQueue& queue, uint64_t dt) {
         if(wpoint!=nullptr) {
           go2.set(wpoint);
           attachToPoint(wpoint);
+          } else
+        if(owner.script().hasDma() && !MoveAlgo::isClose(*this,*act.point)) {
+          // the way net has no path (the points of a scene on a ship are not connected): the scene of a mod still needs the character
+          // at the point, so he walks to it straight
+          Log::d("[",displayName().data(),"] AI_GotoWP: no path to '",act.point->name,"', goes straight");
+          go2.set(act.point);
+          attachToPoint(act.point);
           } else {
           attachToPoint(act.point);
           clearGoTo();
@@ -2555,14 +2612,35 @@ void Npc::nextAiAction(AiQueue& queue, uint64_t dt) {
           }
         }
       break;
-    case AI_StartState:
+    case AI_StartState: {
       // NOTE: a new state can be stater within a daly routiine, such as TA_Sleep, with: ZS_GotoBed -> ZS_Sleep.
       // In such cases it's important to preserve aiState.eTime.
+      // The mods of Ikarus queue the commands after the one that starts a state (the lines of a character of a trialog after
+      // AI_StartState(npc, ZS_TRIA)): they stay in the queue.
+      const bool keep = &queue==&aiQueue && queue.size()>0 && owner.script().hasDma();
+      AiQueue::Saved saved;
+      if(keep)
+        saved = queue.take();
       if(startState(act.func,act.s0,aiState.eTime,act.i0==0)) {
         setOther(act.target);
         setVictim(act.victim);
         }
+      if(keep)
+        queue.restore(std::move(saved));
       break;
+      }
+    case AI_ForceFall: {
+      // the animation of the jump of a cutscene (T_CUTSCENEJUMP_START) goes off the edge of the plank: the collision of the character
+      // keeps him on it, so the jump ends there. He is carried over the edge and falls.
+      if((position()-jumpFrom).length()<150.f) {
+        const float   r   = rotationRad();
+        const Tempest::Vec3 fwd(std::cos(r),0.f,std::sin(r));
+        const auto to = position()+fwd*400.f;
+        Log::i("[",displayName().data(),"] has not left the edge after the jump of the cutscene, it is carried forward");
+        setPosition(to);
+        }
+      break;
+      }
     case AI_PlayAnim:{
       if(act.s0.find("T_PET")==0 || act.s0.find("CALL ")==0 || act.s0=="T_NO")
         Log::d("AI_PlayAni: ", act.s0, " (", isPlayer() ? "player" : "npc", ")");
@@ -2570,7 +2648,15 @@ void Npc::nextAiAction(AiQueue& queue, uint64_t dt) {
       if(auto sq = playAnimByName(act.s0,BS_NONE)) {
         implAniWait(uint64_t(sq->totalTime()));
         implFaiWait(uint64_t(sq->totalTime()));
+        if(owner.script().hasDma() && act.s0.size()>=17 && std::strncmp(act.s0.c_str(),"T_CUTSCENEJUMP",14)==0) {
+          Log::i("[",displayName().data(),"] plays ",act.s0," (",sq->totalTime()," ms) at ",position().x," ",position().y," ",position().z);
+          jumpFrom  = position();
+          jumpUntil = owner.tickCount() + uint64_t(sq->totalTime()) + 2000;
+          queue.pushFront(AiQueue::aiForceFall());
+          }
         } else {
+        if(act.s0.compare(0,14,"T_CUTSCENEJUMP")==0)
+          Log::i("[",displayName().data(),"] the animation ",act.s0," was not found");
         if(visual.hasAnim(act.s0))
           queue.pushFront(std::move(act));
         }
@@ -2598,8 +2684,24 @@ void Npc::nextAiAction(AiQueue& queue, uint64_t dt) {
       break; // AiQueue::pop completes the ticket after all preceding commands.
     case AI_WaitTillEnd:
       if(act.target!=nullptr && act.target!=this && !act.target->isDown() &&
-         !act.target->aiQueue.isSynchronized(uint32_t(act.i0)))
+         !act.target->aiQueue.isSynchronized(uint32_t(act.i0))) {
+        // a scene must not wait for ever for a character that is stuck (a blocked path, a missing animation): his queue does not
+        // move for a long time. A long talk is not that, the queue goes on with every line.
+        const uint64_t now = owner.tickCount();
+        auto& tg = *act.target;
+        if(tg.aiWatchSize!=tg.aiQueue.size() || tg.aiWatchSync!=tg.aiQueue.syncDone() || tg.aiWatchTime==0) {
+          tg.aiWatchSize = tg.aiQueue.size();
+          tg.aiWatchSync = tg.aiQueue.syncDone();
+          tg.aiWatchTime = now;
+          }
+        if(now-tg.aiWatchTime>WAIT_TILL_END_MAX) {
+          tg.aiWatchTime = now;
+          Log::e("[",displayName().data(),"] AI_WaitTillEnd: [",act.target->displayName().data(),
+                 "] has not finished for ",WAIT_TILL_END_MAX/1000," seconds: ",act.target->debugAiQueue());
+          break;
+          }
         queue.pushFront(std::move(act));
+        }
       break;
     case AI_AimAt:
     case AI_ShootAt: {
@@ -4706,6 +4808,23 @@ void Npc::aiWaitTillEnd(Npc& other) {
     return;
   const uint32_t ticket = other.aiQueue.synchronize();
   aiPush(AiQueue::aiWaitTillEnd(other,ticket));
+  }
+
+/// The state and the queue of the character in words: the developer tools show who waits for whom in a scene
+std::string Npc::debugAiQueue() const {
+  std::string ret = "state ";
+  if(aiState.funcIni.isValid()) {
+    if(auto* sym = owner.script().findSymbol(aiState.funcIni.ptr))
+      ret += sym->name();
+    } else {
+    ret += "-";
+    }
+  ret += ", queue:" + aiQueue.describe();
+  if(!go2.empty())
+    ret += ", walking";
+  if(waitTime>=owner.tickCount())
+    ret += ", waiting " + std::to_string((waitTime-owner.tickCount())/1000) + "s";
+  return ret;
   }
 
 bool Npc::isAiBusy() const {

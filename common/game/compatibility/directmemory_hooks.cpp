@@ -53,6 +53,14 @@ bool DirectMemory::isHookAnswered(uint32_t address) {
 /// The final boards (the end of the game) of CoM: the player does not move while they run. The scripts replace the check
 /// of the global cutscene in oCAIHuman::Moving with ISINCAMERA || ISINFINALBOARDS; the camera cutscenes are locked by
 /// OpenGothic itself, only the boards need this.
+/// ISINCAMERA of CoM: the hook of zCCSCamera::OnTrigger has set it, the hook of OnUntrigger has cleared it
+bool DirectMemory::inCamera() {
+  if(!hasHook(HookAdr::CsCameraTrigger))
+    return false;
+  auto* sym = vm.find_symbol_by_name("ISINCAMERA");
+  return sym!=nullptr && sym->type()==zenkit::DaedalusDataType::INT && sym->get_int()!=0;
+  }
+
 bool DirectMemory::inFinalBoards() {
   if(!hasHook(HookAdr::MovingCutscene))
     return false;
