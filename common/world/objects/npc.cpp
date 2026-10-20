@@ -27,6 +27,7 @@ static constexpr uint64_t WAIT_TILL_END_MAX = 30000;
 
 /// a character that walks to a way point and does not move for that long is carried there (the scenes of the mods; ms)
 static constexpr uint64_t GO_STUCK_MAX = 12000;
+static constexpr uint64_t ANIM_RETRY_MAX = 8000;
 
 static std::string_view humansTorchOverlay = "_TORCH.MDS";
 
@@ -1555,7 +1556,7 @@ bool Npc::implGoTo(uint64_t dt, float destDist) {
   // that the scripts should have switched off would hold the scene for ever
   const Npc* player = owner.player();
   if(go2.wp!=nullptr && !isInAir() && !isSwim() && !isDive() && !isDown() && interactive()==nullptr && owner.script().hasDma() &&
-     aiQueue.size()>0 && player!=nullptr && (player->position()-position()).length()<4000.f &&   // the commands of a script near the player
+     player!=nullptr && (player->position()-position()).length()<4000.f &&   // near the player: a routine or the commands of a script
      (go2.flag==GT_Way || go2.flag==GT_NextFp || go2.flag==GT_Point)) {
     if((position()-goStuckPos).length()>60.f) {
       goStuckPos  = position();
@@ -1563,7 +1564,9 @@ bool Npc::implGoTo(uint64_t dt, float destDist) {
       } else {
       goStuckTime += dt;
       if(goStuckTime>GO_STUCK_MAX) {
-        Log::i("[",displayName().data(),"] has not moved for ",GO_STUCK_MAX/1000," seconds on the way to a way point, it is carried there");
+        Log::i("[",displayName().data(),"] has not moved for ",GO_STUCK_MAX/1000," seconds on the way to a way point, it is carried there (body state ",
+               int(bodyStateMasked()),", waits: ani ",aniWaitTime>=owner.tickCount()," wait ",waitTime>=owner.tickCount()," out ",outWaitTime>owner.tickCount(),
+               ", from ",position().x," ",position().y," ",position().z," to ",go2.wp->position().x," ",go2.wp->position().y," ",go2.wp->position().z,")");
         setPosition(go2.wp->position());
         goStuckPos  = position();
         goStuckTime = 0;
@@ -1577,6 +1580,14 @@ bool Npc::implGoTo(uint64_t dt, float destDist) {
   if(isInAir() || interactive()!=nullptr) {
     mvAlgo.tick(dt);
     return true;
+    }
+
+  if(owner.script().hasDma() && interactive()==nullptr && (int(bodyState()) & int(BS_MAX))==(int(BS_ITEMINTERACT) & int(BS_MAX))) {
+    // a character that uses an item (the broom of Martha) does not walk: the original ends the use when the character is sent somewhere
+    if(!invent.putState(*this,0,0)) {
+      mvAlgo.tick(dt);
+      return true;
+      }
     }
 
   auto target = go2.target();
@@ -2668,11 +2679,22 @@ void Npc::nextAiAction(AiQueue& queue, uint64_t dt) {
     case AI_PlayAnimBs:{
       BodyState bs = BodyState(act.i0);
       if(auto sq = playAnimByName(act.s0,bs)) {
+        animRetrySince = 0;
         implAniWait(uint64_t(sq->totalTime()));
         implFaiWait(uint64_t(sq->totalTime()));
         } else {
         if(visual.hasAnim(act.s0)) {
-          queue.pushFront(std::move(act));
+          const uint64_t now = owner.tickCount();
+          if(animRetrySince==0)
+            animRetrySince = now;
+          if(owner.script().hasDma() && now-animRetrySince>ANIM_RETRY_MAX) {
+            // the animation cannot start (the character stands where the scripts did not expect him): the queue must go on, otherwise
+            // the routine of the character never starts
+            Log::i("[",displayName().data(),"] cannot start the animation ",act.s0," for ",ANIM_RETRY_MAX/1000," seconds, it is skipped (",debugAiQueue(),")");
+            animRetrySince = 0;
+            } else {
+            queue.pushFront(std::move(act));
+            }
           } else {
           /* ZS_MM_Rtn_Sleep will set NPC_WALK mode and run T_STAND_2_SLEEP animation.
            * The problem is: T_STAND_2_SLEEP may not exists, in that case only NPC_WALK should be applied,
@@ -4833,6 +4855,22 @@ std::string Npc::debugAiQueue() const {
   ret += ", queue:" + aiQueue.describe();
   if(!go2.empty())
     ret += ", walking";
+  ret += ", body " + std::to_string(int(bodyStateMasked()));
+  if(isInAir())    ret += " air";
+  if(isSlide())    ret += " slide";
+  if(isStanding()) ret += " standing";
+  if(interactive()!=nullptr) ret += " mobsi";
+  ret += " walk " + std::to_string(int(walkMode()));
+  ret += " fall " + std::to_string(int(mvAlgo.falldownHeight()));
+  {
+  // what plays: the sequences with their time, the cause of a character that does not walk
+  std::vector<Pose::LayerInfo> layers;
+  visual.pose().layerInfo(layers,owner.tickCount());
+  ret += ", plays";
+  for(auto& l:layers)
+    if(l.seq!=nullptr)
+      ret += " [" + std::string(l.seq->name) + " " + std::to_string(l.elapsed) + "ms bs " + std::to_string(int(l.bs)) + "]";
+  }
   if(waitTime>=owner.tickCount())
     ret += ", waiting " + std::to_string((waitTime-owner.tickCount())/1000) + "s";
   return ret;

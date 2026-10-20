@@ -1487,6 +1487,42 @@ void GameScript::invokeSpell(Npc &npc, Npc* target, Item &it) {
     }
   }
 
+int GameScript::debugInfoCondition(Npc& npc, Npc& player, std::string_view infoName, bool& known, std::string& detail) {
+  string_frm cond(infoName,"_CONDITION");
+  auto* fn   = vm.find_symbol_by_name(cond);
+  auto* info = vm.find_symbol_by_name(infoName);
+  if(fn==nullptr || info==nullptr)
+    return -1;
+  known = doesNpcKnowInfo(npc.handle(),info->index()) || doesNpcKnowInfo(player.handle(),info->index());
+
+  // the variables that the condition reads and the infos that it asks about: what makes it false
+  {
+  uint32_t end = fn->address();
+  for(uint32_t pc=fn->address(), n=0; n<400; ++n) {
+    auto ins = vm.instruction_at(pc);
+    if(ins.op==zenkit::DaedalusOpcode::B || ins.op==zenkit::DaedalusOpcode::BZ)
+      end = std::max(end,uint32_t(ins.address));
+    if(ins.op==zenkit::DaedalusOpcode::RSR && pc>=end)
+      break;
+    if(ins.op==zenkit::DaedalusOpcode::PUSHV || ins.op==zenkit::DaedalusOpcode::PUSHVI) {
+      if(auto* s = vm.find_symbol_by_index(ins.symbol)) {
+        if(s->type()==zenkit::DaedalusDataType::INT && !s->is_member() && !s->is_const() && s->count()==1)
+          detail += std::string(s->name()) + "=" + std::to_string(s->get_int()) + " ";
+        }
+      }
+    if(ins.op==zenkit::DaedalusOpcode::PUSHI && ins.immediate>10000 && ins.immediate<200000) {
+      if(auto* s = vm.find_symbol_by_index(uint32_t(ins.immediate)))
+        if(s->type()==zenkit::DaedalusDataType::INSTANCE && !s->is_member() && s->name().find("DIA_")==0)
+          detail += "[asks " + std::string(s->name()) + (doesNpcKnowInfo(player.handle(),s->index()) ? ": known] " : ": NOT known] ");
+      }
+    pc += ins.size;
+    }
+  }
+  ScopeVar self (*vm.global_self(),  npc.handlePtr());
+  ScopeVar other(*vm.global_other(), player.handlePtr());
+  return vm.call_function<int>(fn);
+  }
+
 int GameScript::invokeCond(Npc& npc, std::string_view func) {
   auto fn = vm.find_symbol_by_name(func);
   if(fn==nullptr) {
@@ -2416,6 +2452,8 @@ void GameScript::npc_exchangeroutine(std::shared_ptr<zenkit::INpc> npcRef, std::
 
     auto* sym = vm.find_symbol_by_name(name);
     size_t d = sym != nullptr ? sym->index() : 0;
+    if(hasDma())
+      Log::d("Npc_ExchangeRoutine: ",npc->displayName()," -> ",rname,d==0 ? " (no such routine)" : "");
     if(d>0)
       npc->excRoutine(d);
     }
