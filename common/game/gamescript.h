@@ -103,6 +103,8 @@ class GameScript final {
     void         dmaStatusScreen(bool show);
     bool         dmaDropVob(Npc& npc, Item& item);
     bool         dmaSellItem(Npc& npc, Item& item);
+    /// The mods of Ikarus and LeGo (CoM) keep the party members out of the focus of a player with a weapon
+    bool         dmaHidesPartyFocus() const;
     void         dmaInventoryOpen(Npc& npc);
     bool         dmaTakeInventoryClose();
     void         dmaCsCamera(bool trigger);
