@@ -114,6 +114,7 @@ class GameMenu : public Tempest::Widget {
 
     Item*                                 selectedItem();
     Item*                                 itemAt(Tempest::Point pos, int& index);
+    Item*                                 itemAt(Tempest::Point pos, int& index, bool textOnly);
     int32_t                               questAt(const Item& list, Tempest::Point pos);
     Tempest::Rect                         itemRect(const Item& item) const;
     static bool                           isDraggable(const Item& item);
