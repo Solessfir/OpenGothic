@@ -6,6 +6,7 @@
 #include "world/objects/interactive.h"
 #include "world/world.h"
 #include "serialize.h"
+#include "gothic.h"
 
 const float   MoveAlgo::closeToPointThreshold = 40;
 const float   MoveAlgo::climbMove             = 55;
@@ -155,6 +156,10 @@ void MoveAlgo::tick(uint64_t dt, MvFlags moveFlg) {
     tickMobsi(dt);
     return;
     }
+
+  // PlayerControl moves a flying player directly, without gravity or collision.
+  if(npc.isPlayer() && Gothic::inst().isFlyMode())
+    return;
 
   if(!implTick(dt,moveFlg))
     return;

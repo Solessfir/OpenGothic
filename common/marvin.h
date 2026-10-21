@@ -39,6 +39,7 @@ class Marvin {
       // npc
       C_CheatFull,
       C_CheatGod,
+      C_ToggleFly,
       C_Kill,
       // camera
       C_CamAutoswitch,
@@ -56,6 +57,8 @@ class Marvin {
       C_GoToVob,
       C_GoToWayPoint,
       C_GoToCamera,
+      C_SavePos,
+      C_LoadPos,
 
       C_SetTime,
 
