@@ -56,6 +56,8 @@ class Marvin {
       C_GoToVob,
       C_GoToWayPoint,
       C_GoToCamera,
+      C_SavePos,
+      C_LoadPos,
 
       C_SetTime,
 
