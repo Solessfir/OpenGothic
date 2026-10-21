@@ -390,6 +390,14 @@ class Npc final {
     bool      isAiQueueEmpty() const;
     bool      isAiBusy() const;
     std::string debugAiQueue() const;
+    /// The developer tool of the dialogs: the commands of the queue go through at once, without the waiting. The functions of the scripts
+    /// that the queue calls (AI_Function) are called, the lines and the animations are checked.
+    struct DrainReport final {
+      int                      outputs = 0;
+      int                      actions = 0;
+      std::vector<std::string> issues;
+      };
+    void        debugDrainQueue(DrainReport& rep, int maxActions = 600);
     void      setOutputPipe(AiOuputPipe* p) { outputPipe = p; }
     bool      haveOutputPipe(const AiOuputPipe* p) const { return outputPipe==p; }
     void      clearAiQueue();
@@ -616,6 +624,7 @@ class Npc final {
 
     // ai state
     uint64_t                       aniWaitTime=0;
+    bool                           stateEnding    = false;   // the end function of the state runs now
     uint64_t                       animRetrySince = 0;   // an animation of the queue that cannot start
     size_t                         aiLockSize = 0;    // the commands of a script that hold the player
     uint64_t                       aiLockTime = 0;
