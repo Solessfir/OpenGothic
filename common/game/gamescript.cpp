@@ -18,6 +18,7 @@
 #include "utils/fileutil.h"
 #include "commandline.h"
 #include "gothic.h"
+#include "game/dialogtest.h"
 
 using namespace Tempest;
 
@@ -209,6 +210,10 @@ bool GameScript::dmaFinishingMove(Npc& npc, Npc& target) {
 
 bool GameScript::dmaSellItem(Npc& npc, Item& item) {
   return dma!=nullptr && dma->eventSellItem(npc,item);
+  }
+
+std::string GameScript::dmaLastCallOther() const {
+  return dma!=nullptr ? dma->lastCallOther() : std::string();
   }
 
 bool GameScript::dmaInCamera() const {
@@ -2408,6 +2413,9 @@ void GameScript::npc_settofistmode(std::shared_ptr<zenkit::INpc> npcRef) {
 
 bool GameScript::npc_isinstate(std::shared_ptr<zenkit::INpc> npcRef, int stateFn) {
   auto npc = findNpc(npcRef);
+  // the developer tool of the dialogs holds a dialog without the state of the talk
+  if(npc!=nullptr && DialogTest::active && npc==DialogTest::talkNpc && size_t(stateFn)==ZS_Talk)
+    return true;
   if(npc!=nullptr)
     return npc->isInState(uint32_t(stateFn));
   return false;
@@ -2567,7 +2575,9 @@ int GameScript::npc_getinvitembyslot(std::shared_ptr<zenkit::INpc> npcRef, int c
       f = ItmFlags(ITM_CAT_LIGHT|ITM_CAT_NONE);
       break;
     default:
-      Log::e("Unknown item category ", cat);
+      // 0 is "no category" in the scripts of the mods: there is no item, it is not an error
+      if(cat!=0)
+        Log::e("Unknown item category ", cat);
       storeItem(nullptr);
       return 0;
     }
@@ -3881,6 +3891,10 @@ void GameScript::snd_play3d(std::shared_ptr<zenkit::INpc> npcRef, std::string_vi
   }
 
 void GameScript::exitsession() {
+  if(DialogTest::active || DialogTest::guardExit) {
+    Log::i("ExitSession of the scripts is ignored by the dialog test");
+    return;
+    }
   if(auto* pl = world().player())
     Log::i("ExitSession called by the script, the player is at ",pl->position().x," ",pl->position().y," ",pl->position().z);
   owner.exitSession();
@@ -3927,6 +3941,16 @@ void GameScript::setInfoTold(size_t infoInstance, bool told) {
   if(told)
     dlgKnownInfos.insert(key); else
     dlgKnownInfos.erase(key);
+  }
+
+bool GameScript::npcKnowsInfo(Npc& npc, size_t infoInstance) const {
+  return doesNpcKnowInfo(npc.handle(),infoInstance);
+  }
+
+DialogTest& GameScript::dialogTest() {
+  if(dlgTest==nullptr)
+    dlgTest.reset(new DialogTest(*this));
+  return *dlgTest;
   }
 
 bool GameScript::doesNpcKnowInfo(const zenkit::INpc& npc, size_t infoInstance) const {

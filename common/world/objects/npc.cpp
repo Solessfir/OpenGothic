@@ -3180,8 +3180,12 @@ bool Npc::startState(ScriptFn id, std::string_view wp, gtime endTime, bool noFin
 
 void Npc::clearState(bool noFinalize) {
   if(aiState.funcIni.isValid() && aiState.started) {
-    if(!noFinalize)
+    if(!noFinalize) {
+      const bool prev = stateEnding;
+      stateEnding = true;
       owner.script().invokeState(this,currentOther,currentVictim,aiState.funcEnd);  // cleanup
+      stateEnding = prev;
+      }
     aiPrevState = aiState.funcIni;
     invent.putState(*this,0,0);
     visual.stopItemStateAnim(*this);
@@ -4634,7 +4638,8 @@ void Npc::addRoutine(gtime s, gtime e, uint32_t callback, std::string_view point
 void Npc::excRoutine(size_t callback) {
   routines.clear();
   owner.script().invokeState(this,currentOther,currentVictim,callback);
-  if(!isPlayer() && !isTalk() && !isDown() && currentTarget==nullptr && owner.script().hasDma() && aiState.funcIni.isValid()) {
+  // (not from the end function of the state that is ended here: a state that changes the routine of its own character would end itself for ever)
+  if(!isPlayer() && !stateEnding && !isTalk() && !isDown() && currentTarget==nullptr && owner.script().hasDma() && aiState.funcIni.isValid()) {
     // The scenes of the mods (CoM) move a character to another place with the new routine (B_StartOtherRoutine, TeleportNpcToWP): the state
     // of the old routine must not go on, the character would walk back to its free point (Ezekiel on the ship, after the teleport to the beach)
     // (the commands in the queue stay: the scripts that queue the change of the routine of the character queue the rest of the scene
@@ -4874,6 +4879,51 @@ std::string Npc::debugAiQueue() const {
   if(waitTime>=owner.tickCount())
     ret += ", waiting " + std::to_string((waitTime-owner.tickCount())/1000) + "s";
   return ret;
+  }
+
+void Npc::debugDrainQueue(DrainReport& rep, int maxActions) {
+  for(int n=0; n<maxActions && aiQueue.size()>0; ++n) {
+    auto act = aiQueue.pop();
+    ++rep.actions;
+    switch(act.act) {
+      case AI_Output:
+      case AI_OutputSvm:
+      case AI_OutputSvmOverlay: {
+        if(act.s0.empty())
+          break;
+        ++rep.outputs;
+        if(act.act==AI_Output) {
+          if(Gothic::inst().messageByName(act.s0).empty())
+            rep.issues.push_back("no text of the line (OU): "+act.s0);
+          }
+        break;
+        }
+      case AI_PlayAnim:
+      case AI_PlayAnimBs: {
+        if(act.s0.compare(0,5,"CALL ")==0) {
+          owner.script().eventPlayAni(*this,act.s0);
+          break;
+          }
+        if(!act.s0.empty() && act.s0!="T_NO" && !visual.hasAnim(act.s0))
+          rep.issues.push_back("no animation "+act.s0+" in the model of "+std::string(displayName()));
+        break;
+        }
+      case AI_Teleport:
+        if(act.point!=nullptr)
+          setPosition(act.point->position());
+        break;
+      case AI_StartState:
+        if(!act.func.isValid())
+          rep.issues.push_back("AI_StartState without a function");
+        break;
+      default:
+        break;
+      }
+    }
+  if(aiQueue.size()>0) {
+    rep.issues.push_back("the queue of "+std::string(displayName())+" has not ended after "+std::to_string(maxActions)+" commands");
+    aiQueue.clear();
+    }
   }
 
 bool Npc::isAiBusy() const {
