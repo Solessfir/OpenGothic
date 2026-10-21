@@ -133,6 +133,8 @@ class Gothic final {
 
     bool         isGodMode() const { return godMode; }
     void         setGodMode(bool g) { godMode = g; }
+    bool         isFlyMode() const { return flyMode; }
+    void         setFlyMode(bool f) { flyMode = f; }
 
     void         toggleDesktop() { desktop = !desktop; }
     bool         isDesktop() { return desktop; }
@@ -232,6 +234,7 @@ class Gothic final {
     uint16_t                                pauseSum=0;
     bool                                    isMarvin       = false;
     bool                                    godMode        = false;
+    bool                                    flyMode        = false;
     bool                                    desktop        = false;
     bool                                    showFpsCounter = false;
     bool                                    showTime       = false;
