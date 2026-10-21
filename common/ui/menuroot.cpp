@@ -4,6 +4,7 @@
 
 #include "ui/gamemenu.h"
 #include "utils/feedback.h"
+#include "utils/mouseutil.h"
 #include "gothic.h"
 
 using namespace Tempest;
@@ -21,6 +22,11 @@ MenuRoot::~MenuRoot() {
   }
 
 void MenuRoot::initSettings() {
+#if !defined(__MOBILE_PLATFORM__)
+  mouseEnabled = MouseUtil::isPointerEnabled();
+  updateCursor();
+#endif
+
   const auto lang = Gothic::inst().settingsGetI("GAME", "language");
   if(lang==vmLang && vm!=nullptr)
     return;
@@ -111,7 +117,7 @@ void MenuRoot::closeAll() {
 
 void MenuRoot::updateCursor() {
 #if !defined(__MOBILE_PLATFORM__)
-  setCursorShape(current!=nullptr ? CursorShape::Custom : CursorShape::Hidden);
+  setCursorShape(current!=nullptr && mouseEnabled ? CursorShape::Custom : CursorShape::Hidden);
 #endif
   }
 
@@ -177,23 +183,25 @@ void MenuRoot::mouseDownEvent(MouseEvent& event) {
   if(event.button==Event::ButtonRight) {
 #if !defined(__MOBILE_PLATFORM__)
     // Hover enters quest lists implicitly, so leaving one must not need a separate click.
-    if(!current->isReadingQuest())
+    if(mouseEnabled && !current->isReadingQuest())
       current->closeNestedView();
 #endif
     navigateBack();
     return;
     }
-#if defined(__MOBILE_PLATFORM__)
+#if !defined(__MOBILE_PLATFORM__)
+  if(mouseEnabled) {
+    if(event.button!=Event::ButtonLeft)
+      return;
+    mouseStart   = event.pos();
+    mouseMoved   = false;
+    mousePressed = current->pressMouse(event.pos()-current->pos());
+    return;
+    }
+#endif
   // A stray screen tap must not confirm permanent deletion.
   if(!current->isDeletingSave())
     current->onKeyboard(KeyCodec::ActionGeneric);
-#else
-  if(event.button!=Event::ButtonLeft)
-    return;
-  mouseStart   = event.pos();
-  mouseMoved   = false;
-  mousePressed = current->pressMouse(event.pos()-current->pos());
-#endif
   }
 
 #if !defined(__MOBILE_PLATFORM__)
@@ -212,7 +220,7 @@ void MenuRoot::mouseDragEvent(MouseEvent& event) {
   }
 
 void MenuRoot::mouseMoveEvent(MouseEvent& event) {
-  if(current==nullptr) {
+  if(current==nullptr || !mouseEnabled) {
     event.ignore();
     return;
     }

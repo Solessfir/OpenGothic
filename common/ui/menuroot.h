@@ -66,5 +66,6 @@ class MenuRoot : public Tempest::Widget {
     Tempest::Point                         mouseStart;
     bool                                   mousePressed = false;
     bool                                   mouseMoved   = false;
+    bool                                   mouseEnabled = true;
 #endif
   };

@@ -16,6 +16,7 @@
 #include "world/world.h"
 #include "utils/gthfont.h"
 #include "utils/keycodec.h"
+#include "utils/mouseutil.h"
 #include "gothic.h"
 #include "resources.h"
 #include "utils/gamepadbindings.h"
@@ -211,7 +212,8 @@ void InventoryMenu::onWorldChanged() {
 
 void InventoryMenu::tick(uint64_t /*dt*/) {
 #if !defined(__MOBILE_PLATFORM__)
-  const auto cursor = (state!=State::Closed && state!=State::LockPicking && !wheelActive) ? CursorShape::Custom : CursorShape::Hidden;
+  const bool pointer = state!=State::Closed && state!=State::LockPicking && !wheelActive && MouseUtil::isPointerEnabled();
+  const auto cursor  = pointer ? CursorShape::Custom : CursorShape::Hidden;
   if(cursorShape()!=cursor)
     setCursorShape(cursor);
 #endif
@@ -390,11 +392,12 @@ void InventoryMenu::mouseDownEvent(MouseEvent &e) {
     return;
 
 #if !defined(__MOBILE_PLATFORM__)
+  const bool pointer = !wheelActive && MouseUtil::isPointerEnabled();
   // Clicking beside the grids must not use or take the selected item.
-  if(e.button==MouseEvent::ButtonLeft && !wheelActive && !selectCellAt(e.pos()))
+  if(e.button==MouseEvent::ButtonLeft && pointer && !selectCellAt(e.pos()))
     return;
   // In the player's own inventory, right click on an item drops one (repeating while held), Shift drops the stack.
-  if(e.button==MouseEvent::ButtonRight && state==State::Equip && !wheelActive && selectCellAt(e.pos())) {
+  if(e.button==MouseEvent::ButtonRight && state==State::Equip && pointer && selectCellAt(e.pos())) {
     if(e.modifier & Event::M_Shift) {
       lootMode = LootMode::Stack;
       onTakeStuff();
@@ -427,7 +430,7 @@ void InventoryMenu::mouseMoveEvent(MouseEvent& e) {
   e.ignore();
 #else
   // Accept moves while open, so the game does not turn them into mouse look.
-  if(player==nullptr || state==State::Closed) {
+  if(player==nullptr || state==State::Closed || !MouseUtil::isPointerEnabled()) {
     e.ignore();
     return;
     }
