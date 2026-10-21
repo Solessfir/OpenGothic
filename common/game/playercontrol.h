@@ -68,6 +68,7 @@ class PlayerControl final {
 
     bool  tickMove(uint64_t dt);
     bool  tickCameraMove(uint64_t dt);
+    void  tickFly(Npc& pl, const Camera& camera, uint64_t dt);
 
   private:
     enum WeaponAction : uint8_t {
