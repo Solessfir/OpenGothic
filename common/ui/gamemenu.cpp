@@ -1119,6 +1119,13 @@ bool GameMenu::isDraggable(const Item& it) {
   }
 
 GameMenu::Item* GameMenu::itemAt(Point pos, int& index) {
+  // Drawn text wins on shared rows such as Back and "More keys"; the script box still makes short entries easy to hit.
+  if(auto hit = itemAt(pos,index,true))
+    return hit;
+  return itemAt(pos,index,false);
+  }
+
+GameMenu::Item* GameMenu::itemAt(Point pos, int& index, bool textOnly) {
   for(uint32_t i=0; i<zenkit::IMenu::item_count; ++i) {
     auto& selected = hItems[i];
     if(!selected.visible || !isSelectable(selected.handle) || !isEnabled(selected.handle))
@@ -1128,11 +1135,11 @@ GameMenu::Item* GameMenu::itemAt(Point pos, int& index) {
     auto* it  = &selected;
     for(int n=0; n<zenkit::IMenu::item_count && it!=nullptr; ++n) {
       auto rect = itemRect(*it);
-      if(it->handle->type!=zenkit::MenuItemType::SLIDER) {
+      // An explicit script box, such as a two-line journal category, is the item's real area.
+      if(it->handle->type!=zenkit::MenuItemType::SLIDER && (textOnly || it->handle->dim_y==-1)) {
         const auto& fnt = getTextFont(*it);
         rect.h = fnt.pixelSize();
-        // Script boxes often span the whole row; on a shared row such as Back and "More keys" only the drawn text may count.
-        if(it->handle->type!=zenkit::MenuItemType::INPUT && !(it->handle->flags & zenkit::MenuItemFlag::MULTILINE)) {
+        if(textOnly && it->handle->type!=zenkit::MenuItemType::INPUT && !(it->handle->flags & zenkit::MenuItemFlag::MULTILINE)) {
           getText(*it,textBuf);
           const int tw = fnt.textSize(std::string_view(textBuf.data())).w;
           if(tw>0 && tw<rect.w) {
