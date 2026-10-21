@@ -1,6 +1,7 @@
 #include "marvin.h"
 
 #include <charconv>
+#include <fstream>
 #include <cstdint>
 #include <cctype>
 
@@ -137,6 +138,8 @@ Marvin::Marvin() {
     {"goto pos %f %f %f",          C_GoToPos},
     {"goto vob %c %d",             C_GoToVob},
     {"goto camera",                C_GoToCamera},
+    {"save pos %s",                C_SavePos},
+    {"load pos %s",                C_LoadPos},
 
     {"camera autoswitch",          C_CamAutoswitch},
     {"camera mode",                C_CamMode},
@@ -347,6 +350,43 @@ bool Marvin::exec(std::string_view v) {
       player->setPosition(pos.x,pos.y,pos.z);
       player->updateTransform();
       c->reset();
+      return true;
+      }
+    case C_SavePos: {
+      // Stores the hero, camera and time of day, so "load pos" can repeat the exact same scene
+      auto   c      = Gothic::inst().camera();
+      Npc*   player = Gothic::inst().player();
+      World* world  = Gothic::inst().world();
+      if(c==nullptr || player==nullptr || world==nullptr)
+        return false;
+      std::ofstream f("pos-"+std::string(ret.argv[0])+".txt");
+      const auto pos  = player->position();
+      const auto spin = c->spin();
+      const auto time = world->time();
+      f << pos.x << ' ' << pos.y << ' ' << pos.z << ' ' << player->rotation() << ' ' << spin.x << ' ' << spin.y
+        << ' ' << time.hour() << ' ' << time.minute();
+      return bool(f);
+      }
+    case C_LoadPos: {
+      auto   c      = Gothic::inst().camera();
+      Npc*   player = Gothic::inst().player();
+      World* world  = Gothic::inst().world();
+      if(c==nullptr || player==nullptr || world==nullptr || !player->setInteraction(nullptr))
+        return false;
+      std::ifstream f("pos-"+std::string(ret.argv[0])+".txt");
+      Tempest::Vec3 pos;
+      float rot = 0, sx = 0, sy = 0;
+      if(!(f >> pos.x >> pos.y >> pos.z >> rot >> sx >> sy))
+        return false;
+      int32_t hour = 0, minute = 0;
+      if(f >> hour >> minute)
+        world->setDayTime(hour,minute);
+      player->setPosition(pos);
+      player->setDirection(rot);
+      player->updateTransform();
+      c->reset(player);
+      c->setSpin(Tempest::PointF(sx,sy));
+      c->setAngles(Tempest::PointF(sx,sy));
       return true;
       }
     case C_ToggleFrame:{
