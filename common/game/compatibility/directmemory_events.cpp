@@ -531,6 +531,27 @@ void DirectMemory::setupQuiverFunctions() {
     return equalsNoCase(slot,"ZS_BOW") || equalsNoCase(slot,"ZS_CROSSBOW");
     };
 
+  // AI_TeleportAlways of LeGo: the command that the queue calls writes the matrix of the vob of the character through zCVob, which the
+  // layer does not have as a class of the scripts (illegal access of unbound member ZCVOB.TRAFOOBJTOWORLD). The character is put at the
+  // point, the same way as TeleportNpcToWP does it.
+  safe("_AI_TELEPORTALWAYS", [this](int npcPtr, std::string_view wpName){
+    auto inst = handles.instanceAt(InstanceHandles::ptr32_t(npcPtr));
+    auto* inpc = dynamic_cast<zenkit::INpc*>(inst.get());
+    auto* wp = gameScript.world().findPoint(wpName,false);
+    if(inpc==nullptr || inpc->user_ptr==nullptr || wp==nullptr) {
+      Log::d("AI_TeleportAlways: the character or the way point is not there: ",wpName);
+      return;
+      }
+    auto& npc = *reinterpret_cast<Npc*>(inpc->user_ptr);
+    auto  pos = wp->position();
+    const float drop = pos.y-wp->groundPos.y;
+    if(drop>0.f && drop<200.f)
+      pos = wp->groundPos;
+    npc.clearGoTo();
+    npc.setPosition(pos);
+    npc.setDirection(wp->direction());
+    });
+
   // CoM changes the armor of a character with Mdl_SetVisualBody(npc, npc.body_visualName, npc.bitfield..., armor): it reads the visual
   // of the character from the members of oCNpc that the VM does not have. The visual stays, the armor is put on.
   safe("NPC_CHANGEARMOR", [npcOf](std::shared_ptr<zenkit::INpc> slf, int armor){
