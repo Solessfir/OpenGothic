@@ -944,6 +944,27 @@ bool PlayerControl::tickCameraMove(uint64_t dt) {
   return true;
   }
 
+void PlayerControl::tickFly(Npc& pl, const Camera& camera, uint64_t dt) {
+  constexpr float rad   = float(M_PI)/180.f;
+  constexpr float speed = 1500.f; // units per second
+  const auto  spin  = camera.spin();
+  const float yaw   = spin.y*rad;
+  const float pitch = spin.x*rad;
+  const float fwd   = movement.forwardBackward.value();
+  const float side  = movement.strafeRightLeft.value();
+  const float up    = ctrl[Action::Jump] ? 1.f : 0.f;
+  const float step  = speed*float(dt)/1000.f;
+
+  // Forward follows the camera, including its pitch; a positive camera pitch looks down.
+  auto pos = pl.position();
+  pos.x += (std::cos(yaw)*std::cos(pitch)*fwd + std::sin(yaw)*side)*step;
+  pos.y += (-std::sin(pitch)*fwd + up)*step;
+  pos.z += (std::sin(yaw)*std::cos(pitch)*fwd - std::cos(yaw)*side)*step;
+  pl.setPosition(pos);
+  pl.setDirection(spin.y);
+  pl.updateTransform();
+  }
+
 bool PlayerControl::tickMove(uint64_t dt) {
   auto w = Gothic::inst().world();
   if(w==nullptr)
@@ -958,6 +979,11 @@ bool PlayerControl::tickMove(uint64_t dt) {
 
   if(tickCameraMove(dt)) {
     controllerBowShot.cancel();
+    return true;
+    }
+
+  if(pl!=nullptr && camera!=nullptr && Gothic::inst().isFlyMode()) {
+    tickFly(*pl,*camera,dt);
     return true;
     }
 
