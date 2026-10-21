@@ -15,6 +15,7 @@
 
 #include <cctype>
 #include <zenkit/addon/daedalus.hh>
+#include "world/objects/item.h"
 #include "world/objects/npc.h"
 #include "world/triggers/movetrigger.h"
 #include "world/world.h"
@@ -452,7 +453,15 @@ void DirectMemory::eventPlayAni(Npc& npc, std::string_view ani) {
     } context{vm,vm.global_self()->get_instance(),vm.global_other()->get_instance(),
               vm.global_item()->get_instance(),vm.unsafe_get_gi()};
   vm.global_self()->set_instance(npc.handlePtr());
-  vm.global_other()->set_instance(nullptr);
+  // The original engine leaves OTHER as it was (the player after a talk or a fight), the scripts of the commands (B_Attack,
+  // B_ImmediateAttackPlayer, the fights of the quests) read it: without a character they fail
+  if(auto* pl = gameScript.world().player()) {
+    vm.global_other()->set_instance(pl->handlePtr());
+    lastCallOtherName = std::string(pl->displayName());
+    } else {
+    vm.global_other()->set_instance(nullptr);
+    lastCallOtherName.clear();
+    }
   vm.global_item()->set_instance(nullptr);
   vm.unsafe_set_gi(npc.handlePtr());
 
@@ -1979,8 +1988,18 @@ void DirectMemory::setupUtilityFunctions() {
     });
 
   const ptr32_t QSORT_G2 = 8195951;
-  cpu.register_thiscall(QSORT_G2, [](ptr32_t base, int numElt, int eltSize, ptr32_t pCmp) {
-    Log::e("LeGo: TODO: QSORT_G2(...)");
+  // (the C function qsort: cdecl, the arguments are all on the stack; registered as thiscall the first one was read from ECX)
+  cpu.register_cdecl(QSORT_G2, [this](ptr32_t base, int numElt, int eltSize, ptr32_t /*pCmp*/) {
+    // Ikarus calls it for MEM_ArraySort (the numbers, ascending) and for the table of the functions: the comparator of the engine is the
+    // comparison of two ints
+    if(numElt<2 || eltSize!=4) {
+      if(eltSize!=4)
+        Log::e("LeGo: QSORT_G2 of elements of ",eltSize," bytes is not implemented");
+      return;
+      }
+    auto* p = reinterpret_cast<int32_t*>(mem32.derefv(base,uint32_t(numElt)*4u));
+    if(p!=nullptr)
+      std::sort(p,p+numElt);
     });
 
   const ptr32_t ZERROR__SETTARGET = 4513616;
@@ -2170,15 +2189,47 @@ void DirectMemory::setupInitFileFunctions() {
   }
 
 void DirectMemory::setupNpcFunctions() {
+  auto npcAt = [this](ptr32_t p) -> Npc* {
+    auto inst = handles.instanceAt(p);
+    auto* n = dynamic_cast<zenkit::INpc*>(inst.get());
+    return (n!=nullptr && n->user_ptr!=nullptr) ? reinterpret_cast<Npc*>(n->user_ptr) : nullptr;
+    };
+
+  // oCNpc::GetSlotItem: the item that a character holds in a slot of the model (the hands, the shield)
   const ptr32_t OCNPC__GETSLOTITEM = 7544720;
-  cpu.register_thiscall(OCNPC__GETSLOTITEM, [](ptr32_t pHero, std::string slot) {
-    Log::e("LeGo: OCNPC__GETSLOTITEM(", slot, ")");
-    return 0x0;
+  cpu.register_thiscall(OCNPC__GETSLOTITEM, [this,npcAt](ptr32_t pHero, std::string slot) -> ptr32_t {
+    Npc* npc = npcAt(pHero);
+    if(npc==nullptr)
+      return 0;
+    for(auto& c:slot)
+      c = char(std::toupper(static_cast<unsigned char>(c)));
+    Item* it = nullptr;
+    if(slot=="ZS_RIGHTHAND" || slot=="ZS_LEFTHAND")
+      it = npc->activeWeapon(); else
+    if(slot=="ZS_SHIELD")
+      it = npc->currentShield(); else
+    if(slot=="ZS_BOW" || slot=="ZS_CROSSBOW")
+      it = npc->currentRangedWeapon(); else
+    if(slot=="ZS_LONGSWORD" || slot=="ZS_SWORD")
+      it = npc->currentMeleeWeapon();
+    if(it==nullptr)
+      return 0;
+    return handles.pointerTo(it->handlePtr());
     });
 
+  // oCNpc::EquipWeapon: the character takes the weapon in the hand (the item is put in his inventory first)
   const ptr32_t OCNPC__EQUIPWEAPON = 7577648;
-  cpu.register_thiscall(OCNPC__EQUIPWEAPON, [](ptr32_t pHero, ptr32_t pItem) {
-    Log::e("LeGo: OCNPC__EQUIPWEAPON(", pItem, ")");
+  cpu.register_thiscall(OCNPC__EQUIPWEAPON, [this,npcAt](ptr32_t pHero, ptr32_t pItem) {
+    Npc* npc = npcAt(pHero);
+    auto inst = handles.instanceAt(pItem);
+    auto* iitem = dynamic_cast<zenkit::IItem*>(inst.get());
+    if(npc==nullptr || iitem==nullptr || iitem->user_ptr==nullptr)
+      return;
+    auto* item = reinterpret_cast<Item*>(iitem->user_ptr);
+    const size_t cls = item->clsId();
+    if(npc->itemCount(cls)==0)
+      npc->addItem(cls,1);
+    npc->useItem(cls,Item::NSLOT,true);
     });
   }
 

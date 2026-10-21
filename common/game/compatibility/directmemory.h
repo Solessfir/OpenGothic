@@ -78,6 +78,8 @@ class DirectMemory {
     bool        dialogCameraDisabled() const { return dialogCameraOff; }
     bool        saveDisabled() const { return saveOff; }
     bool        inCamera();
+    /// who OTHER was in the last command that AI_Function ran (for the developer tests)
+    const std::string& lastCallOther() const { return lastCallOtherName; }
     /// Trialoge of LeGo: the commands for the self of the scripts go to the character who speaks now
     auto        triaRedirect(Npc* npc) -> Npc*;
     bool        inFinalBoards();
@@ -218,6 +220,7 @@ class DirectMemory {
     bool                             quiversPending = false;
     Npc*                             triaOriginal = nullptr;   // the character of the dialog (the self of the scripts) while a trialog runs
     Npc*                             triaCurrent  = nullptr;   // who speaks now
+    std::string                      lastCallOtherName;
     bool                             saveOff = false;           // ENABLESAVEGAME(FALSE) of CoM: no saving in the scenes
     bool                             dialogCameraOff = false;   // DIACAM_DISABLE of CoM patched oCAICamera::StartDialogCam
     struct VobState {
