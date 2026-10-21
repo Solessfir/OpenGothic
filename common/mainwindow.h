@@ -177,6 +177,7 @@ class MainWindow : public Tempest::Window {
 
     Tempest::Widget*          uiKeyUp=nullptr;
     Tempest::Point            dMouse;
+    bool                      uiPointer=false;
     uint64_t                  mouseLookIdle=0;
     float                     cursorScale=0;
     bool                      focusPaused=false;

@@ -7,6 +7,7 @@
 #include <cassert>
 
 #include "utils/gthfont.h"
+#include "utils/mouseutil.h"
 #include "utils/string_frm.h"
 #include "world/objects/npc.h"
 #include "gothic.h"
@@ -86,7 +87,7 @@ void DialogMenu::tick(uint64_t dt) {
     }
 
 #if !defined(__MOBILE_PLATFORM__)
-  const auto cursor = isChoiceMenuActive() ? CursorShape::Custom : CursorShape::Hidden;
+  const auto cursor = (isChoiceMenuActive() && MouseUtil::isPointerEnabled()) ? CursorShape::Custom : CursorShape::Hidden;
   if(cursorShape()!=cursor)
     setCursorShape(cursor);
 #endif
@@ -560,7 +561,7 @@ void DialogMenu::mouseDownEvent(MouseEvent &event) {
   if(event.button==MouseEvent::ButtonLeft) {
 #if !defined(__MOBILE_PLATFORM__)
     // Clicking beside the choices must not pick the highlighted one.
-    if(isChoiceMenuActive()) {
+    if(isChoiceMenuActive() && MouseUtil::isPointerEnabled()) {
       const size_t id = choiceAt(event.pos());
       if(id>=choice.size())
         return;
@@ -580,6 +581,12 @@ void DialogMenu::mouseMoveEvent(MouseEvent& event) {
     event.ignore();
     return;
     }
+#if !defined(__MOBILE_PLATFORM__)
+  if(!MouseUtil::isPointerEnabled()) {
+    event.ignore();
+    return;
+    }
+#endif
   if(!isChoiceMenuActive())
     return;
   const size_t id = choiceAt(event.pos());
