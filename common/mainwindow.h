@@ -226,6 +226,7 @@ class MainWindow : public Tempest::Window {
 
     Tempest::Shortcut         funcKey[11];
     Tempest::Shortcut         displayPos;
+    Tempest::Shortcut         altEnter;
 
     struct BenchmarkData {
       std::vector<uint64_t> low1procent;
