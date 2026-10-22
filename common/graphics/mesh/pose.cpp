@@ -232,6 +232,18 @@ bool Pose::stopAnim(std::string_view name) {
   return done;
   }
 
+void Pose::layerInfo(std::vector<LayerInfo>& out, uint64_t tickCount) const {
+  out.clear();
+  for(auto& i:lay) {
+    LayerInfo l;
+    l.seq     = i.seq;
+    l.elapsed = uint32_t(tickCount>i.sAnim ? std::min<uint64_t>(tickCount-i.sAnim,0xFFFFFFFFu) : 0);
+    l.comb    = i.comb;
+    l.bs      = i.bs;
+    out.push_back(l);
+    }
+  }
+
 bool Pose::stopWalkAnim() {
   bool done=false;
   size_t ret=0;
