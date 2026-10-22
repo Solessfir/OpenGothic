@@ -75,9 +75,9 @@ __attribute__((visibility("default")))
 int main(int argc,const char** argv) {
 #if defined(__IOS__) || defined(__ANDROID__)
   {
-    auto appdir = InstallDetect::applicationSupportDirectory();
-    if(!appdir.empty())
-      std::filesystem::current_path(appdir);
+    auto userdir = InstallDetect::userDirectory();
+    if(!userdir.empty())
+      std::filesystem::current_path(userdir);
   }
 #endif
 

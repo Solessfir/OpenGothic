@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <color name="og_ground">#0E0D0C</color>
+    <color name="og_ground_glass">#990E0D0C</color>
+    <color name="og_line">#1F1C19</color>
+    <color name="og_surface">#1A1816</color>
+    <color name="og_sheet">#161412</color>
+    <color name="og_selected">#24211D</color>
+    <color name="og_border">#3A352F</color>
+    <color name="og_border_soft">#2E2A25</color>
+    <color name="og_text">#EEE8DE</color>
+    <color name="og_soft">#CFC8BC</color>
+    <color name="og_muted">#A39C90</color>
+    <color name="og_dim">#7C766C</color>
+    <color name="og_on_primary">#14120F</color>
+    <color name="og_accent">#E07A3F</color>
+    <color name="og_error">#F0957A</color>
+    <color name="og_dialog_dim">#9E080706</color>
+
+    <style name="Launcher" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowBackground">@color/og_ground</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="colorPrimary">@color/og_text</item>
+        <item name="colorAccent">@color/og_text</item>
+        <item name="colorControlNormal">@color/og_muted</item>
+        <item name="colorControlActivated">@color/og_text</item>
+        <item name="android:textColorPrimary">@color/og_text</item>
+        <item name="android:textColorSecondary">@color/og_muted</item>
+        <item name="fontFamily">@font/og_plex_regular</item>
+        <item name="popupMenuStyle">@style/Launcher.PopupMenu</item>
+        <item name="textAppearanceLargePopupMenu">@style/Launcher.PopupText</item>
+        <item name="textAppearanceSmallPopupMenu">@style/Launcher.PopupText</item>
+        <item name="alertDialogTheme">@style/Launcher.Dialog</item>
+        <item name="android:windowLayoutInDisplayCutoutMode" tools:targetApi="27">shortEdges</item>
+    </style>
+
+    <style name="Launcher.PopupMenu" parent="Widget.AppCompat.PopupMenu">
+        <item name="android:popupBackground">@drawable/og_menu</item>
+    </style>
+
+    <style name="Launcher.PopupText" parent="TextAppearance.AppCompat.Widget.PopupMenu.Large">
+        <item name="android:textColor">@color/og_text</item>
+        <item name="android:textSize">15sp</item>
+        <item name="fontFamily">@font/og_plex_regular</item>
+    </style>
+
+    <style name="Launcher.Text">
+        <item name="android:textColor">@color/og_text</item>
+        <item name="android:textSize">15sp</item>
+        <item name="fontFamily">@font/og_plex_regular</item>
+    </style>
+
+    <style name="Launcher.Text.Muted">
+        <item name="android:textColor">@color/og_muted</item>
+        <item name="android:textSize">14sp</item>
+    </style>
+
+    <style name="Launcher.Text.Title">
+        <item name="android:textSize">24sp</item>
+        <item name="fontFamily">@font/og_plex_semibold</item>
+    </style>
+
+    <style name="Launcher.Button">
+        <item name="android:minHeight">52dp</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="android:paddingStart">24dp</item>
+        <item name="android:paddingEnd">24dp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:stateListAnimator">@null</item>
+        <item name="fontFamily">@font/og_plex_semibold</item>
+    </style>
+
+    <style name="Launcher.Button.Primary">
+        <item name="android:background">@drawable/og_button_primary</item>
+        <item name="android:textColor">@color/og_on_primary</item>
+        <item name="android:minWidth">200dp</item>
+    </style>
+
+    <style name="Launcher.Button.Secondary">
+        <item name="android:background">@drawable/og_button_secondary</item>
+        <item name="android:textColor">@color/og_text</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:paddingStart">18dp</item>
+        <item name="android:paddingEnd">18dp</item>
+        <item name="fontFamily">@font/og_plex_medium</item>
+    </style>
+
+    <style name="Launcher.Button.Plain">
+        <item name="android:background">@drawable/og_button_plain</item>
+        <item name="android:textColor">@color/og_soft</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:paddingStart">14dp</item>
+        <item name="android:paddingEnd">14dp</item>
+        <item name="fontFamily">@font/og_plex_regular</item>
+    </style>
+
+    <style name="Launcher.Field">
+        <item name="android:background">@drawable/og_field</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="android:paddingStart">14dp</item>
+        <item name="android:paddingEnd">14dp</item>
+        <item name="android:textColor">@color/og_text</item>
+        <item name="android:textColorHint">@color/og_dim</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:textCursorDrawable">@null</item>
+        <item name="fontFamily">@font/og_plex_regular</item>
+    </style>
+
+    <style name="Launcher.Dialog" parent="Theme.AppCompat.Dialog.Alert">
+        <item name="android:windowBackground">@drawable/og_dialog</item>
+        <item name="android:textColorPrimary">@color/og_text</item>
+        <item name="android:textColorSecondary">@color/og_muted</item>
+        <item name="colorAccent">@color/og_text</item>
+        <item name="fontFamily">@font/og_plex_regular</item>
+        <item name="buttonBarButtonStyle">@style/Launcher.DialogButton</item>
+    </style>
+
+    <style name="Launcher.DialogButton" parent="Widget.AppCompat.Button.ButtonBar.AlertDialog">
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textColor">@color/og_text</item>
+        <item name="android:textSize">15sp</item>
+        <item name="fontFamily">@font/og_plex_semibold</item>
+    </style>
+</resources>

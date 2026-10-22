@@ -307,6 +307,16 @@ class SetupTests(unittest.TestCase):
         subprocess.run([str(java / ("javac" + suffix)), "-d", str(self.base), str(source), str(test)], check=True)
         subprocess.run([str(java / ("java" + suffix)), "-cp", str(self.base), "org.opengothic.app.PrivateAssetsTest", str(self.base / "extraction")], check=True)
 
+    @unittest.skipUnless(os.environ.get("JAVA_HOME"), "Set JAVA_HOME to run host launcher checks")
+    def test_launcher_game_files(self):
+        java = Path(os.environ["JAVA_HOME"]) / "bin"
+        suffix = ".exe" if os.name == "nt" else ""
+        sources = [str(setup.ROOT / "android/launcher/java/org/opengothic/app" / name) for name in ("GameFiles.java", "Backups.java")]
+        tests = [str(Path(__file__).with_name(name)) for name in ("GameFilesTest.java", "BackupsTest.java")]
+        subprocess.run([str(java / ("javac" + suffix)), "-d", str(self.base), *sources, *tests], check=True)
+        subprocess.run([str(java / ("java" + suffix)), "-cp", str(self.base), "org.opengothic.app.GameFilesTest", str(self.base / "games")], check=True)
+        subprocess.run([str(java / ("java" + suffix)), "-cp", str(self.base), "org.opengothic.app.BackupsTest", str(self.base / "backups")], check=True)
+
 
 if __name__ == "__main__":
     unittest.main()

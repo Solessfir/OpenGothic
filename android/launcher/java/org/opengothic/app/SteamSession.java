@@ -1,0 +1,571 @@
+package org.opengothic.app;
+
+import android.annotation.TargetApi;
+import android.util.Log;
+
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+
+import java.io.Closeable;
+import java.io.File;
+import java.io.IOException;
+import java.security.SecureRandom;
+import java.security.Security;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
+import in.dragonbra.javasteam.depotdownloader.DepotDownloader;
+import in.dragonbra.javasteam.depotdownloader.IDownloadListener;
+import in.dragonbra.javasteam.depotdownloader.data.AppItem;
+import in.dragonbra.javasteam.depotdownloader.data.DownloadItem;
+import in.dragonbra.javasteam.enums.EResult;
+import in.dragonbra.javasteam.protobufs.steamclient.SteammessagesAuthSteamclient.EAuthSessionGuardType;
+import in.dragonbra.javasteam.steam.authentication.AuthPollResult;
+import in.dragonbra.javasteam.steam.authentication.AuthSessionDetails;
+import in.dragonbra.javasteam.steam.authentication.AuthenticationException;
+import in.dragonbra.javasteam.steam.authentication.CredentialsAuthSession;
+import in.dragonbra.javasteam.steam.authentication.IAuthenticator;
+import in.dragonbra.javasteam.steam.authentication.QrAuthSession;
+import in.dragonbra.javasteam.steam.handlers.steamapps.License;
+import in.dragonbra.javasteam.steam.handlers.steamapps.PICSProductInfo;
+import in.dragonbra.javasteam.steam.handlers.steamapps.PICSRequest;
+import in.dragonbra.javasteam.steam.handlers.steamapps.SteamApps;
+import in.dragonbra.javasteam.steam.handlers.steamapps.callback.FreeLicenseCallback;
+import in.dragonbra.javasteam.steam.handlers.steamapps.callback.LicenseListCallback;
+import in.dragonbra.javasteam.steam.handlers.steamapps.callback.PICSProductInfoCallback;
+import in.dragonbra.javasteam.steam.handlers.steamfriends.SteamFriends;
+import in.dragonbra.javasteam.steam.handlers.steamfriends.callback.PersonaStateCallback;
+import in.dragonbra.javasteam.steam.handlers.steamuser.LogOnDetails;
+import in.dragonbra.javasteam.steam.handlers.steamuser.SteamUser;
+import in.dragonbra.javasteam.steam.handlers.steamuser.callback.LoggedOffCallback;
+import in.dragonbra.javasteam.steam.handlers.steamuser.callback.LoggedOnCallback;
+import in.dragonbra.javasteam.steam.steamclient.SteamClient;
+import in.dragonbra.javasteam.steam.steamclient.callbackmgr.CallbackManager;
+import in.dragonbra.javasteam.steam.steamclient.callbacks.ConnectedCallback;
+import in.dragonbra.javasteam.steam.steamclient.callbacks.DisconnectedCallback;
+import in.dragonbra.javasteam.types.KeyValue;
+import in.dragonbra.javasteam.types.SteamID;
+
+/**
+ * One connection to Steam through JavaSteam (MIT): sign-in, the account's games and game downloads.
+ * It signs in as the Steam client, the only kind of session allowed to download content.
+ * Every method blocks; call them from a worker thread. JavaSteam needs Android 8 (java.time).
+ */
+@TargetApi(26)
+final class SteamSession implements Closeable {
+    private static final String TAG = "OpenGothic/Steam";
+
+    static {
+        // JavaSteam asks for the "BC" provider by name. Android ships a stripped one under that name, so replace it.
+        Security.removeProvider("BC");
+        Security.insertProviderAt(new BouncyCastleProvider(), 1);
+    }
+
+    /** Questions for the player; answers may come from any thread. */
+    interface Prompt {
+        /** Steam Guard code from the Steam app or e-mail. Complete with null to give up. */
+        void code(boolean email, String emailHint, boolean wrong, CompletableFuture<String> answer);
+
+        /** Steam waits for the sign-in to be approved in the Steam app. */
+        void approve();
+
+        /** QR sign-in: the link to show as a code, changes every few seconds. */
+        void qr(String url);
+    }
+
+    interface Progress {
+        void status(String text);
+
+        /** Bytes done and the size of the whole download, 0 while unknown. */
+        void bytes(long done, long total);
+    }
+
+    static final class Failure extends Exception {
+        /** The session ended or was refused: sign in again. */
+        final boolean signIn;
+
+        Failure(String message, boolean signIn) {
+            super(message);
+            this.signIn = signIn;
+        }
+    }
+
+    private final SteamClient client;
+    private final CallbackManager manager;
+    private final SteamUser user;
+    private final SteamApps apps;
+    private final SteamFriends friends;
+    private final List<Closeable> subscriptions = new ArrayList<>();
+
+    private volatile boolean running = true;
+    private volatile boolean closing;
+
+    private volatile CompletableFuture<Void> connected = new CompletableFuture<>();
+    private volatile CompletableFuture<LoggedOnCallback> loggedOn = new CompletableFuture<>();
+    private volatile CompletableFuture<List<License>> licenses = new CompletableFuture<>();
+    private volatile CompletableFuture<Void> picsDone;
+    private final Map<Integer, PICSProductInfo> packages = new ConcurrentHashMap<>();
+    private volatile DepotDownloader downloader;
+    private volatile CredentialsAuthSession credentials;
+    private volatile boolean emailCode;
+    private volatile Future<?> pending;
+    private volatile CompletableFuture<byte[]> avatarHash;
+    private volatile SteamID me;
+
+    SteamSession() {
+        client = new SteamClient();
+        manager = new CallbackManager(client);
+        user = client.getHandler(SteamUser.class);
+        apps = client.getHandler(SteamApps.class);
+        friends = client.getHandler(SteamFriends.class);
+
+        subscriptions.add(manager.subscribe(ConnectedCallback.class, c -> connected.complete(null)));
+        subscriptions.add(manager.subscribe(DisconnectedCallback.class, c -> {
+            if (!closing && !c.isUserInitiated()) failAll(new Failure("The connection to Steam was lost.", false));
+        }));
+        subscriptions.add(manager.subscribe(LoggedOnCallback.class, c -> loggedOn.complete(c)));
+        subscriptions.add(manager.subscribe(LoggedOffCallback.class, c -> {
+            // Only a token that stopped working means signing in again; another session of the account taking over does not
+            Log.w(TAG, "logged off: " + c.getResult());
+            failAll(new Failure(expired(c.getResult()) ? "Your Steam session has ended. Sign in again." : "Steam ended the session (" + c.getResult() + ").",
+                    expired(c.getResult())));
+        }));
+        subscriptions.add(manager.subscribe(LicenseListCallback.class, c -> {
+            // Steam sends the list again after a new license, so a finished future is replaced
+            CompletableFuture<List<License>> f = licenses.isDone() ? new CompletableFuture<>() : licenses;
+            if (c.getResult() == EResult.OK) f.complete(c.getLicenseList());
+            else f.completeExceptionally(new Failure("Steam did not send the list of your games.", false));
+            licenses = f;
+        }));
+        subscriptions.add(manager.subscribe(PersonaStateCallback.class, c -> {
+            CompletableFuture<byte[]> f = avatarHash;
+            if (f != null && c.getFriendId().equals(me)) f.complete(c.getAvatarHash());
+        }));
+        subscriptions.add(manager.subscribe(PICSProductInfoCallback.class, c -> {
+            packages.putAll(c.getPackages());
+            CompletableFuture<Void> p = picsDone;
+            if (!c.isResponsePending() && p != null) p.complete(null);
+        }));
+
+        Thread pump = new Thread(() -> {
+            while (running) manager.runWaitCallbacks(1000L);
+        }, "steam-callbacks");
+        pump.setDaemon(true);
+        pump.start();
+    }
+
+    void connect() throws Failure {
+        connected = new CompletableFuture<>();
+        client.connect();
+        await(connected, 30, "Steam does not answer. Check the connection.");
+    }
+
+    /** The password goes to Steam encrypted by the library. Steam Guard goes through the prompt. */
+    SteamStore.Session login(String account, String password, String device, final Prompt prompt) throws Failure {
+        AuthSessionDetails details = new AuthSessionDetails();
+        details.username = account;
+        details.password = password;
+        details.deviceFriendlyName = device;
+        details.persistentSession = true;
+        details.authenticator = new IAuthenticator() {
+            @Override
+            public CompletableFuture<String> getDeviceCode(boolean previousCodeWasIncorrect) {
+                CompletableFuture<String> answer = new CompletableFuture<>();
+                prompt.code(false, null, previousCodeWasIncorrect, answer);
+                return answer;
+            }
+
+            @Override
+            public CompletableFuture<String> getEmailCode(String email, boolean previousCodeWasIncorrect) {
+                emailCode = true;
+                CompletableFuture<String> answer = new CompletableFuture<>();
+                prompt.code(true, email, previousCodeWasIncorrect, answer);
+                return answer;
+            }
+
+            @Override
+            public CompletableFuture<Boolean> acceptDeviceConfirmation() {
+                prompt.approve();
+                // Poll until the Steam app approves; a code typed meanwhile goes through sendCode
+                return CompletableFuture.completedFuture(Boolean.TRUE);
+            }
+        };
+        try {
+            CredentialsAuthSession auth = client.getAuthentication().beginAuthSessionViaCredentials(details).get();
+            credentials = auth;
+            return finish(auth.pollingWaitForResult());
+        } catch (AuthenticationException | InterruptedException | ExecutionException | CancellationException e) {
+            throw explain(e);
+        } finally {
+            credentials = null;
+        }
+    }
+
+    /** Approves a waiting password sign-in with a Steam Guard code instead of the Steam app. */
+    void sendCode(String code) throws Failure {
+        CredentialsAuthSession auth = credentials;
+        if (auth == null) throw new Failure("The sign-in is no longer waiting for a code.", false);
+        EAuthSessionGuardType type = emailCode ? EAuthSessionGuardType.k_EAuthSessionGuardType_EmailCode
+                : EAuthSessionGuardType.k_EAuthSessionGuardType_DeviceCode;
+        try {
+            auth.sendSteamGuardCode(code, type).get(30, TimeUnit.SECONDS);
+        } catch (AuthenticationException | InterruptedException | ExecutionException | TimeoutException | CancellationException e) {
+            throw explain(e);
+        }
+    }
+
+    /** Sign-in by scanning a QR code with the Steam app on another device. */
+    SteamStore.Session loginQr(String device, final Prompt prompt) throws Failure {
+        AuthSessionDetails details = new AuthSessionDetails();
+        details.deviceFriendlyName = device;
+        details.persistentSession = true;
+        try {
+            QrAuthSession auth = client.getAuthentication().beginAuthSessionViaQR(details).get();
+            auth.setChallengeUrlChanged(s -> {
+                if (s != null) prompt.qr(s.getChallengeUrl());
+            });
+            prompt.qr(auth.getChallengeUrl());
+            return finish(auth.pollingWaitForResult());
+        } catch (AuthenticationException | InterruptedException | ExecutionException | CancellationException e) {
+            throw explain(e);
+        }
+    }
+
+    private SteamStore.Session finish(CompletableFuture<AuthPollResult> poll) throws Failure {
+        pending = poll;
+        AuthPollResult result;
+        try {
+            result = poll.get();
+        } catch (InterruptedException | ExecutionException | CancellationException e) {
+            throw explain(e);
+        } finally {
+            pending = null;
+        }
+        resume(new SteamStore.Session(result.getAccountName(), result.getRefreshToken()));
+        return new SteamStore.Session(result.getAccountName(), result.getRefreshToken());
+    }
+
+    /** Signs in with the kept session: no password, no code. */
+    void resume(SteamStore.Session session) throws Failure {
+        loggedOn = new CompletableFuture<>();
+        licenses = new CompletableFuture<>();
+        LogOnDetails details = new LogOnDetails();
+        details.setUsername(session.account);
+        details.setAccessToken(session.refreshToken);
+        details.setShouldRememberPassword(true);
+        // A login ID per connection, so the library screen and a download can be signed in at the same time
+        details.setLoginID(new SecureRandom().nextInt(Integer.MAX_VALUE - 1) + 1);
+        user.logOn(details);
+        LoggedOnCallback r = await(loggedOn, 30, "Steam did not answer the sign-in.");
+        if (r.getResult() != EResult.OK) {
+            throw new Failure(expired(r.getResult()) ? "Your Steam session has ended. Sign in again." : "Steam refused the sign-in (" + r.getResult() + ").",
+                    expired(r.getResult()));
+        }
+    }
+
+    /** Which of the apps the account owns: licenses are packages, and packages list their apps. */
+    Set<Integer> owned(Set<Integer> wanted) throws Failure {
+        List<PICSRequest> requests = new ArrayList<>();
+        for (License l : await(licenses, 30, "Steam did not send the list of your games.")) {
+            requests.add(new PICSRequest(l.getPackageID(), l.getAccessToken()));
+        }
+        Set<Integer> ret = new HashSet<>();
+        if (requests.isEmpty()) return ret;
+        packages.clear();
+        picsDone = new CompletableFuture<>();
+        apps.picsGetProductInfo(Collections.<PICSRequest>emptyList(), requests);
+        await(picsDone, 60, "Steam did not send the list of your games.");
+        for (PICSProductInfo info : packages.values()) {
+            for (KeyValue id : info.getKeyValues().get("appids").getChildren()) {
+                int app = id.asInteger(0);
+                if (wanted.contains(app)) ret.add(app);
+            }
+        }
+        return ret;
+    }
+
+    /** Caches which launcher games the account owns and their download languages. */
+    void readLibrary(SteamStore store) throws Failure {
+        Set<Integer> ids = new HashSet<>();
+        for (Library.Game g : Library.GAMES) ids.add(g.appId);
+        Set<Integer> mine = owned(ids);
+        for (Library.Game g : Library.GAMES) store.saveLanguages(g.appId, languages(g.appId));
+        store.saveOwned(mine);
+        store.saveAvatar(avatar());
+    }
+
+    /** The account's avatar on Steam's image server, null for the default one or when Steam does not answer. */
+    private String avatar() {
+        me = client.getSteamID();
+        if (me == null) return null;
+        CompletableFuture<byte[]> f = new CompletableFuture<>();
+        avatarHash = f;
+        friends.requestFriendInfo(me, 0);
+        byte[] hash;
+        try {
+            hash = f.get(15, TimeUnit.SECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException | CancellationException e) {
+            return null;
+        } finally {
+            avatarHash = null;
+        }
+        StringBuilder hex = new StringBuilder();
+        boolean set = false;
+        for (byte b : hash) {
+            hex.append(String.format(Locale.ROOT, "%02x", b & 0xFF));
+            set |= b != 0;
+        }
+        return set ? "https://avatars.steamstatic.com/" + hex + "_full.jpg" : null;
+    }
+
+    /** Adds a free game to the account, the same as "Add to library" on the store page. */
+    void claimFree(int appId) throws Failure {
+        licenses = new CompletableFuture<>();
+        FreeLicenseCallback r = await(apps.requestFreeLicense(appId).toFuture(), 30, "Steam did not answer the license request.");
+        if (r.getResult() != EResult.OK) throw new Failure("Steam did not add the game to your library (" + r.getResult() + ").", false);
+        await(licenses, 30, "Steam did not send the updated list of your games.");
+    }
+
+    /**
+     * Download size per language of the Windows version: shared depots plus the language's own.
+     * The key is "" when the game has no language depots.
+     */
+    Map<String, Long> languages(int appId) throws Failure {
+        PICSProductInfo info = appInfo(appId);
+        long shared = 0;
+        Map<String, Long> own = new LinkedHashMap<>();
+        if (info != null) {
+            for (KeyValue depot : info.getKeyValues().get("depots").getChildren()) {
+                if (!depot.getName().matches("[0-9]+")) continue;
+                KeyValue config = depot.get("config");
+                String os = config.get("oslist").getValue();
+                String language = config.get("language").getValue();
+                if (os != null && !os.isEmpty() && !os.contains("windows")) continue;
+                if ("1".equals(config.get("lowviolence").getValue())) continue;
+                // Redistributables from other apps never reach the phone
+                if (depot.get("depotfromapp").getValue() != null) continue;
+                long size = depot.get("manifests").get("public").get("size").asLong(0);
+                if (language == null || language.isEmpty()) {
+                    shared += size;
+                } else {
+                    Long previous = own.get(language);
+                    own.put(language, (previous == null ? 0 : previous) + size);
+                }
+            }
+        }
+        Map<String, Long> ret = new LinkedHashMap<>();
+        if (own.isEmpty()) ret.put("", shared);
+        for (Map.Entry<String, Long> e : own.entrySet()) ret.put(e.getKey(), shared + e.getValue());
+        return ret;
+    }
+
+    private PICSProductInfo appInfo(int appId) throws Failure {
+        Long token = await(apps.picsGetAccessTokens(appId).toFuture(), 30, "Steam did not send the game details.").getAppTokens().get(appId);
+        PICSRequest request = new PICSRequest(appId, token != null ? token : 0L);
+        for (PICSProductInfoCallback c : await(apps.picsGetProductInfo(request).toFuture(), 30, "Steam did not send the game details.").getResults()) {
+            PICSProductInfo info = c.getApps().get(appId);
+            if (info != null) return info;
+        }
+        return null;
+    }
+
+    /**
+     * Downloads the Windows version in the chosen language into the folder. An interrupted download continues
+     * from the files already there.
+     */
+    void download(int appId, File dir, String language, final Progress progress) throws Failure {
+        List<License> list = await(licenses, 30, "Steam did not send the list of your games.");
+        final boolean resume = dir.exists();
+        final CompletableFuture<Void> done = new CompletableFuture<>();
+        final Failure[] failed = {null};
+
+        // DepotDownloader reports per depot; the game is the sum of its depots
+        Map<String, Long> sizes = languages(appId);
+        final Map<Integer, Float> parts = new HashMap<>();
+        final Map<Integer, Long> depotSizes = new HashMap<>();
+        final long[] expected = {sizes.containsKey(language) ? sizes.get(language) : sizes.containsKey("") ? sizes.get("") : 0};
+        final Object lock = new Object();
+
+        IDownloadListener listener = new IDownloadListener() {
+            @Override
+            public void onItemAdded(DownloadItem item) {
+            }
+
+            @Override
+            public void onDownloadStarted(DownloadItem item) {
+                progress.status("Downloading");
+            }
+
+            @Override
+            public void onDownloadCompleted(DownloadItem item) {
+                done.complete(null);
+            }
+
+            @Override
+            public void onDownloadFailed(DownloadItem item, Throwable error) {
+                failed[0] = new Failure("The download failed: " + error.getMessage(), false);
+                done.complete(null);
+            }
+
+            @Override
+            public void onStatusUpdate(String message) {
+                progress.status(message);
+            }
+
+            @Override
+            public void onFileCompleted(int depotId, String fileName, float depotPercentComplete) {
+                part(depotId, depotPercentComplete, 0);
+            }
+
+            @Override
+            public void onChunkCompleted(int depotId, float depotPercentComplete, long compressedBytes, long uncompressedBytes) {
+                part(depotId, depotPercentComplete, uncompressedBytes);
+            }
+
+            @Override
+            public void onDepotCompleted(int depotId, long compressedBytes, long uncompressedBytes) {
+                part(depotId, 1.f, uncompressedBytes);
+            }
+
+            private void part(int depotId, float fraction, long depotBytes) {
+                long got = 0;
+                long known = 0;
+                synchronized (lock) {
+                    parts.put(depotId, Math.min(1.f, fraction));
+                    if (!depotSizes.containsKey(depotId) && fraction > 0.01f && depotBytes > 0) {
+                        depotSizes.put(depotId, (long) (depotBytes / fraction));
+                    }
+                    for (Map.Entry<Integer, Float> e : parts.entrySet()) {
+                        Long size = depotSizes.get(e.getKey());
+                        if (size == null) continue;
+                        known += size;
+                        got += (long) (e.getValue() * size);
+                    }
+                }
+                progress.bytes(got, Math.max(expected[0], known));
+            }
+        };
+
+        // A chunk is one request and about 2 MB in memory twice (packed and unpacked): too few is slow, too many runs out of memory
+        int megabytes = (int) (Runtime.getRuntime().maxMemory() / (1024 * 1024));
+        int chunks = Math.max(6, Math.min(32, megabytes / 20));
+        int cores = Runtime.getRuntime().availableProcessors();
+        DepotDownloader d = new DepotDownloader(client, list, false, false, chunks, Math.max(2, Math.min(4, cores)), 2, true, null);
+        downloader = d;
+        try {
+            d.addListener(listener);
+            // Windows files for every architecture in the chosen language; depots without a language come along
+            d.add(new AppItem(appId, false, dir.getAbsolutePath(), null, null, false, "windows", true, null,
+                    false, language.isEmpty() ? null : language, false,
+                    Collections.<Integer>emptyList(), Collections.<Long>emptyList(), resume, false));
+            d.finishAdding();
+            while (!done.isDone() && running) {
+                try {
+                    done.get(1, TimeUnit.SECONDS);
+                } catch (TimeoutException ignored) {
+                    // Still downloading
+                } catch (ExecutionException | InterruptedException e) {
+                    break;
+                }
+            }
+            if (!running && !done.isDone()) throw new Failure("Paused.", false);
+            if (failed[0] != null) throw failed[0];
+        } finally {
+            downloader = null;
+            try {
+                d.close();
+            } catch (Exception ignored) {
+                // Already stopped
+            }
+        }
+    }
+
+    /** Stops whatever is running; downloaded files stay for the next attempt. */
+    void cancel() {
+        running = false;
+        Future<?> p = pending;
+        if (p != null) p.cancel(true);
+        DepotDownloader d = downloader;
+        if (d != null) {
+            try {
+                d.close();
+            } catch (Exception ignored) {
+                // Already stopped
+            }
+        }
+        failAll(new Failure("Stopped.", false));
+    }
+
+    @Override
+    public void close() {
+        closing = true;
+        cancel();
+        try {
+            if (client.isConnected()) user.logOff();
+            client.disconnect();
+        } catch (Exception ignored) {
+            // Already disconnected
+        }
+        for (Closeable c : subscriptions) {
+            try {
+                c.close();
+            } catch (IOException ignored) {
+                // Nothing to release
+            }
+        }
+        subscriptions.clear();
+    }
+
+    private static boolean expired(EResult r) {
+        return r == EResult.AccessDenied || r == EResult.InvalidPassword || r == EResult.Expired
+                || r == EResult.InvalidLoginAuthCode || r == EResult.AccountDisabled;
+    }
+
+    private void failAll(Failure f) {
+        connected.completeExceptionally(f);
+        loggedOn.completeExceptionally(f);
+        licenses.completeExceptionally(f);
+        CompletableFuture<Void> p = picsDone;
+        if (p != null) p.completeExceptionally(f);
+    }
+
+    private <T> T await(CompletableFuture<T> future, int seconds, String timeout) throws Failure {
+        try {
+            return future.get(seconds, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            throw new Failure(timeout, false);
+        } catch (InterruptedException | ExecutionException | CancellationException e) {
+            throw explain(e);
+        }
+    }
+
+    private static Failure explain(Throwable e) {
+        if (e instanceof InterruptedException) Thread.currentThread().interrupt();
+        if (e instanceof CancellationException || e instanceof InterruptedException) return new Failure("Stopped.", false);
+        if (e instanceof ExecutionException && e.getCause() != null) e = e.getCause();
+        if (e instanceof Failure) return (Failure) e;
+        if (e instanceof AuthenticationException) {
+            EResult r = ((AuthenticationException) e).getResult();
+            if (r == EResult.InvalidPassword) return new Failure("Wrong account name or password.", false);
+            if (r == EResult.RateLimitExceeded || r == EResult.AccountLoginDeniedThrottle) return new Failure("Too many attempts. Wait a while and try again.", false);
+            if (r == EResult.TwoFactorCodeMismatch || r == EResult.InvalidLoginAuthCode) return new Failure("That code is not right.", false);
+            if (r == EResult.Expired || r == EResult.FileNotFound) return new Failure("The sign-in request expired. Try again.", false);
+            return new Failure("Steam refused the sign-in" + (r != null ? " (" + r + ")" : "") + ".", false);
+        }
+        String m = e.getMessage();
+        return new Failure(m != null && !m.isEmpty() ? m : e.getClass().getSimpleName(), false);
+    }
+}
