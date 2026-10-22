@@ -22,6 +22,16 @@ final class Backups {
     private static final String MANIFEST = "opengothic-backup.txt";
     private static final Pattern SAVE = Pattern.compile("save_(?:slot_[0-9]+|quick_(?:[1-9]|1[0-9]|20))\\.sav");
 
+    /** A backup of another game; the launcher names it. */
+    static final class OtherGame extends IOException {
+        final String folder;
+
+        OtherGame(String folder) {
+            super("This backup belongs to another game (" + folder + ").");
+            this.folder = folder;
+        }
+    }
+
     private Backups() {
     }
 
@@ -95,7 +105,7 @@ final class Backups {
                 }
             }
             if (owner == null || names.isEmpty()) throw new IOException("This is not an OpenGothic backup.");
-            if (!owner.equals(game)) throw new IOException("This backup belongs to another game (" + owner + ").");
+            if (!owner.equals(game)) throw new OtherGame(owner);
             if (!dir.isDirectory() && !dir.mkdirs()) throw new IOException("Cannot create " + dir);
             for (String name : names) {
                 File target = new File(dir, name);

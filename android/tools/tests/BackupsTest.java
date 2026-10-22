@@ -46,6 +46,11 @@ public class BackupsTest {
         check(!Files.exists(root.resolve("User2/Gothic1.restore")), "Staging removed");
 
         check(fails(backup.toByteArray(), root.resolve("User/Archolos").toFile(), "Archolos"), "Backup of another game refused");
+        try {
+            Backups.restore(new ByteArrayInputStream(backup.toByteArray()), root.resolve("User/Archolos").toFile(), "Archolos");
+        } catch (Backups.OtherGame e) {
+            check(e.folder.equals("Gothic1"), "The refusal names the game of the backup");
+        }
         check(!Files.exists(root.resolve("User/Archolos/save_slot_1.sav")), "Nothing written for another game");
 
         ByteArrayOutputStream evil = new ByteArrayOutputStream();
