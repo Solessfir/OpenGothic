@@ -81,6 +81,8 @@ void Shaders::setupOptions() {
 void Shaders::compileKeyShaders() {
   bink      = postEffect("bink");
   downscale = postEffect("downscale");
+  // Menus on HDR displays need it before the rest of the shaders are compiled
+  hdrOutput = postEffect("triangle_uv", "hdr_output", RenderState::ZTestMode::Always);
   }
 
 void Shaders::compileShaders() noexcept {
@@ -199,7 +201,6 @@ void Shaders::compileShaders() noexcept {
 
   tonemapping        = postEffect("triangle_uv", "tonemapping",    RenderState::ZTestMode::Always);
   tonemappingUpscale = postEffect("triangle_uv", "tonemapping_up", RenderState::ZTestMode::Always);
-  hdrOutput          = postEffect("triangle_uv", "hdr_output",    RenderState::ZTestMode::Always);
 
   cmaa2EdgeColor2x2Presets[uint32_t(AaPreset::OFF)]    = Tempest::ComputePipeline();
   cmaa2EdgeColor2x2Presets[uint32_t(AaPreset::MEDIUM)] = computeShader("cmaa2_edges_color2x2_quality_0.comp.sprv");
