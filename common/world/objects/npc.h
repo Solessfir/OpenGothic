@@ -115,6 +115,15 @@ class Npc final {
     void       setPoseInterval(uint64_t ms) { visual.setPoseInterval(ms); }
 
     bool       isPlayer() const;
+
+    struct AnimLayer {
+      std::string name;
+      uint32_t    elapsed = 0;
+      uint8_t     comb    = 0;
+      uint32_t    bs      = 0;
+      };
+    std::vector<AnimLayer> animationLayers() const;
+    void       debugUnconscious(bool on);
     void       setWalkMode(WalkBit m);
     WalkBit    walkMode() const;
     void       tick(uint64_t dt);
