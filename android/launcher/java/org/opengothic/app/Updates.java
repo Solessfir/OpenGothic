@@ -5,12 +5,14 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.os.Build;
 
 import androidx.core.content.FileProvider;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.opengothic.launcher.R;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -20,16 +22,21 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 /**
  * Updates from the fork's GitHub releases: a release tagged launcher-<version> with the APK attached.
  * The APK has to be signed with the same key as the installed one, or Android refuses the update.
+ * The same check reads the launcher config from the fork.
  */
 final class Updates {
     private static final String RELEASES = "https://api.github.com/repos/Solessfir/OpenGothic/releases?per_page=20";
     private static final String TAG = "launcher-";
     private static final String ASSET = "GothicLauncher-arm64.apk";
     private static final long CHECK_INTERVAL = 6L * 60 * 60 * 1000;
+    /** Settings that change without a new release: phones known not to work and where problem reports go. */
+    private static final String CONFIG = "https://raw.githubusercontent.com/Solessfir/OpenGothic/android/android/launcher-config.json";
 
     static final class Release {
         final String version;
@@ -88,7 +95,7 @@ final class Updates {
         new Thread(() -> {
             try {
                 Release newest = newest(new JSONArray(fetch(RELEASES)));
-                SharedPreferences.Editor e = p.edit().clear();
+                SharedPreferences.Editor e = p.edit().remove("version");
                 if (newest != null) {
                     e.putString("version", newest.version).putString("notes", newest.notes)
                             .putString("url", newest.url).putLong("size", newest.size);
@@ -97,7 +104,51 @@ final class Updates {
             } catch (IOException | JSONException ignored) {
                 // Offline or rate limited: the release found before stays shown
             }
+            try {
+                String config = fetch(CONFIG);
+                new JSONObject(config);
+                p.edit().putString("config", config).apply();
+            } catch (IOException | JSONException ignored) {
+                // The config fetched before stays in use
+            }
         }, "update-check").start();
+    }
+
+    private static JSONObject config(Context c) {
+        try {
+            return new JSONObject(prefs(c).getString("config", "{}"));
+        } catch (JSONException e) {
+            return new JSONObject();
+        }
+    }
+
+    /** Where problem reports go, null until the config names it. */
+    static String reportRelay(Context c) {
+        String url = config(c).optString("reports");
+        return url.startsWith("https://") ? url : null;
+    }
+
+    /**
+     * Why this phone is known not to run the games, or null. Each entry of the config's list is a regular expression
+     * searched in the manufacturer, model, hardware and chip names, with the reason the player sees.
+     */
+    static String unsupported(Context c) {
+        if (!c.getPackageManager().hasSystemFeature(PackageManager.FEATURE_VULKAN_HARDWARE_VERSION, 0x00401000)) {
+            return c.getString(R.string.og_no_vulkan);
+        }
+        String device = Build.MANUFACTURER + " " + Build.MODEL + " " + Build.HARDWARE + (Build.VERSION.SDK_INT >= 31 ? " " + Build.SOC_MODEL : "");
+        JSONArray list = config(c).optJSONArray("unsupported");
+        for (int i = 0; list != null && i < list.length(); ++i) {
+            JSONObject entry = list.optJSONObject(i);
+            String match = entry == null ? "" : entry.optString("match");
+            if (match.isEmpty()) continue;
+            try {
+                if (Pattern.compile(match, Pattern.CASE_INSENSITIVE).matcher(device).find()) return entry.optString("reason");
+            } catch (PatternSyntaxException ignored) {
+                // A broken entry warns nobody
+            }
+        }
+        return null;
     }
 
     private static Release newest(JSONArray releases) throws JSONException {

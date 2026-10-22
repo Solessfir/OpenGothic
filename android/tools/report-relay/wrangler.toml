@@ -1,0 +1,15 @@
+name = "opengothic-reports"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+
+[vars]
+REPO = "Solessfir/opengothic-reports"
+
+# Three reports a minute per address, counted in each Cloudflare location
+[[ratelimits]]
+name = "LIMIT"
+namespace_id = "1001"
+
+  [ratelimits.simple]
+  limit = 3
+  period = 60

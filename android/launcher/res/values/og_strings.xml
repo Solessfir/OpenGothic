@@ -33,9 +33,14 @@
     <string name="og_restore_title">Restore saves and settings for %1$s?</string>
     <string name="og_restore_body">Saves in the same slots and the settings are replaced by the backup. Other saves stay.</string>
     <string name="og_report">Report a problem</string>
-    <string name="og_report_body">Share a report with the developer? It holds the game\'s log and details about this phone, but no saves or account data.</string>
-    <string name="og_report_share">Share report</string>
-    <string name="og_report_send">Send the report</string>
+    <string name="og_report_body">Send a report to the developer? It holds the game\'s log and details about this phone, but no saves or account data.</string>
+    <string name="og_report_hint">What happened? (optional)</string>
+    <string name="og_report_send">Send report</string>
+    <string name="og_report_sent">Report sent. Thank you!</string>
+    <string name="og_report_failed">The report could not be sent. %1$s</string>
+    <string name="og_unsupported_title">Sorry, this phone is not supported</string>
+    <string name="og_try_anyway">Try anyway</string>
+    <string name="og_no_vulkan">The games need Vulkan 1.1 graphics, which this phone does not have.</string>
     <string name="og_problem_crash">%1$s crashed</string>
     <string name="og_problem_frozen">%1$s stopped responding</string>
     <string name="og_problem_error">%1$s stopped with an error</string>

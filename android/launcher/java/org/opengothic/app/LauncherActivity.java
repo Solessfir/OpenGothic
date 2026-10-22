@@ -17,9 +17,11 @@ import android.os.Looper;
 import android.os.SystemClock;
 import android.provider.DocumentsContract;
 import android.provider.Settings;
+import android.text.InputFilter;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
@@ -420,7 +422,7 @@ public final class LauncherActivity extends AppCompatActivity {
 
     private void play() {
         File root = Library.root(this);
-        if (root == null || launching) return;
+        if (root == null || launching || warnUnsupported(this::play)) return;
         // The engine reads the folder name at start, see InstallDetect::androidGame
         try (FileOutputStream out = new FileOutputStream(new File(root, "game.txt"))) {
             out.write((game().folder + "\n").getBytes(StandardCharsets.UTF_8));
@@ -527,6 +529,7 @@ public final class LauncherActivity extends AppCompatActivity {
     }
 
     private void download() {
+        if (warnUnsupported(this::download)) return;
         Map<String, Long> sizes = store.languages(game().appId);
         if (sizes.size() == 1) {
             startDownload(game(), sizes.keySet().iterator().next());
@@ -652,14 +655,14 @@ public final class LauncherActivity extends AppCompatActivity {
         menu.setOnMenuItemClickListener(item -> {
             if (item.getItemId() == BACKUP) backup();
             else if (item.getItemId() == RESTORE) restore();
-            else if (item.getItemId() == REPORT) sendReport(game(), null);
+            else if (item.getItemId() == REPORT) askReport(game(), null);
             else confirmUninstall();
             return true;
         });
         menu.show();
     }
 
-    /** After the game closed by itself, offers to share a report with the developer. */
+    /** After the game closed by itself, offers to send a report to the developer. */
     private void offerReport() {
         if (Build.VERSION.SDK_INT < 30) return;
         List<ApplicationExitInfo> exits = Reports.gameExits(this);
@@ -671,25 +674,50 @@ public final class LauncherActivity extends AppCompatActivity {
         final Library.Game game = root == null ? null : Reports.lastPlayed(root);
         int problem = Reports.problem(last);
         if (game == null || problem == 0) return;
-        final String title = getString(problem, game.name);
-        new AlertDialog.Builder(this)
-                .setTitle(title)
-                .setMessage(R.string.og_report_body)
-                .setPositiveButton(R.string.og_report_share, (dialog, which) -> sendReport(game, title))
-                .setNegativeButton(R.string.og_not_now, null)
-                .show();
+        askReport(game, getString(problem, game.name));
     }
 
-    private void sendReport(final Library.Game game, final String problem) {
+    /** Asks what happened and sends the report. The problem is null when the player opened it from the menu. */
+    private void askReport(final Library.Game game, final String problem) {
+        final EditText note = new EditText(this);
+        note.setHint(R.string.og_report_hint);
+        note.setFilters(new InputFilter[] {new InputFilter.LengthFilter(2000)});
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle(problem != null ? problem : getString(R.string.og_report))
+                .setMessage(R.string.og_report_body)
+                .setPositiveButton(R.string.og_report_send, (d, which) -> sendReport(game, problem, note.getText().toString().trim()))
+                .setNegativeButton(problem != null ? R.string.og_not_now : R.string.og_cancel, null)
+                .create();
+        int pad = Math.round(20 * getResources().getDisplayMetrics().density);
+        dialog.setView(note, pad, 0, pad, 0);
+        dialog.show();
+    }
+
+    private void sendReport(final Library.Game game, final String problem, final String note) {
         new Thread(() -> {
             try {
-                File report = Reports.write(this, game);
-                String summary = Reports.summary(this, game);
-                handler.post(() -> startActivity(Reports.share(this, report, problem == null ? summary : problem + ". " + summary)));
+                Reports.send(this, game, problem, note);
+                handler.post(() -> Toast.makeText(this, R.string.og_report_sent, Toast.LENGTH_LONG).show());
             } catch (IOException | RuntimeException e) {
-                handler.post(() -> message(e.getMessage()));
+                handler.post(() -> message(getString(R.string.og_report_failed, e.getMessage())));
             }
         }, "problem-report").start();
+    }
+
+    /** On a phone known not to run the games, warns once per reason; true while the warning shows. */
+    private boolean warnUnsupported(final Runnable then) {
+        final String reason = Updates.unsupported(this);
+        if (reason == null || reason.equals(prefs.getString("unsupported_ok", null))) return false;
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.og_unsupported_title)
+                .setMessage(reason)
+                .setPositiveButton(R.string.og_try_anyway, (d, which) -> {
+                    prefs.edit().putString("unsupported_ok", reason).apply();
+                    then.run();
+                })
+                .setNegativeButton(R.string.og_cancel, null)
+                .show();
+        return true;
     }
 
     private void confirmUninstall() {
