@@ -42,6 +42,13 @@ class Pose final {
                                  uint8_t comb, BodyState bs,
                                  StartHint hint, uint64_t tickCount);
     bool               stopAnim(std::string_view name);
+    struct LayerInfo {
+      const Animation::Sequence* seq     = nullptr;
+      uint32_t                   elapsed = 0;
+      uint8_t                    comb    = 0;
+      BodyState                  bs      = BS_NONE;
+      };
+    void               layerInfo(std::vector<LayerInfo>& out, uint64_t tickCount) const;
     bool               stopWalkAnim();
     void               interrupt();
     void               stopAllAnim();
