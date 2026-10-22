@@ -344,31 +344,55 @@ final class SteamSession implements Closeable {
      * The key is "" when the game has no language depots.
      */
     Map<String, Long> languages(int appId) throws Failure {
-        PICSProductInfo info = appInfo(appId);
         long shared = 0;
         Map<String, Long> own = new LinkedHashMap<>();
-        if (info != null) {
-            for (KeyValue depot : info.getKeyValues().get("depots").getChildren()) {
-                if (!depot.getName().matches("[0-9]+")) continue;
-                KeyValue config = depot.get("config");
-                String os = config.get("oslist").getValue();
-                String language = config.get("language").getValue();
-                if (os != null && !os.isEmpty() && !os.contains("windows")) continue;
-                if ("1".equals(config.get("lowviolence").getValue())) continue;
-                // Redistributables from other apps never reach the phone
-                if (depot.get("depotfromapp").getValue() != null) continue;
-                long size = depot.get("manifests").get("public").get("size").asLong(0);
-                if (language == null || language.isEmpty()) {
-                    shared += size;
-                } else {
-                    Long previous = own.get(language);
-                    own.put(language, (previous == null ? 0 : previous) + size);
-                }
+        for (Depot d : depots(appId)) {
+            // DLC only downloads when it is owned, so it is no part of the size up front
+            if (d.dlc) continue;
+            if (d.language.isEmpty()) {
+                shared += d.size;
+            } else {
+                Long previous = own.get(d.language);
+                own.put(d.language, (previous == null ? 0 : previous) + d.size);
             }
         }
         Map<String, Long> ret = new LinkedHashMap<>();
         if (own.isEmpty()) ret.put("", shared);
         for (Map.Entry<String, Long> e : own.entrySet()) ret.put(e.getKey(), shared + e.getValue());
+        return ret;
+    }
+
+    private static final class Depot {
+        final int id;
+        final String language;
+        final long size;
+        final boolean dlc;
+
+        Depot(int id, String language, long size, boolean dlc) {
+            this.id = id;
+            this.language = language;
+            this.size = size;
+            this.dlc = dlc;
+        }
+    }
+
+    /** Windows depots of the app as DepotDownloader would consider them. */
+    private List<Depot> depots(int appId) throws Failure {
+        List<Depot> ret = new ArrayList<>();
+        PICSProductInfo info = appInfo(appId);
+        if (info == null) return ret;
+        for (KeyValue depot : info.getKeyValues().get("depots").getChildren()) {
+            if (!depot.getName().matches("[0-9]+")) continue;
+            KeyValue config = depot.get("config");
+            String os = config.get("oslist").getValue();
+            String language = config.get("language").getValue();
+            if (os != null && !os.isEmpty() && !os.contains("windows")) continue;
+            if ("1".equals(config.get("lowviolence").getValue())) continue;
+            // Redistributables from other apps never reach the phone
+            if (depot.get("depotfromapp").getValue() != null) continue;
+            ret.add(new Depot(Integer.parseInt(depot.getName()), language == null ? "" : language,
+                    depot.get("manifests").get("public").get("size").asLong(0), depot.get("dlcappid").getValue() != null));
+        }
         return ret;
     }
 
@@ -392,11 +416,15 @@ final class SteamSession implements Closeable {
         final CompletableFuture<Void> done = new CompletableFuture<>();
         final Failure[] failed = {null};
 
-        // DepotDownloader reports per depot; the game is the sum of its depots
-        Map<String, Long> sizes = languages(appId);
-        final Map<Integer, Float> parts = new HashMap<>();
+        // DepotDownloader reports each depot's fraction; Steam's manifest sizes turn them into bytes of the whole game.
+        // The total holds the depots of the chosen language up front, owned DLC joins once Steam sends it.
         final Map<Integer, Long> depotSizes = new HashMap<>();
-        final long[] expected = {sizes.containsKey(language) ? sizes.get(language) : sizes.containsKey("") ? sizes.get("") : 0};
+        final Set<Integer> counted = new HashSet<>();
+        for (Depot d : depots(appId)) {
+            depotSizes.put(d.id, d.size);
+            if (!d.dlc && (d.language.isEmpty() || d.language.equals(language))) counted.add(d.id);
+        }
+        final Map<Integer, Float> parts = new HashMap<>();
         final Object lock = new Object();
 
         IDownloadListener listener = new IDownloadListener() {
@@ -442,20 +470,21 @@ final class SteamSession implements Closeable {
 
             private void part(int depotId, float fraction, long depotBytes) {
                 long got = 0;
-                long known = 0;
+                long total = 0;
                 synchronized (lock) {
                     parts.put(depotId, Math.min(1.f, fraction));
-                    if (!depotSizes.containsKey(depotId) && fraction > 0.01f && depotBytes > 0) {
-                        depotSizes.put(depotId, (long) (depotBytes / fraction));
-                    }
-                    for (Map.Entry<Integer, Float> e : parts.entrySet()) {
-                        Long size = depotSizes.get(e.getKey());
+                    counted.add(depotId);
+                    // A depot Steam's app info did not list: its size follows from the bytes so far
+                    if (!depotSizes.containsKey(depotId) && fraction > 0.01f && depotBytes > 0) depotSizes.put(depotId, (long) (depotBytes / fraction));
+                    for (int id : counted) {
+                        Long size = depotSizes.get(id);
                         if (size == null) continue;
-                        known += size;
-                        got += (long) (e.getValue() * size);
+                        total += size;
+                        Float f = parts.get(id);
+                        if (f != null) got += (long) (f * size);
                     }
                 }
-                progress.bytes(got, Math.max(expected[0], known));
+                progress.bytes(got, total);
             }
         };
 
