@@ -4,7 +4,22 @@ Native Android port of OpenGothic for Gothic 1, Gothic II Classic, Gothic II: Ni
 Requires an ARM64 device with Vulkan 1.1 and a legally owned game installation.
 The normal APK contains no game files.
 
-## Don't care - let me play
+## Launcher
+
+The default build is **Gothic Launcher** (`org.opengothic.launcher`): one app for Gothic, Gothic II: Gold Edition and The Chronicles of Myrtana: Archolos side by side.
+
+1. Install the APK and open it.
+2. Sign in with Steam: your password, then approve the sign-in in the Steam app (or type the Steam Guard code). A QR code for the Steam app on another device works too.
+3. Pick a game on the left and tap **Download**. Gothic and Gothic II need to be in your Steam library; Archolos is free and is added to it when you download.
+
+Downloads continue in the background with a notification and can be paused. Only the files the engine reads are kept: `Data`, `_work` and the game's own ini files, never executables or Windows plugins.
+Without a Steam account, **Import a ZIP** takes a `game-data.zip` from the setup scripts (see below); the launcher detects which game it holds.
+The library art comes from Steam's image servers and is kept for offline use. Steam needs Android 8; ZIP import works on Android 7.
+
+Each game has its own folder in `Android/data/org.opengothic.launcher/files`: game data in `Gothic1`, `Gothic2` or `Archolos`, and saves, settings and logs in `User/<game>`. Uninstalling a game from the **⋯** menu keeps its saves.
+The Steam sign-in is kept as a token encrypted with an Android Keystore key; the password is never stored.
+
+## Single-game apps
 
 1. Download your game's APK from [Releases](https://github.com/Solessfir/OpenGothic/releases).
 2. Run `setup-android.bat --package-only` on Windows or `bash setup-android.sh --package-only` on Linux. Choose the game and its installation, then copy `build/android-setup/game-data.zip` to your phone.
@@ -55,7 +70,7 @@ $env:ANDROID_SDK_ROOT = $env:ANDROID_HOME
 ```
 
 Output: `build/android/android/OpenGothic-apk/build/outputs/apk/release/OpenGothic-apk-release.apk` (ARM64, no Gothic assets).
-NotR is the default build.
+The launcher is the default build. For a single-game app, configure a separate directory with `-DOPENGOTHIC_ANDROID_GAME=gothic2notr`.
 For Gothic 1, configure with `-B build/android-g1 -DOPENGOTHIC_ANDROID_GAME=gothic1`; for Classic, use `-B build/android-g2-classic -DOPENGOTHIC_ANDROID_GAME=gothic2`.
 For Archolos, use `-B build/android-archolos -DOPENGOTHIC_ANDROID_GAME=archolos`.
 Build that directory instead; its APK is under `android/OpenGothic-apk/build/outputs/apk/release/OpenGothic-apk-release.apk`.

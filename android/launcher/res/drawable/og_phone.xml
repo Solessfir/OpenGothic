@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A phone showing an approval prompt -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="120dp" android:height="200dp" android:viewportWidth="120" android:viewportHeight="200">
+    <path android:strokeColor="@color/og_border" android:strokeWidth="2" android:pathData="M20,2h80a18,18 0,0 1,18 18v160a18,18 0,0 1,-18 18h-80a18,18 0,0 1,-18 -18v-160a18,18 0,0 1,18 -18z" />
+    <path android:fillColor="@color/og_border" android:pathData="M48,12h24a2,2 0,0 1,0 4h-24a2,2 0,0 1,0 -4z" />
+    <path android:fillColor="@color/og_surface" android:strokeColor="@color/og_border" android:strokeWidth="1" android:pathData="M26,64h68a10,10 0,0 1,10 10v52a10,10 0,0 1,-10 10h-68a10,10 0,0 1,-10 -10v-52a10,10 0,0 1,10 -10z" />
+    <path android:fillColor="@color/og_dim" android:pathData="M31,78h58a3,3 0,0 1,0 6h-58a3,3 0,0 1,0 -6z" />
+    <path android:fillColor="@color/og_border" android:pathData="M31,90h38a3,3 0,0 1,0 6h-38a3,3 0,0 1,0 -6z" />
+    <path android:fillColor="@color/og_text" android:pathData="M33,108h54a5,5 0,0 1,5 5v8a5,5 0,0 1,-5 5h-54a5,5 0,0 1,-5 -5v-8a5,5 0,0 1,5 -5z" />
+    <path android:strokeColor="@color/og_on_primary" android:strokeWidth="2" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M53,117l4,4 8,-8" />
+</vector>
