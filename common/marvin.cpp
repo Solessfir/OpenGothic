@@ -131,6 +131,7 @@ Marvin::Marvin() {
 
     {"cheat full",                 C_CheatFull},
     {"cheat god",                  C_CheatGod},
+    {"toggle fly",                 C_ToggleFly},
     {"kill",                       C_Kill},
 
     {"aigoto %s",                  C_AiGoTo},
@@ -281,6 +282,12 @@ bool Marvin::exec(std::string_view v) {
         Gothic::inst().setGodMode(true);
         Gothic::inst().onPrintScreen("Godmode on",2,4,1,fnt);
         }
+      return true;
+      }
+    case C_ToggleFly: {
+      auto& fnt = Resources::font(1.0);
+      Gothic::inst().setFlyMode(!Gothic::inst().isFlyMode());
+      Gothic::inst().onPrintScreen(Gothic::inst().isFlyMode() ? "Fly on" : "Fly off",2,4,1,fnt);
       return true;
       }
     case C_Kill: {
