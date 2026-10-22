@@ -1,6 +1,7 @@
 package org.opengothic.app;
 
 import android.Manifest;
+import android.app.ActivityOptions;
 import android.annotation.TargetApi;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -68,6 +69,7 @@ public final class LauncherActivity extends AppCompatActivity {
     private SteamStore store;
     private int selected;
     private boolean importing;
+    private boolean launching;
     private Library.Game pending;
 
     private final View[] covers = new View[Library.GAMES.length];
@@ -180,6 +182,8 @@ public final class LauncherActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        launching = false;
+        findViewById(R.id.og_root).setAlpha(1.f);
         hideSystemBars();
         refreshLibrary(false);
         Updates.check(this);
@@ -410,7 +414,7 @@ public final class LauncherActivity extends AppCompatActivity {
 
     private void play() {
         File root = Library.root(this);
-        if (root == null) return;
+        if (root == null || launching) return;
         // The engine reads the folder name at start, see InstallDetect::androidGame
         try (FileOutputStream out = new FileOutputStream(new File(root, "game.txt"))) {
             out.write((game().folder + "\n").getBytes(StandardCharsets.UTF_8));
@@ -418,7 +422,12 @@ public final class LauncherActivity extends AppCompatActivity {
             message(e.getMessage());
             return;
         }
-        startActivity(new Intent(this, org.tempest.TempestNativeActivity.class));
+        // Fade to dark and open the game without a slide: its window stays empty until the engine draws the first frame,
+        // and whatever shows through until then should be dark rather than the library
+        launching = true;
+        findViewById(R.id.og_root).animate().alpha(0.f).setDuration(180).withEndAction(() ->
+                startActivity(new Intent(this, org.tempest.TempestNativeActivity.class), ActivityOptions.makeCustomAnimation(this, 0, 0).toBundle()))
+                .start();
     }
 
     private void pickArchive() {
