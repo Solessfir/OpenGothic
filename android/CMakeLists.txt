@@ -39,6 +39,9 @@ if(OPENGOTHIC_ANDROID_GAME STREQUAL "launcher")
   # Android only installs an update with a higher code; 0.2 is 200, 1.10.3 is 11003
   math(EXPR code "${major} * 10000 + ${minor} * 100 + ${patch}")
 
+  # The engine shows the release in its main menu and log
+  target_compile_definitions(OpenGothic PUBLIC OPENGOTHIC_APP_VERSION="${OPENGOTHIC_LAUNCHER_VERSION}")
+
   # Library of Gothic, Gothic II and Archolos side by side; Steam needs Android 8, ZIP import works everywhere
   add_android_apk(OpenGothic-apk
     PACKAGE_NAME ${OPENGOTHIC_APPLICATION_ID}
