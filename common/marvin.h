@@ -39,6 +39,7 @@ class Marvin {
       // npc
       C_CheatFull,
       C_CheatGod,
+      C_ToggleFly,
       C_Kill,
       // camera
       C_CamAutoswitch,
