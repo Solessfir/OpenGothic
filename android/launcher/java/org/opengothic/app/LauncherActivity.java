@@ -187,6 +187,7 @@ public final class LauncherActivity extends AppCompatActivity {
         hideSystemBars();
         refreshLibrary(false);
         Updates.check(this);
+        askInstallPermission();
         handler.post(tick);
     }
 
@@ -592,6 +593,26 @@ public final class LauncherActivity extends AppCompatActivity {
         sheetDownload.setEnabled(fits);
     }
 
+    private boolean mayInstallUpdates() {
+        return Build.VERSION.SDK_INT < 26 || getPackageManager().canRequestPackageInstalls();
+    }
+
+    private void openInstallPermission() {
+        startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + getPackageName())));
+    }
+
+    /** Once, on the first start: updates install without a detour when they come. */
+    private void askInstallPermission() {
+        if (mayInstallUpdates() || prefs.getBoolean("askedInstall", false)) return;
+        prefs.edit().putBoolean("askedInstall", true).apply();
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.og_updates_title)
+                .setMessage(R.string.og_updates_body)
+                .setPositiveButton(R.string.og_allow, (dialog, which) -> openInstallPermission())
+                .setNegativeButton(R.string.og_not_now, null)
+                .show();
+    }
+
     private void showUpdate() {
         final Updates.Release release = Updates.available(this);
         if (release == null || Updates.downloading) return;
@@ -599,10 +620,10 @@ public final class LauncherActivity extends AppCompatActivity {
                 .setTitle(getString(R.string.og_update_title, release.version))
                 .setMessage(release.notes.isEmpty() ? getString(R.string.og_update_notes) : release.notes)
                 .setPositiveButton(R.string.og_update, (dialog, which) -> {
-                    // Android asks once whether the launcher may install apps
-                    if (Build.VERSION.SDK_INT >= 26 && !getPackageManager().canRequestPackageInstalls()) {
+                    // Declined on the first start: Android's page once more, then Update again
+                    if (!mayInstallUpdates()) {
                         Toast.makeText(this, R.string.og_update_allow, Toast.LENGTH_LONG).show();
-                        startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + getPackageName())));
+                        openInstallPermission();
                         return;
                     }
                     Updates.download(this, release);

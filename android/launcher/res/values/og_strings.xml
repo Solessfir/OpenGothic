@@ -19,6 +19,9 @@
     <string name="og_update_downloading">Downloading update · %1$d%%</string>
     <string name="og_update_title">Gothic Launcher %1$s</string>
     <string name="og_update_notes">A new version is available.</string>
+    <string name="og_updates_title">Automatic updates</string>
+    <string name="og_updates_body">Gothic Launcher can update itself when a new version is out. Android asks once to allow it to install apps.</string>
+    <string name="og_allow">Allow</string>
     <string name="og_update_allow">Allow Gothic Launcher to install updates, then tap Update again.</string>
     <string name="og_backup">Back up saves and settings</string>
     <string name="og_restore">Restore saves and settings</string>
