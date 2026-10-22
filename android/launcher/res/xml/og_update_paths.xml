@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The downloaded update, handed to Android's installer -->
+<!-- Files handed to other apps: the downloaded update for Android's installer, problem reports for the share sheet -->
 <paths>
     <cache-path name="updates" path="updates/" />
+    <cache-path name="reports" path="reports/" />
 </paths>
