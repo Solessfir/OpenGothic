@@ -32,6 +32,15 @@
     <string name="og_restore_done">Restored %1$d files</string>
     <string name="og_restore_title">Restore saves and settings for %1$s?</string>
     <string name="og_restore_body">Saves in the same slots and the settings are replaced by the backup. Other saves stay.</string>
+    <string name="og_report">Report a problem</string>
+    <string name="og_report_body">Share a report with the developer? It holds the game\'s log and details about this phone, but no saves or account data.</string>
+    <string name="og_report_share">Share report</string>
+    <string name="og_report_send">Send the report</string>
+    <string name="og_problem_crash">%1$s crashed</string>
+    <string name="og_problem_frozen">%1$s stopped responding</string>
+    <string name="og_problem_error">%1$s stopped with an error</string>
+    <string name="og_problem_memory">Android closed %1$s because the phone ran out of memory</string>
+    <string name="og_problem_closed">%1$s closed unexpectedly</string>
     <string name="og_sign_in_steam">Sign in with Steam</string>
     <string name="og_language_hint">Language of voices and texts</string>
     <string name="og_download_title">Download %1$s</string>

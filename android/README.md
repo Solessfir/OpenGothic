@@ -189,7 +189,9 @@ The setup scripts can also include PC OpenGothic saves in an archive for transfe
 - Save names: use the Android keyboard and press **Done**.
 - ADB offline/unauthorized: reconnect and accept the phone prompt; for Wi-Fi, check the current connection port.
 
-To collect logs:
+In Gothic Launcher, **⋯** > **Report a problem** shares a ZIP with the game's logs, how Android ended the game and the device details. The launcher offers it by itself after a game crashes.
+
+To collect logs over ADB:
 
 ```powershell
 & $adb -s $device pull /sdcard/Android/data/org.opengothic.gothic2notr/files/log.txt ./opengothic-android-log.txt

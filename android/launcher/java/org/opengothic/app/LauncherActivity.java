@@ -2,6 +2,7 @@ package org.opengothic.app;
 
 import android.Manifest;
 import android.app.ActivityOptions;
+import android.app.ApplicationExitInfo;
 import android.annotation.TargetApi;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -49,6 +50,7 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -59,6 +61,7 @@ public final class LauncherActivity extends AppCompatActivity {
     private static final int SIGN_IN = 2;
     private static final int BACKUP = 5;
     private static final int RESTORE = 6;
+    private static final int REPORT = 7;
     private static final long REFRESH_INTERVAL = 10 * 60 * 1000;
 
     private static volatile boolean refreshing;
@@ -189,6 +192,7 @@ public final class LauncherActivity extends AppCompatActivity {
         refreshLibrary(false);
         Updates.check(this);
         askInstallPermission();
+        offerReport();
         handler.post(tick);
     }
 
@@ -643,14 +647,49 @@ public final class LauncherActivity extends AppCompatActivity {
         PopupMenu menu = new PopupMenu(this, anchor);
         menu.getMenu().add(0, BACKUP, 0, R.string.og_backup);
         menu.getMenu().add(0, RESTORE, 1, R.string.og_restore);
-        if (Library.installed(root, game())) menu.getMenu().add(0, 0, 2, R.string.og_uninstall);
+        menu.getMenu().add(0, REPORT, 2, R.string.og_report);
+        if (Library.installed(root, game())) menu.getMenu().add(0, 0, 3, R.string.og_uninstall);
         menu.setOnMenuItemClickListener(item -> {
             if (item.getItemId() == BACKUP) backup();
             else if (item.getItemId() == RESTORE) restore();
+            else if (item.getItemId() == REPORT) sendReport(game(), null);
             else confirmUninstall();
             return true;
         });
         menu.show();
+    }
+
+    /** After the game closed by itself, offers to share a report with the developer. */
+    private void offerReport() {
+        if (Build.VERSION.SDK_INT < 30) return;
+        List<ApplicationExitInfo> exits = Reports.gameExits(this);
+        if (exits.isEmpty()) return;
+        ApplicationExitInfo last = exits.get(0);
+        if (last.getTimestamp() <= prefs.getLong("reported_exit", 0)) return;
+        prefs.edit().putLong("reported_exit", last.getTimestamp()).apply();
+        File root = Library.root(this);
+        final Library.Game game = root == null ? null : Reports.lastPlayed(root);
+        int problem = Reports.problem(last);
+        if (game == null || problem == 0) return;
+        final String title = getString(problem, game.name);
+        new AlertDialog.Builder(this)
+                .setTitle(title)
+                .setMessage(R.string.og_report_body)
+                .setPositiveButton(R.string.og_report_share, (dialog, which) -> sendReport(game, title))
+                .setNegativeButton(R.string.og_not_now, null)
+                .show();
+    }
+
+    private void sendReport(final Library.Game game, final String problem) {
+        new Thread(() -> {
+            try {
+                File report = Reports.write(this, game);
+                String summary = Reports.summary(this, game);
+                handler.post(() -> startActivity(Reports.share(this, report, problem == null ? summary : problem + ". " + summary)));
+            } catch (IOException | RuntimeException e) {
+                handler.post(() -> message(e.getMessage()));
+            }
+        }, "problem-report").start();
     }
 
     private void confirmUninstall() {
