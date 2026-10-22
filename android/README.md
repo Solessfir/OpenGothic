@@ -27,6 +27,11 @@ gh release create launcher-0.3 build/GothicLauncher-arm64.apk --title 'Gothic La
 
 `gh release upload launcher-0.3 build/GothicLauncher-arm64.apk --clobber` replaces the APK of an existing release. Android installs an update only when it is signed with the same key as the installed app: keep the signing key (`~/.android/debug.keystore` for local builds, or the `OPENGOTHIC_*` signing variables) and back it up.
 
+The launcher also reads [`launcher-config.json`](launcher-config.json) from the `android` branch with the update check, so these change without a release:
+
+- `unsupported`: phones that get a warning with **Try anyway** before Play or Download. `match` is a case-insensitive regular expression searched in "manufacturer model hardware chip" (for example `SM-M346` or `s5e8825`), `reason` is what the player reads.
+- `reports`: the address of the report relay in [`tools/report-relay`](tools/report-relay). It files each report as an issue in the private `Solessfir/opengothic-reports` repository and keeps the GitHub token out of the app. To set it up, create a fine-grained token with only **Issues: Read and write** on that repository, then in `tools/report-relay` run `npx wrangler login`, `npx wrangler secret put GITHUB_TOKEN` and `npx wrangler deploy`. `node check.mjs` tests the Worker.
+
 Each game has its own folder in `Android/data/org.opengothic.launcher/files`: game data in `Gothic1`, `Gothic2` or `Archolos`, and saves, settings and logs in `User/<game>`. Uninstalling a game from the **⋯** menu keeps its saves.
 The Steam sign-in is kept as a token encrypted with an Android Keystore key; the password is never stored.
 
@@ -189,7 +194,7 @@ The setup scripts can also include PC OpenGothic saves in an archive for transfe
 - Save names: use the Android keyboard and press **Done**.
 - ADB offline/unauthorized: reconnect and accept the phone prompt; for Wi-Fi, check the current connection port.
 
-In Gothic Launcher, **⋯** > **Report a problem** shares a ZIP with the game's logs, how Android ended the game and the device details. The launcher offers it by itself after a game crashes.
+In Gothic Launcher, **⋯** > **Report a problem** sends the developer the game's logs, how Android ended the game and the device details. The launcher offers it by itself after a game crashes.
 
 To collect logs over ADB:
 
