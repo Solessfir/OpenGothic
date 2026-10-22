@@ -16,6 +16,7 @@ import android.os.Looper;
 import android.os.SystemClock;
 import android.provider.DocumentsContract;
 import android.provider.Settings;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageButton;
@@ -706,6 +707,7 @@ public final class LauncherActivity extends AppCompatActivity {
             }
         } catch (SteamSession.Failure e) {
             // Offline keeps the cached library; only an ended session signs out
+            Log.w("OpenGothic/Steam", "library refresh: " + e.getMessage());
             if (e.signIn) {
                 store.clear();
                 refreshError = ended;

@@ -184,11 +184,12 @@ public final class DownloadService extends Service {
             s.done = true;
         } catch (SteamSession.Failure e) {
             if (e.signIn) new SteamStore(this).clear();
-            if (s.stop == Downloads.State.NONE) s.error = e.getMessage();
+            // Keep a reason found earlier, such as the library running out of memory, over the stop it caused
+            if (s.stop == Downloads.State.NONE && s.error == null) s.error = e.getMessage();
         } catch (Throwable e) {
             Log.e("OpenGothic/Steam", "download", e);
             record(e);
-            if (s.stop == Downloads.State.NONE) s.error = e instanceof OutOfMemoryError ? "Not enough memory for the download. Try again." : "The download failed: " + e;
+            if (s.stop == Downloads.State.NONE && s.error == null) s.error = e instanceof OutOfMemoryError ? "Not enough memory for the download. Try again." : "The download failed: " + e;
         } finally {
             session = null;
             if (steam != null) steam.close();

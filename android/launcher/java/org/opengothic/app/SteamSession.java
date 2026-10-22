@@ -262,6 +262,7 @@ final class SteamSession implements Closeable {
     void resume(SteamStore.Session session) throws Failure {
         loggedOn = new CompletableFuture<>();
         licenses = new CompletableFuture<>();
+        depotAccess = null;
         LogOnDetails details = new LogOnDetails();
         details.setUsername(session.account);
         details.setAccessToken(session.refreshToken);
@@ -278,17 +279,8 @@ final class SteamSession implements Closeable {
 
     /** Which of the apps the account owns: licenses are packages, and packages list their apps. */
     Set<Integer> owned(Set<Integer> wanted) throws Failure {
-        List<PICSRequest> requests = new ArrayList<>();
-        for (License l : await(licenses, 30, "Steam did not send the list of your games.")) {
-            requests.add(new PICSRequest(l.getPackageID(), l.getAccessToken()));
-        }
         Set<Integer> ret = new HashSet<>();
-        if (requests.isEmpty()) return ret;
-        packages.clear();
-        picsDone = new CompletableFuture<>();
-        apps.picsGetProductInfo(Collections.<PICSRequest>emptyList(), requests);
-        await(picsDone, 60, "Steam did not send the list of your games.");
-        for (PICSProductInfo info : packages.values()) {
+        for (PICSProductInfo info : licensedPackages()) {
             for (KeyValue id : info.getKeyValues().get("appids").getChildren()) {
                 int app = id.asInteger(0);
                 if (wanted.contains(app)) ret.add(app);
@@ -297,12 +289,44 @@ final class SteamSession implements Closeable {
         return ret;
     }
 
+    private Set<Integer> depotAccess;
+
+    /** Depots the account's licenses cover: the same check DepotDownloader makes, so owned DLC counts and other DLC does not. */
+    private Set<Integer> depotAccess() throws Failure {
+        if (depotAccess != null) return depotAccess;
+        Set<Integer> ret = new HashSet<>();
+        for (PICSProductInfo info : licensedPackages()) {
+            for (KeyValue id : info.getKeyValues().get("appids").getChildren()) ret.add(id.asInteger(0));
+            for (KeyValue id : info.getKeyValues().get("depotids").getChildren()) ret.add(id.asInteger(0));
+        }
+        depotAccess = ret;
+        return ret;
+    }
+
+    /** Product info of every package the account has a license for: licenses are packages, and packages list apps and depots. */
+    private List<PICSProductInfo> licensedPackages() throws Failure {
+        List<PICSRequest> requests = new ArrayList<>();
+        for (License l : await(licenses, 30, "Steam did not send the list of your games.")) {
+            requests.add(new PICSRequest(l.getPackageID(), l.getAccessToken()));
+        }
+        if (requests.isEmpty()) return new ArrayList<>();
+        packages.clear();
+        picsDone = new CompletableFuture<>();
+        apps.picsGetProductInfo(Collections.<PICSRequest>emptyList(), requests);
+        await(picsDone, 60, "Steam did not send the list of your games.");
+        return new ArrayList<>(packages.values());
+    }
+
     /** Caches which launcher games the account owns and their download languages. */
     void readLibrary(SteamStore store) throws Failure {
         Set<Integer> ids = new HashSet<>();
         for (Library.Game g : Library.GAMES) ids.add(g.appId);
         Set<Integer> mine = owned(ids);
-        for (Library.Game g : Library.GAMES) store.saveLanguages(g.appId, languages(g.appId));
+        for (Library.Game g : Library.GAMES) {
+            Map<String, Long> sizes = languages(g.appId);
+            Log.i(TAG, "library: " + g.folder + " " + sizes);
+            store.saveLanguages(g.appId, sizes);
+        }
         store.saveOwned(mine);
         PersonaStateCallback self = profile();
         if (self != null) store.saveProfile(self.getName(), avatar(self.getAvatarHash()));
@@ -338,6 +362,7 @@ final class SteamSession implements Closeable {
     /** Adds a free game to the account, the same as "Add to library" on the store page. */
     void claimFree(int appId) throws Failure {
         licenses = new CompletableFuture<>();
+        depotAccess = null;
         FreeLicenseCallback r = await(apps.requestFreeLicense(appId).toFuture(), 30, "Steam did not answer the license request.");
         if (r.getResult() != EResult.OK) throw new Failure("Steam did not add the game to your library (" + r.getResult() + ").", false);
         await(licenses, 30, "Steam did not send the updated list of your games.");
@@ -351,8 +376,7 @@ final class SteamSession implements Closeable {
         long shared = 0;
         Map<String, Long> own = new LinkedHashMap<>();
         for (Depot d : depots(appId)) {
-            // DLC only downloads when it is owned, so it is no part of the size up front
-            if (d.dlc) continue;
+            if (!downloads(d)) continue;
             if (d.language.isEmpty()) {
                 shared += d.size;
             } else {
@@ -362,8 +386,15 @@ final class SteamSession implements Closeable {
         }
         Map<String, Long> ret = new LinkedHashMap<>();
         if (own.isEmpty()) ret.put("", shared);
+        // Without a depot of its own, English is the shared files (Gothic has depots only for its other languages)
+        else if (!own.containsKey("english")) ret.put("english", shared);
         for (Map.Entry<String, Long> e : own.entrySet()) ret.put(e.getKey(), shared + e.getValue());
         return ret;
+    }
+
+    /** DLC only downloads when the account owns it or the app is free to download, as DepotDownloader decides. */
+    private boolean downloads(Depot d) throws Failure {
+        return !d.dlc || d.free || depotAccess().contains(d.id);
     }
 
     private static final class Depot {
@@ -371,12 +402,15 @@ final class SteamSession implements Closeable {
         final String language;
         final long size;
         final boolean dlc;
+        /** The whole app downloads without a license, Archolos for example. */
+        final boolean free;
 
-        Depot(int id, String language, long size, boolean dlc) {
+        Depot(int id, String language, long size, boolean dlc, boolean free) {
             this.id = id;
             this.language = language;
             this.size = size;
             this.dlc = dlc;
+            this.free = free;
         }
     }
 
@@ -385,6 +419,7 @@ final class SteamSession implements Closeable {
         List<Depot> ret = new ArrayList<>();
         PICSProductInfo info = appInfo(appId);
         if (info == null) return ret;
+        boolean free = info.getKeyValues().get("common").get("FreeToDownload").asBoolean(false);
         for (KeyValue depot : info.getKeyValues().get("depots").getChildren()) {
             if (!depot.getName().matches("[0-9]+")) continue;
             KeyValue config = depot.get("config");
@@ -395,7 +430,7 @@ final class SteamSession implements Closeable {
             // Redistributables from other apps never reach the phone
             if (depot.get("depotfromapp").getValue() != null) continue;
             ret.add(new Depot(Integer.parseInt(depot.getName()), language == null ? "" : language,
-                    depot.get("manifests").get("public").get("size").asLong(0), depot.get("dlcappid").getValue() != null));
+                    depot.get("manifests").get("public").get("size").asLong(0), depot.get("dlcappid").getValue() != null, free));
         }
         return ret;
     }
@@ -426,7 +461,7 @@ final class SteamSession implements Closeable {
         final Set<Integer> counted = new HashSet<>();
         for (Depot d : depots(appId)) {
             depotSizes.put(d.id, d.size);
-            if (!d.dlc && (d.language.isEmpty() || d.language.equals(language))) counted.add(d.id);
+            if (downloads(d) && (d.language.isEmpty() || d.language.equals(language))) counted.add(d.id);
         }
         final Map<Integer, Float> parts = new HashMap<>();
         final Object lock = new Object();
@@ -492,11 +527,12 @@ final class SteamSession implements Closeable {
             }
         };
 
-        // A chunk is one request and about 2 MB in memory twice (packed and unpacked): too few is slow, too many runs out of memory
+        // Every step keeps a fixed buffer of chunks (about 1 MB each, twice while unpacking); when writing to storage is the slowest
+        // step those buffers stay full, so a few downloads and enough writers keep memory well inside the heap
         int megabytes = (int) (Runtime.getRuntime().maxMemory() / (1024 * 1024));
-        int chunks = Math.max(6, Math.min(32, megabytes / 20));
+        int chunks = Math.max(4, Math.min(12, megabytes / 64));
         int cores = Runtime.getRuntime().availableProcessors();
-        DepotDownloader d = new DepotDownloader(client, list, false, false, chunks, Math.max(2, Math.min(4, cores)), 2, true, null);
+        DepotDownloader d = new DepotDownloader(client, list, false, false, chunks, Math.max(2, Math.min(4, cores)), 4, true, null);
         downloader = d;
         try {
             d.addListener(listener);
