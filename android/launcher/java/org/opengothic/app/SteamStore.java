@@ -79,8 +79,14 @@ final class SteamStore {
         }
     }
 
-    void saveAvatar(String url) {
-        prefs.edit().putString("avatar", url).apply();
+    /** The display name from the Steam profile; the account name is the login and always lower case. */
+    void saveProfile(String name, String avatar) {
+        prefs.edit().putString("name", name).putString("avatar", avatar).apply();
+    }
+
+    String name() {
+        String name = prefs.getString("name", null);
+        return name == null || name.isEmpty() ? account() : name;
     }
 
     String avatar() {

@@ -122,7 +122,7 @@ final class SteamSession implements Closeable {
     private volatile CredentialsAuthSession credentials;
     private volatile boolean emailCode;
     private volatile Future<?> pending;
-    private volatile CompletableFuture<byte[]> avatarHash;
+    private volatile CompletableFuture<PersonaStateCallback> profile;
     private volatile SteamID me;
 
     SteamSession() {
@@ -151,8 +151,8 @@ final class SteamSession implements Closeable {
             licenses = f;
         }));
         subscriptions.add(manager.subscribe(PersonaStateCallback.class, c -> {
-            CompletableFuture<byte[]> f = avatarHash;
-            if (f != null && c.getFriendId().equals(me)) f.complete(c.getAvatarHash());
+            CompletableFuture<PersonaStateCallback> f = profile;
+            if (f != null && c.getFriendId().equals(me)) f.complete(c);
         }));
         subscriptions.add(manager.subscribe(PICSProductInfoCallback.class, c -> {
             packages.putAll(c.getPackages());
@@ -304,24 +304,28 @@ final class SteamSession implements Closeable {
         Set<Integer> mine = owned(ids);
         for (Library.Game g : Library.GAMES) store.saveLanguages(g.appId, languages(g.appId));
         store.saveOwned(mine);
-        store.saveAvatar(avatar());
+        PersonaStateCallback self = profile();
+        if (self != null) store.saveProfile(self.getName(), avatar(self.getAvatarHash()));
     }
 
-    /** The account's avatar on Steam's image server, null for the default one or when Steam does not answer. */
-    private String avatar() {
+    /** The account's public profile: display name and avatar. Null when Steam does not answer. */
+    private PersonaStateCallback profile() {
         me = client.getSteamID();
         if (me == null) return null;
-        CompletableFuture<byte[]> f = new CompletableFuture<>();
-        avatarHash = f;
+        CompletableFuture<PersonaStateCallback> f = new CompletableFuture<>();
+        profile = f;
         friends.requestFriendInfo(me, 0);
-        byte[] hash;
         try {
-            hash = f.get(15, TimeUnit.SECONDS);
+            return f.get(15, TimeUnit.SECONDS);
         } catch (InterruptedException | ExecutionException | TimeoutException | CancellationException e) {
             return null;
         } finally {
-            avatarHash = null;
+            profile = null;
         }
+    }
+
+    /** The avatar on Steam's image server, null for the default one. */
+    private static String avatar(byte[] hash) {
         StringBuilder hex = new StringBuilder();
         boolean set = false;
         for (byte b : hash) {

@@ -297,7 +297,7 @@ public final class LauncherActivity extends AppCompatActivity {
     private void render() {
         final Library.Game game = game();
         final File root = Library.root(this);
-        final String user = store.account();
+        final String user = store.name();
         final boolean signedIn = steamAvailable() && user != null;
 
         account.setVisibility(signedIn ? View.VISIBLE : View.GONE);
