@@ -501,7 +501,7 @@ public final class LauncherActivity extends AppCompatActivity {
         new AlertDialog.Builder(this)
                 .setTitle(getString(R.string.og_restore_title, game.title))
                 .setMessage(R.string.og_restore_body)
-                .setPositiveButton(R.string.og_restore, (dialog, which) -> {
+                .setPositiveButton(R.string.og_restore_button, (dialog, which) -> {
                     final File root = Library.root(this);
                     if (root == null) return;
                     new Thread(() -> {
@@ -509,6 +509,9 @@ public final class LauncherActivity extends AppCompatActivity {
                             if (in == null) throw new IOException("Cannot open the backup.");
                             int count = Backups.restore(in, Library.user(root, game), game.folder);
                             handler.post(() -> Toast.makeText(this, getString(R.string.og_restore_done, count), Toast.LENGTH_LONG).show());
+                        } catch (Backups.OtherGame e) {
+                            Library.Game owner = Library.byFolder(e.folder);
+                            handler.post(() -> message(getString(R.string.og_backup_other_game, owner != null ? owner.title : e.folder, game.title)));
                         } catch (IOException | RuntimeException e) {
                             handler.post(() -> message(e.getMessage()));
                         }

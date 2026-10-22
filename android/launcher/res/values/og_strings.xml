@@ -27,6 +27,8 @@
     <string name="og_restore">Restore saves and settings</string>
     <string name="og_nothing_to_back_up">Nothing to back up yet. Saves and settings appear once you play.</string>
     <string name="og_backup_done">Backed up %1$d files</string>
+    <string name="og_restore_button">Restore</string>
+    <string name="og_backup_other_game">This is a backup of %1$s. Select %1$s in the library to restore it, or choose a backup of %2$s.</string>
     <string name="og_restore_done">Restored %1$d files</string>
     <string name="og_restore_title">Restore saves and settings for %1$s?</string>
     <string name="og_restore_body">Saves in the same slots and the settings are replaced by the backup. Other saves stay.</string>
