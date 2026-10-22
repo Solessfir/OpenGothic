@@ -21,7 +21,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -56,6 +55,7 @@ import in.dragonbra.javasteam.steam.steamclient.SteamClient;
 import in.dragonbra.javasteam.steam.steamclient.callbackmgr.CallbackManager;
 import in.dragonbra.javasteam.steam.steamclient.callbacks.ConnectedCallback;
 import in.dragonbra.javasteam.steam.steamclient.callbacks.DisconnectedCallback;
+import in.dragonbra.javasteam.types.AsyncJobMultiple;
 import in.dragonbra.javasteam.types.KeyValue;
 import in.dragonbra.javasteam.types.SteamID;
 
@@ -116,8 +116,6 @@ final class SteamSession implements Closeable {
     private volatile CompletableFuture<Void> connected = new CompletableFuture<>();
     private volatile CompletableFuture<LoggedOnCallback> loggedOn = new CompletableFuture<>();
     private volatile CompletableFuture<List<License>> licenses = new CompletableFuture<>();
-    private volatile CompletableFuture<Void> picsDone;
-    private final Map<Integer, PICSProductInfo> packages = new ConcurrentHashMap<>();
     private volatile DepotDownloader downloader;
     private volatile CredentialsAuthSession credentials;
     private volatile boolean emailCode;
@@ -153,11 +151,6 @@ final class SteamSession implements Closeable {
         subscriptions.add(manager.subscribe(PersonaStateCallback.class, c -> {
             CompletableFuture<PersonaStateCallback> f = profile;
             if (f != null && c.getFriendId().equals(me)) f.complete(c);
-        }));
-        subscriptions.add(manager.subscribe(PICSProductInfoCallback.class, c -> {
-            packages.putAll(c.getPackages());
-            CompletableFuture<Void> p = picsDone;
-            if (!c.isResponsePending() && p != null) p.complete(null);
         }));
 
         Thread pump = new Thread(() -> {
@@ -277,15 +270,10 @@ final class SteamSession implements Closeable {
         }
     }
 
-    /** Which of the apps the account owns: licenses are packages, and packages list their apps. */
+    /** Which of the apps the account owns. */
     Set<Integer> owned(Set<Integer> wanted) throws Failure {
-        Set<Integer> ret = new HashSet<>();
-        for (PICSProductInfo info : licensedPackages()) {
-            for (KeyValue id : info.getKeyValues().get("appids").getChildren()) {
-                int app = id.asInteger(0);
-                if (wanted.contains(app)) ret.add(app);
-            }
-        }
+        Set<Integer> ret = new HashSet<>(wanted);
+        ret.retainAll(depotAccess());
         return ret;
     }
 
@@ -309,12 +297,15 @@ final class SteamSession implements Closeable {
         for (License l : await(licenses, 30, "Steam did not send the list of your games.")) {
             requests.add(new PICSRequest(l.getPackageID(), l.getAccessToken()));
         }
-        if (requests.isEmpty()) return new ArrayList<>();
-        packages.clear();
-        picsDone = new CompletableFuture<>();
-        apps.picsGetProductInfo(Collections.<PICSRequest>emptyList(), requests);
-        await(picsDone, 60, "Steam did not send the list of your games.");
-        return new ArrayList<>(packages.values());
+        List<PICSProductInfo> ret = new ArrayList<>();
+        if (requests.isEmpty()) return ret;
+        AsyncJobMultiple<PICSProductInfoCallback> job = apps.picsGetProductInfo(Collections.<PICSRequest>emptyList(), requests);
+        // The default 10 s is short for a large library
+        job.setTimeout(60_000L);
+        for (PICSProductInfoCallback c : await(job.toFuture(), 60, "Steam did not send the list of your games.").getResults()) {
+            ret.addAll(c.getPackages().values());
+        }
+        return ret;
     }
 
     /** Caches which launcher games the account owns and their download languages. */
@@ -456,7 +447,7 @@ final class SteamSession implements Closeable {
         final Failure[] failed = {null};
 
         // DepotDownloader reports each depot's fraction; Steam's manifest sizes turn them into bytes of the whole game.
-        // The total holds the depots of the chosen language up front, owned DLC joins once Steam sends it.
+        // The total holds the depots that will download up front; a depot the app info did not list joins once Steam sends it.
         final Map<Integer, Long> depotSizes = new HashMap<>();
         final Set<Integer> counted = new HashSet<>();
         for (Depot d : depots(appId)) {
@@ -527,8 +518,8 @@ final class SteamSession implements Closeable {
             }
         };
 
-        // Every step keeps a fixed buffer of chunks (about 1 MB each, twice while unpacking); when writing to storage is the slowest
-        // step those buffers stay full, so a few downloads and enough writers keep memory well inside the heap
+        // Every step keeps a fixed buffer of chunks (about 1 MB each, twice while unpacking).
+        // When writing to storage is the slowest step those buffers stay full, so a few downloads and enough writers keep memory well inside the heap
         int megabytes = (int) (Runtime.getRuntime().maxMemory() / (1024 * 1024));
         int chunks = Math.max(4, Math.min(12, megabytes / 64));
         int cores = Runtime.getRuntime().availableProcessors();
@@ -607,8 +598,6 @@ final class SteamSession implements Closeable {
         connected.completeExceptionally(f);
         loggedOn.completeExceptionally(f);
         licenses.completeExceptionally(f);
-        CompletableFuture<Void> p = picsDone;
-        if (p != null) p.completeExceptionally(f);
     }
 
     private <T> T await(CompletableFuture<T> future, int seconds, String timeout) throws Failure {
