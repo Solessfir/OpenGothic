@@ -603,9 +603,6 @@ void Renderer::prepareSky(Tempest::Encoder<Tempest::CommandBuffer>& cmd, WorldVi
 void Renderer::draw(Attachment& output, Encoder<CommandBuffer>& cmd, uint8_t fId,
                     VectorImage::Mesh& uiLayer, VectorImage::Mesh& numOverlay,
                     InventoryMenu& inventory, VideoWidget& video, float hdrPeakNits) {
-  // Menus can render before any world has waited for the asynchronous shader compiler.
-  if(hdrPeakNits>0)
-    shaders.waitCompiler();
   // Compose the existing SDR UI at paper white, not at the display's peak brightness.
   const float paperWhite = std::min(200.f, hdrPeakNits);
   hdrPeakRatio = hdrPeakNits>0 ? hdrPeakNits/paperWhite : 0.f;
