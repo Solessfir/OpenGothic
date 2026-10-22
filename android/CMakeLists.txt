@@ -30,11 +30,21 @@ set(generated "${CMAKE_CURRENT_BINARY_DIR}/edition")
 configure_file(app/identity.xml.in "${generated}/res/values/identity.xml" @ONLY)
 
 if(OPENGOTHIC_ANDROID_GAME STREQUAL "launcher")
+  # Raise for every release: installed launchers update to GitHub releases tagged launcher-<version>
+  set(OPENGOTHIC_LAUNCHER_VERSION 0.2)
+  string(REPLACE "." ";" parts "${OPENGOTHIC_LAUNCHER_VERSION}.0.0")
+  list(GET parts 0 major)
+  list(GET parts 1 minor)
+  list(GET parts 2 patch)
+  # Android only installs an update with a higher code; 0.2 is 200, 1.10.3 is 11003
+  math(EXPR code "${major} * 10000 + ${minor} * 100 + ${patch}")
+
   # Library of Gothic, Gothic II and Archolos side by side; Steam needs Android 8, ZIP import works everywhere
   add_android_apk(OpenGothic-apk
     PACKAGE_NAME ${OPENGOTHIC_APPLICATION_ID}
     CODE Gothic2Notr
-    VERSION_NAME 0.2-android
+    VERSION_CODE ${code}
+    VERSION_NAME ${OPENGOTHIC_LAUNCHER_VERSION}
     PROPERTY_PREFIX opengothic
     SIGNING_ENV_PREFIX OPENGOTHIC
     MANIFEST launcher/AndroidManifest.xml

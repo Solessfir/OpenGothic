@@ -84,6 +84,20 @@
                     android:textSize="13sp"
                     app:fontFamily="@font/og_plex_semibold" />
 
+                <Button
+                    android:id="@+id/og_update"
+                    style="@style/Launcher.Button.Secondary"
+                    android:layout_width="wrap_content"
+                    android:layout_height="44dp"
+                    android:layout_marginEnd="10dp"
+                    android:minHeight="44dp"
+                    android:background="@drawable/og_pill"
+                    android:drawableStart="@drawable/og_dot"
+                    android:drawablePadding="10dp"
+                    android:paddingStart="16dp"
+                    android:textSize="14sp"
+                    android:visibility="gone" />
+
                 <LinearLayout
                     android:id="@+id/og_account"
                     android:layout_width="wrap_content"

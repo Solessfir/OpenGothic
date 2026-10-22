@@ -14,6 +14,12 @@
     <string name="og_view_on_steam">View on Steam</string>
     <string name="og_uninstall">Uninstall</string>
     <string name="og_sign_out">Sign out</string>
+    <string name="og_update">Update</string>
+    <string name="og_update_to">Update to %1$s</string>
+    <string name="og_update_downloading">Downloading update · %1$d%%</string>
+    <string name="og_update_title">Gothic Launcher %1$s</string>
+    <string name="og_update_notes">A new version is available.</string>
+    <string name="og_update_allow">Allow Gothic Launcher to install updates, then tap Update again.</string>
     <string name="og_backup">Back up saves and settings</string>
     <string name="og_restore">Restore saves and settings</string>
     <string name="og_nothing_to_back_up">Nothing to back up yet. Saves and settings appear once you play.</string>
