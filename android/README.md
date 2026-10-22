@@ -8,7 +8,7 @@ The normal APK contains no game files.
 
 The default build is **Gothic Launcher** (`org.opengothic.launcher`): one app for Gothic, Gothic II: Gold Edition and The Chronicles of Myrtana: Archolos side by side.
 
-1. Install the APK and open it.
+1. Download `GothicLauncher-arm64.apk` from the [latest release](https://github.com/Solessfir/OpenGothic/releases/latest), install it and open it.
 2. Sign in with Steam: your password, then approve the sign-in in the Steam app (or type the Steam Guard code). A QR code for the Steam app on another device works too.
 3. Pick a game on the left and tap **Download**. Gothic and Gothic II need to be in your Steam library; Archolos is free and is added to it when you download.
 
@@ -22,10 +22,10 @@ To publish an update, raise `OPENGOTHIC_LAUNCHER_VERSION` in `android/CMakeLists
 
 ```powershell
 Copy-Item build/android-launcher/android/OpenGothic-apk/build/outputs/apk/release/OpenGothic-apk-release.apk build/GothicLauncher-arm64.apk
-gh release create launcher-0.3 build/GothicLauncher-arm64.apk --title 'Gothic Launcher 0.3' --notes 'What changed'
+gh release create launcher-X.Y build/GothicLauncher-arm64.apk --title 'Gothic Launcher X.Y' --notes 'What changed'
 ```
 
-`gh release upload launcher-0.3 build/GothicLauncher-arm64.apk --clobber` replaces the APK of an existing release. Android installs an update only when it is signed with the same key as the installed app: keep the signing key (`~/.android/debug.keystore` for local builds, or the `OPENGOTHIC_*` signing variables) and back it up.
+`gh release upload launcher-X.Y build/GothicLauncher-arm64.apk --clobber` replaces the APK of an existing release. Android installs an update only when it is signed with the same key as the installed app: keep the signing key (`~/.android/debug.keystore` for local builds, or the `OPENGOTHIC_*` signing variables) and back it up.
 
 The launcher also reads [`launcher-config.json`](launcher-config.json) from the `android` branch with the update check, so these change without a release:
 
@@ -37,7 +37,7 @@ The Steam sign-in is kept as a token encrypted with an Android Keystore key; the
 
 ## Single-game apps
 
-1. Download your game's APK from [Releases](https://github.com/Solessfir/OpenGothic/releases).
+1. Build and install your game's APK: run `setup-android.bat` on Windows or `bash setup-android.sh` on Linux and follow the prompts ([setup guide](SETUP.md)). Both scripts detect installed games and ask which edition to install. Releases carry only Gothic Launcher.
 2. Run `setup-android.bat --package-only` on Windows or `bash setup-android.sh --package-only` on Linux. Choose the game and its installation, then copy `build/android-setup/game-data.zip` to your phone.
 3. Open the app, tap **Choose game archive**, and select the archive.
 4. Wait for the import to finish and the game to start. You can then delete the ZIP from your phone.
@@ -47,8 +47,6 @@ The game apps can be installed together, with separate game files, saves and set
 
 Use a clean installation without Union or Windows DLL plugins: they are unsupported, and their script/asset changes can break the game.
 Classic needs actual Classic files; removing NotR's addon archives or selecting a different APK does not convert the installation.
-To build the APK yourself instead, run `setup-android.bat` on Windows or `bash setup-android.sh` on Linux and follow the prompts.
-Both scripts detect installed games and ask which edition to install.
 
 Archolos is also available as a separate build. Select **The Chronicles of Myrtana: Archolos** in the setup script, using its Steam installation. Packaging preserves the installed text language and voice DLC; choose these in Steam before packaging. Mod compatibility is incomplete, so issues may still occur beyond the opening scene.
 
