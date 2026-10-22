@@ -104,7 +104,7 @@ final class Backups {
                     names.add(name);
                 }
             }
-            if (owner == null || names.isEmpty()) throw new IOException("This is not an OpenGothic backup.");
+            if (owner == null || owner.isEmpty() || names.isEmpty()) throw new IOException("This is not an OpenGothic backup.");
             if (!owner.equals(game)) throw new OtherGame(owner);
             if (!dir.isDirectory() && !dir.mkdirs()) throw new IOException("Cannot create " + dir);
             for (String name : names) {
