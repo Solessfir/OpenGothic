@@ -2407,6 +2407,37 @@ void Npc::tickRegen(int32_t& v, const int32_t max, const int32_t chg, const uint
     }
   }
 
+std::vector<Npc::AnimLayer> Npc::animationLayers() const {
+  std::vector<Pose::LayerInfo> info;
+  visual.pose().layerInfo(info,owner.tickCount());
+
+  std::vector<AnimLayer> ret;
+  for(auto& i:info) {
+    if(i.seq==nullptr)
+      continue;
+    AnimLayer l;
+    l.name    = i.seq->name;
+    l.elapsed = i.elapsed;
+    l.comb    = i.comb;
+    l.bs      = uint32_t(i.bs);
+    ret.push_back(std::move(l));
+    }
+  return ret;
+  }
+
+void Npc::debugUnconscious(bool on) {
+  if(isDead())
+    return;
+  if(on && !isUnconscious()) {
+    onNoHealth(false,HS_NoSound);
+    } else
+  if(!on) {
+    clearState(true);
+    clearAiQueue();
+    aiPush(AiQueue::aiStandupQuick());
+    }
+  }
+
 void Npc::tickAnimationTags() {
   Animation::EvCount ev;
   const bool hasEvents = visual.processEvents(owner,lastEventTime,ev);
