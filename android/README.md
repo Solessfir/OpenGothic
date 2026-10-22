@@ -16,6 +16,17 @@ Downloads continue in the background with a notification and can be paused. Only
 Without a Steam account, **Import a ZIP** takes a `game-data.zip` from the setup scripts (see below); the launcher detects which game it holds.
 The library art comes from Steam's image servers and is kept for offline use. Steam needs Android 8; ZIP import works on Android 7.
 
+The launcher updates itself: when it starts, and every six hours while it stays open, it checks the fork's GitHub releases, shows **Update to x.y** in its header when a newer one exists, and opens Android's installer for it. Android asks once to allow installing apps from the launcher.
+
+To publish an update, raise `OPENGOTHIC_LAUNCHER_VERSION` in `android/CMakeLists.txt`, build the APK on the same computer as before, and attach it to a release tagged `launcher-<version>` under the name `GothicLauncher-arm64.apk`:
+
+```powershell
+Copy-Item build/android-launcher/android/OpenGothic-apk/build/outputs/apk/release/OpenGothic-apk-release.apk build/GothicLauncher-arm64.apk
+gh release create launcher-0.3 build/GothicLauncher-arm64.apk --title 'Gothic Launcher 0.3' --notes 'What changed'
+```
+
+`gh release upload launcher-0.3 build/GothicLauncher-arm64.apk --clobber` replaces the APK of an existing release. Android installs an update only when it is signed with the same key as the installed app: keep the signing key (`~/.android/debug.keystore` for local builds, or the `OPENGOTHIC_*` signing variables) and back it up.
+
 Each game has its own folder in `Android/data/org.opengothic.launcher/files`: game data in `Gothic1`, `Gothic2` or `Archolos`, and saves, settings and logs in `User/<game>`. Uninstalling a game from the **⋯** menu keeps its saves.
 The Steam sign-in is kept as a token encrypted with an Android Keystore key; the password is never stored.
 

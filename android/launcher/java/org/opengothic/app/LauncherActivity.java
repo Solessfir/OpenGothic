@@ -14,6 +14,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
 import android.provider.DocumentsContract;
+import android.provider.Settings;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageButton;
@@ -85,6 +86,7 @@ public final class LauncherActivity extends AppCompatActivity {
     private ImageView accountAvatar;
     private String shownAvatar;
     private Button signIn;
+    private Button update;
     private Bitmap heroImage;
 
     private View sheetDim;
@@ -130,6 +132,8 @@ public final class LauncherActivity extends AppCompatActivity {
         accountAvatar.setClipToOutline(true);
         signIn = findViewById(R.id.og_sign_in);
         signIn.setOnClickListener(v -> signIn());
+        update = findViewById(R.id.og_update);
+        update.setOnClickListener(v -> showUpdate());
 
         int[] ids = {R.id.og_cover0, R.id.og_cover1, R.id.og_cover2};
         for (int i = 0; i < covers.length; ++i) {
@@ -178,6 +182,7 @@ public final class LauncherActivity extends AppCompatActivity {
         super.onResume();
         hideSystemBars();
         refreshLibrary(false);
+        Updates.check(this);
         handler.post(tick);
     }
 
@@ -207,6 +212,15 @@ public final class LauncherActivity extends AppCompatActivity {
                 importing = false;
                 if (Importer.error != null) message(Importer.error);
                 else if (Importer.imported != null) select(indexOf(Importer.imported));
+            }
+            File apk = Updates.ready;
+            if (apk != null) {
+                Updates.ready = null;
+                startActivity(Updates.installIntent(LauncherActivity.this, apk));
+            }
+            if (Updates.error != null) {
+                message(Updates.error);
+                Updates.error = null;
             }
             String error = refreshError;
             if (error != null) {
@@ -287,6 +301,10 @@ public final class LauncherActivity extends AppCompatActivity {
         final boolean signedIn = steamAvailable() && user != null;
 
         account.setVisibility(signedIn ? View.VISIBLE : View.GONE);
+        Updates.Release newer = Updates.available(this);
+        update.setVisibility(newer != null || Updates.downloading ? View.VISIBLE : View.GONE);
+        if (Updates.downloading) setText(update, getString(R.string.og_update_downloading, Updates.percent));
+        else if (newer != null) setText(update, getString(R.string.og_update_to, newer.version));
         if (signedIn) {
             setText(accountName, user);
             setText(accountInitial, user.substring(0, 1).toUpperCase(Locale.ROOT));
@@ -563,6 +581,26 @@ public final class LauncherActivity extends AppCompatActivity {
         setText(sheetSize, getString(fits ? R.string.og_needs_space : R.string.og_not_enough_space, Library.size(needed), Library.size(free)));
         sheetSize.setTextColor(ContextCompat.getColor(this, fits ? R.color.og_muted : R.color.og_error));
         sheetDownload.setEnabled(fits);
+    }
+
+    private void showUpdate() {
+        final Updates.Release release = Updates.available(this);
+        if (release == null || Updates.downloading) return;
+        new AlertDialog.Builder(this)
+                .setTitle(getString(R.string.og_update_title, release.version))
+                .setMessage(release.notes.isEmpty() ? getString(R.string.og_update_notes) : release.notes)
+                .setPositiveButton(R.string.og_update, (dialog, which) -> {
+                    // Android asks once whether the launcher may install apps
+                    if (Build.VERSION.SDK_INT >= 26 && !getPackageManager().canRequestPackageInstalls()) {
+                        Toast.makeText(this, R.string.og_update_allow, Toast.LENGTH_LONG).show();
+                        startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + getPackageName())));
+                        return;
+                    }
+                    Updates.download(this, release);
+                    render();
+                })
+                .setNegativeButton(R.string.og_cancel, null)
+                .show();
     }
 
     private void showMore(View anchor) {
