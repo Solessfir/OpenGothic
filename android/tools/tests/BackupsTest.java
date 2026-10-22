@@ -45,9 +45,9 @@ public class BackupsTest {
         check(Files.exists(other.resolve("Gothic.ini")) && !Files.exists(other.resolve("log.txt")), "Settings without logs");
         check(!Files.exists(root.resolve("User2/Gothic1.restore")), "Staging removed");
 
-        check(fails(backup.toByteArray(), root.resolve("User/Archolos").toFile(), "Archolos"), "Backup of another game refused");
         try {
             Backups.restore(new ByteArrayInputStream(backup.toByteArray()), root.resolve("User/Archolos").toFile(), "Archolos");
+            check(false, "Backup of another game refused");
         } catch (Backups.OtherGame e) {
             check(e.folder.equals("Gothic1"), "The refusal names the game of the backup");
         }
