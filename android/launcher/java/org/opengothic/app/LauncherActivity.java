@@ -141,7 +141,7 @@ public final class LauncherActivity extends AppCompatActivity {
         signIn = findViewById(R.id.og_sign_in);
         signIn.setOnClickListener(v -> signIn());
         update = findViewById(R.id.og_update);
-        ((TextView) findViewById(R.id.og_brand)).setText(getString(R.string.og_brand) + " v" + Updates.installedVersion(this));
+        ((TextView) findViewById(R.id.og_brand)).setText(getString(R.string.og_brand) + " " + Updates.installedVersion(this));
         update.setOnClickListener(v -> showUpdate());
 
         int[] ids = {R.id.og_cover0, R.id.og_cover1, R.id.og_cover2};

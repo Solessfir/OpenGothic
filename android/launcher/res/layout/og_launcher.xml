@@ -81,6 +81,7 @@
                     android:layout_weight="1"
                     android:letterSpacing="0.14"
                     android:text="@string/og_brand"
+                    android:textAllCaps="true"
                     android:textSize="13sp"
                     app:fontFamily="@font/og_plex_semibold" />
 
