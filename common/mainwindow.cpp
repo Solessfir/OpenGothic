@@ -54,6 +54,9 @@ MainWindow::MainWindow(Device& device)
   onSettings();
 #if defined(__ANDROID__)
   mobileUi.onTouchStarted=[this] { setControllerInput(false); };
+  mobileUi.onTap=[this](Point pos) {
+    if(rootMenu.isActive() && !video.isActive()) rootMenu.tapItem(pos-rootMenu.pos());
+    };
   if(!std::filesystem::exists("Gamepad.ini")) {
     std::ofstream file("Gamepad.ini");
     file<<GamepadBindings::defaults();

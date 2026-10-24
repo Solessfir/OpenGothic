@@ -29,6 +29,7 @@ class MenuRoot : public Tempest::Widget {
     void directionalInput(bool right, bool repeat=false, bool touchNavigation=true);
     bool canAdjustValue();
     void adjustValue(int steps);
+    void tapItem(Tempest::Point pos);
     void setPlayer(const Npc& pl);
     void processMusicTheme();
 

@@ -277,6 +277,8 @@ void TouchInput::mouseDragEvent(Tempest::MouseEvent& e) {
   if(it==touches.end())
     return;
   auto& touch = it->second;
+  const auto travel = e.pos()-touch.anchor;
+  touch.moved |= std::hypot(float(travel.x),float(travel.y))>=tapSlop();
   if(touch.role==Role::MultiTap) {
     touch.last=e.pos();
     update();
@@ -365,11 +367,16 @@ void TouchInput::mouseUpEvent(Tempest::MouseEvent& e) {
     update();
     return;
     }
+  const auto travel = e.pos()-it->second.anchor;
+  // Swipes keep navigating; a finger lifted in place points at the menu item under it.
+  const bool menuTap = uiActive && !it->second.moved && std::hypot(float(travel.x),float(travel.y))<tapSlop() &&
+                       (it->second.role==Role::Adjust || it->second.role==Role::Move);
   if(it->second.role==Role::Adjust) {
     adjustValue(it->second,e.pos());
     adjustmentPointer=-1;
     adjustmentDrag.reset();
     touches.erase(e.mouseID);
+    if(menuTap && onTap) onTap(e.pos());
     update();
     return;
     }
@@ -380,6 +387,7 @@ void TouchInput::mouseUpEvent(Tempest::MouseEvent& e) {
     setDirection(Command::Down,false);
     setDirection(Command::Left,false);
     setDirection(Command::Right,false);
+    if(menuTap && onTap) onTap(e.pos());
     }
   else if(it->second.role==Role::Look) {
     lookPointer = -1;

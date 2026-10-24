@@ -50,6 +50,7 @@ class TouchInput : public Tempest::Widget {
 
     void            setTouchEnabled(bool enabled);
     std::function<void()> onTouchStarted;
+    std::function<void(Tempest::Point)> onTap;
     void            setGesturesEnabled(bool enabled);
     void            setSaveDeleteEnabled(bool enabled);
     void            setAnalogMovement(bool enabled);
@@ -92,6 +93,7 @@ class TouchInput : public Tempest::Widget {
       bool           actionSent = false;
       bool           pendingWheel = false;
       bool           wheelMoved = false;
+      bool           moved = false;
       };
 
     void updateMovement(const Tempest::Point& pos);

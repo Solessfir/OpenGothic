@@ -271,6 +271,12 @@ void MenuRoot::adjustValue(int steps) {
   if(current!=nullptr) current->adjustValue(steps);
   }
 
+void MenuRoot::tapItem(Point pos) {
+  // pressMouse refuses while a save deletion waits for confirmation.
+  if(current!=nullptr && current->pressMouse(pos-current->pos()))
+    current->releaseMouse(true);
+  }
+
 void MenuRoot::keyRepeatEvent(Tempest::KeyEvent &e) {
   if(current==nullptr) {
     e.ignore();
