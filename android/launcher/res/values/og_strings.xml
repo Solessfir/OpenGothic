@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="og_brand">OpenGothic</string>
+    <string name="og_brand">Gothic Launcher</string>
     <string name="og_more">More options</string>
     <string name="og_close">Close</string>
     <string name="og_back">Back</string>
