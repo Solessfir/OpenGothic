@@ -191,11 +191,13 @@ Gothic::Gothic(GameModDescriptor desc) {
   defaults->set("ENGINE", "worldCacheMiB", 512);
   defaults->set("ENGINE", "cameraObstructionFade", 0);
   defaults->set("ENGINE", "cameraObstructionFadeDistance", 180.f);
+  defaults->set("GAME", "cameraSwimming", 0);
 #if defined(__ANDROID__)
   defaults->set("ENGINE", "cameraObstructionFade", 1);
+  defaults->set("GAME", "cameraSwimming", 1);
   defaults->set("GAME", "showFps",             0);
   defaults->set("GAME", "vibration",           1);
-  defaults->set("GAME", "centerPlayerBars",    0);
+  defaults->set("GAME", "centerPlayerBars",    1);
   defaults->set("GAME", "useGothic1Controls",  0);
   defaults->set("GAME", "usePotionKeys",      1);
   defaults->set("GAME", "mouseSensitivity",   0.53f);
@@ -228,7 +230,6 @@ Gothic::Gothic(GameModDescriptor desc) {
   defaults->set("ENGINE",       "fogHalfResolution", defaultFogHalfResolution);
   defaults->set("DEBUG",        "touchControls", 0);
   defaults->set("DEBUG",        "gamepadControls", 0);
-  defaults->set("GAME",         "cameraSwimming", 0);
   defaults->set("GAME",         "skipPickupAnimation", 0);
   defaults->set("GAME",         "cameraFollowSpeed", 2.f);
 
