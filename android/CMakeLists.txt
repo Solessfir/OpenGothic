@@ -31,7 +31,7 @@ configure_file(app/identity.xml.in "${generated}/res/values/identity.xml" @ONLY)
 
 if(OPENGOTHIC_ANDROID_GAME STREQUAL "launcher")
   # Raise for every release: installed launchers update to GitHub releases tagged launcher-<version>
-  set(OPENGOTHIC_LAUNCHER_VERSION 0.6.5)
+  set(OPENGOTHIC_LAUNCHER_VERSION 0.6.6)
   string(REPLACE "." ";" parts "${OPENGOTHIC_LAUNCHER_VERSION}.0.0")
   list(GET parts 0 major)
   list(GET parts 1 minor)
