@@ -52,7 +52,7 @@ void TouchInput::setDebugSafeArea(Rect area) {
 
 void TouchInput::paintEvent(Tempest::PaintEvent& e) {
   Painter p(e);
-  if(buttonStyle>0 && touchEnabled)
+  if(buttonStyle>0 && touchEnabled && !buttonsHidden)
     drawControls(p);
   if(debugOverlay)
     drawDebug(p);
@@ -427,6 +427,12 @@ void TouchInput::setButtonStyle(int style) {
 void TouchInput::setMenuOpen(bool open) {
   if(menuOpen==open) return;
   menuOpen=open;
+  update();
+  }
+
+void TouchInput::setButtonsHidden(bool hidden) {
+  if(buttonsHidden==hidden) return;
+  buttonsHidden=hidden;
   update();
   }
 
