@@ -674,7 +674,8 @@ const RenderPipeline* Shaders::materialPipeline(const Material& mat, DrawCommand
   static const bool needsFlatVaryings = []() {
 #if defined(__ANDROID__)
     const std::string_view name = Resources::device().properties().name;
-    const bool enabled = name.find("Adreno")!=std::string_view::npos && name.find("610")!=std::string_view::npos;
+    // Adreno shader compilers crash on struct varyings (seen on Adreno 610 and 640)
+    const bool enabled = name.find("Adreno")!=std::string_view::npos;
     if(enabled)
       Log::i("Using flattened material varyings for ",name);
     return enabled;
