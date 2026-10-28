@@ -31,7 +31,12 @@
     <string name="og_restore_done">Przywrócono plików: %1$d</string>
     <string name="og_restore_title">Przywrócić zapisy i ustawienia gry %1$s?</string>
     <string name="og_restore_body">Zapisy w tych samych slotach oraz ustawienia zostaną zastąpione kopią. Pozostałe zapisy zostaną.</string>
-    <string name="og_report">Zgłoś problem</string>
+    <string name="og_feedback">Opinia</string>
+    <string name="og_feedback_problem">Problem</string>
+    <string name="og_feedback_suggestion">Sugestia</string>
+    <string name="og_suggestion_body">Wysłać pomysł do autora? Wysyłany jest tylko twój tekst, wersja launchera i model telefonu.</string>
+    <string name="og_suggestion_hint">Co chciałbyś zobaczyć?</string>
+    <string name="og_suggestion_send">Wyślij</string>
     <string name="og_report_body">Wysłać zgłoszenie do autora? Zawiera dziennik gry i informacje o tym telefonie, ale żadnych zapisów ani danych konta.</string>
     <string name="og_report_hint">Co się stało? (opcjonalnie)</string>
     <string name="og_report_send">Wyślij zgłoszenie</string>
