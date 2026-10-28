@@ -6,6 +6,7 @@ import android.app.ApplicationExitInfo;
 import android.annotation.TargetApi;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Typeface;
@@ -798,6 +799,9 @@ public final class LauncherActivity extends AppCompatActivity {
                 .create();
         int pad = Math.round(20 * getResources().getDisplayMetrics().density);
         dialog.setView(page, pad, 0, pad, 0);
+        // Typing is easier in portrait, so the screen follows the phone until the dialog closes
+        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_FULL_USER);
+        dialog.setOnDismissListener(d -> setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE));
         dialog.show();
         // A suggestion needs its text; a problem report is useful from the logs alone.
         final Runnable update = () -> {
