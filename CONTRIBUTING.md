@@ -1,35 +1,34 @@
-## Contributing
+# Contributing
 
-This page design to help you contribute to this project.
+Keep changes focused and include a clear description of the problem and relevant verification.
+Use issues for bugs and feature proposals; include reproduction steps and reviewed logs.
+Do not upload copyrighted game assets, private signing keys or unreviewed system traces.
 
-### Project structure
-- OpenGothic
-  - Game - game itself
-  - shader - glsl shaders
-  - lib
-    - MoltenTempest - graphics engine
-    - bullet3 - physic engine
-    - ZenLib - gothic-asset loading library
-    - TinySoundFont - midi sound support library
-    - edd-dbg - crashlog library
+## Project layout
 
-### Tracking of progress and bug reporting
-Those guidlined are not strict, just a recomandations rather.  
-This project uses wiki to track not implemented features and issues to track bugs:
+- `common/`: game logic, UI, input and rendering code.
+- `shader/`: GLSL shaders.
+- `lib/Tempest/`: platform and graphics engine submodule.
+- `lib/ZenKit/`: Gothic asset and script support.
+- `lib/bullet3/`: physics.
+- `lib/dmusic/` and `lib/TinySoundFont/`: music support.
+- `android/`: Android application, build/setup tooling and user guides.
+- `tests/`: focused regression suites.
 
-* Features:  
-  [Detailed list of features](https://github.com/Try/OpenGothic/wiki/Feature-list)  
-  You can create a issue, if you want to work on a feature and want to notify everyone.
-  
-* Script-api:  
-  [Detailed list of implemented api functions](https://github.com/Try/OpenGothic/wiki/Daedalus-scripts)
-  
-* Bugs in already implemented stuff:  
-  This is a good case for issue
-  
-* Bugs in partially implemented feature:  
-  You can submit a issue, if this bug causes crash, or makes game unplayable somehow.
-  
-* Renderer:  
-  At this moment I'm looking forward to rewrite it - not much need in issues here
+Keep platform backend changes in Tempest where appropriate.
+Preserve unrelated work and update submodule pointers only to available commits.
+
+## Verification
+
+Follow the [build instructions](README.md#build-instructions) for the affected platform.
+The [Android contributor guide](android/tools/README.md) covers APK checks, input/import tests and profiling.
+[Rendering](tests/rendering/README.md) and [worker](tests/workers/README.md) tests have separate setup instructions.
+
+Keep machine-specific measurements and investigation notes in ignored `build/` or `*.local.md` files.
+Public documentation should explain current behavior and reproducible commands, not individual testing sessions.
+
+## References
+
+- [Feature list](https://github.com/Try/OpenGothic/wiki/Feature-list)
+- [Daedalus script API coverage](https://github.com/Try/OpenGothic/wiki/Daedalus-scripts)
 
