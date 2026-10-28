@@ -1,0 +1,100 @@
+# Touch controls
+
+The same layout, movement, camera and radial menus apply to Gothic 1 and Gothic II.
+Both games support modern combat (the Android default) and optional classic combat below.
+
+The buttons are drawn during play with icons and labels. **Options › Game Settings › Touch UI** switches between None, Icons and Icons and text, as does holding **Menu**, dragging lower-right and releasing; hidden buttons keep working.
+`Gothic.ini` `[GAME] touchButtons` is `0`, `1` or `2` (the default), and `[DEBUG] touchControls=1` adds a debug overlay with the touch areas and active touches.
+See [editing settings](CONFIGURATION.md#editing-settings).
+
+Touch remains available with a gamepad connected. Touch the screen to take over; press a gamepad button or tilt a centered stick to switch back. Switching cancels the previous input's held actions and any open wheel, but keeps target lock. Controls overlays and vibration follow the active input.
+An already-held stick or button cannot take control back until released and used again. `Gamepad.ini` `[Controller] Enabled=0` disables gamepad input entirely.
+
+## Layout
+
+![Touch controls with icons and labels](images/touch-controls.jpg)
+
+- **Left half:** touch anywhere to place an invisible movement stick under your thumb. Forward/back moves; sideways turns the character. Small input walks/turns gently, a firmer drag runs.
+- **Right side:** drag anywhere outside the buttons to look around. Mouse speed controls camera sensitivity.
+- **Lower-right corner:** Use, or Attack with a weapon drawn, with Jump, Draw/Sheathe and, in modern melee controls, Block on an arc around it.
+- **Upper-right corner:** Menu and Inventory.
+
+A touch slightly outside a button still presses it, and a touch between two buttons goes to the nearer one.
+In the inventory, tap an item to select it and tap it again to use, equip or take it. Hold a potion, food or a document in your own inventory to add it to the equipment wheel next to your weapons and spells, or hold it again to remove it. Picking it on the wheel uses it, with the weapon put away. Tap free space to close the inventory.
+Dialogue and documents show only Back (Menu) and Accept (the corner button); game menus are tapped directly, and a tap outside a menu closes it, including the stats and journal screens. No controls are drawn while loading.
+In dialogue, tap a choice to pick it, or tap anywhere else to skip the current line. A tap also skips a video or the chapter screen.
+Guide text and FPS stay clear of the phone's camera cutout, and the buttons stay inside the safe area.
+You can move and look with separate fingers.
+
+Hold Use while unarmed to keep picking up nearby loose items. Quicksaving during gameplay preserves held movement.
+
+## Combat and target lock
+
+**Modern controls** (`[GAME] useGothic1Controls=0`): tap Use/Attack to strike and Block for one timed parry.
+With no focused melee target, a short Attack tap swings on release; a hold does nothing.
+Holding Block does not repeat parries.
+
+With a bow or crossbow drawn, tap Use/Attack for one shot after aiming finishes; hold for repeat fire.
+This works with either combat setting.
+
+**Classic controls** (`useGothic1Controls=1`): hold Use/Attack, then push the left stick:
+up attacks forward, left/right attacks sideways, and a deliberate straight-down pull blocks.
+Return to neutral between attacks. Slight downward diagonals do not block.
+
+To finish an unconscious NPC, focus them at close range with a one- or two-handed weapon drawn.
+Use Attack in modern controls; in classic controls, hold Attack and push forward. Fists cannot finish.
+
+With a weapon drawn, press Attack and quickly drag that finger to toggle target lock.
+Repeat the gesture to unlock. While locked, sideways movement strafes and vertical camera look still works.
+Release classic Attack to move rather than request directional attacks.
+Focus range is not attack reach or guaranteed safety; see [targeting settings](CONTROLLER.md#movement-and-targeting-settings).
+
+## Radial menus
+
+- Hold **Draw** to open equipment selection.
+- Hold **Inventory** for Stats (up) / Journal (down).
+- Hold **Menu** for FPS, Touch UI style, Classic/Centered HUD, Classic/Modern combat, or Vibration. Choices are saved separately for each game; Centered HUD is the default. Combat changes apply immediately to touch and gamepad in both games and share the `useGothic1Controls` setting with Gothic II's options menu.
+- Opening the System wheel with a gamepad replaces touch buttons with a gamepad controls overlay. The two preferences are saved separately and only apply to the active input method.
+- Keep the same finger down, drag a little toward a choice, then release to apply.
+- Release without selecting, or return to the finger's starting point, to cancel.
+
+The wheel is drawn in the screen center, but selection is relative to your finger's position when it opened.
+You do not need to reach the wheel. Equipment pages show usable owned weapons, assigned spells and the items you added from the inventory.
+For more pages, hold toward Previous/Next, return near the starting point, then select.
+The world keeps running; other touch controls are suspended until the wheel closes.
+
+## Multi-finger gestures
+
+| Gesture | Action |
+| --- | --- |
+| Two fingers on the left: down / up | Sneak / stand |
+| Two fingers on the right: up | First person |
+| Two fingers on the right: down and hold | Look behind until released |
+| Two fingers anywhere: left / right | Health / mana potion |
+| Three-finger tap anywhere | Quicksave |
+| Four-finger tap anywhere | Quickload immediately, without confirmation |
+
+Put fingers down within about 350 ms before lifting any. Swipe together in one clear direction.
+For three/four-finger taps, keep them nearly still and lift all within 800 ms.
+Shortcuts require [useQuickSaveKeys/usePotionKeys](CONFIGURATION.md#shortcuts-audio-and-other-preferences);
+sneak requires the learned skill.
+
+## Menus and saves
+
+Lockpicking: open the locked chest, then flick the left movement area left/right to turn the pick. Return to neutral between turns. Pull down or tap Back to stop picking.
+
+Saving and quicksaving are disabled while dead, so they cannot overwrite a slot with a dead character.
+
+Drag on either stick area: up/down selects, right accepts, left goes back.
+When a slider or setting value is selected, drag horizontally in the right-side camera area to adjust it.
+The left side remains available for selection; inventory grids use all directions for item selection and repeat while held.
+Use/Attack accepts; Back closes one level, including journal descriptions.
+Release the movement finger before resuming gameplay.
+
+Save-name entry opens the Android keyboard; press **Done** to accept.
+In save/load menus, select a slot and use a three-finger tap to request deletion.
+Use/Attack confirms permanent deletion; Back cancels. There is no undo.
+
+## Swimming
+
+Movement follows the camera. Swim forward while looking steeply down to dive, and look up to rise. Center movement to stop. Jump is dimmed while swimming, and its area turns the camera instead.
