@@ -18,7 +18,8 @@ static bool hasBindless() {
   const auto& p = Resources::device().properties();
 #if defined(__ANDROID__)
   const std::string_view name = p.name;
-  if(name.find("Adreno")!=std::string_view::npos && name.find("610")!=std::string_view::npos) {
+  // Adreno drivers crash compiling the bindless depth pipelines (seen on Adreno 610, 642L, 650 and 725)
+  if(name.find("Adreno")!=std::string_view::npos) {
     Log::i("Disabling bindless material shaders for ",name);
     return false;
     }
