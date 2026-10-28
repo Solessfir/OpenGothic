@@ -32,7 +32,12 @@
     <string name="og_restore_done">Restored %1$d files</string>
     <string name="og_restore_title">Restore saves and settings for %1$s?</string>
     <string name="og_restore_body">Saves in the same slots and the settings are replaced by the backup. Other saves stay.</string>
-    <string name="og_report">Report a problem</string>
+    <string name="og_feedback">Feedback</string>
+    <string name="og_feedback_problem">Problem</string>
+    <string name="og_feedback_suggestion">Suggestion</string>
+    <string name="og_suggestion_body">Send an idea to the developer? Only your text, the launcher version and the phone model are sent.</string>
+    <string name="og_suggestion_hint">What would you like to see?</string>
+    <string name="og_suggestion_send">Send</string>
     <string name="og_report_body">Send a report to the developer? It holds the game\'s log and details about this phone, but no saves or account data.</string>
     <string name="og_report_hint">What happened? (optional)</string>
     <string name="og_report_send">Send report</string>

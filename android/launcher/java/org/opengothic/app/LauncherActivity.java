@@ -18,7 +18,9 @@ import android.os.Looper;
 import android.os.SystemClock;
 import android.provider.DocumentsContract;
 import android.provider.Settings;
+import android.text.Editable;
 import android.text.InputFilter;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -693,7 +695,7 @@ public final class LauncherActivity extends AppCompatActivity {
         menu.getMenu().add(0, CONTROLS, 0, R.string.og_controls);
         menu.getMenu().add(0, BACKUP, 1, R.string.og_backup);
         menu.getMenu().add(0, RESTORE, 2, R.string.og_restore);
-        menu.getMenu().add(0, REPORT, 3, R.string.og_report);
+        menu.getMenu().add(0, REPORT, 3, R.string.og_feedback);
         if (Library.installed(root, game())) menu.getMenu().add(0, 0, 4, R.string.og_uninstall);
         menu.setOnMenuItemClickListener(item -> {
             if (item.getItemId() == CONTROLS) showControls();
@@ -762,26 +764,64 @@ public final class LauncherActivity extends AppCompatActivity {
                 .show();
     }
 
-    /** Asks what happened and sends the report. The problem is null when the player opened it from the menu. */
+    /**
+     * Asks what happened and sends the report. The problem is null when the player opened it from the menu,
+     * which also offers sending a suggestion: only its text and the phone summary, without the logs.
+     */
     private void askReport(final Library.Game game, final String problem) {
         final EditText note = new EditText(this);
         note.setHint(R.string.og_report_hint);
         note.setFilters(new InputFilter[] {new InputFilter.LengthFilter(2000)});
-        AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle(problem != null ? problem : getString(R.string.og_report))
+        final RadioGroup kind = new RadioGroup(this);
+        kind.setOrientation(RadioGroup.HORIZONTAL);
+        final RadioButton bug = new RadioButton(this);
+        bug.setId(View.generateViewId());
+        bug.setText(R.string.og_feedback_problem);
+        final RadioButton idea = new RadioButton(this);
+        idea.setId(View.generateViewId());
+        idea.setText(R.string.og_feedback_suggestion);
+        RadioGroup.LayoutParams gap = new RadioGroup.LayoutParams(RadioGroup.LayoutParams.WRAP_CONTENT, RadioGroup.LayoutParams.WRAP_CONTENT);
+        gap.setMarginEnd(Math.round(24 * getResources().getDisplayMetrics().density));
+        kind.addView(bug, gap);
+        kind.addView(idea);
+        kind.check(bug.getId());
+        LinearLayout page = new LinearLayout(this);
+        page.setOrientation(LinearLayout.VERTICAL);
+        if (problem == null) page.addView(kind);
+        page.addView(note);
+        final AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle(problem != null ? problem : getString(R.string.og_feedback))
                 .setMessage(R.string.og_report_body)
-                .setPositiveButton(R.string.og_report_send, (d, which) -> sendReport(game, problem, note.getText().toString().trim()))
+                .setPositiveButton(R.string.og_report_send, (d, which) ->
+                        sendReport(game, problem, note.getText().toString().trim(), kind.getCheckedRadioButtonId() == idea.getId()))
                 .setNegativeButton(problem != null ? R.string.og_not_now : R.string.og_cancel, null)
                 .create();
         int pad = Math.round(20 * getResources().getDisplayMetrics().density);
-        dialog.setView(note, pad, 0, pad, 0);
+        dialog.setView(page, pad, 0, pad, 0);
         dialog.show();
+        // A suggestion needs its text; a problem report is useful from the logs alone.
+        final Runnable update = () -> {
+            boolean suggestion = kind.getCheckedRadioButtonId() == idea.getId();
+            dialog.setMessage(getString(suggestion ? R.string.og_suggestion_body : R.string.og_report_body));
+            note.setHint(suggestion ? R.string.og_suggestion_hint : R.string.og_report_hint);
+            Button send = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+            send.setText(suggestion ? R.string.og_suggestion_send : R.string.og_report_send);
+            send.setEnabled(!suggestion || note.getText().toString().trim().length() > 0);
+            // The dialog theme does not dim a disabled button by itself
+            send.setAlpha(send.isEnabled() ? 1f : 0.4f);
+        };
+        kind.setOnCheckedChangeListener((group, id) -> update.run());
+        note.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override public void afterTextChanged(Editable s) { update.run(); }
+        });
     }
 
-    private void sendReport(final Library.Game game, final String problem, final String note) {
+    private void sendReport(final Library.Game game, final String problem, final String note, final boolean suggestion) {
         new Thread(() -> {
             try {
-                Reports.send(this, game, problem, note);
+                Reports.send(this, game, problem, note, suggestion);
                 handler.post(() -> Toast.makeText(this, R.string.og_report_sent, Toast.LENGTH_LONG).show());
             } catch (IOException | RuntimeException e) {
                 handler.post(() -> message(getString(R.string.og_report_failed, e.getMessage())));

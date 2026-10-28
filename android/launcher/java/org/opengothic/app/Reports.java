@@ -85,13 +85,19 @@ final class Reports {
      * Sends the report to the relay named in the launcher config, which files the issue. The relay keeps the GitHub token,
      * so the app never holds one.
      */
-    static void send(Context c, Library.Game game, String problem, String note) throws IOException {
+    static void send(Context c, Library.Game game, String problem, String note, boolean suggestion) throws IOException {
         String relay = Updates.reportRelay(c);
         if (relay == null) throw new IOException(App.text(R.string.og_err_reports_unavailable));
         Map<String, String> report = new HashMap<>();
-        report.put("title", (problem != null ? problem : game.name + " problem") + " on " + Build.MANUFACTURER + " " + Build.MODEL
-                + " (OpenGothic " + Updates.installedVersion(c) + ")");
-        report.put("body", body(c, game, note));
+        if (suggestion) {
+            String line = note.split("\n", 2)[0];
+            report.put("title", "Suggestion: " + (line.length() > 80 ? line.substring(0, 80) + "…" : line));
+            report.put("body", note + "\n\n" + summary(c, game));
+        } else {
+            report.put("title", (problem != null ? problem : game.name + " problem") + " on " + Build.MANUFACTURER + " " + Build.MODEL
+                    + " (OpenGothic " + Updates.installedVersion(c) + ")");
+            report.put("body", body(c, game, note));
+        }
         HttpURLConnection connection = (HttpURLConnection) new URL(relay).openConnection();
         try {
             connection.setConnectTimeout(15000);

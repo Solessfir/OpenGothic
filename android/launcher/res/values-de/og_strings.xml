@@ -31,7 +31,12 @@
     <string name="og_restore_done">%1$d Dateien wiederhergestellt</string>
     <string name="og_restore_title">Spielstände und Einstellungen für %1$s wiederherstellen?</string>
     <string name="og_restore_body">Spielstände in denselben Plätzen und die Einstellungen werden durch die Sicherung ersetzt. Andere Spielstände bleiben erhalten.</string>
-    <string name="og_report">Problem melden</string>
+    <string name="og_feedback">Feedback</string>
+    <string name="og_feedback_problem">Problem</string>
+    <string name="og_feedback_suggestion">Vorschlag</string>
+    <string name="og_suggestion_body">Eine Idee an den Entwickler senden? Gesendet werden nur dein Text, die Launcher-Version und das Telefonmodell.</string>
+    <string name="og_suggestion_hint">Was würdest du gern sehen?</string>
+    <string name="og_suggestion_send">Senden</string>
     <string name="og_report_body">Einen Bericht an den Entwickler senden? Er enthält das Spielprotokoll und Angaben zu diesem Telefon, aber keine Spielstände oder Kontodaten.</string>
     <string name="og_report_hint">Was ist passiert? (optional)</string>
     <string name="og_report_send">Bericht senden</string>
