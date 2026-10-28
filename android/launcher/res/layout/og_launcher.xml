@@ -157,6 +157,7 @@
             </LinearLayout>
 
             <LinearLayout
+                android:id="@+id/og_panel"
                 android:layout_width="460dp"
                 android:layout_height="wrap_content"
                 android:layout_gravity="bottom|start"

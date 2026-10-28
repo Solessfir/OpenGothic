@@ -8,6 +8,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
+import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.Typeface;
 import android.graphics.Matrix;
@@ -192,6 +193,21 @@ public final class LauncherActivity extends AppCompatActivity {
         getOnBackPressedDispatcher().addCallback(this, closeSheet);
 
         showGame();
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration config) {
+        super.onConfigurationChanged(config);
+        // Portrait only shows behind the feedback dialog, but Play and the menu button should still fit a phone
+        final boolean portrait = config.orientation == Configuration.ORIENTATION_PORTRAIT;
+        final float dp = getResources().getDisplayMetrics().density;
+        View panel = findViewById(R.id.og_panel);
+        android.view.ViewGroup.MarginLayoutParams p = (android.view.ViewGroup.MarginLayoutParams) panel.getLayoutParams();
+        p.width = Math.round((portrait ? Math.min(460, config.screenWidthDp - 145) : 460) * dp);
+        p.setMarginStart(Math.round((portrait ? 20 : 40) * dp));
+        panel.setLayoutParams(p);
+        primary.setMinWidth(Math.round((portrait ? 120 : 200) * dp));
+        primary.setMinimumWidth(primary.getMinWidth());
     }
 
     @Override
