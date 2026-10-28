@@ -2,6 +2,7 @@ package org.opengothic.app;
 
 import android.annotation.TargetApi;
 import android.content.Intent;
+import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.Matrix;
 import android.os.Build;
@@ -10,10 +11,12 @@ import android.os.Handler;
 import android.os.Looper;
 import android.text.InputType;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -127,7 +130,40 @@ public final class SignInActivity extends AppCompatActivity {
                 back();
             }
         });
+        fitOrientation(getResources().getConfiguration());
         show(form);
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration config) {
+        super.onConfigurationChanged(config);
+        fitOrientation(config);
+    }
+
+    /** Typing is easier in portrait: there the panels get narrower margins and the side by side ones stack. */
+    private void fitOrientation(Configuration config) {
+        final boolean portrait = config.orientation == Configuration.ORIENTATION_PORTRAIT;
+        final float dp = getResources().getDisplayMetrics().density;
+        final int width = Math.round(Math.min(340, config.screenWidthDp - 48) * dp);
+        for (View panel : new View[] {form, code}) {
+            ViewGroup.MarginLayoutParams p = (ViewGroup.MarginLayoutParams) panel.getLayoutParams();
+            p.width = portrait ? width : Math.round(340 * dp);
+            p.setMarginStart(Math.round((portrait ? 24 : 72) * dp));
+            // Below the back button, which sits beside the panels in landscape
+            p.topMargin = Math.round((portrait ? 64 : 30) * dp);
+            panel.setLayoutParams(p);
+        }
+        for (View panel : new View[] {approve, qr}) {
+            LinearLayout row = (LinearLayout) panel;
+            row.setOrientation(portrait ? LinearLayout.VERTICAL : LinearLayout.HORIZONTAL);
+            row.setGravity(portrait ? android.view.Gravity.CENTER_HORIZONTAL : android.view.Gravity.CENTER_VERTICAL);
+            View text = row.getChildAt(1);
+            ViewGroup.MarginLayoutParams p = (ViewGroup.MarginLayoutParams) text.getLayoutParams();
+            p.width = portrait ? width : Math.round((panel == approve ? 360 : 340) * dp);
+            p.setMarginStart(portrait ? 0 : Math.round((panel == approve ? 64 : 48) * dp));
+            p.topMargin = portrait ? Math.round(24 * dp) : 0;
+            text.setLayoutParams(p);
+        }
     }
 
     @Override
