@@ -362,38 +362,39 @@ void GameMenu::initAndroidOptions() {
   auto sourceLabel=find("MENUITEM_GAME_SUB_TITLES");
   auto sourceChoice=find("MENUITEM_GAME_SUB_TITLES_CHOICE");
   if(back==nullptr || sourceLabel==nullptr || sourceChoice==nullptr) return;
+  // Rows OpenGothic adds below the script's own, as label and value pairs
+  struct Row { const char* name; const char* title; const char* option; std::string values; const char* help; };
+  std::string quickSaves="Default";
+  for(int i=1;i<=20;++i) quickSaves+="|"+std::to_string(i);
+  const Row extra[]={
+    {"ANDROID_QUICKSAVES", "Quicksave slots", "quickSaveSlots", quickSaves,
+     "Default: one quicksave. 1-20: rotate through separate quicksave slots."},
+    {"ANDROID_TOUCH_BUTTONS", "Touch UI", "touchButtons", "None|Icons|Icons and text",
+     "How the touch buttons are drawn. Hidden buttons still work."},
+    {"ANDROID_INSTANT_PICKUP", "Instant pickup", "skipPickupAnimation", "Off|On",
+     "Take items at once, without bending down for them."},
+    };
   size_t end=0;
   for(size_t i=0;i<std::size(hItems);++i) if(hItems[i].handle!=nullptr) end=i+1;
-  if(end+4>std::size(hItems)) return;
-  Item label, choice;
-  label.name="ANDROID_QUICKSAVES_LABEL";
-  label.handle=std::make_shared<zenkit::IMenuItem>(*sourceLabel->handle);
-  label.img=sourceLabel->img;
-  label.handle->text[0]="Quicksave slots";
-  choice.name="ANDROID_QUICKSAVES";
-  choice.handle=std::make_shared<zenkit::IMenuItem>(*sourceChoice->handle);
-  choice.img=sourceChoice->img;
-  const int choiceOffset=choice.handle->pos_y-label.handle->pos_y;
-  choice.handle->on_chg_set_option_section="GAME";
-  choice.handle->on_chg_set_option="quickSaveSlots";
-  choice.handle->text[0]="Default";
-  for(int i=1;i<=20;++i) choice.handle->text[0]+="|"+std::to_string(i);
-  choice.handle->text[1]="Default: one quicksave. 1-20: rotate through separate quicksave slots.";
-  label.handle->text[1]=choice.handle->text[1];
-
-  Item touchLabel, touchChoice;
-  touchLabel.name="ANDROID_TOUCH_BUTTONS_LABEL";
-  touchLabel.handle=std::make_shared<zenkit::IMenuItem>(*sourceLabel->handle);
-  touchLabel.img=sourceLabel->img;
-  touchLabel.handle->text[0]="Touch UI";
-  touchChoice.name="ANDROID_TOUCH_BUTTONS";
-  touchChoice.handle=std::make_shared<zenkit::IMenuItem>(*sourceChoice->handle);
-  touchChoice.img=sourceChoice->img;
-  touchChoice.handle->on_chg_set_option_section="GAME";
-  touchChoice.handle->on_chg_set_option="touchButtons";
-  touchChoice.handle->text[0]="None|Icons|Icons and text";
-  touchChoice.handle->text[1]="How the touch buttons are drawn. Hidden buttons still work.";
-  touchLabel.handle->text[1]=touchChoice.handle->text[1];
+  if(end+2*std::size(extra)>std::size(hItems)) return;
+  const int choiceOffset=sourceChoice->handle->pos_y-sourceLabel->handle->pos_y;
+  Item added[2*std::size(extra)];
+  for(size_t i=0;i<std::size(extra);++i) {
+    auto& label =added[2*i];
+    auto& choice=added[2*i+1];
+    label.name=std::string(extra[i].name)+"_LABEL";
+    label.handle=std::make_shared<zenkit::IMenuItem>(*sourceLabel->handle);
+    label.img=sourceLabel->img;
+    label.handle->text[0]=extra[i].title;
+    label.handle->text[1]=extra[i].help;
+    choice.name=extra[i].name;
+    choice.handle=std::make_shared<zenkit::IMenuItem>(*sourceChoice->handle);
+    choice.img=sourceChoice->img;
+    choice.handle->on_chg_set_option_section="GAME";
+    choice.handle->on_chg_set_option=extra[i].option;
+    choice.handle->text[0]=extra[i].values;
+    choice.handle->text[1]=extra[i].help;
+    }
 
   std::vector<int> rows;
   std::vector<std::pair<int,int>> positions;
@@ -412,7 +413,7 @@ void GameMenu::initAndroidOptions() {
     }
   std::sort(rows.begin(),rows.end());
   rows.erase(std::unique(rows.begin(),rows.end()),rows.end());
-  const int step=4500/int(rows.size()+2);
+  const int step=4500/int(rows.size()+std::size(extra));
   for(auto& item:hItems) {
     if(item.handle==nullptr || item.name=="MENUITEM_GAME_HEADLINE") continue;
     item.handle=std::make_shared<zenkit::IMenuItem>(*item.handle);
@@ -422,18 +423,15 @@ void GameMenu::initAndroidOptions() {
       item.handle->pos_y=1700+int(std::lower_bound(rows.begin(),rows.end(),y)-rows.begin())*step+offset;
       }
     }
-  label.handle->pos_y=1700+int(rows.size())*step;
-  choice.handle->pos_y=label.handle->pos_y+choiceOffset;
-  touchLabel.handle->pos_y=label.handle->pos_y+step;
-  touchChoice.handle->pos_y=touchLabel.handle->pos_y+choiceOffset;
   const size_t index=size_t(back-hItems);
-  std::move_backward(hItems+index,hItems+end,hItems+end+4);
-  hItems[index]=std::move(label);
-  hItems[index+1]=std::move(choice);
-  hItems[index+2]=std::move(touchLabel);
-  hItems[index+3]=std::move(touchChoice);
-  updateItem(hItems[index+1]);
-  updateItem(hItems[index+3]);
+  std::move_backward(hItems+index,hItems+end,hItems+end+std::size(added));
+  for(size_t i=0;i<std::size(added);i+=2) {
+    added[i].handle->pos_y=1700+int(rows.size()+i/2)*step;
+    added[i+1].handle->pos_y=added[i].handle->pos_y+choiceOffset;
+    hItems[index+i]=std::move(added[i]);
+    hItems[index+i+1]=std::move(added[i+1]);
+    updateItem(hItems[index+i+1]);
+    }
 #endif
   }
 
