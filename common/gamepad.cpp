@@ -371,6 +371,8 @@ void MainWindow::setControllerInput(bool enabled) {
   dMouse=Point();
   controllerConnected=enabled;
   Feedback::setGamepad(enabled);
+  // The next touch hands input back to touch and shows the buttons again.
+  mobileUi.setButtonsHidden(enabled);
   mobileUi.setDebugOverlay(!enabled && Gothic::settingsGetI("DEBUG","touchControls")!=0);
   updateControllerOverlay();
   }

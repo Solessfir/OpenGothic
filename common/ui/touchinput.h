@@ -66,6 +66,7 @@ class TouchInput : public Tempest::Widget {
     // 0: nothing drawn, 1: icons, 2: icons and labels
     void            setButtonStyle(int style);
     void            setMenuOpen(bool open);
+    void            setButtonsHidden(bool hidden);
     void            setDebugLeftInset(int inset);
     void            setDebugSafeArea(Tempest::Rect area);
     void            setMenuAdjustment(bool enabled);
@@ -166,6 +167,7 @@ class TouchInput : public Tempest::Widget {
     bool            debugOverlay = false;
     int             buttonStyle = 2;
     bool            menuOpen = false;
+    bool            buttonsHidden = false;
     std::vector<Tempest::Texture2d> textures;
     bool            classicCombat = true;
     bool            classicAction = false;
