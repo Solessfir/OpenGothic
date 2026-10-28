@@ -63,7 +63,7 @@ Options > Audio > Dialogue volume adjusts speech separately from effects and mus
 | `mouseSensitivity` | `0.53` | Also controls touch/gamepad camera sensitivity |
 | `camLookaroundInverse` | Game preference | Vertical camera inversion |
 | `cameraSwimming` | `1` | Keyboard swimming follows the camera: forward swims where you look, and looking steeply down while swimming forward dives. `0` restores classic keyboard swimming. Controller and touch swimming always follow the camera |
-| `skipPickupAnimation` | `0` | `1` picks up items instantly, without the bend-down animation |
+| `skipPickupAnimation` | `0` | `1` picks up items instantly, without the bend-down animation. Also Options > Game settings > Instant pickup |
 
 Inventory keeps its own framing; radial wheels leave the gameplay camera active.
 Manual pitch is preserved across exploration/combat, and elevation/zoom changes blend smoothly.
