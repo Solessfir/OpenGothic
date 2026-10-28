@@ -14,7 +14,7 @@ The goal of this project is to make a feature-complete Gothic game client, compa
 [![Build status](https://img.shields.io/github/actions/workflow/status/Try/OpenGothic/build.yml?branch=master)](https://github.com/Try/OpenGothic/actions?query=build.yml?query=branch%3Amaster)
 
 
-Development is focused on Gothic 2 and new features are not tested for compatibility with Gothic 1. While Gothic 1 is not officially supported, pull requests that fix Gothic 1 - and general - bugs are welcome.
+Development is focused on Gothic 2 and new features are not tested for compatibility with Gothic 1. While Gothic 1 is not officially supported, pull requests that fix Gothic 1 — and general — bugs are welcome.
 
 The original game has been completely replicated; you can complete both the main quest and the addon. Check out the [bugtracker](https://github.com/Try/OpenGothic/issues) for a list of known issues.
 
@@ -74,13 +74,12 @@ Supported systems are:
 
 ### Android (experimental)
 
-Install the Android APK from [Releases](https://github.com/Solessfir/OpenGothic/releases), then select your `game-data.zip` in the app.
-See [the quick start](android/README.md#dont-care---let-me-play) for preparing the archive from your own installation.
-To build from source, run `setup-android.bat` on Windows or `bash setup-android.sh` on Linux.
-You need legally owned Gothic 1, Gothic II Classic, Gothic II: Night of the Raven or Archolos files and an ARM64 Vulkan 1.1 Android device.
-Each edition has its own APK and storage; the setup scripts detect installed games and ask which one to use.
+Install `GothicLauncher-arm64.apk` from the [latest release](https://github.com/Solessfir/OpenGothic/releases/latest).
+Gothic Launcher runs Gothic, Gothic II: Gold Edition and Archolos side by side, downloads the games you own on Steam and updates itself.
+Without Steam, import a `game-data.zip` of your own installation; see [Import game files](android/README.md#import-game-files).
+You need legally owned game files and an ARM64 phone with Vulkan 1.1.
 Use clean game files without Union or Windows DLL plugins, which are unsupported and can break the game.
-See [the Android guide](android/README.md) for installation, touch/gamepad controls, settings and save transfer.
+See [the Android guide](android/README.md) for building, touch and gamepad controls, settings and save transfer.
 Never redistribute APKs containing the game's copyrighted files.
 
 ---
@@ -166,7 +165,7 @@ Executables can be located at `OpenGothic/build/opengothic`.
 
 ### Android
 Install dependencies: JDK 17, Gradle 8.9, CMake 3.22.1 or newer, Ninja and the Android SDK with SDK 35, build-tools 35.0.0, NDK 27.0.12077973 and SDK CMake 3.22.1.
-Set `JAVA_HOME`, `ANDROID_HOME` and `VULKAN_SDK`. Put Gradle, Ninja and the host Vulkan SDK's `glslangValidator` on `PATH`.
+Set `JAVA_HOME`, `ANDROID_HOME` and `VULKAN_SDK`. Put Gradle, Ninja and the host Vulkan SDK's `glslangValidator` on `PATH`. 
 Vulkan headers come from the host SDK; Android links the NDK's Vulkan loader.
 ```bash
 cmake -S . -B build/android -G Ninja -DCMAKE_TOOLCHAIN_FILE=/path/to/ndk/build/cmake/android.toolchain.cmake -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-24 -DCMAKE_BUILD_TYPE=Release
