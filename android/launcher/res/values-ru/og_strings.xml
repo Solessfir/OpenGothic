@@ -31,7 +31,12 @@
     <string name="og_restore_done">Восстановлено файлов: %1$d</string>
     <string name="og_restore_title">Восстановить сохранения и настройки для %1$s?</string>
     <string name="og_restore_body">Сохранения в тех же слотах и настройки будут заменены копией. Остальные сохранения останутся.</string>
-    <string name="og_report">Сообщить о проблеме</string>
+    <string name="og_feedback">Отзыв</string>
+    <string name="og_feedback_problem">Проблема</string>
+    <string name="og_feedback_suggestion">Предложение</string>
+    <string name="og_suggestion_body">Отправить идею разработчику? Отправляются только ваш текст, версия лаунчера и модель телефона.</string>
+    <string name="og_suggestion_hint">Что бы вы хотели увидеть?</string>
+    <string name="og_suggestion_send">Отправить</string>
     <string name="og_report_body">Отправить отчёт разработчику? В нём журнал игры и сведения об этом телефоне, но нет сохранений и данных аккаунта.</string>
     <string name="og_report_hint">Что произошло? (необязательно)</string>
     <string name="og_report_send">Отправить отчёт</string>
