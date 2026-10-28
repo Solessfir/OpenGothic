@@ -192,7 +192,7 @@ The setup scripts can also include PC OpenGothic saves in an archive for transfe
 - Save names: use the Android keyboard and press **Done**.
 - ADB offline/unauthorized: reconnect and accept the phone prompt; for Wi-Fi, check the current connection port.
 
-In Gothic Launcher, **⋯** > **Report a problem** sends the developer the game's logs, how Android ended the game and the device details. The launcher offers it by itself after a game crashes.
+In Gothic Launcher, **⋯** > **Feedback** > **Problem** sends the developer the game's logs, how Android ended the game and the device details. The launcher offers it by itself after a game crashes. **Suggestion** sends only your text, the launcher version and the device details.
 
 To collect logs over ADB:
 
