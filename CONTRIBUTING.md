@@ -78,3 +78,7 @@ Testing and instrumenting the original game through mods is welcome. Use zSpy, a
 Use the [issue templates](https://github.com/Try/OpenGothic/issues/new/choose) to report bugs, mod issues, and feature requests. For bugs, include the OpenGothic build or commit, platform, steps to reproduce, and expected and actual behavior. For rendering issues, include the GPU and graphics backend. Attach a save, `log.txt`, `crash.log`, or screenshots if they help reproduce the issue.
 
 The wiki also has a [feature list](https://github.com/Try/OpenGothic/wiki/Feature-list) and [Daedalus script API notes](https://github.com/Try/OpenGothic/wiki/Daedalus-scripts).
+
+## Android
+
+The Android port lives in `android/`. The [Android contributor guide](android/tools/README.md) covers APK checks, input and import tests and profiling. [Rendering](tests/rendering/README.md) and [worker](tests/workers/README.md) tests have separate setup instructions.
