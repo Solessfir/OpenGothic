@@ -125,6 +125,7 @@ class SceneGlobals final {
       float                           cameraFadeFar2 = 0;
       float                           cameraFadePadding = 0;
       Tempest::Vec4                    cameraFadeTarget = {};
+      Tempest::Vec4                    wind = {}; // direction, phase
       };
 
     Tempest::UniformBuffer<UboGlobal> uboGlobalPf[Resources::MaxFramesInFlight][V_Count];
@@ -133,7 +134,6 @@ class SceneGlobals final {
     Frustrum                          frustrum[V_Count];
 
     bool                              zWindEnabled = false;
-    Tempest::Vec2                     windDir = {0,1};
     uint64_t                          windPeriod = 6000;
 
     RtScene                           rtScene;
