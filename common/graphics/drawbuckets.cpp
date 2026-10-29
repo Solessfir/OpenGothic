@@ -37,10 +37,10 @@ DrawBuckets::DrawBuckets() {
   }
 
 DrawBuckets::Id DrawBuckets::alloc(const Material& mat, const StaticMesh& mesh) {
-  for(size_t i=0; i<bucketsCpu.size(); ++i) {
-    auto& b = bucketsCpu[i];
-    if(b.staticMesh==&mesh && b.mat==mat)
-      return Id(this, i);
+  auto range = bucketsByMesh.equal_range(&mesh);
+  for(auto i=range.first; i!=range.second; ++i) {
+    if(bucketsCpu[i->second].mat==mat)
+      return Id(this, i->second);
     }
 
   Bucket bx;
@@ -48,15 +48,16 @@ DrawBuckets::Id DrawBuckets::alloc(const Material& mat, const StaticMesh& mesh) 
   bx.mat        = mat;
 
   bucketsDurtyBit = true;
+  bucketsByMesh.emplace(&mesh, bucketsCpu.size());
   bucketsCpu.emplace_back(std::move(bx));
   return Id(this, bucketsCpu.size()-1);
   }
 
 DrawBuckets::Id DrawBuckets::alloc(const Material& mat, const AnimMesh& mesh) {
-  for(size_t i=0; i<bucketsCpu.size(); ++i) {
-    auto& b = bucketsCpu[i];
-    if(b.animMesh==&mesh && b.mat==mat)
-      return Id(this, i);
+  auto range = bucketsByMesh.equal_range(&mesh);
+  for(auto i=range.first; i!=range.second; ++i) {
+    if(bucketsCpu[i->second].mat==mat)
+      return Id(this, i->second);
     }
 
   Bucket bx;
@@ -64,6 +65,7 @@ DrawBuckets::Id DrawBuckets::alloc(const Material& mat, const AnimMesh& mesh) {
   bx.mat      = mat;
 
   bucketsDurtyBit = true;
+  bucketsByMesh.emplace(&mesh, bucketsCpu.size());
   bucketsCpu.emplace_back(std::move(bx));
   return Id(this, bucketsCpu.size()-1);
   }

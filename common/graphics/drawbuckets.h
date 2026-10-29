@@ -3,6 +3,8 @@
 #include <Tempest/DescriptorArray>
 #include <Tempest/StorageBuffer>
 
+#include <unordered_map>
+
 #include "material.h"
 
 class StaticMesh;
@@ -87,6 +89,7 @@ class DrawBuckets {
       } desc;
 
     std::vector<Bucket>      bucketsCpu;
+    std::unordered_multimap<const void*,size_t> bucketsByMesh;
     Tempest::StorageBuffer   bucketsGpu;
     bool                     bucketsDurtyBit = false;
   };
