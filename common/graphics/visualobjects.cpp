@@ -35,17 +35,11 @@ struct VisualObjects::InstanceDesc {
   };
 
 static float windAmplitude(zenkit::AnimationType type, float intensity) {
-  switch(type) {
-    case zenkit::AnimationType::WIND:
-      // tree. note: mods tent to bump Intensity to insane values
-      return intensity>0.f ? 0.03f : 0.f;
-    case zenkit::AnimationType::WIND_ALT:
-      // grass
-      return (intensity>0.f && intensity<=1.0f) ? intensity*0.1f : 0.f;
-    case zenkit::AnimationType::NONE:
-    default:
-      return 0.f;
-    }
+  // Vanilla trees use WIND_ALT with strengths around 0.001 and mods bump it to insane values,
+  // so the strength only switches the sway on
+  if(type==zenkit::AnimationType::NONE || intensity<=0.f)
+    return 0.f;
+  return 0.03f;
   }
 
 struct VisualObjects::MorphDesc final {
