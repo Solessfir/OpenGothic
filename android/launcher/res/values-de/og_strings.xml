@@ -164,7 +164,7 @@
     <string name="og_controls_move_title">Bewegen und Umsehen</string>
     <string name="og_controls_move">Lege einen Daumen irgendwo auf die linke Hälfte und ziehe, um zu gehen oder zu laufen. Ziehe auf der rechten Seite außerhalb der Tasten, um dich umzusehen.</string>
     <string name="og_controls_buttons_title">Tasten</string>
-    <string name="og_controls_buttons">Tippe auf eine Taste, um sie zu benutzen. Halte Menu für die Systemeinstellungen, Inventory für Werte und Tagebuch und Draw, um eine Waffe, einen Zauber oder einen Gegenstand zu wählen. Lass den Finger liegen, ziehe zur Auswahl und lass los.</string>
+    <string name="og_controls_buttons">Tippe auf eine Taste, um sie zu benutzen. Halte Menu für die Systemeinstellungen, Inventory für Werte und Tagebuch und Draw, um eine Waffe, einen Zauber oder einen Gegenstand zu wählen. Lass den Finger liegen, ziehe zur Auswahl und lass los. Mit gezogener Waffe drücke Attack und ziehe schnell in eine beliebige Richtung, um ein Ziel zu fixieren; wiederhole es zum Lösen.</string>
     <string name="og_controls_gestures_title">Versteckte Gesten</string>
     <string name="og_controls_gestures">• Zwei Finger nach links: Heiltrank\n• Zwei Finger nach rechts: Manatrank\n• Zwei Finger links nach unten: schleichen, nach oben: aufstehen\n• Zwei Finger rechts nach oben: Ich-Perspektive\n• Zwei Finger rechts nach unten und halten: zurückschauen\n• Mit drei Fingern tippen: Schnellspeichern\n• Mit vier Fingern tippen: Schnellladen</string>
     <string name="og_controls_inventory_title">Inventar</string>
