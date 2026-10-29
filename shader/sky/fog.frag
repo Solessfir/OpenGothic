@@ -134,8 +134,8 @@ vec4 fog(vec2 uv, float z) {
   return vec4(0);
 #else
   // every bit = one sample of shadowmap
-  const float occlusionScale = textureSize(depth,0).x/imageSize(occlusionLut).x;
-  const ivec2 coord          = ivec2(gl_FragCoord.xy/occlusionScale);
+  const vec2  occlusionScale = vec2(textureSize(depth,0))/vec2(imageSize(occlusionLut));
+  const ivec2 coord          = min(ivec2(gl_FragCoord.xy/occlusionScale), imageSize(occlusionLut)-1);
   const uint  occlusion      = imageLoad(occlusionLut, coord).r;
   [[dont_unroll]]
   for(int i=0; i<steps; i++) {
