@@ -190,6 +190,7 @@ Instance pullInstance(uint i) {
   ret.mat[3][2] = uintBitsToFloat(instanceMem[i+11]);
   ret.fatness   = uintBitsToFloat(instanceMem[i+12]);
   ret.animPtr   = instanceMem[i+13];
+  ret.wind      = uintBitsToFloat(instanceMem[i+14]);
   return ret;
   }
 
