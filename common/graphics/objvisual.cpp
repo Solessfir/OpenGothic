@@ -150,8 +150,8 @@ void ObjVisual::setVisual(const zenkit::VirtualObject& vob, World& world, bool s
         mesh.view.setWind(vob.anim_mode,vob.anim_strength);
         }
 
-      const bool windy = (vob.anim_mode!=zenkit::AnimationType::NONE && vob.anim_strength>0);
-      if(vob.show_visual && enableCollision && !windy) {
+      // Swaying trees still collide, the level data turns collision off for grass and bushes
+      if(vob.show_visual && enableCollision) {
         mesh.physic = PhysicMesh(*view,*world.physic(),false);
         }
       break;
