@@ -8,12 +8,14 @@
 #include "world/objects/vob.h"
 #include "world/collisionzone.h"
 #include "world/triggers/cscamera.h"
+#include "graphics/dynamic/frustrum.h"
 #include "world/triggers/pfxcontroller.h"
 #include "world/triggers/triggerworldstart.h"
 #include "world/triggers/abstracttrigger.h"
 #include "world.h"
 #include "utils/workers.h"
 #include "utils/dbgpainter.h"
+#include "camera.h"
 #include "gothic.h"
 
 #include <Tempest/Painter>
@@ -431,7 +433,13 @@ void WorldObjects::updateAnimation(uint64_t dt) {
     return;
   if(dt==0)
     return;
-  Workers::parallelTasks(npcArr,[dt](std::unique_ptr<Npc>& i){
+  // Nearly all NPCs of a world are far away; only animate those the camera can see
+  Frustrum view;
+  if(auto camera = Gothic::inst().camera())
+    view.make(camera->viewProj(),1,1);
+  Workers::parallelTasks(npcArr,[dt,&view](std::unique_ptr<Npc>& i){
+    if(i->processPolicy()==NpcProcessPolicy::AiFar2 && view.width>0 && !view.testPoint(i->centerPosition(),300.f))
+      return;
     i->updateAnimation(dt);
     });
   interactiveObj.parallelFor([dt](Interactive& i){
