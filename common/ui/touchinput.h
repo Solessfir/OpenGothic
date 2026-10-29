@@ -126,6 +126,7 @@ class TouchInput : public Tempest::Widget {
       float           radius = 0;
       };
     ButtonShape buttonShape(size_t index) const;
+    float       layoutUnit() const;
     bool buttonShown(size_t index) const;
     int  buttonAt(Tempest::Point pos) const;
     bool buttonPressed(Command command) const;
