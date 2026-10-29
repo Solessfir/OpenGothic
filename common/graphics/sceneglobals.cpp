@@ -169,9 +169,9 @@ void SceneGlobals::setTime(uint64_t time) {
   uboGlobalCpu.waveAnim    = 2.f*float(M_PI)*float(tickCount%3000)/3000.f;
   uboGlobalCpu.tickCount32 = uint32_t(tickCount);
 
-  if(zWindEnabled)
-    windDir = Tempest::Vec2(0.f,1.f)*1.f; else
-    windDir = Tempest::Vec2(0,0);
+  // A zero direction stops the sway
+  const float phase = (float(tickCount%windPeriod)/float(windPeriod)*2.f-1.f)*float(M_PI);
+  uboGlobalCpu.wind = zWindEnabled ? Tempest::Vec4(0,1,phase,0) : Tempest::Vec4();
   }
 
 void SceneGlobals::commitUbo(uint8_t fId) {
