@@ -489,14 +489,19 @@ void TouchInput::setDebugContext(bool classic, bool ui, bool lockAllowed, bool l
   update();
   }
 
+float TouchInput::layoutUnit() const {
+  // Fit a 1280x720 reference screen, so nearly square screens like unfolded foldables keep the buttons at the edge
+  return std::min(float(h())/720.f,float(w())/1280.f);
+  }
+
 TouchInput::ButtonShape TouchInput::buttonShape(size_t index) const {
-  // Laid out on a 720 px tall reference screen: Attack in the bottom-right corner, three actions on an arc around it
+  // Laid out on a 1280x720 reference screen: Attack in the bottom-right corner, three actions on an arc around it
   // within the thumb's reach, and the two buttons with hold wheels in the top-right corner.
   const auto  m      = margins();
   const float right  = float(w()-m.right);
   const float top    = float(m.top);
   const float bottom = float(h()-m.bottom);
-  const float u      = float(h())/720.f;
+  const float u      = layoutUnit();
   const PointF attack(right-100.f*u,bottom-114.f*u);
   auto arc = [&](float degrees) {
     const float a = degrees*3.14159265f/180.f;
@@ -559,8 +564,8 @@ void TouchInput::drawControls(Painter& p) {
   if(menuOpen)
     return;
 
-  const float u     = float(h())/720.f;
-  const float scale = std::min(Gothic::interfaceScale(this),float(h())/720.f);
+  const float u     = layoutUnit();
+  const float scale = std::min(Gothic::interfaceScale(this),u);
   const auto& font  = Resources::font(scale);
   const auto& small = Resources::font(scale*0.8f);
   const bool  armed = canLock;
