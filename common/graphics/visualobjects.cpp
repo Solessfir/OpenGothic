@@ -30,9 +30,23 @@ struct VisualObjects::InstanceDesc {
   float    pos[4][3] = {};
   float    fatness   = 0;
   uint32_t animPtr   = 0;
-  uint32_t padd0     = {};
+  float    wind      = 0;
   uint32_t padd1     = {};
   };
+
+static float windAmplitude(zenkit::AnimationType type, float intensity) {
+  switch(type) {
+    case zenkit::AnimationType::WIND:
+      // tree. note: mods tent to bump Intensity to insane values
+      return intensity>0.f ? 0.03f : 0.f;
+    case zenkit::AnimationType::WIND_ALT:
+      // grass
+      return (intensity>0.f && intensity<=1.0f) ? intensity*0.1f : 0.f;
+    case zenkit::AnimationType::NONE:
+    default:
+      return 0.f;
+    }
+  }
 
 struct VisualObjects::MorphDesc final {
   uint32_t indexOffset = 0;
@@ -84,17 +98,11 @@ void VisualObjects::Item::setWind(zenkit::AnimationType m, float intensity) {
 
   auto& obj = owner->objects[id];
 
-  const auto prev = obj.wind;
+  if(obj.wind==m && obj.windIntensity==intensity)
+    return;
   obj.wind          = m;
   obj.windIntensity = intensity;
-
-  if(prev==m)
-    return;
-
-  if(prev!=zenkit::AnimationType::NONE)
-    owner->objectsWind.erase(id);
-  if(m!=zenkit::AnimationType::NONE)
-    owner->objectsWind.insert(id);
+  owner->updateInstance(id);
   }
 
 void VisualObjects::Item::startMMAnim(std::string_view anim, float intensity, uint64_t timeUntil) {
@@ -161,6 +169,8 @@ void VisualObjects::updateInstance(size_t id, Matrix4x4* pos) {
   d.setPosition(pos==nullptr ? obj.pos : *pos);
   d.animPtr = obj.animPtr;
   d.fatness = obj.fatness*0.5f;
+  // The vertex shader sways the object
+  d.wind    = windAmplitude(obj.wind, obj.windIntensity);
   obj.objInstance.set(&d, 0, sizeof(d));
 
   auto cId  = obj.clusterId;
@@ -324,8 +334,6 @@ void VisualObjects::free(size_t id) {
   clustersMem.free(obj.clusterId, numCluster);
   updateRtAs(id);
 
-  if(obj.wind==zenkit::AnimationType::NONE)
-    objectsWind.erase(id);
   if(obj.type==DrawCommands::Morph)
     objectsMorph.erase(id);
 
@@ -466,51 +474,7 @@ void VisualObjects::prepareGlobals(Encoder<CommandBuffer>& enc, uint8_t fId) {
   }
 
 void VisualObjects::preFrameUpdate() {
-  preFrameUpdateWind();
   preFrameUpdateMorph();
-  }
-
-void VisualObjects::preFrameUpdateWind() {
-  if(!scene.zWindEnabled)
-    return;
-
-  const uint64_t period = scene.windPeriod;
-  float ax = float(scene.tickCount%period)/float(period);
-  ax = ax*2.f-1.f;
-
-  for(auto id:objectsWind) {
-    auto& i = objects[id];
-    float m = 0;
-
-    switch(i.wind) {
-      case zenkit::AnimationType::WIND:
-        // tree. note: mods tent to bump Intensity to insane values
-        if(i.windIntensity>0.f)
-          m = 0.03f; else
-          m = 0;
-        break;
-      case zenkit::AnimationType::WIND_ALT:
-        // grass
-        if(i.windIntensity>0.f && i.windIntensity<=1.0)
-          m = i.windIntensity * 0.1f; else
-          m = 0;
-        break;
-      case zenkit::AnimationType::NONE:
-      default:
-        // error
-        m = 0.f;
-        break;
-      }
-
-    auto  pos   = i.pos;
-    float shift = i.pos[3][0]*scene.windDir.x + i.pos[3][2]*scene.windDir.y;
-    const float a = m * std::cos(float(ax*M_PI) + shift*0.0001f);
-
-    pos[1][0] += scene.windDir.x*a;
-    pos[1][2] += scene.windDir.y*a;
-
-    updateInstance(id, &pos);
-    }
   }
 
 void VisualObjects::preFrameUpdateMorph() {

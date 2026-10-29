@@ -123,7 +123,6 @@ class VisualObjects final {
       bool                isGhost       = false;
       };
 
-    void     preFrameUpdateWind();
     void     preFrameUpdateMorph();
 
     size_t   implAlloc();
@@ -150,7 +149,6 @@ class VisualObjects final {
     DrawCommands               drawCmd;
 
     std::vector<Object>        objects;
-    std::unordered_set<size_t> objectsWind;
     std::unordered_set<size_t> objectsMorph;
     std::unordered_set<size_t> objectsFree;
 
