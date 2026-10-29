@@ -433,13 +433,23 @@ void WorldObjects::updateAnimation(uint64_t dt) {
     return;
   if(dt==0)
     return;
-  // Nearly all NPCs of a world are far away; only animate those the camera can see
+  // Nearly all NPCs of a world are far away: skip the ones outside the view and refresh the rest less often with distance
   Frustrum view;
-  if(auto camera = Gothic::inst().camera())
+  Vec3     eye;
+  if(auto camera = Gothic::inst().camera()) {
     view.make(camera->viewProj(),1,1);
-  Workers::parallelTasks(npcArr,[dt,&view](std::unique_ptr<Npc>& i){
-    if(i->processPolicy()==NpcProcessPolicy::AiFar2 && view.width>0 && !view.testPoint(i->centerPosition(),300.f))
-      return;
+    eye = camera->originLwc();
+    }
+  Workers::parallelTasks(npcArr,[dt,&view,eye](std::unique_ptr<Npc>& i){
+    uint64_t poseInterval = 0;
+    if(i->processPolicy()==NpcProcessPolicy::AiFar2 && view.width>0) {
+      const auto pos = i->centerPosition();
+      if(!view.testPoint(pos,300.f))
+        return;
+      // About 15 Hz at 60 meters and 3 Hz at 300 meters, where an NPC is a few pixels tall
+      poseInterval = uint64_t((pos-eye).length()*0.011f);
+      }
+    i->setPoseInterval(poseInterval);
     i->updateAnimation(dt);
     });
   interactiveObj.parallelFor([dt](Interactive& i){

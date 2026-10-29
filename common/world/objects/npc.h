@@ -112,6 +112,7 @@ class Npc final {
 
     void       setProcessPolicy(NpcProcessPolicy t);
     auto       processPolicy() const -> NpcProcessPolicy { return aiPolicy; }
+    void       setPoseInterval(uint64_t ms) { visual.setPoseInterval(ms); }
 
     bool       isPlayer() const;
     void       setWalkMode(WalkBit m);
