@@ -164,7 +164,7 @@
     <string name="og_controls_move_title">Ruch i rozglądanie się</string>
     <string name="og_controls_move">Połóż kciuk w dowolnym miejscu lewej połowy ekranu i przesuń, aby iść lub biec. Przesuwaj po prawej stronie poza przyciskami, aby się rozejrzeć.</string>
     <string name="og_controls_buttons_title">Przyciski</string>
-    <string name="og_controls_buttons">Dotknij przycisku, aby go użyć. Przytrzymaj Menu, aby otworzyć ustawienia systemowe, Inventory, aby zobaczyć statystyki i dziennik, a Draw, aby wybrać broń, czar lub przedmiot. Nie odrywając palca, przesuń go w stronę wyboru i puść.</string>
+    <string name="og_controls_buttons">Dotknij przycisku, aby go użyć. Przytrzymaj Menu, aby otworzyć ustawienia systemowe, Inventory, aby zobaczyć statystyki i dziennik, a Draw, aby wybrać broń, czar lub przedmiot. Nie odrywając palca, przesuń go w stronę wyboru i puść. Z wyciągniętą bronią naciśnij Attack i szybko przesuń palec w dowolną stronę, aby namierzyć cel; powtórz, aby go puścić.</string>
     <string name="og_controls_gestures_title">Ukryte gesty</string>
     <string name="og_controls_gestures">• Dwa palce w lewo: mikstura zdrowia\n• Dwa palce w prawo: mikstura many\n• Dwa palce w dół po lewej: skradanie, w górę: wstań\n• Dwa palce w górę po prawej: widok z pierwszej osoby\n• Dwa palce w dół po prawej i przytrzymaj: spójrz za siebie\n• Dotknięcie trzema palcami: szybki zapis\n• Dotknięcie czterema palcami: szybkie wczytanie</string>
     <string name="og_controls_inventory_title">Ekwipunek</string>
