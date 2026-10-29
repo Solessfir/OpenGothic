@@ -11,6 +11,7 @@
 #include <tuple>
 #include <string_view>
 #include <map>
+#include <unordered_map>
 
 #include "graphics/material.h"
 #include "sound/soundfx.h"
@@ -31,6 +32,18 @@ namespace Dx8 {
 class DirectMusic;
 class PatternList;
 }
+
+// Flat name lookup over the mounted VFS. zenkit::Vfs::find walks every node on each call, which dominates loading with large mods.
+class VdfsIndex final {
+  public:
+    const zenkit::VfsNode* find(std::string_view name) const;
+    void                   build(const zenkit::Vfs& vfs);
+
+  private:
+    struct Hash  { size_t operator()(std::string_view s) const noexcept; };
+    struct Equal { bool   operator()(std::string_view a, std::string_view b) const noexcept; };
+    std::unordered_map<std::string_view,const zenkit::VfsNode*,Hash,Equal> nodes;
+  };
 
 class Resources final {
   public:
@@ -152,7 +165,7 @@ class Resources final {
     static auto                      openReader(std::string_view name, std::unique_ptr<zenkit::Read>& read) -> std::unique_ptr<zenkit::ReadArchive>;
     static bool                      hasFile    (std::string_view fname);
 
-    static const zenkit::Vfs&        vdfsIndex();
+    static const VdfsIndex&          vdfsIndex();
 
     static const Tempest::IndexBuffer<uint16_t>&   cubeIbo();
 
@@ -234,6 +247,7 @@ class Resources final {
     std::unique_ptr<Dx8::DirectMusic> dxMusic;
     DmLoader*                         dmLoader = nullptr;
     zenkit::Vfs                       gothicAssets;
+    VdfsIndex                         assetIndex;
     std::mutex                       syncWorld;
     std::shared_ptr<const WorldData>  worldCache;
 
