@@ -533,27 +533,6 @@ int64_t Resources::vdfTimestamp(const std::u16string& name) {
     }
   }
 
-Tempest::Texture2d* Resources::implLoadTexture(std::string_view cname, bool forceMips) {
-  if(cname.empty())
-    return nullptr;
-
-  //TODO: __cpp_lib_generic_unordered_lookup
-  std::string name = std::string(cname);
-  auto it=texCache.find(name);
-  if(it!=texCache.end())
-    return it->second.get();
-
-  auto tex = implLoadTextureUncached(cname, forceMips);
-  if(!tex.isEmpty()) {
-    std::unique_ptr<Texture2d> t{new Texture2d(std::move(tex))};
-    Texture2d* ret=t.get();
-    texCache[std::move(name)] = std::move(t);
-    return ret;
-    }
-  texCache[std::move(name)] = nullptr;
-  return nullptr;
-  }
-
 Texture2d Resources::implLoadTextureUncached(std::string_view name, bool forceMips) {
   if(name.empty())
     return Texture2d();
@@ -978,8 +957,23 @@ Texture2d Resources::loadTextureUncached(std::string_view name, bool forceMips) 
   }
 
 const Texture2d* Resources::loadTexture(std::string_view name, bool forceMips) {
-  std::lock_guard<std::recursive_mutex> g(inst->sync);
-  return inst->implLoadTexture(name,forceMips);
+  if(name.empty())
+    return nullptr;
+
+  //TODO: __cpp_lib_generic_unordered_lookup
+  std::unique_lock<std::recursive_mutex> g(inst->sync);
+  std::string key = std::string(name);
+  if(auto it=inst->texCache.find(key); it!=inst->texCache.end())
+    return it->second.get();
+
+  // Decode and upload without blocking other loads. A texture requested twice meanwhile is kept once.
+  g.unlock();
+  auto tex = inst->implLoadTextureUncached(name, forceMips);
+  std::unique_ptr<Texture2d> t;
+  if(!tex.isEmpty())
+    t.reset(new Texture2d(std::move(tex)));
+  g.lock();
+  return inst->texCache.try_emplace(std::move(key), std::move(t)).first->second.get();
   }
 
 const Texture2d* Resources::loadTexture(Tempest::Color color) {
