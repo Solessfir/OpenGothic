@@ -519,6 +519,9 @@ bool MdlVisual::updateAnimation(Npc* npc, Interactive* mobsi, World& world, uint
 
   solver.update(tickCount);
   pose.setObjectMatrix(pos,false);
+  if(!force && poseInterval>0 && tickCount-poseUpdated<poseInterval)
+    return false;
+  poseUpdated = tickCount;
   const bool changed = pose.update(tickCount, force);
 
   if(changed)
