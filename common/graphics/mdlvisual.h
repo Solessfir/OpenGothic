@@ -74,6 +74,7 @@ class MdlVisual final {
     bool                           isUsingTorch() const;
 
     const Pose&                    pose() const { return *skInst; }
+    void                           setPoseInterval(uint64_t ms) { poseInterval = ms; }
     bool                           updateAnimation(Npc* npc, Interactive* mobsi, World& world, uint64_t dt, bool force);
     void                           processLayers  (World& world);
     bool                           processEvents(World& world, uint64_t &barrier, Animation::EvCount &ev);
@@ -173,5 +174,7 @@ class MdlVisual final {
     WeaponState                    fgtMode=WeaponState::NoWeapon;
     AnimationSolver                solver;
     std::unique_ptr<Pose>          skInst;
+    uint64_t                       poseInterval = 0;
+    uint64_t                       poseUpdated  = 0;
   };
 

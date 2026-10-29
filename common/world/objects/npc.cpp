@@ -539,6 +539,8 @@ void Npc::setProcessPolicy(NpcProcessPolicy t) {
   if(aiPolicy==NpcProcessPolicy::Player)
     runAng = 0;
   aiPolicy=t;
+  // Beyond 60 meters an NPC is a few pixels tall, so its skeleton updates at about 15 Hz
+  visual.setPoseInterval(t==NpcProcessPolicy::AiFar2 ? 66 : 0);
   }
 
 void Npc::setWalkMode(WalkBit m) {
