@@ -29,6 +29,7 @@
 #include "graphics/material.h"
 #include "graphics/shaders.h"
 #include "dmusic/directmusic.h"
+#include "utils/atomicsave.h"
 #include "utils/fileext.h"
 #include "utils/gthfont.h"
 #include "utils/saveloadprofile.h"
@@ -82,6 +83,52 @@ void VdfsIndex::build(const zenkit::Vfs& vfs) {
 const zenkit::VfsNode* VdfsIndex::find(std::string_view name) const {
   auto it = nodes.find(trimTrailingSpace(name));
   return it!=nodes.end() ? it->second : nullptr;
+  }
+
+// Text ZEN archives (common in mods) take seconds to parse, so a binary copy is kept next to the saves.
+// Bump the format when the cached data or ZenKit's archive output changes.
+static std::filesystem::path worldCachePath(std::string_view name, const zenkit::VfsNode& source, size_t bytes, zenkit::GameVersion version) {
+  constexpr int format = 1;
+  std::string file(name);
+  file += "."+std::to_string(int64_t(source.time()))+"-"+std::to_string(bytes)+"-"+std::to_string(int(version))+"-"+std::to_string(format)+".bin";
+  return std::filesystem::path("cache") / file;
+  }
+
+static bool loadCachedWorld(zenkit::World& world, const std::filesystem::path& path, zenkit::GameVersion version) {
+  std::error_code error;
+  if(!std::filesystem::exists(path, error))
+    return false;
+  try {
+    auto read = zenkit::Read::from(path);
+    world.load(read.get(), version);
+    return true;
+    }
+  catch(const std::exception& e) {
+    Log::e("unable to read world cache \"", path.string(), "\": ", e.what());
+    world = zenkit::World();
+    return false;
+    }
+  }
+
+static void storeCachedWorld(const zenkit::World& world, std::string_view name, const std::filesystem::path& path, zenkit::GameVersion version) {
+  try {
+    std::error_code error;
+    std::filesystem::create_directories(path.parent_path(), error);
+    // Drop copies made from an older version of this level
+    const auto prefix = std::string(name)+".";
+    for(auto& i:std::filesystem::directory_iterator(path.parent_path(), error))
+      if(i.path().filename().string().starts_with(prefix) && i.path()!=path)
+        std::filesystem::remove(i.path(), error);
+    AtomicSave::replace(path, [&](const std::filesystem::path& temporary) {
+      auto write   = zenkit::Write::to(temporary);
+      auto archive = zenkit::WriteArchive::to(write.get(), zenkit::ArchiveFormat::BINARY);
+      archive->write_object("%", &world, version);
+      archive->write_header();
+      });
+    }
+  catch(const std::exception& e) {
+    Log::e("unable to write world cache \"", path.string(), "\": ", e.what());
+    }
   }
 
 static void emplaceTag(char* buf, char tag){
@@ -392,8 +439,23 @@ std::shared_ptr<const WorldData> Resources::loadWorld(std::string_view name, zen
   input->seek(0,zenkit::Whence::END);
   const auto sourceBytes = input->tell();
   input->seek(0,zenkit::Whence::BEG);
-  data->world.load(input.get(),version);
-  time.step("load/world-zen-parse");
+  const auto cachePath = worldCachePath(name, *source, sourceBytes, version);
+  if(!loadCachedWorld(data->world, cachePath, version)) {
+    auto archive = zenkit::ReadArchive::from(input.get());
+    zenkit::ArchiveObject root;
+    if(!archive->read_object_begin(root) || root.class_name!="oCWorld:zCWorld")
+      throw std::runtime_error("unable to open Zen-file: " + std::string(name));
+    data->world.load(*archive, version);
+    time.step("load/world-zen-parse");
+    if(archive->get_header().format==zenkit::ArchiveFormat::ASCII) {
+      // Unused by the renderer and the largest part of the copy
+      data->world.world_mesh.lightmaps.clear();
+      storeCachedWorld(data->world, name, cachePath, version);
+      time.step("load/world-cache-store");
+      }
+    } else {
+    time.step("load/world-cache-read");
+    }
 
   auto physics = std::async(std::launch::async, [&] {
     Workers::setThreadName("Loading: BVH thread");
