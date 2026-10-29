@@ -519,8 +519,7 @@ void Renderer::resetSkyFog() {
 
   sky.lutIsInitialized = false;
 
-  // Reduce only the angular sampling of the lighting volume.
-  // Keep all depth steps and the separate sunshaft occlusion calculation unchanged.
+  // Reduce only the angular sampling of the lighting volume and keep all depth steps.
   const uint32_t divisor = sky.fogHalfResolution ? 2 : 1;
   switch(sky.quality) {
     case None:
@@ -2084,8 +2083,13 @@ void Renderer::prepareFog(Encoder<Tempest::CommandBuffer>& cmd, WorldView& wview
       break;
     case VolumetricHQ: {
       cmd.setDebugMarker("Fog-sunshaft-occlusion");
-      auto& occlusionLut = usesImage2d(sky.occlusionLut, TextureFormat::R32U, zbuffer.size());
-      if(settings.vsmEnabled && !settings.rtsmEnabled && !settings.pathTraceEnabled) {
+      const bool epipolarOcclusion = settings.vsmEnabled && !settings.rtsmEnabled && !settings.pathTraceEnabled;
+      // 32 shadow map taps per pixel; the fog pass scales its lookup to the occlusion size
+      auto occlusionSize = zbuffer.size();
+      if(sky.fogHalfResolution && !epipolarOcclusion)
+        occlusionSize = Size((occlusionSize.w+1)/2, (occlusionSize.h+1)/2);
+      auto& occlusionLut = usesImage2d(sky.occlusionLut, TextureFormat::R32U, occlusionSize);
+      if(epipolarOcclusion) {
         cmd.setFramebuffer({});
         cmd.setBinding(0, occlusionLut);
         cmd.setBinding(1, epipolar.epTrace);
