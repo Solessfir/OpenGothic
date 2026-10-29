@@ -45,6 +45,45 @@ using namespace Tempest;
 
 Resources* Resources::inst=nullptr;
 
+static std::string_view trimTrailingSpace(std::string_view s) {
+  while(!s.empty() && std::isspace(uint8_t(s.back())))
+    s.remove_suffix(1);
+  return s;
+  }
+
+size_t VdfsIndex::Hash::operator()(std::string_view s) const noexcept {
+  size_t h = 14695981039346656037ull;
+  for(auto c:s)
+    h = (h ^ size_t(std::toupper(uint8_t(c)))) * 1099511628211ull;
+  return h;
+  }
+
+bool VdfsIndex::Equal::operator()(std::string_view a, std::string_view b) const noexcept {
+  return a.size()==b.size() && std::equal(a.begin(), a.end(), b.begin(), [](char x, char y) {
+    return std::toupper(uint8_t(x))==std::toupper(uint8_t(y));
+    });
+  }
+
+void VdfsIndex::build(const zenkit::Vfs& vfs) {
+  // Same traversal as zenkit::Vfs::find, so the first node it would return for a name is the one kept
+  nodes.clear();
+  std::vector<const zenkit::VfsNode*> stack = {&vfs.root()};
+  while(!stack.empty()) {
+    auto* node = stack.back();
+    stack.pop_back();
+    for(auto& i:node->children())
+      nodes.emplace(i.name(), &i);
+    for(auto& i:node->children())
+      if(i.type()==zenkit::VfsNodeType::DIRECTORY)
+        stack.push_back(&i);
+    }
+  }
+
+const zenkit::VfsNode* VdfsIndex::find(std::string_view name) const {
+  auto it = nodes.find(trimTrailingSpace(name));
+  return it!=nodes.end() ? it->second : nullptr;
+  }
+
 static void emplaceTag(char* buf, char tag){
   for(size_t i=1;buf[i];++i){
     if(buf[i]==tag && buf[i-1]=='_' && buf[i+1]=='0'){
@@ -108,7 +147,7 @@ Resources::Resources(Tempest::Device &device)
   else {
     DmLoader_addResolver(dmLoader, [](void* ctx, char const* name, size_t* len) -> void* {
       auto* slf = reinterpret_cast<Resources*>(ctx);
-      auto* node = slf->gothicAssets.find(name);
+      auto* node = slf->assetIndex.find(name);
 
       if (node == nullptr) {
         return nullptr;
@@ -166,12 +205,14 @@ void Resources::mountVdfs(const std::vector<std::u16string>& vdfs) {
       Log::e("unable to load archive: \"", TextCodec::toUtf8(i.name), "\", reason: ", err.what());
       }
     }
+  inst->assetIndex.build(inst->gothicAssets);
   }
 
 void Resources::mountWork(const std::filesystem::path& path) {
   inst->worldCache.reset();
   inst->gothicAssets.mkdir("/_work");
   inst->gothicAssets.mount_host(path, "/_work", zenkit::VfsOverwriteBehavior::NONE);
+  inst->assetIndex.build(inst->gothicAssets);
   }
 
 void Resources::unloadAll() {
@@ -201,7 +242,7 @@ Resources::~Resources() {
 
 bool Resources::hasFile(std::string_view name) {
   std::lock_guard<std::recursive_mutex> g(inst->sync);
-  return inst->gothicAssets.find(name) != nullptr;
+  return inst->assetIndex.find(name) != nullptr;
   }
 
 bool Resources::getFileData(std::string_view name, std::vector<uint8_t> &dat) {
@@ -322,8 +363,8 @@ const Tempest::StorageImage& Resources::fallbackImage() {
   return inst->fbImg;
   }
 
-const zenkit::Vfs& Resources::vdfsIndex() {
-  return inst->gothicAssets;
+const VdfsIndex& Resources::vdfsIndex() {
+  return inst->assetIndex;
   }
 
 std::shared_ptr<const WorldData> Resources::loadWorld(std::string_view name, zenkit::GameVersion version) {
