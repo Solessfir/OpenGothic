@@ -121,6 +121,7 @@ class Resources final {
 
     static const AttachBinder*       bindMesh       (const ProtoMesh& anim, const Skeleton& s);
     static const ProtoMesh*          loadMesh       (std::string_view name);
+    static void                      preloadMeshes  (std::vector<std::string> names);
     static const PfxEmitterMesh*     loadEmiterMesh (std::string_view name);
     static const Skeleton*           loadSkeleton   (std::string_view name);
     static const Animation*          loadAnimation  (std::string_view name);

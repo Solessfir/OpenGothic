@@ -1063,6 +1063,41 @@ Material Resources::loadMaterial(const zenkit::Material& src, bool enableAlphaTe
   return Material(src,enableAlphaTest);
   }
 
+void Resources::preloadMeshes(std::vector<std::string> names) {
+  // Static meshes only touch the caches through the lock, so they can be built off it in parallel
+  {
+  std::lock_guard<std::recursive_mutex> g(inst->sync);
+  std::erase_if(names, [](const std::string& n) { return !FileExt::hasExt(n,"3DS") || inst->aniMeshCache.contains(n); });
+  }
+  std::sort(names.begin(), names.end());
+  names.erase(std::unique(names.begin(), names.end()), names.end());
+
+  std::atomic_size_t next{0};
+  auto work = [&]() {
+    for(size_t i=next++; i<names.size(); i=next++) {
+      std::unique_ptr<ProtoMesh> mesh;
+      try {
+        mesh = inst->implLoadMeshMain(names[i]);
+        }
+      catch(...) {
+        }
+      // Failures are left to loadMesh, which caches and reports them
+      if(mesh==nullptr)
+        continue;
+      std::lock_guard<std::recursive_mutex> g(inst->sync);
+      inst->aniMeshCache.try_emplace(names[i], std::move(mesh));
+      }
+    };
+
+  const size_t count = std::clamp<size_t>(std::thread::hardware_concurrency(), 1, 8);
+  std::vector<std::thread> threads;
+  for(size_t i=1; i<count; ++i)
+    threads.emplace_back(work);
+  work();
+  for(auto& t:threads)
+    t.join();
+  }
+
 const ProtoMesh* Resources::loadMesh(std::string_view name) {
   if(name.size()==0)
     return nullptr;
