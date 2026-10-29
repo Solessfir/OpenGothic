@@ -42,6 +42,7 @@ struct SceneDesc {
   float cameraFadeFar2;
   float cameraFadePadding;
   vec4  cameraFadeTarget;
+  vec4  wind; // direction, phase
   };
 
 struct LightSource {
@@ -62,7 +63,7 @@ struct Instance {
   mat4x3 mat;
   float  fatness;
   uint   animPtr;
-  uint   padd0;
+  float  wind;
   uint   padd1;
   };
 

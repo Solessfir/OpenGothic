@@ -107,6 +107,14 @@ vec3 processVertexCommon(out Varyings shOut, in Vertex v, uint bucketId, uint in
 #if defined(LVL_OBJECT)
   Instance obj = pullInstance(instanceId);
 #endif
+#if (MESH_TYPE==T_OBJ || MESH_TYPE==T_MORPH)
+  {
+    // Trees and grass sway: shear the up axis along the wind direction
+    const float a = obj.wind*cos(scene.wind.z + dot(obj.mat[3].xz, scene.wind.xy)*0.0001);
+    obj.mat[1][0] += scene.wind.x*a;
+    obj.mat[1][2] += scene.wind.y*a;
+  }
+#endif
 
   // Position offsets
 #if (MESH_TYPE==T_MORPH)
