@@ -9,7 +9,7 @@
 	url = https://github.com/schellingb/TinySoundFont.git
 [submodule "lib/ZenKit"]
 	path = lib/ZenKit
-  url = https://github.com/GothicKit/ZenKit.git
+  url = https://github.com/Solessfir/ZenKit.git
 [submodule "lib/dmusic"]
 	path = lib/dmusic
 	url = https://github.com/GothicKit/dmusic.git
