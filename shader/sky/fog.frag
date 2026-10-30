@@ -32,6 +32,8 @@ layout(binding = 3, std140) uniform UboScene {
   SceneDesc scene;
   };
 
+#include "water/gerstner_wave.glsl"
+
 vec3 inverse(vec3 pos) {
   vec4 ret = scene.viewProjectInv*vec4(pos,1.0);
   return (ret.xyz/ret.w)/100.f;
@@ -180,7 +182,7 @@ vec4 fog(vec2 uv, float z) {
 #if !defined(GL_COMPUTE_SHADER)
 void main_frag() {
   // Looking out from under the water: the underwater pass fogs it with the water itself
-  if(isViewUnderWater(scene.viewProjectInv, gl_FragCoord.xy, scene.screenResInv, scene.waterLevel))
+  if(scene.waterLevel>-1e8 && nearPlaneAboveWater(gl_FragCoord.xy, scene.waterLevel)<0.0)
     discard;
 
   const ivec2 size = textureSize(depth,0);

@@ -46,12 +46,6 @@ vec3 fresnelSchlick(vec3 F0, float cosTheta) {
   return F0 + (vec3(1.0) - F0) * pow(1.0 - cosTheta, 5.0);
   }
 
-// The pixel's point on the near plane lies below the water level: its view starts under water
-bool isViewUnderWater(const mat4 viewProjectInv, vec2 fragCoord, vec2 screenResInv, float waterLevel) {
-  const vec4 pos = viewProjectInv*vec4((fragCoord*screenResInv)*2.0-vec2(1.0), 0.0, 1.0);
-  return pos.y/pos.w < waterLevel;
-  }
-
 // How much of the world above reaches an eye below the water: Snell's window around the zenith with a soft edge.
 // Past the critical angle real water is a perfect mirror; the floor keeps the shore faintly visible.
 float underwaterWindow(const vec3 view, const vec3 normal) {

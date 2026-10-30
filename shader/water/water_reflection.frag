@@ -27,6 +27,9 @@ layout(binding = 12) uniform sampler2D skyLUT;
 layout(binding = 13) uniform texture2D irradiance;
 
 #include "water/water_haze.glsl"
+
+// Set per pixel in main: whether the camera looks at this water from below
+bool underWater = false;
 #include "lighting/caustics.glsl"
 
 #if defined(RAY_QUERY)
@@ -48,7 +51,6 @@ bool isSunBlocked(vec3 pos) {
 // The part of the mirror the screen can not show: trace the scene and light the hit the way the ambient and sun passes do
 vec3 traceReflection(vec3 start, vec3 dir, vec3 sky) {
   // Under water the haze hides everything farther than 50 m
-  const bool  underWater = scene.underWater!=0;
   const float maxDist    = underWater ? 5000.0 : 20000.0;
 
   rayQueryEXT rayQuery;
@@ -84,7 +86,7 @@ vec3 traceReflection(vec3 start, vec3 dir, vec3 sky) {
 // What a mirror ray shows when the screen has nothing for it
 vec3 reflectionMiss(vec3 start, vec3 refl, vec3 sky) {
 #if defined(RAY_QUERY)
-  if(scene.underWater!=0)
+  if(underWater)
     return traceReflection(start, refl, sky);
 #endif
   return sky;
@@ -154,7 +156,7 @@ vec3 ssr(vec3 orig, vec3 start, vec3 refl, const float depth, vec3 sky) {
 
     const vec2  p        = pos.xy*0.5+vec2(0.5);
     // Above the water rays may run past the sides to hide artifacts, from below that smears the screen edge
-    if(scene.underWater!=0 && (p.x<0.0 || p.x>1.0 || p.y<0.0 || p.y>1.0))
+    if(underWater && (p.x<0.0 || p.x>1.0 || p.y<0.0 || p.y>1.0))
       break;
     const float smpDepth = textureLod(zbuffer,p,0).r + ZBias;
     if(smpDepth==1.0)
@@ -201,7 +203,7 @@ vec3 ssr(vec3 orig, vec3 start, vec3 refl, const float depth, vec3 sky) {
 
   // return sky;
   // Under water the miss goes to the traced or hazy fallback instead
-  if(!found && uvBehind.x>=0.0 && scene.underWater==0) {
+  if(!found && uvBehind.x>=0.0 && !underWater) {
 #if defined(RAY_QUERY)
     // Behind it is what the ray really hits, often the shore under the lily pads
     return traceReflection(start, refl, sky);
@@ -214,19 +216,19 @@ vec3 ssr(vec3 orig, vec3 start, vec3 refl, const float depth, vec3 sky) {
     uv = uvAlt;
 
   const vec3  reflection = textureLod(sceneColor,uv,0).rgb;
-  const float edge       = scene.underWater!=0 ? min(min(uv.x, 1.0-uv.x), min(uv.y, 1.0-uv.y)) : uv.y;
-  const float att        = smoothstep(0, scene.underWater!=0 ? 0.04 : 0.1, edge);
+  const float edge       = underWater ? min(min(uv.x, 1.0-uv.x), min(uv.y, 1.0-uv.y)) : uv.y;
+  const float att        = smoothstep(0, underWater ? 0.04 : 0.1, edge);
 
   if(found) {
     // From below the mirrored ray runs through water too
-    const vec3 c = scene.underWater!=0 ? waterFog(reflection, hitLen) : reflection;
+    const vec3 c = underWater ? waterFog(reflection, hitLen) : reflection;
     if(att>=1.0)
       return c;
     return mix(reflectionMiss(start, refl, sky),c,att);
     }
 
   // Shoreline occlusion only makes sense above the water
-  if(occluded>SSR_OCCLUSION && scene.underWater==0) {
+  if(occluded>SSR_OCCLUSION && !underWater) {
     const float z  = texelFetch(zbuffer, ivec2(gl_FragCoord.xy), 0).r;
 
     const vec3 zs = projectiveUnproject(scene.projectInv, vec3(orig.xy, z    ));
@@ -259,8 +261,6 @@ void main() {
   if(!isGBufWater(diff.a))
     discard;
 
-  const bool  underWater = (scene.underWater!=0);
-  const float ior        = (underWater ? IorAir : IorWater);
 
   const float depth   = texelFetch (gbufDepth,  ivec2(gl_FragCoord.xy), 0).r;
   const vec3  normal  = normalFetch(gbufNormal, ivec2(gl_FragCoord.xy));
@@ -270,6 +270,10 @@ void main() {
 
   const vec4  scr     = vec4(fragCoord.x, fragCoord.y, depth, 1.0);
   const vec3  camPos  = scene.camPos;
+
+  // Per pixel: with the camera in the surface, one screen shows the water from both sides
+  underWater = camPos.y < start.y;
+  const float ior     = (underWater ? IorAir : IorWater);
 
   const vec3  view    = normalize(start - camPos);
         vec3  refl    = reflect(view, normal);
