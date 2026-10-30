@@ -860,13 +860,12 @@ void MainWindow::onSettings() {
         Log::e("Unable to open gpu-profile.csv; GPU profiling disabled");
       }
     }
-#if defined(__ANDROID__)
   const bool enabled = Gothic::settingsGetI("GAME", "showFps")!=0;
   if(showFps!=enabled) {
     showFps = enabled;
+    fpsOverlayUpdated = 0;
     update();
     }
-#endif
   const auto zMaxFps = Gothic::settingsFpsLimit();
 #if defined(__ANDROID__)
   maxFps = uint32_t(std::max(0,zMaxFps));
@@ -1861,9 +1860,15 @@ void MainWindow::render(){
     {
     CpuTrace trace("OpenGothic::UI");
     bool refreshFps = false;
-#if defined(__ANDROID__)
-    refreshFps = showFps && Application::tickCount()-fpsOverlayUpdated >= 250;
-#endif
+    if(showFps && Application::tickCount()-fpsOverlayUpdated >= 1000) {
+      // The average of the last second, since per-frame values are too jumpy to read
+      const auto now = Application::tickCount();
+      const auto value = fpsOverlayUpdated==0 ? fps.get() : double(fpsOverlayFrames)*1000.0/double(now-fpsOverlayUpdated);
+      std::snprintf(fpsText,sizeof(fpsText),"%.0f FPS",value);
+      fpsOverlayUpdated = now;
+      fpsOverlayFrames  = 0;
+      refreshFps        = true;
+      }
     if(video.isActive()) {
       video.paint(device,cmdId);
       uiLayer.clear();
@@ -1871,12 +1876,10 @@ void MainWindow::render(){
       video.paintEvent(p);
       }
     else if(needToUpdate() || refreshFps || Gothic::inst().checkLoading()!=Gothic::LoadState::Idle) {
-#if defined(__ANDROID__)
-      char fpsText[32] = {};
-      std::snprintf(fpsText,sizeof(fpsText),"%.0f FPS",fps.get());
       const float fpsDensity = std::max(uiScale(),1.f);
       const int fpsMargin = int(16.f*fpsDensity);
       const auto& fpsFont = Resources::font(fpsDensity);
+#if defined(__ANDROID__)
       // Reserve three digits so ordinary FPS changes do not shift the debug legend.
       const int fpsWidth = std::max(fpsFont.textSize("999 FPS").w,fpsFont.textSize(fpsText).w);
       const auto overlaySafeArea=safeArea();
@@ -1890,14 +1893,15 @@ void MainWindow::render(){
       inventory.paintNumOverlay(p);
 #if defined(__ANDROID__)
       paintControllerOverlay(p,showFps ? fpsMargin+fpsFont.pixelSize() : 0);
+      const Point fpsOrigin = {overlaySafeArea.x, overlaySafeArea.y};
+#else
+      const Point fpsOrigin = {};
+#endif
       if(showFps) {
         // Draw above menus and scale the padding with the interface.
         Painter painter(p);
-        auto& font = Resources::font(fpsDensity);
-        font.drawText(painter,overlaySafeArea.x+fpsMargin,overlaySafeArea.y+fpsMargin+font.pixelSize(),fpsText);
-        fpsOverlayUpdated = Application::tickCount();
+        fpsFont.drawText(painter,fpsOrigin.x+fpsMargin,fpsOrigin.y+fpsMargin+fpsFont.pixelSize(),fpsText);
         }
-#endif
       }
     uiMesh [cmdId].update(device,uiLayer);
     numMesh[cmdId].update(device,numOverlay);
@@ -1961,6 +1965,7 @@ void MainWindow::render(){
       }
 #endif
     fps.push(t-time);
+    ++fpsOverlayFrames;
     if(Gothic::inst().isBenchmarkMode() && Gothic::inst().world()!=nullptr && Gothic::inst().world()->currentCs()!=nullptr)
       benchmark.push(t-time);
     time = t;
