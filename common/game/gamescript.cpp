@@ -1260,9 +1260,7 @@ void GameScript::playerHotLamePotion(Npc& pl) {
 
   auto fn   = vm.find_symbol_by_name("player_hotkey_lame_potion");
   if(fn==nullptr) {
-#if defined(__ANDROID__)
     playerHotPotionG1(pl,true);
-#endif
     return;
     }
 
@@ -1277,9 +1275,7 @@ void GameScript::playerHotLameHeal(Npc& pl) {
 
   auto fn   = vm.find_symbol_by_name("player_hotkey_lame_heal");
   if(fn==nullptr) {
-#if defined(__ANDROID__)
     playerHotPotionG1(pl,false);
-#endif
     return;
     }
 
