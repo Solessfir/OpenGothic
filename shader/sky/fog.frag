@@ -179,6 +179,10 @@ vec4 fog(vec2 uv, float z) {
 
 #if !defined(GL_COMPUTE_SHADER)
 void main_frag() {
+  // Looking out from under the water: the underwater pass fogs it with the water itself
+  if(isViewUnderWater(scene.viewProjectInv, gl_FragCoord.xy, scene.screenResInv, scene.waterLevel))
+    discard;
+
   const ivec2 size = textureSize(depth,0);
   inPos = vec2(gl_FragCoord.xy)/vec2(size);
   inPos = inPos*2.0 - vec2(1.0);

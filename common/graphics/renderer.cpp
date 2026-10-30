@@ -390,6 +390,7 @@ void Renderer::prepareUniforms(WorldView& wview, const Camera& camera) {
   wview.setHiZ(textureCast<const Texture2d&>(hiz.hiZ));
   wview.setGbuffer(textureCast<const Texture2d&>(gbufDiffuse), textureCast<const Texture2d&>(gbufNormal));
   wview.setSceneImages(textureCast<const Texture2d&>(sceneOpaque), textureCast<const Texture2d&>(sceneDepth), zbuffer);
+  wview.setSkyIrradiance(textureCast<const Texture2d&>(sky.irradianceLut));
   wview.setWindEnabled(settings.zWindEnabled, settings.windPeriod);
   Vec4 fadeTarget = {};
   const auto player = Gothic::inst().player();
@@ -400,6 +401,16 @@ void Renderer::prepareUniforms(WorldView& wview, const Camera& camera) {
     fadeTarget = Vec4(center.x, center.y, center.z, 180.f);
     }
   wview.setCameraObstructionFade(settings.pathTraceEnabled ? 0.f : settings.cameraObstructionDistance, fadeTarget);
+
+  // Caustics light the bottom around the camera: of the water it is in, or of the water right below it
+  float waterLevel = SceneGlobals::NoWater;
+  if(auto world = Gothic::inst().world()) {
+    const auto eye   = camera.originLwc();
+    const auto water = world->physic()->waterRay(eye, 2000.f);
+    if(water.hasCol && (camera.isInWater() || water.wdepth<=eye.y))
+      waterLevel = water.wdepth;
+    }
+  wview.setWaterLevel(waterLevel);
   }
 
 void Renderer::resetViewport(Tempest::Size res, Tempest::Size fullRes) {
@@ -780,7 +791,7 @@ void Renderer::draw(Tempest::Attachment& result, Encoder<CommandBuffer>& cmd, ui
   drawLightsHud(cmd, wview);
 
   cmd.setFramebuffer({{sceneLinear, Tempest::Preserve, Tempest::Preserve}});
-  drawReflections(cmd, wview);
+  drawReflections(cmd, wview, camera.isInWater());
   drawGizmo(cmd, wview);
   cmd.setDebugMarker("Fog");
   drawFog(cmd, wview);
@@ -1788,17 +1799,30 @@ void Renderer::drawGWater(Encoder<CommandBuffer>& cmd, WorldView& view) {
   view.drawWater(cmd);
   }
 
-void Renderer::drawReflections(Encoder<CommandBuffer>& cmd, const WorldView& wview) {
-  auto& pso = settings.zEnvMappingEnabled ? shaders.waterReflectionSSR : shaders.waterReflection;
+void Renderer::drawReflections(Encoder<CommandBuffer>& cmd, const WorldView& wview, bool underWater) {
+  // Ray tracing finds what the screen can not show: off screen from below, hidden behind lily pads from above
+  const bool rayTraced = (underWater || settings.zEnvMappingEnabled) && requiresRtScene() && !shaders.waterReflectionRq.isEmpty();
+  auto&      pso       = rayTraced ? shaders.waterReflectionRq :
+                         settings.zEnvMappingEnabled ? shaders.waterReflectionSSR : shaders.waterReflection;
+  auto&      scene     = wview.sceneGlobals();
 
   cmd.setDebugMarker("Reflections");
-  cmd.setBinding(0, wview.sceneGlobals().uboGlobal[SceneGlobals::V_Main]);
+  cmd.setBinding(0, scene.uboGlobal[SceneGlobals::V_Main]);
   cmd.setBinding(1, sceneOpaque, Sampler::bilinear(ClampMode::ClampToEdge));
   cmd.setBinding(2, gbufDiffuse, Sampler::nearest (ClampMode::ClampToEdge));
   cmd.setBinding(3, gbufNormal,  Sampler::nearest (ClampMode::ClampToEdge));
   cmd.setBinding(4, zbuffer,     Sampler::nearest (ClampMode::ClampToEdge));
   cmd.setBinding(5, sceneDepth,  Sampler::nearest (ClampMode::ClampToEdge));
-  cmd.setBinding(6, sky.viewCldLut, sky.sampler);
+  if(rayTraced) {
+    cmd.setBinding(6, scene.rtScene.tlas);
+    cmd.setBinding(7, Sampler::bilinear());
+    cmd.setBinding(8, scene.rtScene.tex);
+    cmd.setBinding(9, scene.rtScene.vbo);
+    cmd.setBinding(10,scene.rtScene.ibo);
+    cmd.setBinding(11,scene.rtScene.rtDesc);
+    }
+  cmd.setBinding(12, sky.viewCldLut, sky.sampler);
+  cmd.setBinding(13, sky.irradianceLut);
   cmd.setPipeline(pso);
   if(Shaders::options().doMeshShading) {
     cmd.dispatchMeshThreads(gbufDiffuse.size());
@@ -1828,12 +1852,27 @@ void Renderer::drawUnderwater(Encoder<CommandBuffer>& cmd, const WorldView& wvie
   cmd.setBinding(0, wview.sceneGlobals().uboGlobal[SceneGlobals::V_Main]);
   cmd.setBinding(1, zbuffer);
   cmd.setBinding(2, gbufDiffuse);
+  cmd.setBinding(3, sky.irradianceLut);
 
   cmd.setPipeline(shaders.underwaterT);
   cmd.setPushData(waterY);
   cmd.draw(nullptr, 0, 3);
   cmd.setPipeline(shaders.underwaterS);
   cmd.setPushData(waterY);
+  cmd.draw(nullptr, 0, 3);
+
+  // Seen from inside the water the image is soft and wobbles. With the camera in the surface, the pass decides per pixel
+  auto& blurred = usesAttachment(underwater.blurred, TextureFormat::R11G11B10UF, uint32_t(sceneLinear.w()+3)/4, uint32_t(sceneLinear.h()+3)/4);
+  cmd.setFramebuffer({{blurred, Tempest::Discard, Tempest::Preserve}});
+  cmd.setBinding(0, sceneLinear, Sampler::bilinear(ClampMode::ClampToEdge));
+  cmd.setPipeline(shaders.underwaterDown);
+  cmd.draw(nullptr, 0, 3);
+
+  cmd.setFramebuffer({{sceneLinear, Tempest::Preserve, Tempest::Preserve}});
+  cmd.setBinding(0, wview.sceneGlobals().uboGlobal[SceneGlobals::V_Main]);
+  cmd.setBinding(1, blurred, Sampler::bilinear(ClampMode::ClampToEdge));
+  cmd.setPushData(waterY);
+  cmd.setPipeline(shaders.underwaterDistort);
   cmd.draw(nullptr, 0, 3);
   }
 

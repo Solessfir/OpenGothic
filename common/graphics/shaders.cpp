@@ -159,8 +159,12 @@ void Shaders::compileShaders() noexcept {
 
   underwaterT        = inWaterShader("underwater_t", false);
   underwaterS        = inWaterShader("underwater_s", true);
+  underwaterDown     = postEffect("triangle_uv", "underwater_down",    RenderState::ZTestMode::Always);
+  underwaterDistort  = postEffect("triangle_uv", "underwater_distort", RenderState::ZTestMode::Always);
   waterReflection    = reflectionShader("water_reflection.frag.sprv", opts.doMeshShading);
   waterReflectionSSR = reflectionShader("water_reflection_ssr.frag.sprv", opts.doMeshShading);
+  if(opts.doRayQuery && device.properties().descriptors.nonUniformIndexing)
+    waterReflectionRq = reflectionShader("water_reflection_rq.frag.sprv", opts.doMeshShading);
 
   {
   RenderState state;

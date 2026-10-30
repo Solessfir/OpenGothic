@@ -40,7 +40,7 @@ struct SceneDesc {
   float probeGridBias;
   float cameraFadeNear2;
   float cameraFadeFar2;
-  float cameraFadePadding;
+  float waterLevel; // around the camera, for caustics
   vec4  cameraFadeTarget;
   vec4  wind; // direction, phase
   };

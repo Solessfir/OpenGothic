@@ -164,6 +164,10 @@ void SceneGlobals::setUnderWater(bool w) {
   uboGlobalCpu.underWater = w ? 1 : 0;
   }
 
+void SceneGlobals::setWaterLevel(float y) {
+  uboGlobalCpu.waterLevel = y;
+  }
+
 void SceneGlobals::setTime(uint64_t time) {
   tickCount                = time;
   uboGlobalCpu.waveAnim    = 2.f*float(M_PI)*float(tickCount%3000)/3000.f;
