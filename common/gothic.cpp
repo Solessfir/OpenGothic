@@ -191,6 +191,7 @@ Gothic::Gothic(GameModDescriptor desc) {
   defaults->set("GAME", "highlightMeleeFocus", 0);
   defaults->set("GAME", "useQuickSaveKeys",    1);
   defaults->set("GAME", "skipEmptyLoot",       1);
+  defaults->set("GAME", "usePotionKeys",       1);
   defaults->set("ENGINE", "worldCacheMiB", 512);
   defaults->set("ENGINE", "cameraObstructionFade", 1);
   defaults->set("ENGINE", "cameraObstructionFadeDistance", 180.f);
@@ -200,7 +201,6 @@ Gothic::Gothic(GameModDescriptor desc) {
   defaults->set("GAME", "vibration",           1);
   defaults->set("GAME", "centerPlayerBars",    1);
   defaults->set("GAME", "touchButtons",        2);
-  defaults->set("GAME", "usePotionKeys",      1);
   defaults->set("GAME", "mouseSensitivity",   0.53f);
   defaults->set("ENGINE", "shadowMapResolution", 1024);
   defaults->set("ENGINE", "renderScale", 100);
