@@ -27,6 +27,7 @@ class AttachBinder;
 class PfxEmitterMesh;
 class GthFont;
 struct WorldData;
+struct PreparedMesh;
 
 namespace Dx8 {
 class DirectMusic;
@@ -121,6 +122,8 @@ class Resources final {
 
     static const AttachBinder*       bindMesh       (const ProtoMesh& anim, const Skeleton& s);
     static const ProtoMesh*          loadMesh       (std::string_view name);
+    static void                      prepareMeshes  (std::vector<std::string> names);
+    static void                      dropPreparedMeshes();
     static const PfxEmitterMesh*     loadEmiterMesh (std::string_view name);
     static const Skeleton*           loadSkeleton   (std::string_view name);
     static const Animation*          loadAnimation  (std::string_view name);
@@ -268,6 +271,8 @@ class Resources final {
     TextureCache                                                      texCache;
     std::map<Tempest::Color,std::unique_ptr<Tempest::Texture2d>,Less> pixCache;
     std::unordered_map<std::string,std::unique_ptr<ProtoMesh>>        aniMeshCache;
+    std::mutex                                                        syncPrepared;
+    std::unordered_map<std::string,std::unique_ptr<PreparedMesh>>     preparedMeshes;
     std::unordered_map<DecalK,std::unique_ptr<ProtoMesh>,Hash>        decalMeshCache;
     std::unordered_map<std::string,std::unique_ptr<Skeleton>>         skeletonCache;
     std::unordered_map<std::string,std::unique_ptr<Animation>>        animCache;
