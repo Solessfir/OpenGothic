@@ -115,6 +115,13 @@ void MenuRoot::closeAll() {
     }
   }
 
+void MenuRoot::refreshPointer() {
+#if !defined(__MOBILE_PLATFORM__)
+  mouseEnabled = MouseUtil::isPointerEnabled();
+  updateCursor();
+#endif
+  }
+
 void MenuRoot::updateCursor() {
 #if !defined(__MOBILE_PLATFORM__)
   setCursorShape(current!=nullptr && mouseEnabled ? CursorShape::Custom : CursorShape::Hidden);
