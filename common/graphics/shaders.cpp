@@ -211,18 +211,11 @@ void Shaders::compileShaders() noexcept {
   tonemapping        = postEffect("triangle_uv", "tonemapping",    RenderState::ZTestMode::Always);
   tonemappingUpscale = postEffect("triangle_uv", "tonemapping_up", RenderState::ZTestMode::Always);
 
-  cmaa2EdgeColor2x2Presets[uint32_t(AaPreset::OFF)]    = Tempest::ComputePipeline();
-  cmaa2EdgeColor2x2Presets[uint32_t(AaPreset::MEDIUM)] = computeShader("cmaa2_edges_color2x2_quality_0.comp.sprv");
-  cmaa2EdgeColor2x2Presets[uint32_t(AaPreset::ULTRA)]  = computeShader("cmaa2_edges_color2x2_quality_1.comp.sprv");
-
-  cmaa2ProcessCandidates = computeShader("cmaa2_process_candidates.comp.sprv");
-  {
-    auto sh = shaderSource("cmaa2_deferred_color_apply_2x2.vert.sprv");
-    auto vs = device.shader(sh.data,sh.len);
-    sh = shaderSource("cmaa2_deferred_color_apply_2x2.frag.sprv");
-    auto fs = device.shader(sh.data,sh.len);
-    cmaa2DeferredColorApply2x2 = device.pipeline(Tempest::Points,RenderState(),vs,fs);
-  }
+  smaaEdges  [uint32_t(AaPreset::MEDIUM)] = postEffect("triangle_uv", "smaa_edges",          RenderState::ZTestMode::Always);
+  smaaEdges  [uint32_t(AaPreset::ULTRA)]  = postEffect("triangle_uv", "smaa_edges_ultra",    RenderState::ZTestMode::Always);
+  smaaWeights[uint32_t(AaPreset::MEDIUM)] = postEffect("triangle_uv", "smaa_weights",        RenderState::ZTestMode::Always);
+  smaaWeights[uint32_t(AaPreset::ULTRA)]  = postEffect("triangle_uv", "smaa_weights_ultra",  RenderState::ZTestMode::Always);
+  smaaBlend                               = postEffect("triangle_uv", "smaa_blend",          RenderState::ZTestMode::Always);
 
   {
     RenderState state;
