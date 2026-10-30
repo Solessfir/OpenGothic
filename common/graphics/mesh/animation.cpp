@@ -230,8 +230,8 @@ Animation::Sequence::Sequence(const zenkit::MdsAnimation& hdr, std::string_view 
 
   data->fpsRate   = p.fps;
   data->numFrames = p.frame_count;
-  data->nodeIndex = p.node_indices;
-  data->samples   = p.samples;
+  data->nodeIndex = std::move(p.node_indices);
+  data->samples   = std::move(p.samples);
 
   data->setupMoveTr();
   }
