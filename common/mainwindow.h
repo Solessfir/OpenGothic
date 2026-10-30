@@ -103,7 +103,6 @@ class MainWindow : public Tempest::Window {
     void processMouse(Tempest::MouseEvent& event, bool enable);
     void onDesktopInput();
     void updateCustomCursor();
-    void updateWindowCursor();
     void tickMouse(uint64_t dt);
     void tickGamepad();
     void applyEquipmentWheel(size_t item);
