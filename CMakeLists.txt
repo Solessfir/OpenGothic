@@ -158,6 +158,9 @@ add_definitions(-DMINIZ_NO_STDIO)
 add_library(miniz STATIC EXCLUDE_FROM_ALL "lib/miniz/miniz.h" "lib/miniz/miniz.c")
 target_link_libraries(${PROJECT_NAME} miniz)
 
+# SMAA lookup textures
+include_directories(lib/smaa)
+
 # bullet physics
 set(BULLET2_MULTITHREADING       ON  CACHE INTERNAL "")
 set(USE_MSVC_RUNTIME_LIBRARY_DLL ON  CACHE INTERNAL "")

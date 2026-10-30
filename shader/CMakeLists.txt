@@ -404,13 +404,12 @@ add_shader(lights_bvh.comp       lighting/lightstree/lights_bvh.comp)
 
 add_shader(lightstree_dbg.frag   lighting/lightstree/lightstree_dbg.frag)
 
-# CMAA2
-add_shader(cmaa2_edges_color2x2_quality_0.comp     antialiasing/cmaa2/edge_color2x2.comp -DCMAA2_STATIC_QUALITY_PRESET=0)
-add_shader(cmaa2_edges_color2x2_quality_1.comp     antialiasing/cmaa2/edge_color2x2.comp -DCMAA2_STATIC_QUALITY_PRESET=1)
-
-add_shader(cmaa2_process_candidates.comp           antialiasing/cmaa2/process_candidates.comp)
-add_shader(cmaa2_deferred_color_apply_2x2.vert     antialiasing/cmaa2/deferred_color_apply_2x2.vert)
-add_shader(cmaa2_deferred_color_apply_2x2.frag     antialiasing/cmaa2/deferred_color_apply_2x2.frag)
+# SMAA
+add_shader(smaa_edges.frag          antialiasing/smaa/edges.frag)
+add_shader(smaa_edges_ultra.frag    antialiasing/smaa/edges.frag -DULTRA)
+add_shader(smaa_weights.frag        antialiasing/smaa/weights.frag)
+add_shader(smaa_weights_ultra.frag  antialiasing/smaa/weights.frag -DULTRA)
+add_shader(smaa_blend.frag          antialiasing/smaa/blend.frag)
 
 # virtual shadows
 add_shader(vsm_dbg.frag              virtual_shadow/vsm_direct_light.frag -DDEBUG)
