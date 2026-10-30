@@ -74,6 +74,10 @@ CommandLine::CommandLine(int argc, const char** argv) {
       if(i<argc){
         if(std::strcmp(argv[i],"q")==0) {
           saveDef = "save_slot_0.sav";
+          }
+        else if(argv[i][0]=='q') {
+          // Rotating quicksaves: -save q3 is save_quick_3.sav
+          saveDef = string_frm("save_quick_",argv[i]+1,".sav");
           } else {
           saveDef = string_frm("save_slot_",argv[i],".sav");
           }
