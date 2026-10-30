@@ -80,9 +80,9 @@ class Shaders {
     Tempest::RenderPipeline  hdrOutput;
 
     // AA
-    Tempest::ComputePipeline cmaa2EdgeColor2x2Presets[uint32_t(AaPreset::PRESETS_COUNT)];
-    Tempest::ComputePipeline cmaa2ProcessCandidates;
-    Tempest::RenderPipeline  cmaa2DeferredColorApply2x2;
+    Tempest::RenderPipeline  smaaEdges[uint32_t(AaPreset::PRESETS_COUNT)];
+    Tempest::RenderPipeline  smaaWeights[uint32_t(AaPreset::PRESETS_COUNT)];
+    Tempest::RenderPipeline  smaaBlend;
 
     // HUD
     Tempest::RenderPipeline  gizmo, lightImposter;
