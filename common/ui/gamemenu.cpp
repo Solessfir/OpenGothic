@@ -364,7 +364,7 @@ void GameMenu::initExtraOptions() {
   auto sourceChoice=find("MENUITEM_GAME_SUB_TITLES_CHOICE");
   if(back==nullptr || sourceLabel==nullptr || sourceChoice==nullptr) return;
   // Rows OpenGothic adds below the script's own, as label and value pairs
-  struct Row { const char* name; const char* title; const char* option; std::string values; const char* help; };
+  struct Row { const char* name; const char* title; const char* option; std::string values; const char* help; const char* section="GAME"; };
   std::string quickSaves="Default";
   for(int i=1;i<=20;++i) quickSaves+="|"+std::to_string(i);
   std::vector<Row> extra={
@@ -378,6 +378,8 @@ void GameMenu::initExtraOptions() {
 #else
     {"OPENGOTHIC_SHOW_FPS", "Show FPS", "showFps", "Off|On",
      "Show the frame rate in the top left corner."},
+    {"OPENGOTHIC_AA", "Anti-aliasing", "antiAliasing", "Off|Medium|Ultra",
+     "Smooths jagged edges (CMAA2). Needs the full rendering resolution.", "ENGINE"},
 #endif
     };
 #if !defined(__ANDROID__)
@@ -402,7 +404,7 @@ void GameMenu::initExtraOptions() {
     choice.name=extra[i].name;
     choice.handle=std::make_shared<zenkit::IMenuItem>(*sourceChoice->handle);
     choice.img=sourceChoice->img;
-    choice.handle->on_chg_set_option_section="GAME";
+    choice.handle->on_chg_set_option_section=extra[i].section;
     choice.handle->on_chg_set_option=extra[i].option;
     choice.handle->text[0]=extra[i].values;
     choice.handle->text[1]=extra[i].help;
