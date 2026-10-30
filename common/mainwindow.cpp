@@ -83,6 +83,8 @@ MainWindow::MainWindow(Device& device)
 #endif
 #if defined(__ANDROID__)
   mobileUi.onTouchStarted=[this] { setControllerInput(false); };
+#endif
+#if defined(OPENGOTHIC_GAMEPAD)
   if(!std::filesystem::exists("Gamepad.ini")) {
     std::ofstream file("Gamepad.ini");
     file<<GamepadBindings::defaults();
@@ -100,6 +102,10 @@ MainWindow::MainWindow(Device& device)
 
   if(!CommandLine::inst().isWindowMode()) {
     setFullscreen(true);
+    } else {
+    // A window that starts at its final size gets no resize event to make the cursor image
+    updateCustomCursor();
+    updateWindowCursor();
     }
 
   //renderer.resetSwapchain();
@@ -169,7 +175,7 @@ MainWindow::MainWindow(Device& device)
   // The usual desktop fullscreen toggle, same as F3
   altEnter = Shortcut(*this,Event::M_Alt,Event::K_Return);
   altEnter.onActivated.bind(this, &MainWindow::onMarvinKey<Event::K_F3>);
-#if defined(__ANDROID__)
+#if defined(OPENGOTHIC_GAMEPAD)
   // Controller menu actions can open modal dialogs, so dispatch them outside rendering.
   controllerTimer.timeout.bind(this,&MainWindow::tickGamepad);
   controllerTimer.start(1);
@@ -177,7 +183,7 @@ MainWindow::MainWindow(Device& device)
   }
 
 MainWindow::~MainWindow() {
-#if defined(__ANDROID__)
+#if defined(OPENGOTHIC_GAMEPAD)
   controllerTimer.stop();
 #endif
   GameMusic::inst().stopMusic();
@@ -438,6 +444,17 @@ static Pixmap makeMenuCursor(float scale, int& hotspot) {
   }
 #endif
 
+void MainWindow::updateCustomCursor() {
+#if !defined(__MOBILE_PLATFORM__)
+  if(const float scale = Gothic::interfaceScale(this); scale!=cursorScale) {
+    cursorScale = scale;
+    int hotspot = 0;
+    const auto img = makeMenuCursor(scale,hotspot);
+    SystemApi::setCustomCursor(img,hotspot,hotspot);
+    }
+#endif
+  }
+
 void MainWindow::resizeEvent(SizeEvent&) {
 #if defined(__ANDROID__)
   framePacer.reset();
@@ -452,14 +469,7 @@ void MainWindow::resizeEvent(SizeEvent&) {
     setCursorPosition(Point(w()/2,h()/2));
     }
 
-#if !defined(__MOBILE_PLATFORM__)
-  if(const float scale = Gothic::interfaceScale(this); scale!=cursorScale) {
-    cursorScale = scale;
-    int hotspot = 0;
-    const auto img = makeMenuCursor(scale,hotspot);
-    SystemApi::setCustomCursor(img,hotspot,hotspot);
-    }
-#endif
+  updateCustomCursor();
 
   dMouse = Point();
   }
@@ -479,6 +489,7 @@ void MainWindow::metricsEvent(DisplayMetricsEvent& event) {
   }
 
 void MainWindow::mouseDownEvent(MouseEvent &event) {
+  onDesktopInput();
   if(event.button<sizeof(mouseP))
     mouseP[event.button]=true;
   auto act     = keycodec.tr(event);
@@ -507,6 +518,12 @@ void MainWindow::mouseMoveEvent(MouseEvent &event) {
   processMouse(event,SystemApi::isFullscreen(hwnd()));
   }
 
+void MainWindow::onDesktopInput() {
+#if defined(OPENGOTHIC_GAMEPAD) && !defined(__MOBILE_PLATFORM__)
+  setControllerInput(false);
+#endif
+  }
+
 void MainWindow::processMouse(MouseEvent& event, bool enable) {
   auto center = Point(w()/2,h()/2);
   if(enable && event.pos()!=center && hasFocus()) {
@@ -527,7 +544,7 @@ void MainWindow::tickMouse(uint64_t dt) {
       setCursorPosition(Point(w()/2,h()/2));
     }
 
-#if defined(__ANDROID__)
+#if defined(OPENGOTHIC_GAMEPAD)
   if(controllerConnected) {
     dMouse = Point();
     return;
@@ -882,6 +899,7 @@ void MainWindow::mouseWheelEvent(MouseEvent &event) {
   }
 
 void MainWindow::keyDownEvent(KeyEvent &event) {
+  onDesktopInput();
   if(video.isActive()){
     event.accept();
     video.keyDownEvent(event);
@@ -1052,6 +1070,8 @@ void MainWindow::keyUpEvent(KeyEvent &event) {
 void MainWindow::focusEvent(FocusEvent &event) {
 #if defined(__ANDROID__)
   framePacer.reset();
+#endif
+#if defined(OPENGOTHIC_GAMEPAD)
   controllerFocused=event.in;
   if(!event.in) {
     resumeAnalogAfterSave=false;
@@ -1494,6 +1514,11 @@ void MainWindow::tickCamera(uint64_t dt) {
     else if(pl!=nullptr && pl->interactive()==nullptr && !pl->isDown()) {
       camera.setTarget(pos);
       }
+#elif defined(OPENGOTHIC_GAMEPAD)
+    // The right stick owns camera yaw, as on Android
+    else if(controllerConnected && pl!=nullptr && pl->interactive()==nullptr && !pl->isDown()) {
+      camera.setTarget(pos);
+      }
 #endif
     else if(pl!=nullptr && (pl->isSwim() || pl->isDive()) &&
             (player.isControllerSwimming() || Gothic::settingsGetI("GAME","cameraSwimming")!=0)) {
@@ -1537,7 +1562,7 @@ Camera::Mode MainWindow::solveCameraMode() const {
 
   if((inventory.isOpen()==InventoryMenu::State::Equip ||
       inventory.isOpen()==InventoryMenu::State::Ransack)
-#if defined(__ANDROID__)
+#if defined(OPENGOTHIC_GAMEPAD)
      && !inventory.isWheelOpen()
 #endif
      )
@@ -1675,6 +1700,8 @@ void MainWindow::onVideo(std::string_view fname) {
 void MainWindow::onStartLoading() {
 #if defined(__ANDROID__)
   framePacer.reset();
+#endif
+#if defined(OPENGOTHIC_GAMEPAD)
   resumeAnalogAfterSave=Gothic::inst().checkLoading()==Gothic::LoadState::Saving &&
                         controllerFocused && !rootMenu.isActive() && !inventory.isActive() &&
                         !document.isActive() && !dialogs.isActive();
@@ -1721,11 +1748,13 @@ void MainWindow::onWorldLoaded() {
     pl->multSpeed(1.f);
   lastTick = Application::tickCount();
   player.clearFocus();
-#if defined(__ANDROID__)
+#if defined(OPENGOTHIC_GAMEPAD)
   if(resumeAnalogAfterSave && controllerFocused && !controllerDisconnectPending) {
     // Resample the current sticks/fingers; never replay a saved axis after its release.
     controllerAxesBlocked=false;
+#if defined(__MOBILE_PLATFORM__)
     touchMovementBlocked=false;
+#endif
     controllerBindings.reset(controllerButtons);
     }
   resumeAnalogAfterSave=false;
@@ -1781,7 +1810,16 @@ void MainWindow::clearInput() {
 
 void MainWindow::setFullscreen(bool fs) {
   SystemApi::setAsFullscreen(hwnd(),fs);
-  setCursorShape(fs ? CursorShape::Hidden : CursorShape::Arrow);
+  updateWindowCursor();
+  }
+
+void MainWindow::updateWindowCursor() {
+  bool hidden = SystemApi::isFullscreen(hwnd());
+#if defined(OPENGOTHIC_GAMEPAD)
+  // The pointer is only in the way while the gamepad plays
+  hidden |= controllerConnected;
+#endif
+  setCursorShape(hidden ? CursorShape::Hidden : CursorShape::Custom);
   }
 
 void MainWindow::render(){
