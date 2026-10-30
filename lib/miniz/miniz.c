@@ -90,10 +90,45 @@ mz_ulong mz_adler32(mz_ulong adler, const unsigned char *ptr, size_t buf_len)
  */
 mz_ulong mz_crc32(mz_ulong crc, const mz_uint8 *ptr, size_t buf_len);
 #else
+#if defined(__aarch64__) && defined(__linux__)
+#include <arm_acle.h>
+#include <sys/auxv.h>
+#include <asm/hwcap.h>
+
+/* ARMv8 CRC32 instructions use the zip polynomial. They are optional before ARMv8.1, so check at runtime. */
+static int mz_has_arm_crc32(void)
+{
+    static int s_has = -1;
+    if (s_has < 0)
+        s_has = (getauxval(AT_HWCAP) & HWCAP_CRC32) != 0;
+    return s_has;
+}
+
+__attribute__((target("crc"))) static mz_ulong mz_crc32_arm(mz_ulong crc, const mz_uint8 *ptr, size_t buf_len)
+{
+    mz_uint32 crc32 = (mz_uint32)crc ^ 0xFFFFFFFF;
+    while (buf_len >= 8)
+    {
+        mz_uint64 v;
+        memcpy(&v, ptr, sizeof(v));
+        crc32 = __crc32d(crc32, v);
+        ptr += 8;
+        buf_len -= 8;
+    }
+    while (buf_len--)
+        crc32 = __crc32b(crc32, *ptr++);
+    return ~crc32;
+}
+#endif
+
 /* Faster, but larger CPU cache footprint.
  */
 mz_ulong mz_crc32(mz_ulong crc, const mz_uint8 *ptr, size_t buf_len)
 {
+#if defined(__aarch64__) && defined(__linux__)
+    if (mz_has_arm_crc32())
+        return mz_crc32_arm(crc, ptr, buf_len);
+#endif
     static const mz_uint32 s_crc_table[256] =
         {
           0x00000000, 0x77073096, 0xEE0E612C, 0x990951BA, 0x076DC419, 0x706AF48F, 0xE963A535,
