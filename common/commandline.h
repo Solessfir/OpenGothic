@@ -50,6 +50,8 @@ class CommandLine {
     std::string_view    defaultSave()      const { return saveDef;    }
     // Pitch and yaw in degrees (yaw relative to the player) and zoom 0..1, for repeatable test views
     const float*        startCamera()      const { return hasCamera ? camera : nullptr; }
+    // Minutes since midnight, or -1 to keep the time of the save
+    int32_t             startTime()        const { return startTimeMin; }
 
     std::string         wrldDef;
 
@@ -65,6 +67,7 @@ class CommandLine {
     bool                noMenu       = false;
     bool                hasCamera    = false;
     float               camera[3]    = {};
+    int32_t             startTimeMin = -1;
     Benchmark           isBenchmark  = Benchmark::None;
     bool                isWindow     = false;
     bool                isDebug      = false;

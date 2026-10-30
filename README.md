@@ -215,4 +215,5 @@ Rendering distance is not customizable.
 | `-aa <number>`         | enable anti-aliasing (number = 1-2, 2 = most expensive AA)       |
 | `-window`              | windowed debugging mode (not to be used for playing)             |
 | `-camera <p> <y> <z>`  | after loading: camera pitch, player yaw turn (degrees), zoom 0..1 |
+| `-time <hh:mm>`        | time of day after the first load, e.g. `-time 12:00`              |
 | `-help`                | print the command line arguments                                 |

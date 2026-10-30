@@ -104,6 +104,7 @@ class MainWindow : public Tempest::Window {
     void onDesktopInput();
     void updateCustomCursor();
     bool startCameraPending = false;
+    bool startTimeApplied   = false;
     void tickMouse(uint64_t dt);
     void tickGamepad();
     void applyEquipmentWheel(size_t item);
