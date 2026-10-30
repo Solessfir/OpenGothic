@@ -23,6 +23,7 @@ class ProtoMesh {
     using Vertex = Resources::VertexA;
 
     ProtoMesh(PackedMesh&&  pm, std::string_view fname);
+    ProtoMesh(PackedMesh&&  pm, std::unique_ptr<PhysicMeshShape>&& shape, std::string_view fname);
     ProtoMesh(PackedMesh&&  pm, const std::vector<zenkit::MorphAnimation>& aniList, std::string_view fname);
     ProtoMesh(const zenkit::Model& lib, std::unique_ptr<Skeleton>&& sk, std::string_view fname);
     ProtoMesh(const zenkit::ModelHierarchy& lib, std::unique_ptr<Skeleton>&& sk, std::string_view fname);

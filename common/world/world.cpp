@@ -66,6 +66,26 @@ const char* materialTag(zenkit::MaterialGroup src) {
   return "UD";
   }
 
+// Static meshes of the level's vobs, so their CPU work can run in parallel before the vobs are created
+static std::vector<std::string> vobMeshes(const zenkit::World& world) {
+  std::vector<std::string> ret;
+  std::vector<const zenkit::VirtualObject*> stack;
+  for(auto& vob:world.world_vobs)
+    stack.push_back(vob.get());
+  while(!stack.empty()) {
+    auto* vob = stack.back();
+    stack.pop_back();
+    for(auto& child:vob->children)
+      stack.push_back(child.get());
+    // Items come from the save or the scripts, not from the level
+    if(vob->visual==nullptr || vob->type==zenkit::VirtualObjectType::oCItem)
+      continue;
+    if(vob->visual->type==zenkit::VisualType::MESH || vob->visual->type==zenkit::VisualType::MULTI_RESOLUTION_MESH)
+      ret.emplace_back(vob->visual->name);
+    }
+  return ret;
+  }
+
 World::World(GameSession& game, std::string_view file, bool startup, std::function<void(int)> loadProgress)
   :wname(std::move(file)), game(game), wsound(game,*this), wobj(*this) {
   if(Resources::vdfsIndex().find(wname)==nullptr) {
@@ -91,6 +111,11 @@ World::World(GameSession& game, std::string_view file, bool startup, std::functi
       SaveLoadProfile::Timer time("load/visual-build-parallel");
       return std::unique_ptr<WorldView>(new WorldView(*data->visual, wname));
       });
+    auto meshesFut = std::async(std::launch::async, [&]() {
+      Workers::setThreadName("Loading: mesh thread");
+      SaveLoadProfile::Timer time("load/mesh-prepare-parallel");
+      Resources::prepareMeshes(vobMeshes(world));
+      });
 
     loadProgress(30);
 
@@ -106,6 +131,7 @@ World::World(GameSession& game, std::string_view file, bool startup, std::functi
     loadProgress(60);
 
     wdynamic = wdynamicFut.get();
+    meshesFut.get();
     time.step("load/mesh-jobs-and-bsp");
     loadProgress(70);
 
@@ -113,6 +139,7 @@ World::World(GameSession& game, std::string_view file, bool startup, std::functi
     wmatrix.reset(new WayMatrix(*this, *world.way_net));
     for(auto& vob:world.world_vobs)
       wobj.addRoot(vob,startup);
+    Resources::dropPreparedMeshes();
 
     wmatrix->buildIndex();
     time.step("load/vobs-and-waypoints");
