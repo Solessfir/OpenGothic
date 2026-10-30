@@ -12,11 +12,17 @@ ProtoMesh::Attach::~Attach() {
   }
 
 ProtoMesh::ProtoMesh(PackedMesh&& pm, std::string_view fname)
+  :ProtoMesh(std::move(pm), nullptr, fname) {
+  // The delegated constructor only reads pm
+  attach[0].shape.reset(PhysicMeshShape::load(std::move(pm)));
+  }
+
+ProtoMesh::ProtoMesh(PackedMesh&& pm, std::unique_ptr<PhysicMeshShape>&& shape, std::string_view fname)
   :fname(fname) {
   attach.emplace_back(pm);
   submeshId.resize(attach[0].sub.size());
   auto&  att   = attach[0];
-  att.shape.reset(PhysicMeshShape::load(std::move(pm)));
+  att.shape = std::move(shape);
 
   size_t count = 0;
   for(size_t r=0;r<att.sub.size();++r) {
