@@ -192,7 +192,9 @@ void Workers::execWork(uint32_t& minElts) {
   std::unique_lock<std::mutex> lck(sync);
   workTbd = int32_t(taskCount);
   }
-  workWait.notify_all();
+  // Waking every worker for a few tasks makes the rest spin back to sleep each frame
+  for(uint32_t i=0; i<taskCount; ++i)
+    workWait.notify_one();
 
   uint32_t cnt = 0;
   if(workSet==nullptr) {
