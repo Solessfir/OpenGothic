@@ -49,6 +49,8 @@ class WorldView {
     void setSceneImages(const Tempest::Texture2d& clr, const Tempest::Texture2d& depthAux, const Tempest::ZBuffer& depthNative);
     void setWindEnabled(bool enabled, uint64_t period);
     void setCameraObstructionFade(float distance, const Tempest::Vec4& target) { sGlobal.setCameraObstructionFade(distance, target); }
+    void setWaterLevel(float y) { sGlobal.setWaterLevel(y); }
+    void setSkyIrradiance(const Tempest::Texture2d& t) { sGlobal.skyIrradiance = &t; }
 
     void dbgLights      (DbgPainter& p) const;
 

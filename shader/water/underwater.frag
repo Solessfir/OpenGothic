@@ -1,6 +1,7 @@
 #version 460
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_GOOGLE_include_directive : enable
+#extension GL_EXT_samplerless_texture_functions : enable
 
 #include "scene.glsl"
 #include "common.glsl"
@@ -12,22 +13,13 @@ layout(binding = 0, std140) uniform UboScene {
   };
 layout(binding = 1) uniform sampler2D zbuffer;
 layout(binding = 2) uniform sampler2D gbufDiffuse;
+layout(binding = 3) uniform texture2D irradiance;
 
 layout(push_constant, std430) uniform Push {
   float waterY;
   } push;
 
-// fixme: copy-paste
-vec4 waterScatter(vec3 back, vec3 normal, const float len) {
-  const vec3 transmittance = waterTransmittance(len);
-#if defined(SCATTERING)
-  const float f       = fresnel(scene.sunDir,normal,IorWater);
-  const vec3  scatter = f * scene.sunColor * (1-exp(-len/20000.0)) * scene.exposure;
-  return vec4(scatter*transmittance, 1);
-#else
-  return vec4(transmittance, 1);
-#endif
-  }
+#include "water/water_haze.glsl"
 
 vec3 unproject(vec4 screen) {
   const vec4 pos4 = scene.viewProjectInv * screen;
@@ -55,5 +47,10 @@ void main() {
       discard;
     len *= 1.0-clamp((push.waterY-camPos.y)/ray.y, 0.0, 1.0);
     }
-  outColor = waterScatter(vec3(1),vec3(0,1,0),len);
+  // Two passes: one multiplies the scene by the transmittance, the other adds the haze the water scatters in
+#if defined(SCATTERING)
+  outColor = vec4(waterHaze()*(1.0-waterAbsorption(len)), 1);
+#else
+  outColor = vec4(waterAbsorption(len), 1);
+#endif
   }

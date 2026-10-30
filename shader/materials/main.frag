@@ -256,6 +256,8 @@ void mainGhost(vec4 t) {
 #endif
 
 #if defined(WATER)
+#include "water/water_haze.glsl"
+
 vec4 underWaterColorDepth(vec3 normal) {
   const vec2  fragCoord = (gl_FragCoord.xy*scene.screenResInv)*2.0-vec2(1.0);
   const float ior       = IorWater;
@@ -290,14 +292,9 @@ vec4 underWaterColorDepth(vec3 normal) {
   return vec4(back,length(fragPos1.xyz - shInp.pos.xyz));
   }
 
+// Same absorption and haze as the view from below
 vec3 waterScatter(vec3 back, vec3 normal, float len) {
-  vec3  transmittance = waterTransmittance(len);
-  // note: less sun light and less obsevable light
-  transmittance = transmittance*transmittance;
-
-  const float f       = fresnel(scene.sunDir,normal,IorWater);
-  const vec3  scatter = f * scene.sunColor * (1-exp(-len/20000.0)) * max(scene.sunDir.y, 0);
-  return (back + scatter*scene.exposure)*transmittance;
+  return waterFog(back, len);
   }
 
 vec4 waterShading(vec4 t, const vec3 normal) {
@@ -315,8 +312,11 @@ vec4 waterShading(vec4 t, const vec3 normal) {
   const float f      = fresnel(refl,normal,ior);
 
   if(underWater) {
-    vec3 back = texelFetch(sceneColor, ivec2(gl_FragCoord.xy), 0).rgb;
-    return vec4(back.rgb * (1.0-f),1);
+    // From below the surface only lets light through near the zenith (Snell's window),
+    // the reflection pass adds the mirrored underwater scene for the rest
+    const float fu   = 1.0 - underwaterWindow(view, normal);
+    const vec3  back = texelFetch(sceneColor, ivec2(gl_FragCoord.xy), 0).rgb;
+    return vec4(back*(1.0-fu), 1);
     }
 
   const vec4 back  = underWaterColorDepth(normal);
@@ -336,6 +336,10 @@ void mainWater(vec4 t) {
   if(gl_FrontFacing) {
     // BROKEN: water mesh is two sided
     wx.normal = -wx.normal;
+    }
+  if(scene.underWater!=0) {
+    // Keep the normal up and the ripples gentle, so the edge of the window does not shred
+    wx.normal = normalize(mix(wx.normal*sign(wx.normal.y), vec3(0,1,0), 0.4));
     }
 
   outColor       = waterShading(t,wx.normal);
