@@ -247,9 +247,11 @@ class MainWindow : public Tempest::Window {
     uint32_t      gpuProfileFrames = 0;
     uint32_t      gpuProfileAttempts = 0;
     std::ofstream gpuProfileLog;
-#if defined(__ANDROID__)
     uint64_t      fpsOverlayUpdated = 0;
+    uint32_t      fpsOverlayFrames = 0;
+    char          fpsText[32] = {};
     bool          showFps = false;
+#if defined(__ANDROID__)
     uint32_t      maxFps = 60;
     Tempest::FramePacer framePacer;
 #endif
