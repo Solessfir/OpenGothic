@@ -14,6 +14,7 @@
 #include "utils/installdetect.h"
 #include "utils/fileutil.h"
 #include "utils/string_frm.h"
+#include "utils/saveslot.h"
 
 using namespace Tempest;
 using namespace FileUtil;
@@ -77,6 +78,12 @@ CommandLine::CommandLine(int argc, const char** argv) {
           saveDef = string_frm("save_slot_",argv[i],".sav");
           }
         }
+      }
+    else if(arg=="-lastSave" || arg=="-lastsave") {
+      // Without any save the game starts at the main menu as usual
+      const auto file = SaveSlot::newest(".");
+      if(!file.empty())
+        saveDef = file.filename().string();
       }
     else if(arg=="-w") {
       ++i;
