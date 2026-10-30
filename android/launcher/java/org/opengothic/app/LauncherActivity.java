@@ -72,6 +72,7 @@ public final class LauncherActivity extends AppCompatActivity {
     private static final int RESTORE = 6;
     private static final int REPORT = 7;
     private static final int CONTROLS = 8;
+    private static final int DONATE = 9;
     private static final long REFRESH_INTERVAL = 10 * 60 * 1000;
 
     private static volatile boolean refreshing;
@@ -713,12 +714,14 @@ public final class LauncherActivity extends AppCompatActivity {
         menu.getMenu().add(0, BACKUP, 1, R.string.og_backup);
         menu.getMenu().add(0, RESTORE, 2, R.string.og_restore);
         menu.getMenu().add(0, REPORT, 3, R.string.og_feedback);
-        if (Library.installed(root, game())) menu.getMenu().add(0, 0, 4, R.string.og_uninstall);
+        menu.getMenu().add(0, DONATE, 4, R.string.og_donate);
+        if (Library.installed(root, game())) menu.getMenu().add(0, 0, 5, R.string.og_uninstall);
         menu.setOnMenuItemClickListener(item -> {
             if (item.getItemId() == CONTROLS) showControls();
             else if (item.getItemId() == BACKUP) backup();
             else if (item.getItemId() == RESTORE) restore();
             else if (item.getItemId() == REPORT) askReport(game(), null);
+            else if (item.getItemId() == DONATE) startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://ko-fi.com/solessfir")));
             else confirmUninstall();
             return true;
         });

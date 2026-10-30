@@ -33,6 +33,7 @@
     <string name="og_restore_title">Restore saves and settings for %1$s?</string>
     <string name="og_restore_body">Saves in the same slots and the settings are replaced by the backup. Other saves stay.</string>
     <string name="og_feedback">Feedback</string>
+    <string name="og_donate">Support development ❤️</string>
     <string name="og_feedback_problem">Problem</string>
     <string name="og_feedback_suggestion">Suggestion</string>
     <string name="og_suggestion_body">Send an idea to the developer? Only your text, the launcher version and the phone model are sent.</string>
