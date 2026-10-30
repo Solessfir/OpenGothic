@@ -38,7 +38,7 @@ class SceneGlobals final {
     void setSky(const Sky& s);
     void setWorld(const WorldView& wview);
     void setUnderWater(bool w);
-    void setWaterLevel(float y);
+    void setWaterLevel(float y, float waves);
     void setCameraObstructionFade(float distance, const Tempest::Vec4& target);
 
     void setTime(uint64_t time);
@@ -131,6 +131,8 @@ class SceneGlobals final {
       float                           waterLevel = NoWater; // around the camera, for caustics
       Tempest::Vec4                    cameraFadeTarget = {};
       Tempest::Vec4                    wind = {}; // direction, phase
+      float                           waterWaves = 0; // wave_max_amplitude of the water at waterLevel
+      float                           padding0 = 0, padding1 = 0, padding2 = 0;
       };
 
     Tempest::UniformBuffer<UboGlobal> uboGlobalPf[Resources::MaxFramesInFlight][V_Count];

@@ -297,8 +297,9 @@ vec3 waterScatter(vec3 back, vec3 normal, float len) {
   return waterFog(back, len);
   }
 
-vec4 waterShading(vec4 t, const vec3 normal) {
-  const bool underWater = (scene.underWater!=0);
+// Seen from below when the camera is under this point of the surface: with the camera in the surface,
+// one screen shows the water from both sides
+vec4 waterShading(vec4 t, const vec3 normal, const bool underWater) {
 
   const float ior = underWater ? IorAir : IorWater;
 
@@ -337,12 +338,13 @@ void mainWater(vec4 t) {
     // BROKEN: water mesh is two sided
     wx.normal = -wx.normal;
     }
-  if(scene.underWater!=0) {
+  const bool fromBelow = scene.camPos.y < shInp.pos.y;
+  if(fromBelow) {
     // Keep the normal up and the ripples gentle, so the edge of the window does not shred
     wx.normal = normalize(mix(wx.normal*sign(wx.normal.y), vec3(0,1,0), 0.4));
     }
 
-  outColor       = waterShading(t,wx.normal);
+  outColor       = waterShading(t,wx.normal,fromBelow);
   outDiffuse.rgb = t.rgb;
   outDiffuse.a   = encodeHintBits();
   outNormal      = encodeNormal(wx.normal);
