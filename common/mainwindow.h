@@ -101,6 +101,9 @@ class MainWindow : public Tempest::Window {
     void setFullscreen(bool fs);
 
     void processMouse(Tempest::MouseEvent& event, bool enable);
+    void onDesktopInput();
+    void updateCustomCursor();
+    void updateWindowCursor();
     void tickMouse(uint64_t dt);
     void tickGamepad();
     void applyEquipmentWheel(size_t item);
@@ -186,7 +189,7 @@ class MainWindow : public Tempest::Window {
     // Pause after camera input before the swim camera eases back to the surface view.
     static constexpr uint64_t SwimViewDelayMs = 300;
     PlayerControl             player;
-#if defined(__ANDROID__)
+#if defined(OPENGOTHIC_GAMEPAD)
     Tempest::Timer            controllerTimer;
     GamepadBindings           controllerBindings;
     GamepadActivity           controllerActivity;
@@ -207,6 +210,7 @@ class MainWindow : public Tempest::Window {
     bool                      controllerSwitchReady=true;
     bool                      controllerWasPresent=false;
     bool                      controllerDisconnectPending=false;
+    Tempest::Point            lastMousePos;
     int                       controllerOverlayContext=-1;
     std::string               controllerOverlayTitle;
     struct ControllerGuideGroup {

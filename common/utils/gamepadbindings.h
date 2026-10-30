@@ -1,5 +1,6 @@
 #pragma once
 
+#include <Tempest/Platform>
 #include <array>
 #include <cstdint>
 #include <istream>
@@ -7,6 +8,11 @@
 #include <string_view>
 #include <vector>
 #include <utility>
+
+// Platforms where Tempest reports gamepad state
+#if defined(__ANDROID__) || defined(__WINDOWS__)
+#define OPENGOTHIC_GAMEPAD
+#endif
 
 // Game-specific bindings are independent of the platform input backend.
 class GamepadBindings final {
