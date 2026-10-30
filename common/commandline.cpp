@@ -57,6 +57,7 @@ static const char* helpText =
   "  -lastSave              load the newest save on start, or show the main menu if there is none\n"
   "  -window                windowed mode\n"
   "  -camera <pitch> <yaw> <zoom>  camera after loading: degrees, yaw relative to the player, zoom 0..1\n"
+  "  -time <hh:mm>          time of day after the first load\n"
   "  -benchmark             run the benchmark\n"
   "  -v, -validation        enable validation layers for the graphics API\n"
   "  -dx12                  use DirectX 12 instead of Vulkan (Windows only)\n"
@@ -151,6 +152,15 @@ CommandLine::CommandLine(int argc, const char** argv) {
           }
         }
       i += 3;
+      }
+    else if(arg=="-time") {
+      ++i;
+      if(i<argc) {
+        int h = 0, m = 0;
+        if(std::sscanf(argv[i], "%d:%d", &h, &m)>=1 && h>=0 && h<24 && m>=0 && m<60)
+          startTimeMin = h*60 + m; else
+          Log::i("failed to read -time <hh:mm>: \"", argv[i], "\"");
+        }
       }
     else if(arg=="-w") {
       ++i;
