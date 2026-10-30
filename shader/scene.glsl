@@ -43,6 +43,8 @@ struct SceneDesc {
   float waterLevel; // around the camera, for caustics
   vec4  cameraFadeTarget;
   vec4  wind; // direction, phase
+  float waterWaves; // wave_max_amplitude of the water at waterLevel
+  float padding0, padding1, padding2;
   };
 
 struct LightSource {

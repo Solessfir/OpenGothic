@@ -164,8 +164,9 @@ void SceneGlobals::setUnderWater(bool w) {
   uboGlobalCpu.underWater = w ? 1 : 0;
   }
 
-void SceneGlobals::setWaterLevel(float y) {
+void SceneGlobals::setWaterLevel(float y, float waves) {
   uboGlobalCpu.waterLevel = y;
+  uboGlobalCpu.waterWaves = waves;
   }
 
 void SceneGlobals::setTime(uint64_t time) {
