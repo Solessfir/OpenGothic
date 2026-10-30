@@ -36,6 +36,7 @@ class Interactive : public Vob {
 
     void                resetPositionToTA(int32_t state);
     void                updateAnimation(uint64_t dt);
+    void                setPoseInterval(uint64_t ms) { visual.setPoseInterval(ms); }
     void                tick(uint64_t dt);
     void                onKeyInput(KeyCodec::Action act);
 
