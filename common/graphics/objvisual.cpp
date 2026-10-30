@@ -276,6 +276,11 @@ bool ObjVisual::updateAnimation(Npc* npc, Interactive* mobsi, World& world, uint
   return false;
   }
 
+void ObjVisual::setPoseInterval(uint64_t ms) {
+  if(type==M_Mdl)
+    mdl.view.setPoseInterval(ms);
+  }
+
 void ObjVisual::processLayers(World& world) {
   if(type==M_Mdl) {
     mdl.view.processLayers(world);

@@ -30,6 +30,7 @@ class ObjVisual {
     bool hasAnim(std::string_view name) const;
 
     bool updateAnimation(Npc* npc, Interactive* mobsi, World& world, uint64_t dt, bool force);
+    void setPoseInterval(uint64_t ms);
     void processLayers(World& world);
     void syncPhysics();
 
