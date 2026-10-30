@@ -32,6 +32,7 @@
     <string name="og_restore_title">Восстановить сохранения и настройки для %1$s?</string>
     <string name="og_restore_body">Сохранения в тех же слотах и настройки будут заменены копией. Остальные сохранения останутся.</string>
     <string name="og_feedback">Отзыв</string>
+    <string name="og_donate">Поддержать разработку ❤️</string>
     <string name="og_feedback_problem">Проблема</string>
     <string name="og_feedback_suggestion">Предложение</string>
     <string name="og_suggestion_body">Отправить идею разработчику? Отправляются только ваш текст, версия лаунчера и модель телефона.</string>
