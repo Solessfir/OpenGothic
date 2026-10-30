@@ -48,6 +48,8 @@ class CommandLine {
     bool                doForceG2NR()      const { return forceG2NR;    }
     int32_t             aaPreset()         const { return aaPresetId;   }
     std::string_view    defaultSave()      const { return saveDef;    }
+    // Pitch and yaw in degrees (yaw relative to the player) and zoom 0..1, for repeatable test views
+    const float*        startCamera()      const { return hasCamera ? camera : nullptr; }
 
     std::string         wrldDef;
 
@@ -61,6 +63,8 @@ class CommandLine {
     std::string         saveDef;
     bool                devmode      = false;
     bool                noMenu       = false;
+    bool                hasCamera    = false;
+    float               camera[3]    = {};
     Benchmark           isBenchmark  = Benchmark::None;
     bool                isWindow     = false;
     bool                isDebug      = false;
