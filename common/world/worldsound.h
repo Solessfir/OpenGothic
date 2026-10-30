@@ -49,6 +49,7 @@ class WorldSound final {
       float                vol     = 1.f;
       float                occ     = 1.f;
       float                maxDist = 0.f;
+      uint64_t             occTime = 0;
       bool                 loop    = false;
       bool                 active  = true;
       bool                 ambient = false;
