@@ -75,6 +75,10 @@ vec4 fogMst(vec2 uv, float z) {
   }
 
 void main() {
+  // Looking out from under the water: the underwater pass fogs it with the water itself
+  if(isViewUnderWater(scene.viewProjectInv, gl_FragCoord.xy, scene.screenResInv, scene.waterLevel))
+    discard;
+
   const vec2    pix    = vec2(fragCoord+0.5)/vec2(viewportSize);
   const vec2    inPos  = pix*2.0 - 1.0;
   const uint    id     = sliceId(scene, fragCoord, viewportSize, NumSlices);

@@ -296,9 +296,12 @@ add_shader(hdr_output.frag          lighting/hdr_output.frag)
 add_shader(water_reflection.mesh     water/water_reflection.mesh)
 add_shader(water_reflection.frag     water/water_reflection.frag)
 add_shader(water_reflection_ssr.frag water/water_reflection.frag -DSSR)
+add_shader(water_reflection_rq.frag  water/water_reflection.frag -DSSR -DRAY_QUERY -DRAY_QUERY_AT)
 
 add_shader(underwater_t.frag         water/underwater.frag "")
 add_shader(underwater_s.frag         water/underwater.frag -DSCATTERING)
+add_shader(underwater_down.frag      water/underwater_down.frag)
+add_shader(underwater_distort.frag   water/underwater_distort.frag)
 
 # Based on Scalable and Production Ready Sky and Atmosphere
 # https://sebh.github.io/publications/egsr2020.pdf

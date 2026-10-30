@@ -47,6 +47,7 @@ const uint L_Morph      = 11;
 const uint L_SceneClr   = 12;
 const uint L_GDepth     = 13;
 const uint L_CmdOffsets = 14;
+const uint L_SkyIrr     = 15;
 const uint L_VsmPages   = L_Shadow0;
 const uint L_VsmLights  = L_Shadow1;
 
@@ -142,6 +143,10 @@ layout(binding = L_Shadow1)          uniform sampler2D textureSm1;
 #if defined(GL_FRAGMENT_SHADER) && (defined(WATER) || defined(GHOST))
 layout(binding = L_SceneClr)         uniform sampler2D sceneColor;
 layout(binding = L_GDepth  )         uniform sampler2D gbufferDepth;
+#endif
+
+#if defined(GL_FRAGMENT_SHADER) && defined(WATER)
+layout(binding = L_SkyIrr  )         uniform sampler2D irradiance;
 #endif
 
 #if defined(VIRTUAL_SHADOW)
