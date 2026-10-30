@@ -12,6 +12,8 @@
 layout(location = 0) out vec4 outColor;
 
 layout(binding = 0, std140) uniform UboScene    { SceneDesc scene;     };
+
+#include "water/gerstner_wave.glsl"
 layout(binding = 1)         uniform texture2D   depth;
 layout(binding = 2)         uniform texture2D   rayData;
 layout(binding = 3, std430) readonly buffer Ep0 { Epipole   epipole[]; };
@@ -76,7 +78,7 @@ vec4 fogMst(vec2 uv, float z) {
 
 void main() {
   // Looking out from under the water: the underwater pass fogs it with the water itself
-  if(isViewUnderWater(scene.viewProjectInv, gl_FragCoord.xy, scene.screenResInv, scene.waterLevel))
+  if(scene.waterLevel>-1e8 && nearPlaneAboveWater(gl_FragCoord.xy, scene.waterLevel)<0.0)
     discard;
 
   const vec2    pix    = vec2(fragCoord+0.5)/vec2(viewportSize);

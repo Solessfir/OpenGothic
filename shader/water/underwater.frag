@@ -20,6 +20,7 @@ layout(push_constant, std430) uniform Push {
   } push;
 
 #include "water/water_haze.glsl"
+#include "water/gerstner_wave.glsl"
 
 vec3 unproject(vec4 screen) {
   const vec4 pos4 = scene.viewProjectInv * screen;
@@ -33,6 +34,10 @@ void main() {
   const vec3  camPos    = scene.camPos;
   const vec3  wPos      = unproject(vec4(fragCoord.x, fragCoord.y, depth, 1.0));
 
+  // Only views that start under the waves; with the camera in the surface, part of the screen looks out from the air
+  if(nearPlaneAboveWater(gl_FragCoord.xy, push.waterY)>=0.0)
+    discard;
+
   const vec3 ray = wPos-camPos;
   float len = length(ray);
   if(camPos.y<push.waterY) {
@@ -40,10 +45,9 @@ void main() {
     if(ray.y>0.0)
       len *= clamp((push.waterY-camPos.y)/ray.y, 0.0, 1.0);
     } else {
-    const vec3 nearPos = unproject(vec4(fragCoord,0.0,1.0));
     const float hint = texelFetch(gbufDiffuse,ivec2(gl_FragCoord.xy),0).a;
     // Visible water already shades its submerged background; only fill a clipped entry.
-    if(nearPos.y>=push.waterY || ray.y>=0.0 || isGBufWater(hint))
+    if(ray.y>=0.0 || isGBufWater(hint))
       discard;
     len *= 1.0-clamp((push.waterY-camPos.y)/ray.y, 0.0, 1.0);
     }

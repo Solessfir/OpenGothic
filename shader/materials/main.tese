@@ -44,7 +44,8 @@ void main() {
 
   // vec3 dPos = multiWave(shOut.pos.xz*0.001);
   if(waveMaxAmplitude>0) {
-    Wave w = wave(shOut.pos, 0.0);
+    // Same amplitude as the normals in main.frag and the waterline of the underwater pass
+    Wave w = wave(shOut.pos, 0.0, waveIterationsLow, waveAmplitude(waveMaxAmplitude));
     pos          += scene.viewProject*vec4(w.offset,0);
     shOut.pos    += w.offset;
     shOut.normal  = w.normal;
