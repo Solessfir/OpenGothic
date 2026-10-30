@@ -92,6 +92,7 @@ class Camera final {
     float              azimuth() const;
 
     void               setSpin(const Tempest::PointF& p);
+    void               setZoom(float zoom);
     void               setTarget(const Tempest::Vec3& pos);
 
     void               setAngles(const Tempest::PointF& pos);
