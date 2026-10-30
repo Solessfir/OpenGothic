@@ -7,6 +7,7 @@
 #include "world/objects/interactive.h"
 #include "world/objects/item.h"
 #include "game/quickslots.h"
+#include "utils/mouseutil.h"
 #include <Tempest/Application>
 #include <cmath>
 
@@ -16,7 +17,7 @@ using Context=GamepadBindings::Context;
 using Phase=GamepadBindings::Phase;
 
 void MainWindow::updateControllerOverlay() {
-#if defined(__ANDROID__)
+#if defined(OPENGOTHIC_GAMEPAD)
   const auto context=controllerContext();
   const bool enabled=controllerConnected && Gothic::settingsGetI("DEBUG","gamepadControls")!=0 &&
                      !video.isActive() && Gothic::inst().checkLoading()==Gothic::LoadState::Idle;
@@ -65,7 +66,7 @@ void MainWindow::updateControllerOverlay() {
   }
 
 void MainWindow::paintControllerOverlay(PaintEvent& event,int top) {
-#if defined(__ANDROID__)
+#if defined(OPENGOTHIC_GAMEPAD)
   if(controllerOverlayContext<0) return;
   const auto safe=safeArea();
   const int pad=std::max(12,int(16.f*uiScale()));
@@ -162,7 +163,7 @@ Context MainWindow::controllerContext() const {
   const auto ws=pl->weaponState();
   if(ws==WeaponState::Bow || ws==WeaponState::CBow || ws==WeaponState::Mage) return Context::Ranged;
   if(ws==WeaponState::NoWeapon) return Context::Gameplay;
-#if defined(__ANDROID__)
+#if defined(OPENGOTHIC_GAMEPAD)
   if(player.isClassicCombat() && !controllerExploration) return Context::ClassicMelee;
 #endif
   return Context::ModernMelee;
@@ -196,7 +197,7 @@ void MainWindow::controllerUiKey(Event::KeyType key,bool repeat,bool touchNaviga
   }
 
 void MainWindow::controllerAction(const GamepadBindings::Event& event) {
-#if defined(__ANDROID__)
+#if defined(OPENGOTHIC_GAMEPAD)
   const auto action=event.action;
   const bool pressed=event.phase==Phase::Press;
   const bool repeat=event.phase==Phase::Repeat;
@@ -347,17 +348,23 @@ void MainWindow::controllerAction(const GamepadBindings::Event& event) {
 #endif
   }
 
-#if defined(__ANDROID__)
+#if defined(OPENGOTHIC_GAMEPAD)
 void MainWindow::setControllerInput(bool enabled) {
   if(controllerConnected==enabled) return;
   // Cancel the previous device's held actions and wheel without applying a selection.
+#if defined(__MOBILE_PLATFORM__)
   mobileUi.setTouchEnabled(false);
   mobileUi.setTouchEnabled(controllerFocused);
+#endif
   if(inventory.isWheelOpen()) inventory.close();
   player.clearInput(true);
+#if defined(__MOBILE_PLATFORM__)
   touchHeldAction.reset();
   touchTapRelease.reset();
   touchWheelOwned=false;
+  touchMovementBlocked=false;
+  touchLookIdle=0;
+#endif
   if(!enabled) controllerBindings.reset(controllerButtons);
   controllerButtons=0;
   controllerTriggers=0;
@@ -365,28 +372,35 @@ void MainWindow::setControllerInput(bool enabled) {
   wheelQuickSlot=size_t(-1);
   wheelStickInput.reset();
   controllerAxesBlocked=false;
-  touchMovementBlocked=false;
   controllerLookIdle=0;
-  touchLookIdle=0;
   dMouse=Point();
   controllerConnected=enabled;
   Feedback::setGamepad(enabled);
+#if defined(__MOBILE_PLATFORM__)
   // The next touch hands input back to touch and shows the buttons again.
   mobileUi.setButtonsHidden(enabled);
   mobileUi.setDebugOverlay(!enabled && Gothic::settingsGetI("DEBUG","touchControls")!=0);
+#else
+  // The next mouse movement or key press hands input back and shows the pointer again
+  MouseUtil::setGamepadActive(enabled);
+  rootMenu.refreshPointer();
+  updateWindowCursor();
+#endif
   updateControllerOverlay();
   }
 #endif
 
 void MainWindow::tickGamepad() {
-#if defined(__ANDROID__)
+#if defined(OPENGOTHIC_GAMEPAD)
   const auto now=Application::tickCount();
   const auto dt=std::min<uint64_t>(50,now-controllerLastPoll);
   controllerLastPoll=now;
   const auto gp=SystemApi::gamepadState();
   auto& options=controllerBindings.options;
+#if defined(__MOBILE_PLATFORM__)
   player.setMeleeAssist(options.meleeAssist,options.meleeAssistMaxAngle,options.meleeAssistMaxDistance);
   if(auto world=Gothic::inst().world()) world->setMeleeFocusRangeScale(options.meleeFocusRangeScale);
+#endif
   // Track physical presence separately from focus so background disconnections are not lost.
   if(controllerWasPresent && !gp.connected)
     controllerDisconnectPending = Gothic::inst().isInGame() || Gothic::inst().checkLoading()!=Gothic::LoadState::Idle;
@@ -400,9 +414,23 @@ void MainWindow::tickGamepad() {
   bool fresh=false;
   for(const auto& sample:gp.changes) fresh=activity(sample) || fresh;
   fresh=activity(gp) || fresh;
+#if !defined(__MOBILE_PLATFORM__)
+  // Menus take mouse events before the main window does, so a moving cursor is polled instead
+  if(Point cursor; MouseUtil::cursorPosition(cursor.x,cursor.y)) {
+    const auto d = cursor-lastMousePos;
+    lastMousePos = cursor;
+    if(controllerConnected && std::abs(d.x)+std::abs(d.y)>4)
+      setControllerInput(false);
+    }
+#endif
   if(!available) setControllerInput(false);
   else if(fresh && !gp.overflow) setControllerInput(true);
   const bool connected=available && controllerConnected;
+#if !defined(__MOBILE_PLATFORM__)
+  // Keyboard and mouse keep the vanilla melee focus
+  player.setMeleeAssist(connected && options.meleeAssist,options.meleeAssistMaxAngle,options.meleeAssistMaxDistance);
+  if(auto world=Gothic::inst().world()) world->setMeleeFocusRangeScale(connected ? options.meleeFocusRangeScale : 1.f);
+#endif
   if(!connected) {
     // Remember held controls without dispatching them while touch owns input.
     // A later takeover must not replay an old attack, menu action or inventory drop.
@@ -420,6 +448,7 @@ void MainWindow::tickGamepad() {
     controllerBindings.reset(available ? held : 0);
     }
   Feedback::setGamepad(connected);
+#if defined(__MOBILE_PLATFORM__)
   mobileUi.setTouchEnabled(controllerFocused);
   if(touchWheelOwned && (!inventory.isWheelOpen() || Gothic::inst().isPause() ||
      Gothic::inst().checkLoading()!=Gothic::LoadState::Idle || rootMenu.isActive() ||
@@ -450,6 +479,7 @@ void MainWindow::tickGamepad() {
                                !document.isActive() && !dialogs.isActive() && !inventory.isActive() && !console.isActive());
   mobileUi.tick();
   mobileUi.setDebugOverlay(!connected && Gothic::settingsGetI("DEBUG","touchControls")!=0);
+#endif
   updateControllerOverlay();
   if(controllerDisconnectPending && controllerFocused && Gothic::inst().checkLoading()==Gothic::LoadState::Idle) {
     controllerDisconnectPending = false;
@@ -463,6 +493,11 @@ void MainWindow::tickGamepad() {
       }
     }
   auto camera=Gothic::inst().camera();
+#if !defined(__MOBILE_PLATFORM__)
+  // Keyboard and mouse own the input
+  if(!connected)
+    return;
+#else
   if(!connected) {
     const auto touchMove=mobileUi.movementAxis();
     const auto look=mobileUi.takeLookDelta();
@@ -534,6 +569,7 @@ void MainWindow::tickGamepad() {
       }
     return;
     }
+#endif
   auto trigger=[&](float value,uint32_t bit) {
     if(value>=((controllerTriggers&bit)?options.triggerRelease:options.triggerPress)) controllerTriggers|=bit;
     else controllerTriggers&=~bit;
