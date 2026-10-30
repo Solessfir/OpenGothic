@@ -111,6 +111,32 @@ Wave wave(vec3 pos, float minLength, const int iterations, const float amplitude
   return w;
   }
 
+// The water mesh at xz: materials with waves move it the way main.tese does, still water stays at its level.
+// The waves also shift the surface sideways, so find the point that lands on xz.
+float waterSurfaceHeight(vec2 xz, float level, float materialAmplitude) {
+  if(materialAmplitude<=0.0)
+    return level;
+  const float amplitude = waveAmplitude(materialAmplitude);
+  vec2 src = xz;
+  Wave w;
+  for(int i=0; i<3; ++i) {
+    w   = wave(vec3(src.x, 0, src.y), 0.0, waveIterationsLow, amplitude);
+    src = xz - w.offset.xz;
+    }
+  return level + w.offset.y;
+  }
+
+// Height of the pixel's point on the near plane above the water: the surface cuts the screen when the camera sits in it
+float nearPlaneAboveWater(vec2 fragCoord, float level) {
+  const vec4  pos4  = scene.viewProjectInv*vec4((fragCoord*scene.screenResInv)*2.0-vec2(1.0), 0.0, 1.0);
+  const vec3  pos   = pos4.xyz/pos4.w;
+  const float still = pos.y - level;
+  // Waves never reach farther than their amplitude, so only a camera in the surface needs them
+  if(scene.waterWaves<=0.0 || abs(still)>waveAmplitude(scene.waterWaves))
+    return still;
+  return pos.y - waterSurfaceHeight(pos.xz, level, scene.waterWaves);
+  }
+
 Wave wave(vec3 pos, float minLength) {
 #if defined(GL_FRAGMENT_SHADER)
   const int iterations = waveIterationsHigh;

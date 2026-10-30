@@ -404,13 +404,16 @@ void Renderer::prepareUniforms(WorldView& wview, const Camera& camera) {
 
   // Caustics light the bottom around the camera: of the water it is in, or of the water right below it
   float waterLevel = SceneGlobals::NoWater;
+  float waterWaves = 0;
   if(auto world = Gothic::inst().world()) {
     const auto eye   = camera.originLwc();
     const auto water = world->physic()->waterRay(eye, 2000.f);
-    if(water.hasCol && (camera.isInWater() || water.wdepth<=eye.y))
+    if(water.hasCol && (camera.isInWater() || water.wdepth<=eye.y)) {
       waterLevel = water.wdepth;
+      waterWaves = water.waveAmplitude;
+      }
     }
-  wview.setWaterLevel(waterLevel);
+  wview.setWaterLevel(waterLevel, waterWaves);
   }
 
 void Renderer::resetViewport(Tempest::Size res, Tempest::Size fullRes) {
@@ -1843,7 +1846,8 @@ void Renderer::drawUnderwater(Encoder<CommandBuffer>& cmd, const WorldView& wvie
       minY = std::min(minY,near.y);
       }
     }
-  const auto water = Gothic::inst().world()->physic()->waterRay(eye,eye.y-minY);
+  // Wave crests reach up to 30 cm above the still level, the passes below decide per pixel
+  const auto water = Gothic::inst().world()->physic()->waterRay(eye,eye.y-minY+30.f);
   if(!water.hasCol && !camera.isInWater())
     return;
 
