@@ -105,7 +105,7 @@ MainWindow::MainWindow(Device& device)
     } else {
     // A window that starts at its final size gets no resize event to make the cursor image
     updateCustomCursor();
-    updateWindowCursor();
+    setCursorShape(CursorShape::Hidden);
     }
 
   //renderer.resetSwapchain();
@@ -506,16 +506,12 @@ void MainWindow::mouseUpEvent(MouseEvent &event) {
   }
 
 void MainWindow::mouseDragEvent(MouseEvent &event) {
-  const bool fs = SystemApi::isFullscreen(hwnd());
-  if(!mouseP[Event::ButtonLeft] && !fs)
-    return;
-  if(player.focus().npc && !fs)
-    return;
   processMouse(event,true);
   }
 
 void MainWindow::mouseMoveEvent(MouseEvent &event) {
-  processMouse(event,SystemApi::isFullscreen(hwnd()));
+  // Gameplay keeps the pointer in the window also when windowed; menus and Alt+Tab release it
+  processMouse(event,true);
   }
 
 void MainWindow::onDesktopInput() {
@@ -540,7 +536,7 @@ void MainWindow::tickMouse(uint64_t dt) {
     // The UI pointer moves freely, so mouse look restarts from the window center instead of where it was left.
     uiPointer = false;
     dMouse    = Point();
-    if(SystemApi::isFullscreen(hwnd()))
+    if(hasFocus())
       setCursorPosition(Point(w()/2,h()/2));
     }
 
@@ -1084,9 +1080,7 @@ void MainWindow::focusEvent(FocusEvent &event) {
   if(!event.in)
     return;
   dMouse = Point();
-
-  if(SystemApi::isFullscreen(hwnd()))
-    setCursorPosition(Point(w()/2,h()/2));
+  setCursorPosition(Point(w()/2,h()/2));
   }
 
 void MainWindow::paintFocus(Painter& p, const Focus& focus, const Matrix4x4& vp) {
@@ -1498,12 +1492,7 @@ void MainWindow::tickCamera(uint64_t dt) {
   auto       pos          = pl!=nullptr ? pl->cameraBone(camera.isFirstPerson()) : Vec3();
 
   if(!camera.isCutscene() && !camera.isFree()) {
-    const bool fs = SystemApi::isFullscreen(hwnd());
-    if(!fs && mouseP[Event::ButtonLeft]) {
-      camera.setSpin(camera.spin());
-      camera.setTarget(pos);
-      }
-    else if(dialogs.isActive() && !dialogs.isMobsiDialog()) {
+    if(dialogs.isActive() && !dialogs.isMobsiDialog()) {
       dialogs.dialogCamera(camera);
       }
     else if(inventory.isActive()) {
@@ -1810,16 +1799,8 @@ void MainWindow::clearInput() {
 
 void MainWindow::setFullscreen(bool fs) {
   SystemApi::setAsFullscreen(hwnd(),fs);
-  updateWindowCursor();
-  }
-
-void MainWindow::updateWindowCursor() {
-  bool hidden = SystemApi::isFullscreen(hwnd());
-#if defined(OPENGOTHIC_GAMEPAD)
-  // The pointer is only in the way while the gamepad plays
-  hidden |= controllerConnected;
-#endif
-  setCursorShape(hidden ? CursorShape::Hidden : CursorShape::Custom);
+  // Gameplay captures the mouse, so only menus and other widgets show the pointer
+  setCursorShape(CursorShape::Hidden);
   }
 
 void MainWindow::render(){
