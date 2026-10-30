@@ -558,6 +558,7 @@ struct DynamicWorld::Landscape {
   std::vector<std::string> sectors;
   std::vector<btVector3> landVbo;
   std::unique_ptr<PhysicVbo> landMesh, waterMesh;
+  std::vector<float> waterWaves; // wave_max_amplitude per water segment
   std::unique_ptr<btCollisionShape> landShape, waterShape;
   size_t bytes = 0;
   };
@@ -589,6 +590,7 @@ std::shared_ptr<const DynamicWorld::Landscape> DynamicWorld::buildLandscape(cons
     if(!sm.material.disable_collision && sm.iboLength>0) {
       if(sm.material.group==zenkit::MaterialGroup::WATER) {
         waterMesh->addIndex(pkg.indices,sm.iboOffset,sm.iboLength,sm.material.group);
+        result->waterWaves.push_back(sm.material.wave_max_amplitude);
         } else {
         landMesh ->addIndex(pkg.indices,sm.iboOffset,sm.iboLength,sm.material.group,sectors[i].c_str());
         }
@@ -726,9 +728,13 @@ DynamicWorld::RayWaterResult DynamicWorld::implWaterRay(const Tempest::Vec3& fro
   struct CallBack:btCollisionWorld::ClosestRayResultCallback {
     using ClosestRayResultCallback::ClosestRayResultCallback;
 
+    // Bullet reports only hits closer than the current one, so the last part is the closest
     btScalar addSingleResult(btCollisionWorld::LocalRayResult& rayResult, bool normalInWorldSpace) override {
+      if(rayResult.m_localShapeInfo!=nullptr)
+        part = rayResult.m_localShapeInfo->m_shapePart;
       return ClosestRayResultCallback::addSingleResult(rayResult,normalInWorldSpace);
       }
+    int part = -1;
     };
 
   const auto sFrom = from-Tempest::Vec3(0,stepHeight,0);
@@ -758,6 +764,8 @@ DynamicWorld::RayWaterResult DynamicWorld::implWaterRay(const Tempest::Vec3& fro
       } else {
       ret.wdepth = waterY;
       ret.hasCol = true;
+      if(0<=callback.part && size_t(callback.part)<landscape->waterWaves.size())
+        ret.waveAmplitude = landscape->waterWaves[size_t(callback.part)];
       }
     return ret;
     }
