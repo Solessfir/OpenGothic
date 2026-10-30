@@ -368,13 +368,13 @@ void GameMenu::initExtraOptions() {
   std::string quickSaves="Default";
   for(int i=1;i<=20;++i) quickSaves+="|"+std::to_string(i);
   std::vector<Row> extra={
-#if defined(__ANDROID__)
     {"ANDROID_QUICKSAVES", "Quicksave slots", "quickSaveSlots", quickSaves,
      "Default: one quicksave. 1-20: rotate through separate quicksave slots."},
-    {"ANDROID_TOUCH_BUTTONS", "Touch UI", "touchButtons", "None|Icons|Icons and text",
-     "How the touch buttons are drawn. Hidden buttons still work."},
     {"ANDROID_INSTANT_PICKUP", "Instant pickup", "skipPickupAnimation", "Off|On",
      "Take items at once, without bending down for them."},
+#if defined(__ANDROID__)
+    {"ANDROID_TOUCH_BUTTONS", "Touch UI", "touchButtons", "None|Icons|Icons and text",
+     "How the touch buttons are drawn. Hidden buttons still work."},
 #else
     {"OPENGOTHIC_SHOW_FPS", "Show FPS", "showFps", "Off|On",
      "Show the frame rate in the top left corner."},
