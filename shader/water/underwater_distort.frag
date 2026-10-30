@@ -13,6 +13,8 @@ layout(push_constant, std430) uniform Push {
   float waterY;
   } push;
 
+#include "water/gerstner_wave.glsl"
+
 layout(location = 0) in  vec2 uv;
 layout(location = 0) out vec4 outColor;
 
@@ -30,18 +32,10 @@ vec2 noise2(vec2 p) {
              mix(hash2(i+vec2(0,1)), hash2(i+vec2(1,1)), u.x), u.y);
   }
 
-// Height of this pixel's point on the near plane above the water: the surface cuts the screen when the camera sits in it.
-// Only some water materials have waves on the mesh, this pass can not tell which, so it uses the still level.
-float aboveWater() {
-  const vec2 ndc  = (gl_FragCoord.xy*scene.screenResInv)*2.0-vec2(1.0);
-  const vec4 pos4 = scene.viewProjectInv*vec4(ndc, 0.0, 1.0);
-  return pos4.y/pos4.w - push.waterY;
-  }
-
 void main() {
-  // A thin dark meniscus a few pixels wide where the waterline crosses the lens; above it the image stays sharp
-  const float side = aboveWater();
-  const float line = 1.0 - smoothstep(1.0, 3.0, abs(side)/max(fwidth(side), 1e-4));
+  // A subtle meniscus a few pixels wide where the waterline crosses the lens; above it the image stays sharp
+  const float side = nearPlaneAboveWater(gl_FragCoord.xy, push.waterY);
+  const float line = 1.0 - smoothstep(0.0, 4.0, abs(side)/max(fwidth(side), 1e-4));
   if(side>0.0 && line<=0.0)
     discard;
 
@@ -55,5 +49,5 @@ void main() {
   duv += noise2(p*2.0*vec2(-0.7, 0.8) + time*vec2(-0.6, 0.8)) * 0.009;
 
   const vec3 c = textureLod(blurred, clamp(duv, vec2(0), vec2(1)), 0).rgb;
-  outColor = vec4(c*(1.0-0.75*line), 1);
+  outColor = vec4(c*(1.0-0.4*line), 1);
   }

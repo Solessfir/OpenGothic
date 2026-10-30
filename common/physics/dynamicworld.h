@@ -171,6 +171,7 @@ class DynamicWorld final {
     struct RayWaterResult {
       float               wdepth  = 0.f;
       bool                hasCol = false;
+      float               waveAmplitude = 0.f; // of the water material, 0 for still water
       };
 
     struct RayCamResult {
