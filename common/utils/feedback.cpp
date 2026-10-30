@@ -2,6 +2,7 @@
 
 #include "gothic.h"
 #include "hapticpolicy.h"
+#include "gamepadbindings.h"
 
 #include <Tempest/Application>
 #include <Tempest/SystemApi>
@@ -25,7 +26,7 @@ void Feedback::setGamepad(bool gamepad) {
   }
 
 void Feedback::play(Effect effect) {
-#if defined(__ANDROID__)
+#if defined(OPENGOTHIC_GAMEPAD)
   std::lock_guard<std::mutex> lock(feedbackMutex);
   const auto pulse=policy.next(effect,Tempest::Application::tickCount());
   if(pulse.duration!=0)
@@ -36,7 +37,7 @@ void Feedback::play(Effect effect) {
   }
 
 void Feedback::gameplay(Effect effect) {
-#if defined(__ANDROID__)
+#if defined(OPENGOTHIC_GAMEPAD)
   auto& gothic=Gothic::inst();
   if(gothic.checkLoading()==Gothic::LoadState::Idle && !gothic.isPause() && gothic.isInGame())
     play(effect);
@@ -46,7 +47,7 @@ void Feedback::gameplay(Effect effect) {
   }
 
 void Feedback::spellCharge(float intensity) {
-#if defined(__ANDROID__)
+#if defined(OPENGOTHIC_GAMEPAD)
   auto& gothic=Gothic::inst();
   if(gothic.checkLoading()!=Gothic::LoadState::Idle || gothic.isPause() || !gothic.isInGame())
     return;
