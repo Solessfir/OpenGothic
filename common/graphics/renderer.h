@@ -93,7 +93,7 @@ class Renderer final {
     void drawSky          (Tempest::Encoder<Tempest::CommandBuffer>& cmd, const WorldView& view);
     void drawAmbient      (Tempest::Encoder<Tempest::CommandBuffer>& cmd, const WorldView& view);
     void drawTonemapping  (Tempest::Attachment& result, Tempest::Encoder<Tempest::CommandBuffer>& cmd, const WorldView& wview);
-    void drawCMAA2        (Tempest::Attachment& result, Tempest::Encoder<Tempest::CommandBuffer>& cmd, const WorldView& wview);
+    void drawSMAA         (Tempest::Attachment& result, Tempest::Encoder<Tempest::CommandBuffer>& cmd, const WorldView& wview);
     void drawReflections  (Tempest::Encoder<Tempest::CommandBuffer>& cmd, const WorldView& wview);
     void drawUnderwater   (Tempest::Encoder<Tempest::CommandBuffer>& cmd, const WorldView& wview, const Camera& camera);
     void drawFog          (Tempest::Encoder<Tempest::CommandBuffer>& cmd, const WorldView& wview);
@@ -210,15 +210,10 @@ class Renderer final {
       Tempest::StorageImage     ssaoBlur;
       } ssao;
 
-    struct Cmaa2 {
-      Tempest::StorageImage     workingEdges;
-      Tempest::StorageBuffer    shapeCandidates;
-      Tempest::StorageBuffer    deferredBlendLocationList;
-      Tempest::StorageBuffer    deferredBlendItemList;
-      Tempest::StorageImage     deferredBlendItemListHeads;
-      Tempest::StorageBuffer    controlBuffer;
-      Tempest::StorageBuffer    indirectBuffer;
-      } cmaa2;
+    struct Smaa {
+      Tempest::Attachment       color, edges, weights;
+      Tempest::Texture2d        area, search;
+      } smaa;
 
     struct {
       Tempest::StorageImage     hiZ;
