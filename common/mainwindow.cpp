@@ -522,7 +522,8 @@ void MainWindow::onDesktopInput() {
 
 void MainWindow::processMouse(MouseEvent& event, bool enable) {
   auto center = Point(w()/2,h()/2);
-  if(enable && event.pos()!=center && hasFocus()) {
+  // Widget focus stays set in the background, only an active window may take the pointer
+  if(enable && event.pos()!=center && isActive()) {
     dMouse += (event.pos()-center);
     setCursorPosition(center);
     }
@@ -536,7 +537,7 @@ void MainWindow::tickMouse(uint64_t dt) {
     // The UI pointer moves freely, so mouse look restarts from the window center instead of where it was left.
     uiPointer = false;
     dMouse    = Point();
-    if(hasFocus())
+    if(isActive())
       setCursorPosition(Point(w()/2,h()/2));
     }
 
@@ -890,6 +891,9 @@ void MainWindow::onSettings() {
   }
 
 void MainWindow::mouseWheelEvent(MouseEvent &event) {
+  // Windows can scroll an inactive window under the pointer
+  if(!isActive())
+    return;
   if(auto camera = Gothic::inst().camera())
     camera->changeZoom(event.delta);
   }
@@ -1823,19 +1827,16 @@ void MainWindow::render(){
       once=false;
       }
 
+#if defined(__MOBILE_PLATFORM__)
     // Pause while another application has focus, the same way an open menu pauses the game.
+    // Desktop keeps running in the background and only ignores input. Android pauses audio from its activity lifecycle.
     if(const bool pause = !isActive() && !Gothic::inst().isBenchmarkModeCi(); pause!=focusPaused) {
       focusPaused = pause;
       if(pause)
         Gothic::inst().pushPause(); else
         Gothic::inst().popPause();
-#if !defined(__MOBILE_PLATFORM__)
-      // Android pauses audio from its activity lifecycle instead.
-      if(pause)
-        SoundDevice::pauseAll(); else
-        SoundDevice::resumeAll();
-#endif
       }
+#endif
 
     if(T_UNLIKELY(Gothic::inst().isBenchmarkModeCi())) {
       const auto st = Gothic::inst().checkLoading();
