@@ -143,6 +143,7 @@ class Renderer final {
 
       GiMethod       giMethod           = GiMethod::None;
       bool           aaEnabled          = false;
+      uint32_t       aaPreset           = 0;
 
       float          zVidBrightness     = 0.5;
       float          zVidContrast       = 0.5;
