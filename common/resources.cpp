@@ -26,6 +26,7 @@
 #include "graphics/mesh/protomesh.h"
 #include "graphics/mesh/animation.h"
 #include "graphics/mesh/attachbinder.h"
+#include "physics/physicmeshshape.h"
 #include "graphics/material.h"
 #include "graphics/shaders.h"
 #include "dmusic/directmusic.h"
@@ -45,6 +46,12 @@
 using namespace Tempest;
 
 Resources* Resources::inst=nullptr;
+
+// CPU side of a static mesh, built ahead on worker threads. GPU buffers and textures are created on use.
+struct PreparedMesh {
+  PackedMesh                       mesh;
+  std::unique_ptr<PhysicMeshShape> shape;
+  };
 
 static std::string_view trimTrailingSpace(std::string_view s) {
   while(!s.empty() && std::isspace(uint8_t(s.back())))
@@ -637,7 +644,17 @@ ProtoMesh* Resources::implLoadMesh(std::string_view name) {
 
 std::unique_ptr<ProtoMesh> Resources::implLoadMeshMain(std::string name) {
   if(FileExt::hasExt(name,"3DS")) {
+    std::unique_ptr<PreparedMesh> prepared;
+    {
+    std::lock_guard<std::mutex> g(syncPrepared);
+    if(auto it=preparedMeshes.find(name); it!=preparedMeshes.end()) {
+      prepared = std::move(it->second);
+      preparedMeshes.erase(it);
+      }
+    }
     FileExt::exchangeExt(name,"3DS","MRM");
+    if(prepared!=nullptr)
+      return std::unique_ptr<ProtoMesh>{new ProtoMesh(std::move(prepared->mesh),std::move(prepared->shape),name)};
 
     const auto* entry = Resources::vdfsIndex().find(name);
     if(entry == nullptr)
@@ -1067,6 +1084,55 @@ Texture2d Resources::loadTexturePm(const Pixmap &pm) {
 
 Material Resources::loadMaterial(const zenkit::Material& src, bool enableAlphaTest) {
   return Material(src,enableAlphaTest);
+  }
+
+void Resources::prepareMeshes(std::vector<std::string> names) {
+  {
+  std::lock_guard<std::recursive_mutex> g(inst->sync);
+  std::erase_if(names, [](const std::string& n) { return !FileExt::hasExt(n,"3DS") || inst->aniMeshCache.contains(n); });
+  }
+  std::sort(names.begin(), names.end());
+  names.erase(std::unique(names.begin(), names.end()), names.end());
+
+  std::atomic_size_t next{0};
+  auto work = [&]() {
+    for(size_t i=next++; i<names.size(); i=next++) {
+      try {
+        auto name = names[i];
+        FileExt::exchangeExt(name,"3DS","MRM");
+        const auto* entry = vdfsIndex().find(name);
+        if(entry==nullptr)
+          continue;
+        zenkit::MultiResolutionMesh zmsh;
+        auto reader = entry->open_read();
+        zmsh.load(reader.get());
+        if(zmsh.sub_meshes.empty())
+          continue;
+
+        auto p = std::make_unique<PreparedMesh>(PackedMesh(zmsh,PackedMesh::PK_Visual));
+        p->shape.reset(PhysicMeshShape::load(PackedMesh(p->mesh)));
+        std::lock_guard<std::mutex> g(inst->syncPrepared);
+        inst->preparedMeshes.try_emplace(names[i], std::move(p));
+        }
+      catch(...) {
+        // Left to the regular load, which reports it
+        }
+      }
+    };
+
+  // Leave cores for the other level jobs that run meanwhile
+  const size_t count = std::clamp<size_t>(std::thread::hardware_concurrency(), 3, 8) - 2;
+  std::vector<std::thread> threads;
+  for(size_t i=1; i<count; ++i)
+    threads.emplace_back(work);
+  work();
+  for(auto& t:threads)
+    t.join();
+  }
+
+void Resources::dropPreparedMeshes() {
+  std::lock_guard<std::mutex> g(inst->syncPrepared);
+  inst->preparedMeshes.clear();
   }
 
 const ProtoMesh* Resources::loadMesh(std::string_view name) {
