@@ -131,6 +131,10 @@ void Camera::changeZoom(int delta) {
   userRange = std::max(0.f,std::min(userRange,1.f));
   }
 
+void Camera::setZoom(float zoom) {
+  userRange = std::clamp(zoom,0.f,1.f);
+  }
+
 void Camera::setViewport(uint32_t w, uint32_t h) {
   const float fov = Gothic::options().cameraFov;
   proj.perspective(fov, float(w)/float(h), zNear(), zFar());

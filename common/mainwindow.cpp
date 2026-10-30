@@ -1535,6 +1535,14 @@ void MainWindow::tickCamera(uint64_t dt) {
     return;
   if(camera.isToggleEnabled() && !camera.isCutscene())
     camera.setMode(solveCameraMode());
+  if(startCameraPending && pl!=nullptr) {
+    // After the mode switch, which resets the angles; gameplay keeps the camera behind the player, so the player turns
+    startCameraPending = false;
+    const float* cam = CommandLine::inst().startCamera();
+    pl->setDirection(pl->rotation()+cam[1]);
+    camera.setSpin(PointF(cam[0], pl->rotation()));
+    camera.setZoom(cam[2]);
+    }
   camera.tick(dt);
   }
 
@@ -1735,6 +1743,7 @@ void MainWindow::onWorldLoaded() {
 
   if(auto pl = Gothic::inst().player())
     pl->multSpeed(1.f);
+  startCameraPending = CommandLine::inst().startCamera()!=nullptr;
   lastTick = Application::tickCount();
   player.clearFocus();
 #if defined(OPENGOTHIC_GAMEPAD)

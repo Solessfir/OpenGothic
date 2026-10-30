@@ -56,6 +56,7 @@ static const char* helpText =
   "  -save q<number>        load the rotating quicksave save_quick_<number>.sav on start\n"
   "  -lastSave              load the newest save on start, or show the main menu if there is none\n"
   "  -window                windowed mode\n"
+  "  -camera <pitch> <yaw> <zoom>  camera after loading: degrees, yaw relative to the player, zoom 0..1\n"
   "  -benchmark             run the benchmark\n"
   "  -v, -validation        enable validation layers for the graphics API\n"
   "  -dx12                  use DirectX 12 instead of Vulkan (Windows only)\n"
@@ -137,6 +138,19 @@ CommandLine::CommandLine(int argc, const char** argv) {
       const auto file = SaveSlot::newest(".");
       if(!file.empty())
         saveDef = file.filename().string();
+      }
+    else if(arg=="-camera") {
+      if(i+3<argc) {
+        try {
+          for(int k=0; k<3; ++k)
+            camera[k] = std::stof(argv[i+1+k]);
+          hasCamera = true;
+          }
+        catch(const std::exception&) {
+          Log::i("failed to read -camera <pitch> <yaw> <zoom>");
+          }
+        }
+      i += 3;
       }
     else if(arg=="-w") {
       ++i;

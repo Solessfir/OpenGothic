@@ -214,4 +214,5 @@ Rendering distance is not customizable.
 | `-ms <boolean>`        | explicitly enable or disable meshlets                            |
 | `-aa <number>`         | enable anti-aliasing (number = 1-2, 2 = most expensive AA)       |
 | `-window`              | windowed debugging mode (not to be used for playing)             |
+| `-camera <p> <y> <z>`  | after loading: camera pitch, player yaw turn (degrees), zoom 0..1 |
 | `-help`                | print the command line arguments                                 |
