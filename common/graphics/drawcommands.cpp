@@ -286,10 +286,15 @@ void DrawCommands::visibilityPass(Encoder<CommandBuffer>& cmd, int pass) {
     const size_t visClustersSz = maxPayload*sizeof(uint32_t)*4;
     usesSsbo(view.visClusters, visClustersSz);
 
-    struct Push { uint32_t firstMeshlet; uint32_t meshletCount; float znear; } push = {};
+    struct Push { uint32_t firstMeshlet; uint32_t meshletCount; float znear; float minRadius; } push = {};
     push.firstMeshlet = 0;
     push.meshletCount = uint32_t(clusters.size());
     push.znear        = scene.znear;
+    if(viewport==SceneGlobals::V_Shadow1) {
+      // Small objects are geometry-heavy in the far cascade and barely visible there.
+      // Measured against a 2048 map, so the shadow resolution does not change what is skipped.
+      push.minRadius = Gothic::settingsGetF("ENGINE","shadowFarMinTexels")*2.f/2048.f;
+      }
 
     auto* pso = &Shaders::inst().visibilityPassSh;
     if(viewport==SceneGlobals::V_Main)

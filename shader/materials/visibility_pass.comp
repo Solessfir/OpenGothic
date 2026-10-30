@@ -23,6 +23,7 @@ layout(push_constant, std430) uniform UboPush {
   uint      firstMeshlet;
   int       meshletCount;
   float     znear;
+  float     minRadius;
   } push;
 
 Instance pullInstance(uint i) {
@@ -181,6 +182,16 @@ void runCluster(const uint clusterId) {
 
   if(!frustrumTest(cluster.sphere))
     return;
+
+#if !defined(MAIN_VIEW)
+  if(push.minRadius>0 && cluster.instanceId!=0xFFFFFFFF) {
+    // Objects too small to matter in the far shadow cascade
+    const vec4  c = scene.viewProject*vec4(cluster.sphere.xyz, 1.0);
+    const float s = length(vec3(scene.viewProject[0][0], scene.viewProject[1][0], scene.viewProject[2][0]));
+    if(cluster.sphere.w*s < push.minRadius*abs(c.w))
+      return;
+    }
+#endif
 
 #if defined(MAIN_VIEW)
   vec4  aabb     = vec4(0);
