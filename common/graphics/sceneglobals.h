@@ -27,6 +27,9 @@ class SceneGlobals final {
 
     static bool isShadowView(VisCamera v);
 
+    // Water level that turns caustics off, matched in shader/lighting/caustics.glsl
+    static constexpr float NoWater = -1e9f;
+
     void setViewProject(const Tempest::Matrix4x4& view, const Tempest::Matrix4x4& proj,
                         float zNear, float zFar,
                         const Tempest::Matrix4x4 *sh);
@@ -35,6 +38,7 @@ class SceneGlobals final {
     void setSky(const Sky& s);
     void setWorld(const WorldView& wview);
     void setUnderWater(bool w);
+    void setWaterLevel(float y);
     void setCameraObstructionFade(float distance, const Tempest::Vec4& target);
 
     void setTime(uint64_t time);
@@ -69,6 +73,7 @@ class SceneGlobals final {
 
     const Tempest::Texture2d*         sceneColor   = &Resources::fallbackBlack();
     const Tempest::Texture2d*         sceneDepth   = &Resources::fallbackBlack();
+    const Tempest::Texture2d*         skyIrradiance = &Resources::fallbackBlack();
     const Tempest::Texture2d*         zbuffer      = &Resources::fallbackBlack();
 
     const Tempest::Texture2d*         gbufDiffuse  = &Resources::fallbackBlack();
@@ -123,7 +128,7 @@ class SceneGlobals final {
       float                           probeGridBias = 3;
       float                           cameraFadeNear2 = 0;
       float                           cameraFadeFar2 = 0;
-      float                           cameraFadePadding = 0;
+      float                           waterLevel = NoWater; // around the camera, for caustics
       Tempest::Vec4                    cameraFadeTarget = {};
       Tempest::Vec4                    wind = {}; // direction, phase
       };
