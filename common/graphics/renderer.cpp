@@ -5,6 +5,7 @@
 #include <Tempest/Log>
 #include <Tempest/StorageImage>
 #include <cassert>
+#include <cstring>
 #include <limits>
 
 #include "ui/inventorymenu.h"
@@ -15,6 +16,9 @@
 #include "world/objects/npc.h"
 #include "physics/dynamicworld.h"
 #include "utils/string_frm.h"
+
+#include <AreaTex.h>
+#include <SearchTex.h>
 
 using namespace Tempest;
 
@@ -407,16 +411,6 @@ void Renderer::resetViewport(Tempest::Size res, Tempest::Size fullRes) {
 
   sceneLinear = device.attachment(TextureFormat::R11G11B10UF,w,h);
 
-  if(settings.aaEnabled) {
-    cmaa2.workingEdges               = device.image2d(TextureFormat::R8, (w + 1) / 2, h);
-    cmaa2.shapeCandidates            = device.ssbo(Tempest::Uninitialized, w * h / 4 * sizeof(uint32_t));
-    cmaa2.deferredBlendLocationList  = device.ssbo(Tempest::Uninitialized, (w * h + 3) / 6 * sizeof(uint32_t));
-    cmaa2.deferredBlendItemList      = device.ssbo(Tempest::Uninitialized, w * h * sizeof(uint32_t));
-    cmaa2.deferredBlendItemListHeads = device.image2d(TextureFormat::R32U, (w + 1) / 2, (h + 1) / 2);
-    cmaa2.controlBuffer              = device.ssbo(nullptr, 5 * sizeof(uint32_t));
-    cmaa2.indirectBuffer             = device.ssbo(nullptr, sizeof(DispatchIndirectCommand) + sizeof(DrawIndirectCommand));
-    }
-
   zbuffer = device.zbuffer(zBufferFormat,w,h);
   if(res!=fullRes)
     zbufferUi = device.zbuffer(zBufferFormat, fullRes); else
@@ -691,8 +685,7 @@ void Renderer::draw(Tempest::Attachment& result, Encoder<CommandBuffer>& cmd, ui
   shaders.waitCompiler();
 
   const auto res = internalResolution(result.size());
-  // Anti-aliasing can be turned on from the menu, after its buffers were skipped
-  if(res!=zbuffer.size() || (settings.aaEnabled && cmaa2.indirectBuffer.isEmpty())) {
+  if(res!=zbuffer.size()) {
     resetViewport(res, result.size());
     }
 
@@ -794,8 +787,8 @@ void Renderer::draw(Tempest::Attachment& result, Encoder<CommandBuffer>& cmd, ui
   drawUnderwater(cmd, wview, camera);
 
   if(settings.aaEnabled) {
-    cmd.setDebugMarker("CMAA2 & Tonemapping");
-    drawCMAA2(result, cmd, wview);
+    cmd.setDebugMarker("Tonemapping & SMAA");
+    drawSMAA(result, cmd, wview);
     } else {
     cmd.setDebugMarker("Tonemapping");
     drawTonemapping(result, cmd, wview);
@@ -840,70 +833,48 @@ void Renderer::drawTonemapping(Attachment& result, Encoder<CommandBuffer>& cmd, 
   cmd.draw(nullptr, 0, 3);
   }
 
-void Renderer::drawCMAA2(Tempest::Attachment& result, Tempest::Encoder<Tempest::CommandBuffer>& cmd, const WorldView& wview) {
-  auto&          pso             = shaders.cmaa2EdgeColor2x2Presets[settings.aaPreset];
-  const IVec3    inputGroupSize  = pso.workGroupSize();
-  const IVec3    outputGroupSize = inputGroupSize - IVec3(2, 2, 0);
-  const uint32_t groupCountX     = uint32_t((sceneLinear.w() + outputGroupSize.x * 2 - 1) / (outputGroupSize.x * 2));
-  const uint32_t groupCountY     = uint32_t((sceneLinear.h() + outputGroupSize.y * 2 - 1) / (outputGroupSize.y * 2));
+void Renderer::drawSMAA(Tempest::Attachment& result, Tempest::Encoder<Tempest::CommandBuffer>& cmd, const WorldView& wview) {
+  if(smaa.area.isEmpty()) {
+    auto& device = Resources::device();
+    Pixmap area(AREATEX_WIDTH, AREATEX_HEIGHT, TextureFormat::RG8);
+    std::memcpy(area.data(), areaTexBytes, AREATEX_SIZE);
+    smaa.area = device.texture(area, false);
 
-  cmd.setFramebuffer({});
-  cmd.setBinding(0, sceneLinear, Sampler::bilinear(ClampMode::ClampToEdge));
-  cmd.setBinding(1, cmaa2.workingEdges);
-  cmd.setBinding(2, cmaa2.shapeCandidates);
-  cmd.setBinding(3, cmaa2.deferredBlendLocationList);
-  cmd.setBinding(4, cmaa2.deferredBlendItemList);
-  cmd.setBinding(5, cmaa2.deferredBlendItemListHeads);
-  cmd.setBinding(6, cmaa2.controlBuffer);
-  cmd.setBinding(7, cmaa2.indirectBuffer);
+    Pixmap search(SEARCHTEX_WIDTH, SEARCHTEX_HEIGHT, TextureFormat::R8);
+    std::memcpy(search.data(), searchTexBytes, SEARCHTEX_SIZE);
+    smaa.search = device.texture(search, false);
+    }
 
-  // detect edges
-  cmd.setPipeline(pso);
-  cmd.dispatch(groupCountX, groupCountY, 1);
+  // SMAA works on the tonemapped image, its thresholds expect display-encoded values
+  const auto size    = sceneLinear.size();
+  auto&      color   = usesAttachment(smaa.color,   hdrPeakRatio>0 ? TextureFormat::RGBA16F : TextureFormat::RGBA8, size);
+  auto&      edges   = usesAttachment(smaa.edges,   TextureFormat::RG8,   size);
+  auto&      weights = usesAttachment(smaa.weights, TextureFormat::RGBA8, size);
+  const Vec4 metrics = Vec4(1.f/float(size.w), 1.f/float(size.h), float(size.w), float(size.h));
 
-  // process candidates pass
-  cmd.setPipeline(shaders.cmaa2ProcessCandidates);
-  cmd.dispatchIndirect(cmaa2.indirectBuffer, 0);
+  drawTonemapping(color, cmd, wview);
 
-  // deferred color apply
-  struct Push {
-    float brightness = 0;
-    float contrast   = 1;
-    float gamma      = 1.f/2.2f;
-    float mul        = 1;
-    float hdrPeak    = 0;
-    float padding[3] = {};
-    };
-
-  Push p;
-  p.hdrPeak = hdrPeakRatio;
-  p.brightness = (settings.zVidBrightness - 0.5f)*0.1f;
-  p.contrast   = std::max(1.5f - settings.zVidContrast, 0.01f);
-  p.gamma      = p.gamma/std::max(2.0f*settings.zVidGamma,  0.01f);
-
-  static float mul = 0.f;
-  if(mul>0)
-    p.mul = mul;
-
-  auto& psoTone = (settings.vidResIndex==0) ? shaders.tonemapping : shaders.tonemappingUpscale;
-  cmd.setFramebuffer({{result, Tempest::Discard, Tempest::Preserve}});
-  cmd.setBinding(0, wview.sceneGlobals().uboGlobal[SceneGlobals::V_Main]);
-  const auto sampler = settings.vidResIndex==0 ? Sampler::nearest() : Sampler::bilinear(ClampMode::ClampToEdge);
-  cmd.setBinding(1, sceneLinear, sampler);
-  cmd.setPushData(&p, sizeof(p));
-  cmd.setPipeline(psoTone);
+  // the edge pass discards pixels without edges
+  cmd.setFramebuffer({{edges, Vec4(), Tempest::Preserve}});
+  cmd.setBinding(0, color, Sampler::nearest(ClampMode::ClampToEdge));
+  cmd.setPushData(metrics);
+  cmd.setPipeline(shaders.smaaEdges[settings.aaPreset]);
   cmd.draw(nullptr, 0, 3);
 
-  cmd.setBinding(0, sceneLinear);
-  cmd.setBinding(1, cmaa2.workingEdges);
-  cmd.setBinding(2, cmaa2.shapeCandidates);
-  cmd.setBinding(3, cmaa2.deferredBlendLocationList);
-  cmd.setBinding(4, cmaa2.deferredBlendItemList);
-  cmd.setBinding(5, cmaa2.deferredBlendItemListHeads);
-  cmd.setBinding(6, cmaa2.controlBuffer);
-  cmd.setPushData(&p, sizeof(p));
-  cmd.setPipeline(shaders.cmaa2DeferredColorApply2x2);
-  cmd.drawIndirect(cmaa2.indirectBuffer, 3*sizeof(uint32_t));
+  cmd.setFramebuffer({{weights, Tempest::Discard, Tempest::Preserve}});
+  cmd.setBinding(0, edges,       Sampler::bilinear(ClampMode::ClampToEdge));
+  cmd.setBinding(1, smaa.area,   Sampler::bilinear(ClampMode::ClampToEdge));
+  cmd.setBinding(2, smaa.search, Sampler::nearest (ClampMode::ClampToEdge));
+  cmd.setPushData(metrics);
+  cmd.setPipeline(shaders.smaaWeights[settings.aaPreset]);
+  cmd.draw(nullptr, 0, 3);
+
+  cmd.setFramebuffer({{result, Tempest::Discard, Tempest::Preserve}});
+  cmd.setBinding(0, color,   Sampler::bilinear(ClampMode::ClampToEdge));
+  cmd.setBinding(1, weights, Sampler::bilinear(ClampMode::ClampToEdge));
+  cmd.setPushData(metrics);
+  cmd.setPipeline(shaders.smaaBlend);
+  cmd.draw(nullptr, 0, 3);
   }
 
 void Renderer::drawFog(Tempest::Encoder<Tempest::CommandBuffer>& cmd, const WorldView& wview) {
