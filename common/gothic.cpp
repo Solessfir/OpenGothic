@@ -216,7 +216,6 @@ Gothic::Gothic(GameModDescriptor desc) {
 #if defined(__ANDROID__)
   defaults->set("ENGINE", "cameraObstructionFade", 1);
   defaults->set("GAME", "cameraSwimming", 1);
-  defaults->set("GAME", "showFps",             0);
   defaults->set("GAME", "vibration",           1);
   defaults->set("GAME", "centerPlayerBars",    1);
   defaults->set("GAME", "touchButtons",        2);
@@ -230,6 +229,7 @@ Gothic::Gothic(GameModDescriptor desc) {
 
   defaults->set("GAME", "animatedWindows",     1);
   defaults->set("GAME", "subTitles",           1);
+  defaults->set("GAME", "showFps",             0);
   defaults->set("GAME", "subTitlesPlayer",     1);
 
   // switch related language options

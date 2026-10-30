@@ -125,7 +125,7 @@ class GameMenu : public Tempest::Widget {
     void                                  setSelection(int cur, int seek=1);
     void                                  initItems();
     void                                  initAndroidVideo();
-    void                                  initAndroidOptions();
+    void                                  initExtraOptions();
     void                                  initExtraKeys();
     void                                  refreshQuickLoad();
     void                                  addMissingQuickLoad();
