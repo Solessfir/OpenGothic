@@ -10,6 +10,7 @@
 #include "ui/inventorymenu.h"
 #include "ui/videowidget.h"
 #include "camera.h"
+#include "commandline.h"
 #include "gothic.h"
 #include "world/objects/npc.h"
 #include "physics/dynamicworld.h"
@@ -165,7 +166,9 @@ void Renderer::setupSettings() {
   settings.renderScale = float(std::clamp(Gothic::settingsGetI("ENGINE","renderScale"),50,100))/100.f;
   settings.vidResIndex = settings.renderScale==1.f ? 0 : 1;
 #endif
-  settings.aaEnabled   = (Shaders::options().aaPreset>0) && (settings.vidResIndex==0);
+  const int32_t aaArg = CommandLine::inst().aaPreset();
+  settings.aaPreset    = uint32_t(std::clamp(aaArg>=0 ? aaArg : Gothic::settingsGetI("ENGINE","antiAliasing"), 0, int32_t(AaPreset::PRESETS_COUNT)-1));
+  settings.aaEnabled   = (settings.aaPreset>0) && (settings.vidResIndex==0);
 
   // direct lighting
   if(settings.rtsmEnabled)
@@ -688,7 +691,8 @@ void Renderer::draw(Tempest::Attachment& result, Encoder<CommandBuffer>& cmd, ui
   shaders.waitCompiler();
 
   const auto res = internalResolution(result.size());
-  if(res!=zbuffer.size()) {
+  // Anti-aliasing can be turned on from the menu, after its buffers were skipped
+  if(res!=zbuffer.size() || (settings.aaEnabled && cmaa2.indirectBuffer.isEmpty())) {
     resetViewport(res, result.size());
     }
 
@@ -837,7 +841,7 @@ void Renderer::drawTonemapping(Attachment& result, Encoder<CommandBuffer>& cmd, 
   }
 
 void Renderer::drawCMAA2(Tempest::Attachment& result, Tempest::Encoder<Tempest::CommandBuffer>& cmd, const WorldView& wview) {
-  auto&          pso             = shaders.cmaa2EdgeColor2x2Presets[Shaders::options().aaPreset];
+  auto&          pso             = shaders.cmaa2EdgeColor2x2Presets[settings.aaPreset];
   const IVec3    inputGroupSize  = pso.workGroupSize();
   const IVec3    outputGroupSize = inputGroupSize - IVec3(2, 2, 0);
   const uint32_t groupCountX     = uint32_t((sceneLinear.w() + outputGroupSize.x * 2 - 1) / (outputGroupSize.x * 2));
