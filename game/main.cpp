@@ -86,8 +86,9 @@ int main(int argc,const char** argv) {
     Tempest::Log::setOutputCallback([](Tempest::Log::Mode mode, const char* text) {
       logFile.write(text,std::strlen(text));
       logFile.write("\n",1);
-      if(mode==Tempest::Log::Error)
-        logFile.flush();
+      // A few hundred lines per load, so the log can stay readable while the game runs
+      (void)mode;
+      logFile.flush();
       });
     }
   catch(...) {
