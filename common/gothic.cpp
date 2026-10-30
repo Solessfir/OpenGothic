@@ -192,6 +192,7 @@ Gothic::Gothic(GameModDescriptor desc) {
   defaults->set("ENGINE", "cameraObstructionFade", 0);
   defaults->set("ENGINE", "cameraObstructionFadeDistance", 180.f);
   defaults->set("GAME", "cameraSwimming", 0);
+  defaults->set("ENGINE", "antiAliasing", 2);
 #if defined(__ANDROID__)
   defaults->set("ENGINE", "cameraObstructionFade", 1);
   defaults->set("GAME", "cameraSwimming", 1);
@@ -204,6 +205,7 @@ Gothic::Gothic(GameModDescriptor desc) {
   defaults->set("ENGINE", "shadowMapResolution", 1024);
   defaults->set("ENGINE", "renderScale", 100);
   defaults->set("ENGINE", "frameRateLimit", -1);
+  defaults->set("ENGINE", "antiAliasing", 0);
 #endif
 
   defaults->set("GAME", "animatedWindows",     1);

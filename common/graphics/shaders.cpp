@@ -83,7 +83,6 @@ void Shaders::setupOptions() {
   opts.doSoftwareShadow = Shaders::isRtsmSupported() && CommandLine::inst().isSoftwareShadow();
   opts.doVirtualShadow  = Shaders::isVsmSupported()  && CommandLine::inst().isVirtualShadow();
   opts.doGi             = opts.doRayQuery ? CommandLine::inst().isRtGi() : GiMethod::None;
-  opts.aaPreset         = CommandLine::inst().aaPreset();
 
   opts.doSoftwareRT     = false;
   }
