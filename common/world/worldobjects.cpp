@@ -452,7 +452,16 @@ void WorldObjects::updateAnimation(uint64_t dt) {
     i->setPoseInterval(poseInterval);
     i->updateAnimation(dt);
     });
-  interactiveObj.parallelFor([dt](Interactive& i){
+  // Same for mobs beyond the near NPC range, so no nearby NPC collides with a stale pose
+  const Vec3 plPos = owner.player()!=nullptr ? owner.player()->position() : eye;
+  interactiveObj.parallelFor([dt,&view,eye,plPos](Interactive& i){
+    uint64_t poseInterval = 0;
+    const auto pos = i.position();
+    if(view.width>0 && (pos-plPos).quadLength()>6000.f*6000.f) {
+      // sounds still play: the interval only skips the pose
+      poseInterval = view.testPoint(pos,1000.f) ? uint64_t((pos-eye).length()*0.011f) : uint64_t(-1);
+      }
+    i.setPoseInterval(poseInterval);
     i.updateAnimation(dt);
     });
   }
