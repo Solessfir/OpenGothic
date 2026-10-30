@@ -26,11 +26,32 @@ float MouseUtil::mouseSysSpeed() {
 #endif
   }
 
+static bool gamepadActive = false;
+
 bool MouseUtil::isPointerEnabled() {
 #if defined(__MOBILE_PLATFORM__)
   // Touch input does not use the pointer
   return false;
 #else
-  return Gothic::settingsGetI("GAME","enableMouse")!=0;
+  return !gamepadActive && Gothic::settingsGetI("GAME","enableMouse")!=0;
 #endif
+  }
+
+bool MouseUtil::cursorPosition(int& x, int& y) {
+#ifdef __WINDOWS__
+  POINT p = {};
+  if(!GetCursorPos(&p))
+    return false;
+  x = p.x;
+  y = p.y;
+  return true;
+#else
+  (void)x;
+  (void)y;
+  return false;
+#endif
+  }
+
+void MouseUtil::setGamepadActive(bool active) {
+  gamepadActive = active;
   }
