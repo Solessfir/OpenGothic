@@ -379,7 +379,7 @@ void GameMenu::initExtraOptions() {
     {"OPENGOTHIC_SHOW_FPS", "Show FPS", "showFps", "Off|On",
      "Show the frame rate in the top left corner."},
     {"OPENGOTHIC_AA", "Anti-aliasing", "antiAliasing", "Off|Medium|Ultra",
-     "Smooths jagged edges (CMAA2). Needs the full rendering resolution.", "ENGINE"},
+     "Smooths jagged edges (SMAA). Needs the full rendering resolution.", "ENGINE"},
 #endif
     };
 #if !defined(__ANDROID__)
