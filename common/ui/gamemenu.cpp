@@ -263,7 +263,7 @@ void GameMenu::initItems() {
     }
   addMissingQuickLoad();
   initAndroidVideo();
-  initAndroidOptions();
+  initExtraOptions();
   initExtraKeys();
   quickLoadItem=nullptr;
   for(auto& item:hItems)
@@ -280,12 +280,12 @@ void GameMenu::refreshQuickLoad() {
   updateItem(*quickLoadItem);
   }
 
-void GameMenu::initAndroidOptions() {
-#if defined(__ANDROID__)
+void GameMenu::initExtraOptions() {
   auto find=[&](std::string_view name) -> Item* {
     for(auto& item:hItems) if(item.name==name && item.handle!=nullptr) return &item;
     return nullptr;
     };
+#if defined(__ANDROID__)
   auto voiceLabel=find("MENUITEM_AUDIO_SPEEKER");
   auto voiceSlider=find("MENUITEM_AUDIO_SPEEKER_CHOICE");
   auto sourceSlider=find("MENUITEM_AUDIO_SFXVOL_SLIDER");
@@ -357,6 +357,7 @@ void GameMenu::initAndroidOptions() {
                  "MENUITEM_EXT_FFT", "MENUITEM_EXT_WATERFADE", "MENUITEM_EXT_AMBIENTPFX",
                  "MENUITEM_GAME_FIGHTFOCUS", "MENUITEM_GAME_INTERACTFOCUS", "MENUITEM_GAME_BLOOD"})
     removeRow(name);
+#endif
 
   auto back=find("MENUITEM_GAME_BACK");
   auto sourceLabel=find("MENUITEM_GAME_SUB_TITLES");
@@ -366,20 +367,31 @@ void GameMenu::initAndroidOptions() {
   struct Row { const char* name; const char* title; const char* option; std::string values; const char* help; };
   std::string quickSaves="Default";
   for(int i=1;i<=20;++i) quickSaves+="|"+std::to_string(i);
-  const Row extra[]={
+  std::vector<Row> extra={
+#if defined(__ANDROID__)
     {"ANDROID_QUICKSAVES", "Quicksave slots", "quickSaveSlots", quickSaves,
      "Default: one quicksave. 1-20: rotate through separate quicksave slots."},
     {"ANDROID_TOUCH_BUTTONS", "Touch UI", "touchButtons", "None|Icons|Icons and text",
      "How the touch buttons are drawn. Hidden buttons still work."},
     {"ANDROID_INSTANT_PICKUP", "Instant pickup", "skipPickupAnimation", "Off|On",
      "Take items at once, without bending down for them."},
+#else
+    {"OPENGOTHIC_SHOW_FPS", "Show FPS", "showFps", "Off|On",
+     "Show the frame rate in the top left corner."},
+#endif
     };
+#if !defined(__ANDROID__)
+  // Gothic 2 has this choice in its own menu
+  if(Gothic::inst().version().game==1)
+    extra.push_back({"OPENGOTHIC_G1_CONTROLS", "Gothic 1 controls", "useGothic1Controls", "Off|On",
+                     "Off: Gothic 2 combat controls, with mouse attacks and blocking."});
+#endif
   size_t end=0;
   for(size_t i=0;i<std::size(hItems);++i) if(hItems[i].handle!=nullptr) end=i+1;
-  if(end+2*std::size(extra)>std::size(hItems)) return;
+  if(end+2*extra.size()>std::size(hItems)) return;
   const int choiceOffset=sourceChoice->handle->pos_y-sourceLabel->handle->pos_y;
-  Item added[2*std::size(extra)];
-  for(size_t i=0;i<std::size(extra);++i) {
+  std::vector<Item> added(2*extra.size());
+  for(size_t i=0;i<extra.size();++i) {
     auto& label =added[2*i];
     auto& choice=added[2*i+1];
     label.name=std::string(extra[i].name)+"_LABEL";
@@ -413,7 +425,7 @@ void GameMenu::initAndroidOptions() {
     }
   std::sort(rows.begin(),rows.end());
   rows.erase(std::unique(rows.begin(),rows.end()),rows.end());
-  const int step=4500/int(rows.size()+std::size(extra));
+  const int step=4500/int(rows.size()+extra.size());
   for(auto& item:hItems) {
     if(item.handle==nullptr || item.name=="MENUITEM_GAME_HEADLINE") continue;
     item.handle=std::make_shared<zenkit::IMenuItem>(*item.handle);
@@ -424,15 +436,14 @@ void GameMenu::initAndroidOptions() {
       }
     }
   const size_t index=size_t(back-hItems);
-  std::move_backward(hItems+index,hItems+end,hItems+end+std::size(added));
-  for(size_t i=0;i<std::size(added);i+=2) {
+  std::move_backward(hItems+index,hItems+end,hItems+end+added.size());
+  for(size_t i=0;i<added.size();i+=2) {
     added[i].handle->pos_y=1700+int(rows.size()+i/2)*step;
     added[i+1].handle->pos_y=added[i].handle->pos_y+choiceOffset;
     hItems[index+i]=std::move(added[i]);
     hItems[index+i+1]=std::move(added[i+1]);
     updateItem(hItems[index+i+1]);
     }
-#endif
   }
 
 void GameMenu::initExtraKeys() {
