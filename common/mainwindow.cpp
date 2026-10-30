@@ -1748,6 +1748,12 @@ void MainWindow::onWorldLoaded() {
   if(auto pl = Gothic::inst().player())
     pl->multSpeed(1.f);
   startCameraPending = CommandLine::inst().startCamera()!=nullptr;
+  // Only the first world: later loads and level changes keep their own time
+  if(const int32_t t = CommandLine::inst().startTime(); t>=0 && !startTimeApplied) {
+    startTimeApplied = true;
+    if(auto world = Gothic::inst().world())
+      world->setDayTime(t/60, t%60);
+    }
   lastTick = Application::tickCount();
   player.clearFocus();
 #if defined(OPENGOTHIC_GAMEPAD)
