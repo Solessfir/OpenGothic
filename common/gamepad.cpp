@@ -384,7 +384,6 @@ void MainWindow::setControllerInput(bool enabled) {
   // The next mouse movement or key press hands input back and shows the pointer again
   MouseUtil::setGamepadActive(enabled);
   rootMenu.refreshPointer();
-  updateWindowCursor();
 #endif
   updateControllerOverlay();
   }
