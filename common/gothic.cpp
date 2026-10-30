@@ -157,6 +157,9 @@ Gothic::Gothic(GameModDescriptor desc) {
 
   baseIniFile.reset(new IniFile(nestedPath({u"system",u"Gothic.ini"},Dir::FT_File)));
   iniFile    .reset(new IniFile(u"Gothic.ini"));
+  // The original Gothic.ini always asks for Gothic 1 controls; start with the modern ones until the player picks
+  if(!iniFile->has("GAME","useGothic1Controls"))
+    iniFile->set("GAME","useGothic1Controls",0);
 #if defined(__ANDROID__)
   constexpr int defaultResolutionIndex = 0; // native scene resolution
   constexpr int defaultSsaoHalfResolution = 1;
@@ -184,22 +187,19 @@ Gothic::Gothic(GameModDescriptor desc) {
   defaults->set("GAME", "invCatOrder",         "COMBAT,POTION,FOOD,ARMOR,MAGIC,RUNE,DOCS,OTHER,NONE");
   defaults->set("GAME", "invMaxColumns",       5);
   defaults->set("GAME", "animatedWindows",     1);
-  defaults->set("GAME", "useGothic1Controls",  1);
+  defaults->set("GAME", "useGothic1Controls",  0);
   defaults->set("GAME", "highlightMeleeFocus", 0);
   defaults->set("GAME", "useQuickSaveKeys",    1);
   defaults->set("GAME", "skipEmptyLoot",       1);
   defaults->set("ENGINE", "worldCacheMiB", 512);
-  defaults->set("ENGINE", "cameraObstructionFade", 0);
+  defaults->set("ENGINE", "cameraObstructionFade", 1);
   defaults->set("ENGINE", "cameraObstructionFadeDistance", 180.f);
-  defaults->set("GAME", "cameraSwimming", 0);
+  defaults->set("GAME", "cameraSwimming", 1);
   defaults->set("ENGINE", "antiAliasing", 2);
 #if defined(__ANDROID__)
-  defaults->set("ENGINE", "cameraObstructionFade", 1);
-  defaults->set("GAME", "cameraSwimming", 1);
   defaults->set("GAME", "vibration",           1);
   defaults->set("GAME", "centerPlayerBars",    1);
   defaults->set("GAME", "touchButtons",        2);
-  defaults->set("GAME", "useGothic1Controls",  0);
   defaults->set("GAME", "usePotionKeys",      1);
   defaults->set("GAME", "mouseSensitivity",   0.53f);
   defaults->set("ENGINE", "shadowMapResolution", 1024);
@@ -239,10 +239,10 @@ Gothic::Gothic(GameModDescriptor desc) {
   defaults->set("VIDEO", "zVidBrightness", 0.5f);
   defaults->set("VIDEO", "zVidContrast",   0.5f);
   defaults->set("VIDEO", "zVidGamma",      0.5f);
-#if defined(__ANDROID__)
-  defaults->set("VIDEO", "displayMode", "auto");
   // The far shadow cascade alone took ~13 ms per frame on mobile GPUs in dense towns, ~3 ms with this
   defaults->set("ENGINE", "shadowFarMinTexels", 32.f);
+#if defined(__ANDROID__)
+  defaults->set("VIDEO", "displayMode", "auto");
   defaults->set("GAME", "cameraElevationOffset", 10.f);
   defaults->set("GAME", "cameraCombatElevationOffset", 20.f);
 #else
