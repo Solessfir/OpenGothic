@@ -303,6 +303,12 @@ void WorldSound::tickSlot(Effect& slot) {
   if(slot.ambient) {
     slot.setOcclusion(1.f);
     } else {
+    // The occlusion ray is costly and changes slowly, so it's refreshed at 10 Hz
+    const uint64_t now = owner.tickCount();
+    if(now<slot.occTime)
+      return;
+    slot.occTime = now+100;
+
     auto  dyn  = owner.physic();
     auto  head = plPos;
     auto  pos  = slot.pos;
