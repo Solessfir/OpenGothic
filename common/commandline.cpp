@@ -1,9 +1,16 @@
 #include "commandline.h"
 
 #include <Tempest/Log>
+#include <Tempest/Platform>
 #include <Tempest/TextCodec>
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <cassert>
+
+#if defined(__WINDOWS__)
+#include <windows.h>
+#endif
 
 #if defined(__APPLE__)
 #include <filesystem>
@@ -37,6 +44,44 @@ static const char16_t* toString(ScriptLang lang) {
   return u"Scripts";
   }
 
+static const char* helpText =
+  "Usage: Gothic2Notr [options]\n"
+  "  -g <path>              path containing the Gothic game data\n"
+  "  -game:<modfile.ini>    game modification manifest (GothicStarter compatibility)\n"
+  "  -nomenu                skip the main menu\n"
+  "  -devmode               enable marvin mode at the start of the game\n"
+  "  -w <worldname.zen>     startup world; newworld.zen is the default\n"
+  "  -save <number>         load save_slot_<number>.sav on start\n"
+  "  -save q                load the quicksave (save_slot_0.sav) on start\n"
+  "  -save q<number>        load the rotating quicksave save_quick_<number>.sav on start\n"
+  "  -lastSave              load the newest save on start, or show the main menu if there is none\n"
+  "  -window                windowed mode\n"
+  "  -benchmark             run the benchmark\n"
+  "  -v, -validation        enable validation layers for the graphics API\n"
+  "  -dx12                  use DirectX 12 instead of Vulkan (Windows only)\n"
+  "  -g1, -g2c, -g2         assume a Gothic 1, Gothic 2 classic or Gothic 2 Night of the Raven installation\n"
+  "  -rt <boolean>          enable or disable ray queries\n"
+  "  -gi <number>           ray-traced global illumination method, 0 is off\n"
+  "  -ms <boolean>          enable or disable meshlets\n"
+  "  -aa <number>           anti-aliasing: 0 off, 1 medium, 2 ultra; overrides the game setting\n"
+  "  -help, -h, -?          show this help\n";
+
+static void printHelp() {
+#if defined(__WINDOWS__)
+  // The game is a GUI program: write to a redirected output, else to the console that started it
+  HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
+  if((out==nullptr || out==INVALID_HANDLE_VALUE) && AttachConsole(ATTACH_PARENT_PROCESS))
+    out = CreateFileA("CONOUT$",GENERIC_WRITE,FILE_SHARE_WRITE,nullptr,OPEN_EXISTING,0,nullptr);
+  if(out==nullptr || out==INVALID_HANDLE_VALUE)
+    return;
+  DWORD written = 0;
+  WriteFile(out,helpText,DWORD(std::strlen(helpText)),&written,nullptr);
+#else
+  std::fputs(helpText,stdout);
+  std::fflush(stdout);
+#endif
+  }
+
 static bool boolArg(std::string_view v) {
   return std::string_view(v)!="0" && std::string_view(v)!="false";
   }
@@ -55,7 +100,11 @@ CommandLine::CommandLine(int argc, const char** argv) {
   std::string_view mod;
   for(int i=1;i<argc;++i) {
     std::string_view arg = argv[i];
-    if(arg.find("-game:")==0) {
+    if(arg=="-help" || arg=="-h" || arg=="-?" || arg=="--help") {
+      printHelp();
+      std::exit(0);
+      }
+    else if(arg.find("-game:")==0) {
       if(!mod.empty())
         Log::e("-game specified twice");
       mod = arg.substr(6);

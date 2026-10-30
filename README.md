@@ -201,7 +201,9 @@ Rendering distance is not customizable.
 | `-devmode`             | enable marvin-mode at start of the game                          |
 | `-w <worldname.zen>`   | startup world; newworld.zen is default                           |
 | `-save q`              | load the quick save on start                                     |
+| `-save q<number>`      | load a rotating quick save (save_quick_<number>.sav) on start    |
 | `-save <number>`       | load a specified save-game slot on start                         |
+| `-lastSave`            | load the newest save on start; without saves, show the main menu |
 | `-v -validation`       | enable validation layers for graphics api                        |
 | `-dx12`                | force DirectX 12 renderer instead of Vulkan (Windows only)       |
 | `-g1`                  | assume a Gothic 1 installation                                   |
@@ -212,3 +214,4 @@ Rendering distance is not customizable.
 | `-ms <boolean>`        | explicitly enable or disable meshlets                            |
 | `-aa <number>`         | enable anti-aliasing (number = 1-2, 2 = most expensive AA)       |
 | `-window`              | windowed debugging mode (not to be used for playing)             |
+| `-help`                | print the command line arguments                                 |
