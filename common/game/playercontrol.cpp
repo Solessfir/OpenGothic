@@ -67,6 +67,11 @@ void PlayerControl::onKeyPressed(KeyCodec::Action a, Tempest::KeyEvent::KeyType 
     return;
     }
 
+  if(a==KeyCodec::AutoRun) {
+    autoRun=!autoRun;
+    return;
+    }
+
 #if !defined(__MOBILE_PLATFORM__)
   // Mouse buttons arrive without a key code; touch and gamepad do too, but only on mobile.
   // Classic combat holds the action key as a modifier, so it keeps the vanilla focus lock.
@@ -274,6 +279,9 @@ void PlayerControl::onKeyReleased(KeyCodec::Action a, KeyCodec::Mapping mapping)
 auto PlayerControl::handleMovementAction(KeyCodec::ActionMapping actionMapping, bool pressed) -> void {
   auto[action, mapping] = actionMapping;
   auto mappingIndex = (mapping == KeyCodec::Mapping::Primary ? size_t(0) : size_t(1));
+  // Taking over the walk direction ends auto run
+  if(pressed && (action == Action::Forward || action == Action::Back))
+    autoRun = false;
   if (action == Action::Forward)
     movement.forwardBackward.main[mappingIndex] = pressed;
   else if (action == Action::Back)
@@ -305,6 +313,9 @@ void PlayerControl::setGamepadAxis(float lx, float ly) {
   controllerDirectional = false;
   gamepadLX = lx;
   gamepadLY = ly;
+  // Pulling the stick back ends auto run, as the back key does
+  if(ly>0.5f)
+    autoRun = false;
   }
 
 void PlayerControl::setTurnMovement(float turn,float forward,bool walk,float turnSpeed) {
@@ -823,6 +834,7 @@ void PlayerControl::clearInput(bool preserveTarget) {
   gamepadLX=0; gamepadLY=0;
   if(!preserveTarget) controllerTarget=nullptr;
   pendingInteractionUntil=0;
+  autoRun=false;
   movement.reset();
   std::memset(ctrl, 0,sizeof(ctrl));
   std::memset(actrl,0,sizeof(actrl));

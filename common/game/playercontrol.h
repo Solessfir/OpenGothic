@@ -158,6 +158,7 @@ class PlayerControl final {
       } movement;
     
     bool           ctrl[Action::Last]={};
+    bool           autoRun=false;
     std::array<bool,Action::Last> controllerKeyReleases={};
     bool           wctrl[WeaponAction::Last]={};
     bool           actrl[7]={};
@@ -238,7 +239,7 @@ class PlayerControl final {
     //////////////////////////////////
 
     auto wantsToMoveForward() const -> bool {
-      return movement.forwardBackward.value() > 0.f || gamepadLY < -((controllerDirectional || touchAnalogMovement) ? 0.f : 0.2f);
+      return movement.forwardBackward.value() > 0.f || autoRun || gamepadLY < -((controllerDirectional || touchAnalogMovement) ? 0.f : 0.2f);
       }
     auto wantsToMoveBackward() const -> bool {
       return movement.forwardBackward.value() < 0.f || gamepadLY > ((controllerDirectional || touchAnalogMovement) ? 0.f : 0.2f);

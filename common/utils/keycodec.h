@@ -49,6 +49,7 @@ class KeyCodec final {
       Parade,
       Interact,
       Sheath,
+      AutoRun,
 
       Walk,
       Sneak,
@@ -168,6 +169,7 @@ class KeyCodec final {
     KeyPair     keyShowMap;
     KeyPair     keyInteract;
     KeyPair     keySheath;
+    KeyPair     keyAutoRun;
 
     std::vector<KeyPair*> allKeys;
 
