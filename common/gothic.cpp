@@ -267,6 +267,9 @@ Gothic::Gothic(GameModDescriptor desc) {
   defaults->set("KEYS", "keyEnd",         "0100");
   defaults->set("KEYS", "keyHeal",        "2300");
   defaults->set("KEYS", "keyPotion",      "1900");
+#if !defined(__MOBILE_PLATFORM__)
+  defaults->set("KEYS", "keyAutoRun",     "0f02"); // mouse button 4
+#endif
   defaults->set("KEYS", "keyLockTarget",  "4f00");
   defaults->set("KEYS", "keyParade",      "cf000d02");
   defaults->set("KEYS", "keyActionRight", "d100");
