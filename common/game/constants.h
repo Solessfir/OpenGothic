@@ -542,5 +542,6 @@ enum class GiMethod : uint8_t {
   None,
   Probes,
   IrrC,
+  Ddgi,   // world-space probe grid
   Count
   };

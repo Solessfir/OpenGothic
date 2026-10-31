@@ -375,6 +375,17 @@ add_shader(probe_lighting.comp       lighting/rt/probe_lighting.comp)
 add_shader(probe_ambient.vert        triangle.vert)
 add_shader(probe_ambient.frag        lighting/rt/probe_ambient.frag)
 
+# Probe grid GI
+add_shader(ddgi_trace.comp           lighting/ddgi/ddgi_trace.comp     -DRAY_QUERY -DRAY_QUERY_AT)
+add_shader(ddgi_blend_irr.comp       lighting/ddgi/ddgi_blend.comp     -DIRRADIANCE)
+add_shader(ddgi_blend_dist.comp      lighting/ddgi/ddgi_blend.comp)
+add_shader(ddgi_apply.comp           lighting/ddgi/ddgi_apply.comp)
+add_shader(ddgi_lights.comp          lighting/ddgi/ddgi_lights.comp)
+add_shader(ddgi_schedule.comp        lighting/ddgi/ddgi_schedule.comp)
+add_shader(ddgi_schedule_clear.comp  lighting/ddgi/ddgi_schedule.comp  -DCLEAR)
+add_shader(ddgi_lights_clear.comp    lighting/ddgi/ddgi_lights.comp    -DCLEAR)
+add_shader(ddgi_ambient.frag         lighting/ddgi/ddgi_ambient.frag)
+
 # Surfels
 add_shader(surf_dbg.vert             lighting/surfels/surf_dbg.vert)
 add_shader(surf_dbg.frag             lighting/surfels/surf_dbg.frag)

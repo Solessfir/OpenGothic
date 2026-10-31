@@ -1,0 +1,149 @@
+#version 460
+
+#extension GL_EXT_control_flow_attributes : enable
+#extension GL_GOOGLE_include_directive    : enable
+
+#include "lighting/rt/rt_common.glsl"
+#include "lighting/tonemapping.glsl"
+#include "scene.glsl"
+#include "common.glsl"
+#include "lighting/ddgi/ddgi_common.glsl"
+#include "lighting/ddgi/ddgi_lights.glsl"
+
+layout(primitive_culling);
+layout(local_size_x = DdgiRays) in;
+
+DDGI_PUSH
+
+layout(binding = 0, std140) uniform UboScene {
+  SceneDesc scene;
+  };
+layout(binding = 1) uniform writeonly image2D rays;
+layout(binding = 2, std430) readonly buffer Probes { DdgiProbe ddgiProbes[]; };
+layout(binding = 3) uniform sampler2D skyLUT;
+layout(binding = 4) uniform sampler2D textureSm1;
+layout(binding = 5) uniform sampler2D ddgiIrradiance;
+layout(binding = 12) uniform sampler2D ddgiDistance;
+layout(binding = 13, std430) readonly buffer Lights { LightSource lights[]; };
+layout(binding = 14, std430) readonly buffer List { DdgiLightList lightList; };
+layout(binding = 15, std430) readonly buffer Schedule { DdgiSchedule schedule; };
+
+#include "lighting/ddgi/ddgi_sample.glsl"
+
+float shadowFactor(vec3 pos) {
+  // sun below the horizon, same test as the direct light pass
+  if(rayIntersect(vec3(0, RPlanet + max(pos.y*0.1, 0), 0), scene.sunDir, RPlanet)>=0)
+    return 0;
+  const vec4 shPos = scene.viewShadow[1]*vec4(pos,1);
+  const vec3 sh    = shPos.xyz/shPos.w;
+  if(any(greaterThan(abs(sh.xy), vec2(1))))
+    return 1;
+  const vec4  g = textureGather(textureSm1, sh.xy*0.5+vec2(0.5));
+  const float z = clamp(sh.z, 0, 0.99);
+  const vec4  s = step(g, vec4(z));
+  return 0.25*(s.x+s.y+s.z+s.w);
+  }
+
+// Torches and fires: one light picked by its unshadowed contribution and tested with a single shadow ray.
+// sum * visibility(picked) is an unbiased estimate of the shadowed sum, the probe blending removes the noise.
+vec3 pointLights(vec3 pos, vec3 nr, uint seed) {
+  const uint count = min(lightList.count, DdgiMaxLights);
+  vec3  sum    = vec3(0);
+  float wsum   = 0;
+  vec3  picked = vec3(0);
+  float pickW  = 0;
+  vec3  pickL  = vec3(0);
+  for(uint i=0; i<count; ++i) {
+    const LightSource l = lights[lightList.id[i]];
+    const vec3  d    = pos - l.pos;
+    const float dist = length(d);
+    if(dist>=l.range)
+      continue;
+    const float factor  = dist*dist/(l.range*l.range);
+    const float smooth2 = max(1.0 - factor*factor, 0.0);
+    const float lambert = max(0.0, -dot(d/max(dist,0.001), nr));
+    const vec3  c       = l.color * (lambert/max(factor, 0.005)) * (smooth2*smooth2);
+    const float w       = dot(c, vec3(0.2125, 0.7154, 0.0721));
+    if(w<=0)
+      continue;
+    sum  += c;
+    wsum += w;
+    // weighted reservoir: keep light i with probability w/wsum
+    if(float(wangHash(seed) & 0xFFFFFF)/16777216.0 * wsum < w) {
+      picked = c;
+      pickW  = w;
+      pickL  = l.pos;
+      }
+    }
+  if(wsum<=0)
+    return vec3(0);
+
+  const vec3  origin = pos + nr*5.0;
+  const vec3  toL    = pickL - origin;
+  const float tMax   = length(toL);
+  rayQueryEXT rayQuery;
+  rayQueryInitializeEXT(rayQuery, topLevelAS, RayFlagsShadow, 0xFF, origin, 0, toL/tMax, max(tMax-10.0, 0.0));
+  rayQueryProceedShadow(rayQuery);
+  if(rayQueryGetIntersectionTypeEXT(rayQuery, true)!=gl_RayQueryCommittedIntersectionNoneEXT)
+    return vec3(0);
+
+  // same units as the point light pass
+  return picked*(wsum/pickW) * 0.25 * Fd_Lambert * (max(1.0, scene.exposure)/scene.exposure);
+  }
+
+void main() {
+  const int   slot    = schedule.slot[gl_WorkGroupID.x];
+  const int   c       = slot / DdgiCount;
+  const float spacing = ddgiSpacing(c);
+  const ivec3 g       = ddgiGridOf(slot, push.origin[c].xyz);
+  const DdgiProbe p   = ddgiProbes[slot];
+  const bool  current = ddgiIsCurrent(p, g);
+
+  const int  ray    = int(gl_LocalInvocationIndex);
+  const vec3 dir    = ddgiRayDir(ray, push.frame);
+  const vec3 origin = vec3(g)*spacing + (current ? p.offset.xyz : vec3(0));
+
+  rayQueryEXT rayQuery;
+  rayQueryInitializeEXT(rayQuery, topLevelAS, gl_RayFlagsSkipAABBEXT, 0xFF, origin, 0, dir, max(DdgiRayLength, spacing*4.0));
+  rayQueryProceedAlphaTest(rayQuery);
+
+  if(rayQueryGetIntersectionTypeEXT(rayQuery, true)==gl_RayQueryCommittedIntersectionNoneEXT) {
+    const vec3 sky = textureSkyLUT(skyLUT, vec3(0,RPlanet,0), dir, scene.sunDir) * scene.GSunIntensity;
+    imageStore(rays, ddgiRayCoord(slot, ray), vec4(sky, DdgiDistMax));
+    return;
+    }
+
+  const float rayT  = rayQueryGetIntersectionTEXT(rayQuery, true);
+  const bool  front = rayQueryGetIntersectionFrontFaceEXT(rayQuery, true);
+  const HitDesc hit = pullCommitedHitDesc(rayQuery);
+  if(!front && hit.opaque) {
+    // inside of a wall: no light, a negative distance marks it for probe classification
+    imageStore(rays, ddgiRayCoord(slot, ray), vec4(0, 0, 0, -rayT*0.2/spacing));
+    return;
+    }
+
+  const uint  id    = hit.instanceId;
+  const uvec3 index = pullTrinagleIds(id, hit.primitiveId);
+  const vec3  b     = hit.baryCoord;
+  const vec2  uv    = b.x*pullTexcoord(id,index.x) + b.y*pullTexcoord(id,index.y) + b.z*pullTexcoord(id,index.z);
+  vec3        nr    = b.x*pullNormal(id,index.x)   + b.y*pullNormal(id,index.y)   + b.z*pullNormal(id,index.z);
+  nr = normalize(mat3(rayQueryGetIntersectionObjectToWorldEXT(rayQuery, true))*nr);
+  if(dot(nr, dir)>0)
+    nr = -nr;
+
+  const vec3  albedo = textureAlbedo(textureLod(sampler2D(textures[nonuniformEXT(id)], smp), uv, 0).rgb);
+  const vec3  pos    = origin + dir*rayT;
+
+  // vegetation is lit from both sides, as rays can't capture the small light leaks through the leaves
+  const float dt     = hit.opaque ? dot(nr, scene.sunDir) : abs(dot(nr, scene.sunDir));
+  const vec3  sun    = scene.sunColor * max(dt, 0.0) * shadowFactor(pos + nr*10.0) * Fd_Lambert;
+
+  // multi-bounce from last frame's probes
+  float w      = 0;
+  vec3  bounce = ddgiSampleIrradiance(pos, nr, -dir, w);
+  bounce = mix(scene.ambient, bounce, w);
+
+  const vec3 torch = pointLights(pos, nr, uint(slot*DdgiRays + ray) ^ (push.frame*0x9E3779B9u));
+
+  imageStore(rays, ddgiRayCoord(slot, ray), vec4(albedo*(sun + torch + bounce), min(rayT/spacing, DdgiDistMax)));
+  }

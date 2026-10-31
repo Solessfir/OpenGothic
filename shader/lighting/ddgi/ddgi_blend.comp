@@ -1,0 +1,121 @@
+#version 460
+
+#extension GL_EXT_control_flow_attributes : enable
+#extension GL_GOOGLE_include_directive    : enable
+
+#include "common.glsl"
+#include "lighting/ddgi/ddgi_common.glsl"
+
+#if defined(IRRADIANCE)
+const int Tile = DdgiIrrTile;
+#else
+const int Tile = DdgiDistTile;
+#endif
+
+layout(local_size_x = Tile, local_size_y = Tile) in;
+
+DDGI_PUSH
+
+layout(binding = 0) uniform sampler2D rays;
+layout(binding = 1, rgba16f) uniform image2D atlas;
+layout(binding = 2, std430) buffer Probes { DdgiProbe ddgiProbes[]; };
+layout(binding = 3, std430) readonly buffer Schedule { DdgiSchedule schedule; };
+
+shared vec4 shRay[DdgiRays];
+shared vec3 shDir[DdgiRays];
+shared uint shBackface;
+
+void main() {
+  const int   slot  = schedule.slot[gl_WorkGroupID.x];
+  const int   c     = slot / DdgiCount;
+  const ivec3 g     = ddgiGridOf(slot, push.origin[c].xyz);
+  const DdgiProbe p = ddgiProbes[slot];
+  const bool  isNew = !ddgiIsCurrent(p, g);
+
+  const uint lane = gl_LocalInvocationIndex;
+  if(lane==0)
+    shBackface = 0;
+  barrier();
+  for(uint i=lane; i<DdgiRays; i+=gl_WorkGroupSize.x*gl_WorkGroupSize.y) {
+    shRay[i] = texelFetch(rays, ddgiRayCoord(slot, int(i)), 0);
+    shDir[i] = ddgiRayDir(int(i), push.frame);
+    if(shRay[i].a<0)
+      atomicAdd(shBackface, 1);
+    }
+  barrier();
+
+  const ivec2 texel = ivec2(gl_LocalInvocationID.xy);
+  const vec3  dir   = ddgiTexelDir(texel, Tile);
+
+  vec4 sum = vec4(0);
+  for(int i=0; i<DdgiRays; ++i) {
+    const vec4  r = shRay[i];
+    const float cs = max(0.0, dot(dir, shDir[i]));
+#if defined(IRRADIANCE)
+    if(r.a<0)
+      continue;
+    sum += vec4(r.rgb*cs, cs);
+#else
+    // pow(cs,50) is below 0.001 for cs<0.87: those rays can't change the moments
+    if(cs<0.87)
+      continue;
+    const float w = pow(cs, 50.0);
+    const float d = min(abs(r.a), DdgiDistMax);
+    sum += vec4(d*w, d*d*w, 0, w);
+#endif
+    }
+
+  const ivec2 at  = ddgiTileOrigin(slot, Tile) + texel;
+  const vec4  old = imageLoad(atlas, at);
+  vec4 val = sum.w>0 ? vec4(sum.rgb/sum.w, 1) : old;
+#if defined(IRRADIANCE)
+  const float hysteresis = isNew ? 0.0 : 0.97;
+#else
+  const float hysteresis = isNew ? 0.0 : 0.95;
+#endif
+  imageStore(atlas, at, mix(val, old, hysteresis));
+
+#if defined(IRRADIANCE)
+  // the irradiance pass runs last and publishes the probe; mostly back faces means it sits inside geometry
+  barrier();
+  if(lane==0) {
+    // Relocation (as in RTXGI), in probe spacing units: push a probe that sits inside geometry through the closest
+    // back face, keep it off nearby front faces, and relax it back towards the grid point in open space
+    const float minFront = 0.15;
+    float closestBack = 1e10, closestFront = 1e10, farthestFront = 0;
+    vec3  backDir = vec3(0), frontDir = vec3(0), farDir = vec3(0);
+    for(int i=0; i<DdgiRays; ++i) {
+      const float a = shRay[i].a;
+      if(a<0) {
+        const float d = -a*5.0; // back face distances are stored scaled by 0.2
+        if(d<closestBack) { closestBack = d; backDir = shDir[i]; }
+        } else {
+        if(a<closestFront)  { closestFront  = a; frontDir = shDir[i]; }
+        if(a>farthestFront) { farthestFront = a; farDir   = shDir[i]; }
+        }
+      }
+    const float spacing = ddgiSpacing(c);
+    vec3 offset = isNew ? vec3(0) : p.offset.xyz/spacing;
+    vec3 next   = offset;
+    if(shBackface*4 >= DdgiRays) {
+      next += backDir*(closestBack + minFront*0.5);
+      }
+    else if(closestFront<minFront) {
+      if(dot(frontDir, farDir)<=0)
+        next += farDir*min(farthestFront, 1.0)*0.5;
+      }
+    else if(closestFront>minFront+0.05 && dot(offset,offset)>0) {
+      const float back = min(closestFront-minFront, length(offset));
+      next -= normalize(offset)*back;
+      }
+    if(all(lessThanEqual(abs(next), vec3(0.45))))
+      offset = next;
+
+    DdgiProbe np;
+    np.coord  = g;
+    np.flags  = DdgiValid | (shBackface*4 < DdgiRays ? DdgiActive : 0);
+    np.offset = vec4(offset*spacing, 0);
+    ddgiProbes[slot] = np;
+    }
+#endif
+  }
