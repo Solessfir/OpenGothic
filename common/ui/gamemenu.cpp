@@ -996,6 +996,12 @@ bool GameMenu::adjustsHorizontally() {
   return isHorSelectable(sel->handle) || canAdjustValue();
   }
 
+// The selected row is the quicksave row with several quicksaves to step through
+bool GameMenu::isBrowsingQuickLoad() {
+  return quickLoadItem!=nullptr && selectedItem()==quickLoadItem && quickLoadSlots.size()>1 &&
+         journalList==nullptr && pendingDelete==nullptr;
+  }
+
 bool GameMenu::canAdjustValue() {
   if(journalList!=nullptr || pendingDelete!=nullptr || ctrlInput!=nullptr) return false;
   auto first=selectedItem();
