@@ -46,7 +46,7 @@
     <string name="og_report_sent">Report sent. Thank you!</string>
     <string name="og_report_failed">The report could not be sent. %1$s</string>
     <string name="og_report_save_none">Attach a save? (optional)</string>
-    <string name="og_report_save_why">Saves help me reproduce bugs and test requested features much faster.</string>
+    <string name="og_report_save_why">Saves help reproduce bugs and test requested features much faster.</string>
     <string name="og_report_save">%1$s, %2$s MB</string>
     <string name="og_report_save_pick">Choose a save</string>
     <string name="og_report_save_failed">The report was sent, but not the save. %1$s</string>
