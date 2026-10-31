@@ -340,7 +340,10 @@ void mainWater(vec4 t) {
     // BROKEN: water mesh is two sided
     wx.normal = -wx.normal;
     }
-  const bool fromBelow = scene.camPos.y < shInp.pos.y;
+  // Where this pixel's view starts: on the near plane, a little in front of the eye. With the camera in the surface
+  // the eye can be under the water while the view starts above it
+  const vec4 nearPos   = scene.viewProjectInv*vec4((gl_FragCoord.xy*scene.screenResInv)*2.0-vec2(1.0), 0.0, 1.0);
+  const bool fromBelow = nearPos.y/nearPos.w < shInp.pos.y;
   if(fromBelow) {
     // Keep the normal up and the ripples gentle, so the edge of the window does not shred
     wx.normal = normalize(mix(wx.normal*sign(wx.normal.y), vec3(0,1,0), 0.4));
