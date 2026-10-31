@@ -18,6 +18,7 @@
     <string name="og_update_to">Update to %1$s</string>
     <string name="og_update_downloading">Downloading update · %1$d%%</string>
     <string name="og_update_title">Gothic Launcher %1$s</string>
+    <string name="og_whats_new">What\'s new</string>
     <string name="og_update_notes">A new version is available.</string>
     <string name="og_updates_title">Automatic updates</string>
     <string name="og_updates_body">Gothic Launcher can update itself when a new version is out. Android asks once to allow it to install apps.</string>
@@ -33,7 +34,7 @@
     <string name="og_restore_title">Restore saves and settings for %1$s?</string>
     <string name="og_restore_body">Saves in the same slots and the settings are replaced by the backup. Other saves stay.</string>
     <string name="og_feedback">Feedback</string>
-    <string name="og_donate">Support development ❤️</string>
+    <string name="og_donate">Support development</string>
     <string name="og_feedback_problem">Problem</string>
     <string name="og_feedback_suggestion">Suggestion</string>
     <string name="og_suggestion_body">Send an idea to the developer? Only your text, the launcher version and the phone model are sent.</string>

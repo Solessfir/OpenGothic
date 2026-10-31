@@ -30,6 +30,7 @@ import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.PopupWindow;
 import android.widget.ProgressBar;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
@@ -70,9 +71,6 @@ public final class LauncherActivity extends AppCompatActivity {
     private static final int SIGN_IN = 2;
     private static final int BACKUP = 5;
     private static final int RESTORE = 6;
-    private static final int REPORT = 7;
-    private static final int CONTROLS = 8;
-    private static final int DONATE = 9;
     private static final long REFRESH_INTERVAL = 10 * 60 * 1000;
 
     private static volatile boolean refreshing;
@@ -218,6 +216,7 @@ public final class LauncherActivity extends AppCompatActivity {
         findViewById(R.id.og_root).setAlpha(1.f);
         hideSystemBars();
         refreshLibrary(false);
+        if (Updates.justUpdated(this)) showWhatsNew();
         Updates.check(this);
         askInstallPermission();
         offerReport();
@@ -686,6 +685,24 @@ public final class LauncherActivity extends AppCompatActivity {
                 .show();
     }
 
+    /** The notes of the last few releases, kept by hand in res/raw/og_whats_new.txt. */
+    private void showWhatsNew() {
+        String notes;
+        try (InputStream in = getResources().openRawResource(R.raw.og_whats_new)) {
+            java.io.ByteArrayOutputStream text = new java.io.ByteArrayOutputStream();
+            byte[] buf = new byte[4096];
+            for (int n; (n = in.read(buf)) > 0; ) text.write(buf, 0, n);
+            notes = text.toString(StandardCharsets.UTF_8.name()).trim();
+        } catch (IOException e) {
+            return;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.og_whats_new)
+                .setMessage(notes)
+                .setPositiveButton(android.R.string.ok, null)
+                .show();
+    }
+
     private void showUpdate() {
         final Updates.Release release = Updates.available(this);
         if (release == null || Updates.downloading) return;
@@ -709,23 +726,90 @@ public final class LauncherActivity extends AppCompatActivity {
     private void showMore(View anchor) {
         File root = Library.root(this);
         if (root == null) return;
-        PopupMenu menu = new PopupMenu(this, anchor);
-        menu.getMenu().add(0, CONTROLS, 0, R.string.og_controls);
-        menu.getMenu().add(0, BACKUP, 1, R.string.og_backup);
-        menu.getMenu().add(0, RESTORE, 2, R.string.og_restore);
-        menu.getMenu().add(0, REPORT, 3, R.string.og_feedback);
-        menu.getMenu().add(0, DONATE, 4, R.string.og_donate);
-        if (Library.installed(root, game())) menu.getMenu().add(0, 0, 5, R.string.og_uninstall);
-        menu.setOnMenuItemClickListener(item -> {
-            if (item.getItemId() == CONTROLS) showControls();
-            else if (item.getItemId() == BACKUP) backup();
-            else if (item.getItemId() == RESTORE) restore();
-            else if (item.getItemId() == REPORT) askReport(game(), null);
-            else if (item.getItemId() == DONATE) startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://ko-fi.com/solessfir")));
-            else confirmUninstall();
-            return true;
+        final float dp = getResources().getDisplayMetrics().density;
+        final PopupWindow popup = new PopupWindow(this);
+        LinearLayout list = new LinearLayout(this);
+        list.setOrientation(LinearLayout.VERTICAL);
+        list.setBackgroundResource(R.drawable.og_menu);
+        list.setPadding(0, Math.round(6 * dp), 0, Math.round(6 * dp));
+
+        // Help, your data, contact, then removal on its own
+        addMenuRow(list, popup, R.drawable.og_ic_controls, R.string.og_controls, R.color.og_muted, R.color.og_text, this::showControls);
+        addMenuRow(list, popup, R.drawable.og_ic_news, R.string.og_whats_new, R.color.og_muted, R.color.og_text, this::showWhatsNew);
+        addMenuDivider(list);
+        addMenuRow(list, popup, R.drawable.og_ic_backup, R.string.og_backup, R.color.og_muted, R.color.og_text, this::backup);
+        addMenuRow(list, popup, R.drawable.og_ic_restore, R.string.og_restore, R.color.og_muted, R.color.og_text, this::restore);
+        addMenuDivider(list);
+        addMenuRow(list, popup, R.drawable.og_ic_feedback, R.string.og_feedback, R.color.og_muted, R.color.og_text, () -> askReport(game(), null));
+        addMenuRow(list, popup, R.drawable.og_ic_heart, R.string.og_donate, R.color.og_accent, R.color.og_text,
+                () -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://ko-fi.com/solessfir"))));
+        if (Library.installed(root, game())) {
+            addMenuDivider(list);
+            addMenuRow(list, popup, R.drawable.og_ic_delete, R.string.og_uninstall, R.color.og_error, R.color.og_error, this::confirmUninstall);
+        }
+
+        popup.setContentView(list);
+        popup.setBackgroundDrawable(null);
+        popup.setFocusable(true);
+        popup.setOutsideTouchable(true);
+        popup.setElevation(8 * dp);
+        popup.setWidth(LinearLayout.LayoutParams.WRAP_CONTENT);
+        popup.setHeight(LinearLayout.LayoutParams.WRAP_CONTENT);
+        list.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+
+        // Beside the button, bottoms lined up, so it stays visible; above it when there is no room on the side (portrait)
+        int[] at = new int[2];
+        anchor.getLocationInWindow(at);
+        final int gap = Math.round(8 * dp);
+        final View window = getWindow().getDecorView();
+        int x = at[0] + anchor.getWidth() + gap;
+        int y = at[1] + anchor.getHeight() - list.getMeasuredHeight();
+        if (x + list.getMeasuredWidth() > window.getWidth()) {
+            x = at[0];
+            y = at[1] - list.getMeasuredHeight() - gap;
+        }
+        popup.showAtLocation(anchor, android.view.Gravity.TOP | android.view.Gravity.START, x, Math.max(y, gap));
+    }
+
+    private void addMenuRow(LinearLayout list, PopupWindow popup, int icon, int text, int iconColor, int textColor, Runnable action) {
+        final float dp = getResources().getDisplayMetrics().density;
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        row.setMinimumHeight(Math.round(40 * dp));
+        row.setPadding(Math.round(16 * dp), 0, Math.round(24 * dp), 0);
+        android.util.TypedValue ripple = new android.util.TypedValue();
+        getTheme().resolveAttribute(android.R.attr.selectableItemBackground, ripple, true);
+        row.setBackgroundResource(ripple.resourceId);
+
+        ImageView image = new ImageView(this);
+        image.setImageResource(icon);
+        image.setColorFilter(ContextCompat.getColor(this, iconColor));
+        LinearLayout.LayoutParams size = new LinearLayout.LayoutParams(Math.round(20 * dp), Math.round(20 * dp));
+        size.setMarginEnd(Math.round(14 * dp));
+        row.addView(image, size);
+
+        TextView label = new TextView(this);
+        label.setText(text);
+        label.setTextSize(15);
+        label.setTextColor(ContextCompat.getColor(this, textColor));
+        label.setTypeface(ResourcesCompat.getFont(this, R.font.og_plex_regular));
+        row.addView(label);
+
+        row.setOnClickListener(v -> {
+            popup.dismiss();
+            action.run();
         });
-        menu.show();
+        list.addView(row, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+    }
+
+    private void addMenuDivider(LinearLayout list) {
+        final float dp = getResources().getDisplayMetrics().density;
+        View line = new View(this);
+        line.setBackgroundColor(ContextCompat.getColor(this, R.color.og_border_soft));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, Math.max(1, Math.round(dp)));
+        lp.setMargins(Math.round(16 * dp), Math.round(4 * dp), Math.round(16 * dp), Math.round(4 * dp));
+        list.addView(line, lp);
     }
 
     /** After the game closed by itself, offers to send a report to the developer. */
