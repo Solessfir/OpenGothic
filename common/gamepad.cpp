@@ -298,6 +298,7 @@ void MainWindow::controllerAction(const GamepadBindings::Event& event) {
     case PadAction::Jump: key(KeyCodec::Jump); break;
     case PadAction::Walk: key(KeyCodec::Walk); break;
     case PadAction::Sneak: key(KeyCodec::Sneak); break;
+    case PadAction::AutoRun: key(KeyCodec::AutoRun); break;
     case PadAction::FirstPerson: key(KeyCodec::FirstPerson); break;
     case PadAction::LookBehind: key(KeyCodec::LookBack); break;
     case PadAction::DrawSheathe: key(KeyCodec::Weapon); break;
