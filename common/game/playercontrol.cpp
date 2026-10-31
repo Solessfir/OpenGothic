@@ -1524,7 +1524,9 @@ void PlayerControl::implMoveMobsi(Npc& pl, uint64_t /*dt*/) {
   // animation handled in MOBSI
   auto inter = pl.interactive();
 
-  if(ctrl[KeyCodec::Back] && !inter->isLadder()) {
+  // The touch and gamepad sticks move through the analog axis, not the Back key: any clear push gets up
+  const bool stick = std::max(std::abs(gamepadLX), std::abs(gamepadLY))>0.5f;
+  if((ctrl[KeyCodec::Back] || wantsToMoveBackward() || stick) && !inter->isLadder()) {
     pl.setInteraction(nullptr);
     return;
     }
