@@ -106,7 +106,8 @@ KeyCodec::KeyCodec() {
     &keyShowLog,
     &keyShowMap,
     &keyInteract,
-    &keySheath
+    &keySheath,
+    &keyAutoRun
     };
   Gothic::inst().onSettingsChanged.bind(this,&KeyCodec::setupSettings);
   setupSettings();
@@ -265,6 +266,8 @@ KeyCodec::ActionMapping KeyCodec::implTr(int32_t code) const {
     return { Interact, *m };
   if(auto m = keySheath.mapping(code))
     return { Sheath, *m };
+  if(auto m = keyAutoRun.mapping(code))
+    return { AutoRun, *m };
   if(auto m = keyUp.mapping(code))
     return { Forward, *m };
   if(auto m = keyDown.mapping(code))
@@ -495,6 +498,7 @@ void KeyCodec::setupSettings() {
   keyShowMap     = setup("keyShowMap");
   keyInteract    = setup("keyInteract");
   keySheath      = setup("keySheath");
+  keyAutoRun     = setup("keyAutoRun");
   }
 
 KeyCodec::KeyPair KeyCodec::setup(const char* kp) {
