@@ -39,11 +39,15 @@
     <string name="og_suggestion_body">Eine Idee an den Entwickler senden? Gesendet werden nur dein Text, die Launcher-Version und das Telefonmodell.</string>
     <string name="og_suggestion_hint">Was würdest du gern sehen?</string>
     <string name="og_suggestion_send">Senden</string>
-    <string name="og_report_body">Einen Bericht an den Entwickler senden? Er enthält das Spielprotokoll und Angaben zu diesem Telefon, aber keine Spielstände oder Kontodaten.</string>
+    <string name="og_report_body">Einen Bericht an den Entwickler senden? Er enthält das Spielprotokoll und Angaben zu diesem Telefon, aber keine Kontodaten. Ein Spielstand wird nur gesendet, wenn du einen auswählst.</string>
     <string name="og_report_hint">Was ist passiert? (optional)</string>
     <string name="og_report_send">Bericht senden</string>
     <string name="og_report_sent">Bericht gesendet. Danke!</string>
     <string name="og_report_failed">Der Bericht konnte nicht gesendet werden. %1$s</string>
+    <string name="og_report_save_none">Spielstand anhängen? (optional)</string>
+    <string name="og_report_save">%1$s, %2$s MB</string>
+    <string name="og_report_save_pick">Spielstand auswählen</string>
+    <string name="og_report_save_failed">Der Bericht wurde gesendet, der Spielstand aber nicht. %1$s</string>
     <string name="og_unsupported_title">Dieses Telefon wird leider nicht unterstützt</string>
     <string name="og_try_anyway">Trotzdem versuchen</string>
     <string name="og_no_vulkan">Die Spiele brauchen Vulkan-1.1-Grafik, die dieses Telefon nicht hat.</string>
