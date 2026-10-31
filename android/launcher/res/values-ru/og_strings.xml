@@ -36,7 +36,7 @@
     <string name="og_donate">Поддержать разработку</string>
     <string name="og_feedback_problem">Проблема</string>
     <string name="og_feedback_suggestion">Предложение</string>
-    <string name="og_suggestion_body">Отправить идею разработчику? Отправляются только ваш текст, версия лаунчера и модель телефона.</string>
+    <string name="og_suggestion_body">Отправить идею разработчику? Отправляются только ваш текст, версия лаунчера и модель телефона, а также сохранение, если вы его выберете.</string>
     <string name="og_suggestion_hint">Что бы вы хотели увидеть?</string>
     <string name="og_suggestion_send">Отправить</string>
     <string name="og_report_body">Отправить отчёт разработчику? В нём журнал игры и сведения об этом телефоне, но нет данных аккаунта. Сохранение отправляется, только если вы его выберете.</string>
@@ -45,6 +45,7 @@
     <string name="og_report_sent">Отчёт отправлен. Спасибо!</string>
     <string name="og_report_failed">Не удалось отправить отчёт. %1$s</string>
     <string name="og_report_save_none">Прикрепить сохранение? (необязательно)</string>
+    <string name="og_report_save_why">Сохранения помогают мне гораздо быстрее воспроизводить ошибки и проверять запрошенные функции.</string>
     <string name="og_report_save">%1$s, %2$s МБ</string>
     <string name="og_report_save_pick">Выберите сохранение</string>
     <string name="og_report_save_failed">Отчёт отправлен, а сохранение нет. %1$s</string>
