@@ -45,7 +45,7 @@
     <string name="og_report_sent">Отчёт отправлен. Спасибо!</string>
     <string name="og_report_failed">Не удалось отправить отчёт. %1$s</string>
     <string name="og_report_save_none">Прикрепить сохранение? (необязательно)</string>
-    <string name="og_report_save_why">Сохранения помогают мне гораздо быстрее воспроизводить ошибки и проверять запрошенные функции.</string>
+    <string name="og_report_save_why">Сохранения помогают гораздо быстрее воспроизводить ошибки и проверять запрошенные функции.</string>
     <string name="og_report_save">%1$s, %2$s МБ</string>
     <string name="og_report_save_pick">Выберите сохранение</string>
     <string name="og_report_save_failed">Отчёт отправлен, а сохранение нет. %1$s</string>
