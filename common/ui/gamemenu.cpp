@@ -517,6 +517,8 @@ void GameMenu::initExtraOptions() {
      "Show the frame rate in the top left corner."},
     {"OPENGOTHIC_AA", "Anti-aliasing", "antiAliasing", "Off|Medium|Ultra",
      "Smooths jagged edges (SMAA). Needs the full rendering resolution.", "ENGINE"},
+    {"OPENGOTHIC_GI", "Indirect light", "globalIllumination", "Off|On",
+     "Bounced light from the sun, sky and torches. Needs a GPU with ray tracing.", "ENGINE"},
     });
 #endif
   }

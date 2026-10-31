@@ -194,6 +194,10 @@ void Renderer::setupSettings() {
   else
     lights.directLightPso = &shaders.lights;
 
+  // the menu option, unless -gi or the debug toggle picked a method
+  if(Shaders::options().doGi==GiMethod::None && !settings.giToggled)
+    settings.giMethod = Gothic::settingsGetI("ENGINE","globalIllumination")!=0 ? GiMethod::Ddgi : GiMethod::None;
+
   const auto gi = settings.giMethod;
   if(gi==GiMethod::Probes && Shaders::isGi1Supported() && Shaders::options().doRtScene) {
     settings.giMethod = GiMethod::Probes;
@@ -222,6 +226,7 @@ void Renderer::toggleGi() {
   if(!Shaders::options().doRtScene)
     return;
 
+  settings.giToggled = true;
   if(settings.giMethod==GiMethod::None && Shaders::options().doGi!=GiMethod::None)
     settings.giMethod = Shaders::options().doGi;
   else if(settings.giMethod==GiMethod::None && Shaders::isGi1Supported())
