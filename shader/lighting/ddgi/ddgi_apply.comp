@@ -1,0 +1,65 @@
+#version 460
+#extension GL_GOOGLE_include_directive          : enable
+#extension GL_EXT_samplerless_texture_functions : enable
+
+#include "lighting/tonemapping.glsl"
+#include "scene.glsl"
+#include "common.glsl"
+#include "ssao/half_resolution.glsl"
+#include "lighting/ddgi/ddgi_common.glsl"
+
+// Probe lighting at half resolution: irradiance is smooth, the ambient pass upsamples it by depth
+layout(local_size_x = 8, local_size_y = 8) in;
+
+DDGI_PUSH
+
+layout(binding = 0, std140) uniform UboScene {
+  SceneDesc scene;
+  };
+layout(binding = 1) uniform writeonly image2D result;
+layout(binding = 2) uniform usampler2D gbufNormal;
+layout(binding = 3) uniform sampler2D  depth;
+layout(binding = 4) uniform texture2D  irradiance;
+layout(binding = 5) uniform sampler2D  ddgiIrradiance;
+layout(binding = 6) uniform sampler2D  ddgiDistance;
+layout(binding = 7, std430) readonly buffer Probes { DdgiProbe ddgiProbes[]; };
+
+#include "lighting/ddgi/ddgi_sample.glsl"
+
+vec3 skyIrradiance(vec3 n) {
+  ivec3 d;
+  d.x = n.x>=0 ? 1 : 0;
+  d.y = n.y>=0 ? 1 : 0;
+  d.z = n.z>=0 ? 1 : 0;
+  n = n*n;
+  vec3 ret = vec3(0);
+  ret += texelFetch(irradiance, ivec2(0,d.x), 0).rgb * n.x;
+  ret += texelFetch(irradiance, ivec2(1,d.y), 0).rgb * n.y;
+  ret += texelFetch(irradiance, ivec2(2,d.z), 0).rgb * n.z;
+  return ret;
+  }
+
+void main() {
+  const ivec2 at = ivec2(gl_GlobalInvocationID.xy);
+  if(any(greaterThanEqual(at, imageSize(result))))
+    return;
+
+  const ivec2 pixel = ssaoNearestDepthPixel(depth, at);
+  const float z     = texelFetch(depth, pixel, 0).x;
+  if(z>=1.0) {
+    imageStore(result, at, vec4(0, 0, 0, linearDepth(z, scene.clipInfo)));
+    return;
+    }
+
+  const vec2 uv   = (vec2(pixel)+0.5)/vec2(textureSize(depth, 0));
+  const vec4 wpos = scene.viewProjectInv*vec4(uv*2.0-vec2(1), z, 1);
+  const vec3 pos  = wpos.xyz/wpos.w;
+  const vec3 norm = normalFetch(gbufNormal, pixel);
+
+  // outside of the probe grid: the flat ambient term
+  const vec3 fallback = scene.ambient + skyIrradiance(norm)*0.8;
+
+  float w  = 0;
+  vec3  gi = ddgiSampleIrradiance(pos, norm, normalize(scene.camPos - pos), w);
+  imageStore(result, at, vec4(mix(fallback, gi, w), linearDepth(z, scene.clipInfo)));
+  }
