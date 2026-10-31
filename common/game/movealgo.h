@@ -150,6 +150,7 @@ class MoveAlgo final {
     float               mulSpeed  =1.f;
     Tempest::Vec3       fallSpeed ={};
     float               fallCount=0.f;
+    float               fallTop=0.f; // highest point of the current fall
 
     uint64_t            climbStart=0;
     Tempest::Vec3       climbPos0={};

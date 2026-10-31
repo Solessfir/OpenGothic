@@ -2139,7 +2139,7 @@ void Npc::takeDamage(Npc& other, const Bullet* b, const CollideMask bMask, int32
     }
   }
 
-void Npc::takeFallDamage(const Vec3& fallSpeed) {
+void Npc::takeFallDamage(const Vec3& fallSpeed, float fallHeight) {
   if(bodyStateMasked()==BS_FALL) {
     if(!isFallingDeep()) {
       // small fall
@@ -2153,7 +2153,8 @@ void Npc::takeFallDamage(const Vec3& fallSpeed) {
       setAnim(lastHitType=='A' ? Anim::FallenA : Anim::FallenB);
       }
     }
-  auto dmg = DamageCalculator::damageFall(*this,fallSpeed.length());
+  // Only the drop counts: not the sideways speed of a running jump, nor speed gathered while stuck on an edge
+  auto dmg = DamageCalculator::damageFall(*this,std::max(fallHeight, 0.f));
   if(!dmg.hasHit)
     return;
   int32_t hp = attribute(ATR_HITPOINTS);
