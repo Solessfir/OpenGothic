@@ -157,9 +157,12 @@ Gothic::Gothic(GameModDescriptor desc) {
 
   baseIniFile.reset(new IniFile(nestedPath({u"system",u"Gothic.ini"},Dir::FT_File)));
   iniFile    .reset(new IniFile(u"Gothic.ini"));
-  // The original Gothic.ini always asks for Gothic 1 controls; start with the modern ones until the player picks
+  // The original Gothic.ini asks for Gothic 1 controls; start with the modern ones until the player picks
   if(!iniFile->has("GAME","useGothic1Controls"))
     iniFile->set("GAME","useGothic1Controls",0);
+  // It also turns quicksave keys off, which hides the quicksave row in the load menu
+  if(!iniFile->has("GAME","useQuickSaveKeys"))
+    iniFile->set("GAME","useQuickSaveKeys",1);
 #if defined(__ANDROID__)
   constexpr int defaultResolutionIndex = 0; // native scene resolution
   constexpr int defaultSsaoHalfResolution = 1;
@@ -196,6 +199,7 @@ Gothic::Gothic(GameModDescriptor desc) {
   defaults->set("ENGINE", "cameraObstructionFade", 1);
   defaults->set("ENGINE", "cameraObstructionFadeDistance", 180.f);
   defaults->set("GAME", "cameraSwimming", 1);
+  defaults->set("GAME", "quickSaveSlots", 10);
   defaults->set("ENGINE", "antiAliasing", 2);
 #if defined(__ANDROID__)
   defaults->set("GAME", "vibration",           1);
