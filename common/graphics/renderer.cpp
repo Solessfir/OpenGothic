@@ -201,6 +201,9 @@ void Renderer::setupSettings() {
   else if(gi==GiMethod::IrrC && Shaders::isGi2Supported() && Shaders::options().doRtScene) {
     settings.giMethod = GiMethod::IrrC;
     }
+  else if(gi==GiMethod::Ddgi && Shaders::isGi1Supported() && Shaders::options().doRtScene) {
+    settings.giMethod = GiMethod::Ddgi;
+    }
   else {
     settings.giMethod = GiMethod::None;
     }
@@ -272,6 +275,7 @@ void Renderer::setLightsHud(const Tempest::Texture2d* tex) {
   }
 
 void Renderer::updateCamera(const WorldView& wview, const Camera& camera) {
+  ddgi.camPos = camera.originLwc();
   proj        = camera.projective();
   viewProj    = camera.viewProj();
   viewProjLwc = camera.viewProjLwc();
@@ -469,7 +473,7 @@ void Renderer::resetViewport(Tempest::Size res, Tempest::Size fullRes) {
 void Renderer::resetShadowmap() {
   auto& device = Resources::device();
 
-  const bool forceSm1 = (settings.giMethod==GiMethod::Probes || settings.giMethod==GiMethod::IrrC ||
+  const bool forceSm1 = (settings.giMethod==GiMethod::Probes || settings.giMethod==GiMethod::IrrC || settings.giMethod==GiMethod::Ddgi ||
                          settings.pathTraceEnabled || sky.quality==PathTrace);
   bool used[Resources::ShadowLayers] = {};
   for(int i=0; i<Resources::ShadowLayers; ++i) {
@@ -2481,6 +2485,10 @@ void Renderer::prepareIrradiance(Encoder<CommandBuffer>& cmd, WorldView& wview) 
   }
 
 void Renderer::prepareGi(Encoder<CommandBuffer>& cmd, WorldView& wview) {
+  if(settings.giMethod==GiMethod::Ddgi && settings.zCloudShadowScale) {
+    prepareDdgi(cmd, wview);
+    return;
+    }
   if(settings.giMethod!=GiMethod::Probes || !settings.zCloudShadowScale) {
     return;
     }
@@ -2602,6 +2610,116 @@ void Renderer::prepareGi(Encoder<CommandBuffer>& cmd, WorldView& wview) {
   cmd.setBinding(9, probes);
   cmd.setPipeline(shaders.probeLighting);
   cmd.dispatch(1024);
+  }
+
+void Renderer::prepareDdgi(Encoder<CommandBuffer>& cmd, WorldView& wview) {
+  // must match lighting/ddgi/ddgi_common.glsl
+  const IVec3    dims     = {32,16,32};
+  const uint32_t cascades = 3;
+  const uint32_t count    = uint32_t(dims.x*dims.y*dims.z)*cascades;
+  const uint32_t tiles   = 128;
+  const float    spacing = 250;
+
+  auto& device = Resources::device();
+  auto& rays   = usesImage2d(ddgi.rays,       TextureFormat::RGBA16F, 64*tiles, count/tiles);
+  auto& irr    = usesImage2d(ddgi.irradiance, TextureFormat::RGBA16F, tiles*8,  (count/tiles)*8);
+  auto& dist   = usesImage2d(ddgi.distance,   TextureFormat::RGBA16F, tiles*16, (count/tiles)*16);
+  auto& half   = usesImage2d(ddgi.half,       TextureFormat::RGBA16F, uint32_t(zbuffer.w()+1)/2, uint32_t(zbuffer.h()+1)/2);
+  if(ddgi.probes.byteSize()!=count*sizeof(uint32_t)*8)
+    ddgi.probes = device.ssbo(nullptr, count*sizeof(uint32_t)*8);
+
+  for(uint32_t c=0; c<cascades; ++c) {
+    const float s = spacing*float(1u<<(2*c));
+    ddgi.push.origin[c][0] = int(std::floor(ddgi.camPos.x/s)) - dims.x/2;
+    ddgi.push.origin[c][1] = int(std::floor(ddgi.camPos.y/s)) - dims.y/2;
+    ddgi.push.origin[c][2] = int(std::floor(ddgi.camPos.z/s)) - dims.z/2;
+    }
+  ddgi.push.frame++;
+
+  auto& scene = wview.sceneGlobals();
+  cmd.setFramebuffer({});
+
+  // point lights that reach the grid; hits up to a few meters outside of it still get torch light
+  auto& lightList = usesSsbo(ddgi.lightList, 256*sizeof(uint32_t));
+  struct LightsPush {
+    Vec3     gridMin;
+    uint32_t numLights = 0;
+    Vec3     gridMax;
+    } lp;
+  const float margin = 1000;
+  lp.gridMin   = Vec3(float(ddgi.push.origin[0][0]), float(ddgi.push.origin[0][1]), float(ddgi.push.origin[0][2]))*spacing - Vec3(margin);
+  lp.gridMax   = lp.gridMin + Vec3(float(dims.x), float(dims.y), float(dims.z))*spacing + Vec3(2*margin);
+  lp.numLights = uint32_t(wview.lights().size());
+  cmd.setDebugMarker("GI-Probes-Lights");
+  cmd.setBinding(0, wview.lights().lightsSsbo());
+  cmd.setBinding(1, lightList);
+  cmd.setPushData(lp);
+  cmd.setPipeline(shaders.ddgiLightsClear);
+  cmd.dispatch(1);
+  cmd.setPipeline(shaders.ddgiLights);
+  cmd.dispatchThreads(std::max<uint32_t>(lp.numLights, 1));
+
+  auto& schedule = usesSsbo(ddgi.schedule, (4+count)*sizeof(uint32_t));
+  cmd.setDebugMarker("GI-Probes-Schedule");
+  cmd.setBinding(0, ddgi.probes);
+  cmd.setBinding(1, schedule);
+  cmd.setPushData(ddgi.push);
+  cmd.setPipeline(shaders.ddgiScheduleClear);
+  cmd.dispatch(1);
+  cmd.setPipeline(shaders.ddgiSchedule);
+  cmd.dispatchThreads(count);
+
+  cmd.setDebugMarker("GI-Probes-Trace");
+  cmd.setBinding(0, scene.uboGlobal[SceneGlobals::V_Main]);
+  cmd.setBinding(1, rays);
+  cmd.setBinding(2, ddgi.probes);
+  cmd.setBinding(3, sky.viewCldLut, sky.sampler);
+  cmd.setBinding(4, shadowMap[1],   Sampler::bilinear());
+  cmd.setBinding(5, irr,            Sampler::bilinear(ClampMode::ClampToEdge));
+  cmd.setBinding(6, scene.rtScene.tlas);
+  cmd.setBinding(7, Sampler::bilinear());
+  cmd.setBinding(8, scene.rtScene.tex);
+  cmd.setBinding(9, scene.rtScene.vbo);
+  cmd.setBinding(10,scene.rtScene.ibo);
+  cmd.setBinding(11,scene.rtScene.rtDesc);
+  cmd.setBinding(12,dist,           Sampler::bilinear(ClampMode::ClampToEdge));
+  cmd.setBinding(13,wview.lights().lightsSsbo());
+  cmd.setBinding(14,lightList);
+  cmd.setBinding(15,schedule);
+  cmd.setPushData(ddgi.push);
+  cmd.setPipeline(shaders.ddgiTrace);
+  cmd.dispatchIndirect(schedule, 0);
+
+  // distance first: the irradiance pass marks the probes as up to date
+  cmd.setDebugMarker("GI-Probes-Blend");
+  cmd.setBinding(0, rays, Sampler::nearest());
+  cmd.setBinding(1, dist);
+  cmd.setBinding(2, ddgi.probes);
+  cmd.setBinding(3, schedule);
+  cmd.setPushData(ddgi.push);
+  cmd.setPipeline(shaders.ddgiBlendDist);
+  cmd.dispatchIndirect(schedule, 0);
+
+  cmd.setBinding(0, rays, Sampler::nearest());
+  cmd.setBinding(1, irr);
+  cmd.setBinding(2, ddgi.probes);
+  cmd.setBinding(3, schedule);
+  cmd.setPushData(ddgi.push);
+  cmd.setPipeline(shaders.ddgiBlendIrr);
+  cmd.dispatchIndirect(schedule, 0);
+
+  cmd.setDebugMarker("GI-Probes-Apply");
+  cmd.setBinding(0, scene.uboGlobal[SceneGlobals::V_Main]);
+  cmd.setBinding(1, half);
+  cmd.setBinding(2, gbufNormal, Sampler::nearest());
+  cmd.setBinding(3, zbuffer,    Sampler::nearest());
+  cmd.setBinding(4, sky.irradianceLut);
+  cmd.setBinding(5, irr,        Sampler::bilinear(ClampMode::ClampToEdge));
+  cmd.setBinding(6, dist,       Sampler::bilinear(ClampMode::ClampToEdge));
+  cmd.setBinding(7, ddgi.probes);
+  cmd.setPushData(ddgi.push);
+  cmd.setPipeline(shaders.ddgiApply);
+  cmd.dispatchThreads(half.size());
   }
 
 void Renderer::prepareExposure(Encoder<CommandBuffer>& cmd, WorldView& wview) {
@@ -2814,6 +2932,12 @@ void Renderer::drawAmbient(Encoder<CommandBuffer>& cmd, const WorldView& view) {
     cmd.setBinding(4, ssao.ssaoBlur, Sampler::nearest(ClampMode::ClampToEdge)); //TODO: remove once splatting is working
     cmd.setBinding(5, surf.surfels);
     cmd.setPipeline(shaders.ambientLightSurf);
+    }
+  else if(settings.giMethod==GiMethod::Ddgi && settings.zCloudShadowScale) {
+    cmd.setBinding(3, ddgi.half,     Sampler::nearest(ClampMode::ClampToEdge));
+    cmd.setBinding(4, ssao.ssaoBlur, Sampler::nearest(ClampMode::ClampToEdge));
+    cmd.setBinding(5, zbuffer,       Sampler::nearest());
+    cmd.setPipeline(shaders.ddgiAmbient);
     }
   else if(settings.giMethod==GiMethod::Probes && settings.zCloudShadowScale) {
     cmd.setBinding(3, ssao.ssaoBlur, Sampler::nearest());
