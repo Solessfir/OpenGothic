@@ -555,10 +555,10 @@ bool TouchInput::blockVisible() const {
   }
 
 void TouchInput::drawControls(Painter& p) {
-  enum Image : uint8_t { Attack, Use, Block, Jump, Draw, Sheathe, Menu, Inventory, Pressed };
+  enum Image : uint8_t { Attack, Use, Block, Jump, Draw, Sheathe, Menu, Inventory, Pressed, PressedSquare };
   if(textures.empty()) {
     for(auto name:{"touch_attack.png","touch_use.png","touch_block.png","touch_jump.png","touch_draw.png","touch_sheathe.png",
-                   "touch_menu.png","touch_inventory.png","touch_pressed.png"})
+                   "touch_menu.png","touch_inventory.png","touch_pressed.png","touch_pressed_square.png"})
       textures.push_back(Resources::loadTexturePm(TouchAsset::pixmap(name)));
     }
   // Nothing over game menus, videos and loading screens; dialogue and documents keep Back and Accept
@@ -635,8 +635,9 @@ void TouchInput::drawControls(Painter& p) {
         break;
       }
     const bool pressed = c==Command::Block ? blockPointer>=0 : buttonPressed(c);
+    const bool square  = c==Command::Back || c==Command::Inventory;
     if(pressed)
-      image(Pressed,b.center,d);
+      image(square ? PressedSquare : Pressed,b.center,square ? d*256.f/220.f : d);
     }
 
   }
