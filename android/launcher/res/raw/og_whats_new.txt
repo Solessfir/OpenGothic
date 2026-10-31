@@ -1,0 +1,22 @@
+0.6.11
+- The waterline at the sea follows the waves and is softer
+- Caustics only show on ground that is under water
+- Water seen from above is a little murky, deeper water looks deeper
+- Running jumps and slopes no longer cause fall damage
+- Jumping at a steep slope slides you down instead of carrying you up it
+- Gothic 1: washing diggers no longer show blue squares
+- What's new is in the menu and shows once after each update
+
+0.6.10
+- Water seen from below: the surface mirrors the bottom, lets the shore show through and draws a waterline when the camera is at the surface
+- Under water the view is soft and gently wobbles, and distance fades to lit water instead of black
+- Water looks equally clear from above and from below
+- Sunlight draws moving caustics on the bottom of shallow water
+- Reflections under lily pads no longer streak
+
+0.6.9
+- Levels load much faster: the Archolos city takes about 5 seconds instead of 13
+- Higher frame rate in big towns: small objects far away no longer cast shadows
+- Every tree and plant with wind now sways, and swaying trees keep their collision
+- The FPS counter shows the average of the last second
+- Support development: a Ko-fi link in the menu
