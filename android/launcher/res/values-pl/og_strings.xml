@@ -39,11 +39,15 @@
     <string name="og_suggestion_body">Wysłać pomysł do autora? Wysyłany jest tylko twój tekst, wersja launchera i model telefonu.</string>
     <string name="og_suggestion_hint">Co chciałbyś zobaczyć?</string>
     <string name="og_suggestion_send">Wyślij</string>
-    <string name="og_report_body">Wysłać zgłoszenie do autora? Zawiera dziennik gry i informacje o tym telefonie, ale żadnych zapisów ani danych konta.</string>
+    <string name="og_report_body">Wysłać zgłoszenie do autora? Zawiera dziennik gry i informacje o tym telefonie, ale żadnych danych konta. Zapis zostanie wysłany tylko wtedy, gdy go wybierzesz.</string>
     <string name="og_report_hint">Co się stało? (opcjonalnie)</string>
     <string name="og_report_send">Wyślij zgłoszenie</string>
     <string name="og_report_sent">Zgłoszenie wysłane. Dziękujemy!</string>
     <string name="og_report_failed">Nie udało się wysłać zgłoszenia. %1$s</string>
+    <string name="og_report_save_none">Dołączyć zapis? (opcjonalnie)</string>
+    <string name="og_report_save">%1$s, %2$s MB</string>
+    <string name="og_report_save_pick">Wybierz zapis</string>
+    <string name="og_report_save_failed">Zgłoszenie wysłano, ale zapisu nie. %1$s</string>
     <string name="og_unsupported_title">Niestety ten telefon nie jest obsługiwany</string>
     <string name="og_try_anyway">Spróbuj mimo to</string>
     <string name="og_no_vulkan">Gry wymagają grafiki Vulkan 1.1, której ten telefon nie obsługuje.</string>
