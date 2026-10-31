@@ -134,7 +134,21 @@ int main(int argc,const char** argv) {
   Tempest::Log::i(appBuild);
   Workers::setThreadName("Main thread");
 
+#if defined(__ANDROID__)
+  // The activity starts main without arguments; the launcher hands them over in game.txt
+  const auto               launcherArgs = InstallDetect::androidArgs();
+  std::vector<const char*> allArgs(argv,argv+argc);
+  for(auto& a:launcherArgs)
+    allArgs.push_back(a.c_str());
+  std::string launcherLine;
+  for(auto& a:launcherArgs)
+    launcherLine += " " + a;
+  if(!launcherArgs.empty())
+    Tempest::Log::i("Launcher arguments:",launcherLine);
+  CommandLine          cmd{int(allArgs.size()),allArgs.data()};
+#else
   CommandLine          cmd{argc,argv};
+#endif
   auto                 api     = mkApi(cmd);
   const auto           gpuName = selectDevice(*api);
   CrashLog::setGpu(gpuName);

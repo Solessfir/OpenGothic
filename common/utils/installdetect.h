@@ -5,6 +5,7 @@
 
 #ifdef __ANDROID__
 #include <filesystem>
+#include <vector>
 #endif
 
 class InstallDetect final {
@@ -23,6 +24,8 @@ class InstallDetect final {
     static std::filesystem::path androidInternalDataPath();
     // Game folder chosen by the launcher in game.txt; empty for the single-game layout
     static std::u16string androidGame();
+    // Command-line options the launcher passes on the second line of game.txt
+    static std::vector<std::string> androidArgs();
 #endif
 
   private:

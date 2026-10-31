@@ -108,6 +108,36 @@ std::u16string InstallDetect::androidGame() {
     return u"";
   return std::u16string(name.begin(),name.end());
   }
+
+std::vector<std::string> InstallDetect::androidArgs() {
+  std::ifstream file(std::filesystem::path(applicationSupportDirectory())/"game.txt");
+  std::string   line;
+  std::getline(file,line);
+  std::getline(file,line);
+  // Split at spaces; double quotes keep a value with spaces together
+  std::vector<std::string> args;
+  std::string arg;
+  bool        quoted = false, any = false;
+  for(char c:line) {
+    if(c=='"') {
+      quoted = !quoted;
+      any    = true;
+      }
+    else if(!quoted && std::isspace(uint8_t(c))) {
+      if(any)
+        args.push_back(std::move(arg));
+      arg.clear();
+      any = false;
+      }
+    else {
+      arg.push_back(c);
+      any = true;
+      }
+    }
+  if(any)
+    args.push_back(std::move(arg));
+  return args;
+  }
 #endif
 
 #if defined(__IOS__) || defined(__ANDROID__)
