@@ -4,6 +4,8 @@ import android.annotation.TargetApi;
 import android.app.ActivityManager;
 import android.app.ApplicationExitInfo;
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.Build;
 
 import org.json.JSONObject;
@@ -11,13 +13,17 @@ import org.opengothic.launcher.R;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.RandomAccessFile;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -27,16 +33,25 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 /**
  * Problem reports as issues in the developer's private GitHub repository: the game's logs, how Android ended the game process,
- * and the phone. Saves and Steam data stay out.
+ * and the phone. A save goes along only when the player picks one; Steam data stays out.
  */
 final class Reports {
     /** GitHub takes 65536 characters per issue. */
     private static final int ISSUE_SIZE = 60000;
 
     private Reports() {
+    }
+
+    /** The report was filed, but its save did not arrive. */
+    static final class SaveNotSent extends IOException {
+        SaveNotSent(String message) {
+            super(message);
+        }
     }
 
     /** The game started last, see LauncherActivity.play. */
@@ -81,11 +96,64 @@ final class Reports {
         }
     }
 
+    /** The game's saves, newest first. */
+    static List<File> saves(Context c, Library.Game game) {
+        File root = Library.root(c);
+        File[] files = root == null || game == null ? null : Library.user(root, game).listFiles((dir, name) -> name.endsWith(".sav"));
+        List<File> ret = new ArrayList<>();
+        if (files != null) Collections.addAll(ret, files);
+        ret.sort((a, b) -> Long.compare(b.lastModified(), a.lastModified()));
+        return ret;
+    }
+
+    /** The name the player gave the save, from the header OpenGothic writes first into the archive. */
+    static String saveTitle(File save) {
+        try (ZipFile zip = new ZipFile(save)) {
+            ZipEntry header = zip.getEntry("header");
+            if (header == null) return save.getName();
+            byte[] data = new byte[(int) Math.min(header.getSize(), 4096)];
+            try (InputStream in = zip.getInputStream(header)) {
+                int got = 0;
+                for (int n; got < data.length && (n = in.read(data, got, data.length - got)) > 0; ) got += n;
+            }
+            // The tag "OpenGothic/Save" and its terminating zero, a 16-bit version, then the name as a 32-bit length and its bytes
+            ByteBuffer b = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN);
+            b.position(16 + 2);
+            int length = b.getInt();
+            if (length <= 0 || length > b.remaining()) return save.getName();
+            String title = new String(data, b.position(), length, StandardCharsets.UTF_8).trim();
+            return title.isEmpty() ? save.getName() : title;
+        } catch (IOException | RuntimeException e) {
+            return save.getName();
+        }
+    }
+
+    /** The screenshot OpenGothic stores in the save, scaled down to about the given width. */
+    static Bitmap savePreview(File save, int width) {
+        try (ZipFile zip = new ZipFile(save)) {
+            ZipEntry entry = zip.getEntry("preview.jpg");
+            if (entry == null) return null;
+            BitmapFactory.Options size = new BitmapFactory.Options();
+            size.inJustDecodeBounds = true;
+            try (InputStream in = zip.getInputStream(entry)) {
+                BitmapFactory.decodeStream(in, null, size);
+            }
+            BitmapFactory.Options scaled = new BitmapFactory.Options();
+            scaled.inSampleSize = 1;
+            while (size.outWidth / (scaled.inSampleSize * 2) >= width) scaled.inSampleSize *= 2;
+            try (InputStream in = zip.getInputStream(entry)) {
+                return BitmapFactory.decodeStream(in, null, scaled);
+            }
+        } catch (IOException | RuntimeException e) {
+            return null;
+        }
+    }
+
     /**
      * Sends the report to the relay named in the launcher config, which files the issue. The relay keeps the GitHub token,
-     * so the app never holds one.
+     * so the app never holds one. A save follows the report, which the relay links from the issue.
      */
-    static void send(Context c, Library.Game game, String problem, String note, boolean suggestion) throws IOException {
+    static void send(Context c, Library.Game game, String problem, String note, boolean suggestion, File save) throws IOException {
         String relay = Updates.reportRelay(c);
         if (relay == null) throw new IOException(App.text(R.string.og_err_reports_unavailable));
         Map<String, String> report = new HashMap<>();
@@ -110,9 +178,45 @@ final class Reports {
             int code = connection.getResponseCode();
             if (code == 429) throw new IOException(App.text(R.string.og_err_reports_limit));
             if (code / 100 != 2) throw new IOException("The report server answered " + code + ".");
+            if (save != null) {
+                try {
+                    sendSave(relay, new JSONObject(read(connection.getInputStream())), save);
+                } catch (IOException | org.json.JSONException e) {
+                    throw new SaveNotSent(e.getMessage());
+                }
+            }
         } finally {
             connection.disconnect();
         }
+    }
+
+    private static void sendSave(String relay, JSONObject filed, File save) throws IOException, org.json.JSONException {
+        String query = "?issue=" + filed.getInt("number") + "&key=" + filed.getString("upload") + "&name=" + save.getName();
+        HttpURLConnection connection = (HttpURLConnection) new URL(relay.replaceAll("/+$", "") + "/save" + query).openConnection();
+        try {
+            connection.setConnectTimeout(15000);
+            connection.setReadTimeout(120000);
+            connection.setDoOutput(true);
+            connection.setRequestMethod("PUT");
+            connection.setRequestProperty("Content-Type", "application/octet-stream");
+            connection.setFixedLengthStreamingMode(save.length());
+            try (InputStream in = new FileInputStream(save); OutputStream out = connection.getOutputStream()) {
+                byte[] buffer = new byte[64 * 1024];
+                for (int n; (n = in.read(buffer)) > 0; ) out.write(buffer, 0, n);
+            }
+            int code = connection.getResponseCode();
+            if (code / 100 != 2) throw new IOException("The report server answered " + code + ".");
+        } finally {
+            connection.disconnect();
+        }
+    }
+
+    private static String read(InputStream in) throws IOException {
+        StringBuilder b = new StringBuilder();
+        try (BufferedReader r = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
+            for (String line; (line = r.readLine()) != null; ) b.append(line);
+        }
+        return b.toString();
     }
 
     private static String body(Context c, Library.Game game, String note) throws IOException {
