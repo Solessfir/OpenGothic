@@ -21,8 +21,17 @@
 #include <Tempest/Painter>
 #include <Tempest/Application>
 #include <Tempest/Log>
+#include <Tempest/Platform>
 
 using namespace Tempest;
+
+// Pose update interval of far NPCs and mobs per centimeter of distance: 30 Hz (PC) or 15 Hz (mobile) at 60 meters,
+// down to 6 or 3 Hz at 300 meters, where an NPC is a few pixels tall
+#if defined(__MOBILE_PLATFORM__)
+static constexpr float FarPoseMsPerCm = 0.011f;
+#else
+static constexpr float FarPoseMsPerCm = 0.0055f;
+#endif
 
 int32_t WorldObjects::MobStates::stateByTime(gtime t) const {
   t = t.timeInDay();
@@ -446,8 +455,7 @@ void WorldObjects::updateAnimation(uint64_t dt) {
       const auto pos = i->centerPosition();
       if(!view.testPoint(pos,300.f))
         return;
-      // About 15 Hz at 60 meters and 3 Hz at 300 meters, where an NPC is a few pixels tall
-      poseInterval = uint64_t((pos-eye).length()*0.011f);
+      poseInterval = uint64_t((pos-eye).length()*FarPoseMsPerCm);
       }
     i->setPoseInterval(poseInterval);
     i->updateAnimation(dt);
@@ -459,7 +467,7 @@ void WorldObjects::updateAnimation(uint64_t dt) {
     const auto pos = i.position();
     if(view.width>0 && (pos-plPos).quadLength()>6000.f*6000.f) {
       // sounds still play: the interval only skips the pose
-      poseInterval = view.testPoint(pos,1000.f) ? uint64_t((pos-eye).length()*0.011f) : uint64_t(-1);
+      poseInterval = view.testPoint(pos,1000.f) ? uint64_t((pos-eye).length()*FarPoseMsPerCm) : uint64_t(-1);
       }
     i.setPoseInterval(poseInterval);
     i.updateAnimation(dt);
