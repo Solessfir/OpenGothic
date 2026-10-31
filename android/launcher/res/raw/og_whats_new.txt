@@ -1,3 +1,7 @@
+0.6.12
+- Auto run on a controller: push the stick forward and press LB, pull the stick back to stop
+- Problem reports can include a save, so the developer can see where it happened
+
 0.6.11
 - The waterline at the sea follows the waves and is softer
 - Caustics only show on ground that is under water
