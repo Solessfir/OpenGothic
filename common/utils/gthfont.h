@@ -16,6 +16,8 @@ class GthFont final {
 
     int  pixelSize() const;
     void setScale(float s);
+    // Multiplies the text and shadow opacity
+    void fade(float opacity);
 
     void drawText(Tempest::Painter& p, int x, int y, int w, int h, std::string_view txt, Tempest::AlignFlag align, int firstLine=0) const;
     void drawText(Tempest::Painter& p, int x, int y, std::string_view txt) const;
