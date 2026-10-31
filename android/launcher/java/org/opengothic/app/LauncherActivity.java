@@ -950,7 +950,7 @@ public final class LauncherActivity extends AppCompatActivity {
                 .setMessage(R.string.og_report_body)
                 .setPositiveButton(R.string.og_report_send, (d, which) -> {
                     boolean suggestion = kind.getCheckedRadioButtonId() == idea.getId();
-                    sendReport(game, problem, note.getText().toString().trim(), suggestion, suggestion ? null : attached[0]);
+                    sendReport(game, problem, note.getText().toString().trim(), suggestion, attached[0]);
                 })
                 .setNegativeButton(problem != null ? R.string.og_not_now : R.string.og_cancel, null)
                 .create();
@@ -965,7 +965,6 @@ public final class LauncherActivity extends AppCompatActivity {
             boolean suggestion = kind.getCheckedRadioButtonId() == idea.getId();
             dialog.setMessage(getString(suggestion ? R.string.og_suggestion_body : R.string.og_report_body));
             note.setHint(suggestion ? R.string.og_suggestion_hint : R.string.og_report_hint);
-            save.setVisibility(suggestion ? View.GONE : View.VISIBLE);
             Button send = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
             send.setText(suggestion ? R.string.og_suggestion_send : R.string.og_report_send);
             send.setEnabled(!suggestion || note.getText().toString().trim().length() > 0);
@@ -1040,15 +1039,17 @@ public final class LauncherActivity extends AppCompatActivity {
         name.setTextColor(ContextCompat.getColor(this, save == null ? R.color.og_muted : R.color.og_text));
         name.setTypeface(ResourcesCompat.getFont(this, R.font.og_plex_regular));
         text.addView(name);
-        if (save != null) {
-            TextView details = new TextView(this);
+        TextView details = new TextView(this);
+        if (save == null) {
+            details.setText(R.string.og_report_save_why);
+        } else {
             String when = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(new Date(save.lastModified()));
             details.setText(getString(R.string.og_report_save, when, String.format(Locale.getDefault(), "%.1f", save.length() / 1e6)));
-            details.setTextSize(13);
-            details.setTextColor(ContextCompat.getColor(this, R.color.og_muted));
-            details.setTypeface(ResourcesCompat.getFont(this, R.font.og_plex_regular));
-            text.addView(details);
         }
+        details.setTextSize(13);
+        details.setTextColor(ContextCompat.getColor(this, R.color.og_muted));
+        details.setTypeface(ResourcesCompat.getFont(this, R.font.og_plex_regular));
+        text.addView(details);
         row.addView(text, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
         return row;
     }
