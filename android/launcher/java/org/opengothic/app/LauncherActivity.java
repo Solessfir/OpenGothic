@@ -58,6 +58,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
@@ -893,11 +894,39 @@ public final class LauncherActivity extends AppCompatActivity {
         page.setOrientation(LinearLayout.VERTICAL);
         if (problem == null) page.addView(kind);
         page.addView(note);
+        // A save lets the developer stand where the problem happened
+        final List<File> saves = Reports.saves(this, game);
+        final File[] attached = {null};
+        final LinearLayout save = new LinearLayout(this);
+        save.setPadding(0, Math.round(8 * getResources().getDisplayMetrics().density), 0, 0);
+        final Runnable showSave = new Runnable() {
+            @Override public void run() {
+                save.removeAllViews();
+                LinearLayout row = saveRow(attached[0]);
+                // The dialog page is already inset; line the row up with the text field above
+                row.setPaddingRelative(Math.round(4 * getResources().getDisplayMetrics().density), row.getPaddingTop(), 0, row.getPaddingBottom());
+                row.setOnClickListener(v -> pickSave(saves, f -> { attached[0] = f; run(); }));
+                if (attached[0] != null) {
+                    ImageView clear = new ImageView(LauncherActivity.this);
+                    clear.setImageResource(R.drawable.og_ic_close);
+                    clear.setColorFilter(ContextCompat.getColor(LauncherActivity.this, R.color.og_muted));
+                    int box = Math.round(36 * getResources().getDisplayMetrics().density);
+                    clear.setPadding(box / 4, box / 4, box / 4, box / 4);
+                    clear.setOnClickListener(v -> { attached[0] = null; run(); });
+                    row.addView(clear, new LinearLayout.LayoutParams(box, box));
+                }
+                save.addView(row, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+            }
+        };
+        showSave.run();
+        if (!saves.isEmpty()) page.addView(save);
         final AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle(problem != null ? problem : getString(R.string.og_feedback))
                 .setMessage(R.string.og_report_body)
-                .setPositiveButton(R.string.og_report_send, (d, which) ->
-                        sendReport(game, problem, note.getText().toString().trim(), kind.getCheckedRadioButtonId() == idea.getId()))
+                .setPositiveButton(R.string.og_report_send, (d, which) -> {
+                    boolean suggestion = kind.getCheckedRadioButtonId() == idea.getId();
+                    sendReport(game, problem, note.getText().toString().trim(), suggestion, suggestion ? null : attached[0]);
+                })
                 .setNegativeButton(problem != null ? R.string.og_not_now : R.string.og_cancel, null)
                 .create();
         int pad = Math.round(20 * getResources().getDisplayMetrics().density);
@@ -911,6 +940,7 @@ public final class LauncherActivity extends AppCompatActivity {
             boolean suggestion = kind.getCheckedRadioButtonId() == idea.getId();
             dialog.setMessage(getString(suggestion ? R.string.og_suggestion_body : R.string.og_report_body));
             note.setHint(suggestion ? R.string.og_suggestion_hint : R.string.og_report_hint);
+            save.setVisibility(suggestion ? View.GONE : View.VISIBLE);
             Button send = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
             send.setText(suggestion ? R.string.og_suggestion_send : R.string.og_report_send);
             send.setEnabled(!suggestion || note.getText().toString().trim().length() > 0);
@@ -925,11 +955,86 @@ public final class LauncherActivity extends AppCompatActivity {
         });
     }
 
-    private void sendReport(final Library.Game game, final String problem, final String note, final boolean suggestion) {
+    /** The game's saves, newest first, to pick one for a report. */
+    private void pickSave(List<File> saves, java.util.function.Consumer<File> picked) {
+        LinearLayout list = new LinearLayout(this);
+        list.setOrientation(LinearLayout.VERTICAL);
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(list);
+        final AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle(R.string.og_report_save_pick)
+                .setView(scroll)
+                .setNegativeButton(R.string.og_cancel, null)
+                .create();
+        for (File f : saves) {
+            LinearLayout row = saveRow(f);
+            row.setOnClickListener(v -> {
+                dialog.dismiss();
+                picked.accept(f);
+            });
+            list.addView(row, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        }
+        dialog.show();
+    }
+
+    /** A save's screenshot, name, date and size; without a save, the prompt to attach one. */
+    private LinearLayout saveRow(File save) {
+        final float dp = getResources().getDisplayMetrics().density;
+        LinearLayout row = new LinearLayout(this);
+        row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        row.setMinimumHeight(Math.round(56 * dp));
+        row.setPadding(Math.round(20 * dp), Math.round(6 * dp), Math.round(12 * dp), Math.round(6 * dp));
+        android.util.TypedValue ripple = new android.util.TypedValue();
+        getTheme().resolveAttribute(android.R.attr.selectableItemBackground, ripple, true);
+        row.setBackgroundResource(ripple.resourceId);
+
+        final ImageView image = new ImageView(this);
+        LinearLayout.LayoutParams size;
+        if (save == null) {
+            image.setImageResource(R.drawable.og_ic_backup);
+            image.setColorFilter(ContextCompat.getColor(this, R.color.og_muted));
+            size = new LinearLayout.LayoutParams(Math.round(20 * dp), Math.round(20 * dp));
+        } else {
+            image.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            image.setBackgroundColor(ContextCompat.getColor(this, R.color.og_surface));
+            size = new LinearLayout.LayoutParams(Math.round(64 * dp), Math.round(36 * dp));
+            final int width = size.width;
+            new Thread(() -> {
+                Bitmap preview = Reports.savePreview(save, width);
+                if (preview != null) handler.post(() -> image.setImageBitmap(preview));
+            }, "save-preview").start();
+        }
+        size.setMarginEnd(Math.round(14 * dp));
+        row.addView(image, size);
+
+        LinearLayout text = new LinearLayout(this);
+        text.setOrientation(LinearLayout.VERTICAL);
+        TextView name = new TextView(this);
+        name.setText(save == null ? getString(R.string.og_report_save_none) : Reports.saveTitle(save));
+        name.setTextSize(15);
+        name.setTextColor(ContextCompat.getColor(this, save == null ? R.color.og_muted : R.color.og_text));
+        name.setTypeface(ResourcesCompat.getFont(this, R.font.og_plex_regular));
+        text.addView(name);
+        if (save != null) {
+            TextView details = new TextView(this);
+            String when = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(new Date(save.lastModified()));
+            details.setText(getString(R.string.og_report_save, when, String.format(Locale.getDefault(), "%.1f", save.length() / 1e6)));
+            details.setTextSize(13);
+            details.setTextColor(ContextCompat.getColor(this, R.color.og_muted));
+            details.setTypeface(ResourcesCompat.getFont(this, R.font.og_plex_regular));
+            text.addView(details);
+        }
+        row.addView(text, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+        return row;
+    }
+
+    private void sendReport(final Library.Game game, final String problem, final String note, final boolean suggestion, final File save) {
         new Thread(() -> {
             try {
-                Reports.send(this, game, problem, note, suggestion);
+                Reports.send(this, game, problem, note, suggestion, save);
                 handler.post(() -> Toast.makeText(this, R.string.og_report_sent, Toast.LENGTH_LONG).show());
+            } catch (Reports.SaveNotSent e) {
+                handler.post(() -> message(getString(R.string.og_report_save_failed, e.getMessage())));
             } catch (IOException | RuntimeException e) {
                 handler.post(() -> message(getString(R.string.og_report_failed, e.getMessage())));
             }
