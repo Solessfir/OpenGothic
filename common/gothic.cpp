@@ -211,6 +211,7 @@ Gothic::Gothic(GameModDescriptor desc) {
   defaults->set("GAME", "cameraSwimming", 1);
   defaults->set("GAME", "quickSaveSlots", 10);
   defaults->set("ENGINE", "antiAliasing", 2);
+  defaults->set("ENGINE", "globalIllumination", 1);
 #if defined(__ANDROID__)
   defaults->set("GAME", "vibration",           1);
   defaults->set("GAME", "centerPlayerBars",    1);
@@ -221,6 +222,7 @@ Gothic::Gothic(GameModDescriptor desc) {
   defaults->set("ENGINE", "renderScale", 100);
   defaults->set("ENGINE", "frameRateLimit", -1);
   defaults->set("ENGINE", "antiAliasing", 0);
+  defaults->set("ENGINE", "globalIllumination", 0);
 #endif
 
   defaults->set("GAME", "animatedWindows",     1);
