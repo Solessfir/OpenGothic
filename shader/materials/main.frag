@@ -257,6 +257,7 @@ void mainGhost(vec4 t) {
 
 #if defined(WATER)
 #include "water/water_haze.glsl"
+#include "lighting/caustics.glsl"
 
 vec4 underWaterColorDepth(vec3 normal) {
   const vec2  fragCoord = (gl_FragCoord.xy*scene.screenResInv)*2.0-vec2(1.0);
@@ -288,7 +289,7 @@ vec4 underWaterColorDepth(vec3 normal) {
   vec4 fragPos1 = scene.viewProjectInv*vec4(fragCoord,depth2,1.0);
   fragPos1.xyz /= fragPos1.w;
 
-  //return vec4(back,length(fragPos1.xyz - fragPos0.xyz));
+  back *= waterCaustics(fragPos1.xyz, shInp.pos.y);
   return vec4(back,length(fragPos1.xyz - shInp.pos.xyz));
   }
 
