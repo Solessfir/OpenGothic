@@ -303,6 +303,16 @@ void Shaders::compileShaders() noexcept {
     sh = shaderSource("probe_ambient.frag.sprv");
     fs = device.shader(sh.data,sh.len);
     probeAmbient = device.pipeline(Triangles,state,vs,fs);
+
+    ddgiTrace     = computeShader("ddgi_trace.comp.sprv");
+    ddgiBlendIrr  = computeShader("ddgi_blend_irr.comp.sprv");
+    ddgiBlendDist = computeShader("ddgi_blend_dist.comp.sprv");
+    ddgiApply     = computeShader("ddgi_apply.comp.sprv");
+    ddgiLights    = computeShader("ddgi_lights.comp.sprv");
+    ddgiLightsClear = computeShader("ddgi_lights_clear.comp.sprv");
+    ddgiSchedule  = computeShader("ddgi_schedule.comp.sprv");
+    ddgiScheduleClear = computeShader("ddgi_schedule_clear.comp.sprv");
+    ddgiAmbient   = ambientLightShader("ddgi_ambient");
     }
 
   if(isGi2Supported()) {
