@@ -1,0 +1,29 @@
+#version 460
+#extension GL_GOOGLE_include_directive : enable
+
+#include "common.glsl"
+#include "lighting/ddgi/ddgi_common.glsl"
+
+// Probes to trace and blend this frame: the scheduled share of each cascade plus every probe that entered a grid.
+// Trace and blend run one workgroup per listed probe instead of skipping most of all probes.
+layout(local_size_x = 64) in;
+
+DDGI_PUSH
+
+layout(binding = 0, std430) readonly buffer Probes { DdgiProbe ddgiProbes[]; };
+layout(binding = 1, std430) buffer Schedule { DdgiSchedule schedule; };
+
+void main() {
+#if defined(CLEAR)
+  schedule.dispatch = uvec3(0,1,1);
+#else
+  const int slot = int(gl_GlobalInvocationID.x);
+  if(slot>=DdgiTotal)
+    return;
+  const ivec3 g = ddgiGridOf(slot, push.origin[slot/DdgiCount].xyz);
+  if(ddgiIsCurrent(ddgiProbes[slot], g) && !ddgiIsScheduled(slot, push.frame))
+    return;
+  const uint at = atomicAdd(schedule.dispatch.x, 1);
+  schedule.slot[at] = slot;
+#endif
+  }
