@@ -54,23 +54,25 @@ MainWindow::MainWindow(Device& device)
   Gothic::inst().onSettingsChanged.bind(this,&MainWindow::onSettings);
   onSettings();
 #if defined(__MOBILE_PLATFORM__)
-  mobileUi.onTap=[this](Point pos) {
-    if(!video.isActive() && dialogs.isActive() && !rootMenu.isActive() && dialogs.tapChoice(pos-dialogs.pos()))
+  // Trading keeps the dialogue open underneath, so the trade window has to get the touches first
+  auto dialogInFront=[this] { return dialogs.isActive() && inventory.isOpen()==InventoryMenu::State::Closed; };
+  mobileUi.onTap=[this,dialogInFront](Point pos) {
+    if(!video.isActive() && dialogInFront() && !rootMenu.isActive() && dialogs.tapChoice(pos-dialogs.pos()))
       return;
-    if(video.isActive() || chapter.isActive() || (dialogs.isActive() && !rootMenu.isActive())) {
+    if(video.isActive() || chapter.isActive() || (dialogInFront() && !rootMenu.isActive())) {
       // Same as Back: skips the video, the chapter screen or the current line of dialogue
       onTouchCommand(TouchInput::Command::Back,true);
       onTouchCommand(TouchInput::Command::Back,false);
       }
     else if(rootMenu.isActive()) rootMenu.tapItem(pos-rootMenu.pos());
-    else if(inventory.isActive() && !inventory.isWheelOpen() && !dialogs.isActive() &&
+    else if(inventory.isActive() && !inventory.isWheelOpen() && !dialogInFront() &&
             inventory.isOpen()!=InventoryMenu::State::LockPicking)
       inventory.close();
     };
-  mobileUi.onItemTouch=[this](TouchInput::ItemPhase phase, Point pos) {
+  mobileUi.onItemTouch=[this,dialogInFront](TouchInput::ItemPhase phase, Point pos) {
     using Phase=TouchInput::ItemPhase;
     if(phase==Phase::Begin)
-      return inventory.isActive() && !inventory.isWheelOpen() && !rootMenu.isActive() && !dialogs.isActive() &&
+      return inventory.isActive() && !inventory.isWheelOpen() && !rootMenu.isActive() && !dialogInFront() &&
              inventory.touchBegin(pos-inventory.pos());
     switch(phase) {
       case Phase::Move: inventory.touchMove(pos-inventory.pos()); break;
