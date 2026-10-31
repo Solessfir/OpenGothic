@@ -363,8 +363,9 @@ void GameMenu::initExtraOptions() {
   auto sourceLabel=find("MENUITEM_GAME_SUB_TITLES");
   auto sourceChoice=find("MENUITEM_GAME_SUB_TITLES_CHOICE");
   if(back==nullptr || sourceLabel==nullptr || sourceChoice==nullptr) return;
-  // Rows OpenGothic adds below the script's own, as label and value pairs
-  struct Row { const char* name; const char* title; const char* option; std::string values; const char* help; const char* section="GAME"; };
+  // Rows OpenGothic adds below the script's own, as label and value pairs; `after` puts one right below a script row instead
+  struct Row { const char* name; const char* title; const char* option; std::string values; const char* help;
+               const char* section="GAME"; const char* after=nullptr; };
   std::string quickSaves="Default";
   for(int i=1;i<=20;++i) quickSaves+="|"+std::to_string(i);
   std::vector<Row> extra={
@@ -372,9 +373,15 @@ void GameMenu::initExtraOptions() {
      "Default: one quicksave. 1-20: rotate through separate quicksave slots."},
     {"ANDROID_INSTANT_PICKUP", "Instant pickup", "skipPickupAnimation", "Off|On",
      "Take items at once, without bending down for them."},
+    {"ANDROID_SUBTITLE_SIZE", "Subtitle size", "subtitleScale", "",
+     "Size of the spoken lines, up to twice as large.", "GAME", "MENUITEM_GAME_SUB_TITLES"},
+    {"ANDROID_DIALOGUE_SIZE", "Dialogue text size", "dialogueScale", "",
+     "Size of the dialogue choices, up to twice as large.", "GAME", "MENUITEM_GAME_SUB_TITLES"},
 #if defined(__ANDROID__)
-    {"ANDROID_TOUCH_BUTTONS", "Touch UI", "touchButtons", "None|Icons|Icons and text",
-     "How the touch buttons are drawn. Hidden buttons still work."},
+    {"ANDROID_TOUCH_LABELS", "Touch labels", "touchLabels", "Off|On",
+     "Names and hints next to the touch buttons."},
+    {"ANDROID_TOUCH_OPACITY", "Touch opacity", "touchOpacity", "",
+     "How visible the touch buttons are. At zero they are hidden but still work."},
 #else
     {"OPENGOTHIC_SHOW_FPS", "Show FPS", "showFps", "Off|On",
      "Show the frame rate in the top left corner."},
@@ -393,6 +400,7 @@ void GameMenu::initExtraOptions() {
   if(end+2*extra.size()>std::size(hItems)) return;
   const int choiceOffset=sourceChoice->handle->pos_y-sourceLabel->handle->pos_y;
   std::vector<Item> added(2*extra.size());
+  std::vector<int>  valueOffset(extra.size(),choiceOffset);
   for(size_t i=0;i<extra.size();++i) {
     auto& label =added[2*i];
     auto& choice=added[2*i+1];
@@ -408,6 +416,26 @@ void GameMenu::initExtraOptions() {
     choice.handle->on_chg_set_option=extra[i].option;
     choice.handle->text[0]=extra[i].values;
     choice.handle->text[1]=extra[i].help;
+    // Rows without values are sliders over a 0-1 setting, shaped like the menu's own sliders when it has one
+    if(extra[i].values.empty()) {
+      Item* sourceSlider=nullptr;
+      for(auto& item:hItems)
+        if(item.handle!=nullptr && item.handle->type==zenkit::MenuItemType::SLIDER) { sourceSlider=&item; break; }
+      if(sourceSlider!=nullptr) {
+        choice.handle=std::make_shared<zenkit::IMenuItem>(*sourceSlider->handle);
+        choice.img=sourceSlider->img;
+        choice.handle->on_chg_set_option_section=extra[i].section;
+        choice.handle->on_chg_set_option=extra[i].option;
+        choice.handle->text[1]=extra[i].help;
+        if(sourceSlider->name.ends_with("_SLIDER"))
+          if(auto label=find(std::string_view(sourceSlider->name).substr(0,sourceSlider->name.size()-7)))
+            valueOffset[i]=sourceSlider->handle->pos_y-label->handle->pos_y;
+        } else {
+        choice.handle->type=zenkit::MenuItemType::SLIDER;
+        choice.img=Resources::loadTexture("MENU_SLIDER_BACK.TGA");
+        }
+      choice.handle->user_float[0]=20; // 5% steps
+      }
     }
 
   std::vector<int> rows;
@@ -427,24 +455,62 @@ void GameMenu::initExtraOptions() {
     }
   std::sort(rows.begin(),rows.end());
   rows.erase(std::unique(rows.begin(),rows.end()),rows.end());
-  const int step=4500/int(rows.size()+extra.size());
+
+  // Screen order of the rows: script rows as indices into rows, added rows as -1-i
+  std::vector<int>  order(rows.size());
+  std::vector<bool> placed(extra.size()); // below an existing script row
+  for(size_t k=0;k<rows.size();++k) order[k]=int(k);
+  for(size_t i=0;i<extra.size();++i) {
+    auto at=order.end();
+    if(auto target=extra[i].after ? find(extra[i].after) : nullptr) {
+      placed[i]=true;
+      const int k=int(std::lower_bound(rows.begin(),rows.end(),target->handle->pos_y)-rows.begin());
+      at=std::find(order.begin(),order.end(),k)+1;
+      while(at!=order.end() && *at<0) ++at; // after rows already placed there
+      }
+    order.insert(at,-1-int(i));
+    }
+  auto slot=[&](int entry) { return int(std::find(order.begin(),order.end(),entry)-order.begin()); };
+
+  const int step=4500/int(order.size());
   for(auto& item:hItems) {
     if(item.handle==nullptr || item.name=="MENUITEM_GAME_HEADLINE") continue;
     item.handle=std::make_shared<zenkit::IMenuItem>(*item.handle);
     if(&item==back) item.handle->pos_y=7000;
     else {
       const auto [y,offset]=positions[size_t(&item-hItems)];
-      item.handle->pos_y=1700+int(std::lower_bound(rows.begin(),rows.end(),y)-rows.begin())*step+offset;
+      item.handle->pos_y=1700+slot(int(std::lower_bound(rows.begin(),rows.end(),y)-rows.begin()))*step+offset;
       }
     }
-  const size_t index=size_t(back-hItems);
-  std::move_backward(hItems+index,hItems+end,hItems+end+added.size());
-  for(size_t i=0;i<added.size();i+=2) {
-    added[i].handle->pos_y=1700+int(rows.size()+i/2)*step;
-    added[i+1].handle->pos_y=added[i].handle->pos_y+choiceOffset;
-    hItems[index+i]=std::move(added[i]);
-    hItems[index+i+1]=std::move(added[i+1]);
-    updateItem(hItems[index+i+1]);
+  for(size_t i=0;i<extra.size();++i) {
+    added[2*i].handle->pos_y=1700+slot(-1-int(i))*step;
+    added[2*i+1].handle->pos_y=added[2*i].handle->pos_y+valueOffset[i];
+    }
+
+  // Keyboard and gamepad navigation follow the item order, so the added rows go in at their screen position too
+  std::vector<Item> items;
+  for(size_t j=0;j<end;++j) {
+    if(hItems+j==back)
+      for(size_t i=0;i<extra.size();++i)
+        if(!placed[i]) {
+          items.push_back(std::move(added[2*i]));
+          items.push_back(std::move(added[2*i+1]));
+          }
+    const bool rowEnd=!hItems[j].name.empty() && hItems[j].handle!=nullptr;
+    const std::string name=hItems[j].name;
+    items.push_back(std::move(hItems[j]));
+    if(!rowEnd) continue;
+    for(size_t i=0;i<extra.size();++i)
+      if(placed[i] && added[2*i].handle!=nullptr &&
+         (name==std::string(extra[i].after)+"_CHOICE" || name==std::string(extra[i].after)+"_SLIDER")) {
+        items.push_back(std::move(added[2*i]));
+        items.push_back(std::move(added[2*i+1]));
+        }
+    }
+  for(size_t j=0;j<items.size();++j) {
+    hItems[j]=std::move(items[j]);
+    if((hItems[j].name.starts_with("ANDROID_") || hItems[j].name.starts_with("OPENGOTHIC_")) && !hItems[j].name.ends_with("_LABEL"))
+      updateItem(hItems[j]);
     }
   }
 

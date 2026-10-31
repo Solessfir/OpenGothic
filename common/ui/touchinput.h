@@ -63,8 +63,8 @@ class TouchInput : public Tempest::Widget {
     void            setSwimming(bool enabled) { swimming = enabled; }
     void            setClassicAction(bool held);
     void            setDebugOverlay(bool enabled);
-    // 0: nothing drawn, 1: icons, 2: icons and labels
-    void            setButtonStyle(int style);
+    // Opacity 0 draws nothing; the buttons still work
+    void            setButtonStyle(bool labels, float opacity);
     void            setMenuOpen(bool open);
     void            setButtonsHidden(bool hidden);
     void            setDebugLeftInset(int inset);
@@ -166,7 +166,8 @@ class TouchInput : public Tempest::Widget {
     bool            analogMovement = false;
     bool            swimming = false;
     bool            debugOverlay = false;
-    int             buttonStyle = 2;
+    bool            buttonLabels = true;
+    float           buttonOpacity = 1.f;
     bool            menuOpen = false;
     bool            buttonsHidden = false;
     std::vector<Tempest::Texture2d> textures;

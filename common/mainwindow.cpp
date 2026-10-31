@@ -601,13 +601,11 @@ void MainWindow::tickMouse(uint64_t dt) {
 
 
 void MainWindow::applySystemWheelSelection(size_t selected,bool touch) {
-  const char* settings[]={"showFps",touch ? "touchButtons" : "gamepadControls","centerPlayerBars","useGothic1Controls","vibration"};
+  const char* settings[]={"showFps",touch ? "touchLabels" : "gamepadControls","centerPlayerBars","useGothic1Controls","vibration"};
   if(selected>=std::size(settings)) return;
   const auto section=selected==1 && !touch ? "DEBUG" : "GAME";
   const auto setting=settings[selected];
-  if(selected==1 && touch)
-    Gothic::settingsSetI(section,setting,(Gothic::settingsGetI(section,setting)+1)%3); else
-    Gothic::settingsSetI(section,setting,!Gothic::settingsGetI(section,setting));
+  Gothic::settingsSetI(section,setting,!Gothic::settingsGetI(section,setting));
   Gothic::flushSettings();
   Feedback::play(Feedback::Effect::Confirm);
   }
@@ -842,7 +840,8 @@ void MainWindow::onTouchCommand(TouchInput::Command command, bool pressed) {
 void MainWindow::onSettings() {
 #if defined(__MOBILE_PLATFORM__)
   mobileUi.setDebugOverlay(Gothic::settingsGetI("DEBUG", "touchControls")!=0);
-  mobileUi.setButtonStyle(Gothic::settingsGetI("GAME", "touchButtons"));
+  mobileUi.setButtonStyle(Gothic::settingsGetI("GAME", "touchLabels")!=0,
+                          std::clamp(Gothic::settingsGetF("GAME", "touchOpacity"),0.f,1.f));
 #if defined(__ANDROID__)
   if(controllerConnected) mobileUi.setDebugOverlay(false);
 #endif

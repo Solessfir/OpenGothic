@@ -128,6 +128,15 @@ void DialogMenu::tick(uint64_t dt) {
   // update();
   }
 
+// Size settings for the spoken lines and the dialogue choices: 1 to 2 times the interface scale
+static float subtitleScale() {
+  return 1.f+std::clamp(Gothic::settingsGetF("GAME","subtitleScale"),0.f,1.f);
+  }
+
+static float choiceScale() {
+  return 1.f+std::clamp(Gothic::settingsGetF("GAME","dialogueScale"),0.f,1.f);
+  }
+
 void DialogMenu::drawTextMultiline(Painter &p, int x, int y, int w, int h, std::string_view txt, bool isPl) {
   auto sz = processTextMultiline(nullptr,0,0,w,h,txt,isPl);
   y+=std::max(0, (h-sz.h)/2);
@@ -135,7 +144,7 @@ void DialogMenu::drawTextMultiline(Painter &p, int x, int y, int w, int h, std::
   }
 
 Size DialogMenu::processTextMultiline(Painter* p, int x, int y, int w, int h, std::string_view txt, bool isPl) {
-  const float scale = Gothic::interfaceScale(this);
+  const float scale = Gothic::interfaceScale(this)*subtitleScale();
   const int   pdd   = int(10*scale);
 
   auto fnt = Resources::font(scale);
@@ -434,8 +443,8 @@ void DialogMenu::paintEvent(Tempest::PaintEvent &e) {
 
   Painter p(e);
   const uint64_t da = dlgAnimation ? ANIM_TIME : 0;
-  const int      dw = std::min(area.w,int(600*scale));
-  const int      dh = int(100*scale);
+  const int      dw = std::min(area.w,int(600*scale*subtitleScale()));
+  const int      dh = int(100*scale*subtitleScale());
   const int      dx = SafeArea::center(w(),dw,margins().left,margins().right);
   const int      dy = std::max(20,margins().top);
 
@@ -494,7 +503,7 @@ void DialogMenu::paintChoice(PaintEvent &e) {
   if(choice.size()==0)
     return;
 
-  const float scale    = Gothic::interfaceScale(this);
+  const float scale    = Gothic::interfaceScale(this)*choiceScale();
   const auto  area     = clientRect();
   const int   padd     = int(20*scale);
   const int   dw       = std::min(area.w,int(600*scale));
@@ -615,7 +624,7 @@ bool DialogMenu::tapChoice(Point pos) {
 
 size_t DialogMenu::choiceAt(Point pos) const {
   // Same layout as paintChoice.
-  const float scale = Gothic::interfaceScale(this);
+  const float scale = Gothic::interfaceScale(this)*choiceScale();
   const int   padd  = int(20*scale);
   const int   dw    = std::min(w(),int(600*scale));
   const auto  fnt   = Resources::dialogFont(scale);

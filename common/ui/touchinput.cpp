@@ -52,7 +52,7 @@ void TouchInput::setDebugSafeArea(Rect area) {
 
 void TouchInput::paintEvent(Tempest::PaintEvent& e) {
   Painter p(e);
-  if(buttonStyle>0 && touchEnabled && !buttonsHidden)
+  if(buttonOpacity>0.f && touchEnabled && !buttonsHidden)
     drawControls(p);
   if(debugOverlay)
     drawDebug(p);
@@ -418,9 +418,10 @@ void TouchInput::setSaveDeleteEnabled(bool enabled) {
   update();
   }
 
-void TouchInput::setButtonStyle(int style) {
-  if(buttonStyle==style) return;
-  buttonStyle=style;
+void TouchInput::setButtonStyle(bool labels, float opacity) {
+  if(buttonLabels==labels && buttonOpacity==opacity) return;
+  buttonLabels=labels;
+  buttonOpacity=opacity;
   update();
   }
 
@@ -566,19 +567,21 @@ void TouchInput::drawControls(Painter& p) {
 
   const float u     = layoutUnit();
   const float scale = std::min(Gothic::interfaceScale(this),u);
-  const auto& font  = Resources::font(scale);
-  const auto& small = Resources::font(scale*0.8f);
+  auto        font  = Resources::font(scale);
+  auto        small = Resources::font(scale*0.8f);
   const bool  armed = canLock;
+  font.fade(buttonOpacity);
+  small.fade(buttonOpacity);
 
   // The images leave room around the button: a circle fills 97% of its image, a rounded square 220 of 256 px.
   auto image = [&](Image i,PointF center,float size,float alpha=1.f) {
     const auto& t = textures[i];
     const int   s = int(size);
-    p.setBrush(Brush(t,Color(1.f,1.f,1.f,alpha),PaintDevice::Alpha,ClampMode::ClampToEdge));
+    p.setBrush(Brush(t,Color(1.f,1.f,1.f,alpha*buttonOpacity),PaintDevice::Alpha,ClampMode::ClampToEdge));
     p.drawRect(int(center.x-size*0.5f),int(center.y-size*0.5f),s,s,0,0,t.w(),t.h());
     };
   auto below = [&](PointF center,float radius,std::string_view text,std::string_view hint) {
-    if(buttonStyle<2)
+    if(!buttonLabels)
       return;
     const int width = int(radius*4.f);
     const int y     = int(center.y+radius)+font.pixelSize()+int(2.f*u);
@@ -587,7 +590,7 @@ void TouchInput::drawControls(Painter& p) {
       small.drawTextShadow(p,int(center.x)-width/2,y+small.pixelSize(),width,small.pixelSize(),hint,AlignHCenter);
     };
   auto left = [&](PointF center,float radius,std::string_view text,std::string_view hint) {
-    if(buttonStyle<2)
+    if(!buttonLabels)
       return;
     const int width = int(240.f*u);
     const int x     = int(center.x-radius*1.4f)-width;
