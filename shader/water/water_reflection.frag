@@ -272,7 +272,9 @@ void main() {
   const vec3  camPos  = scene.camPos;
 
   // Per pixel: with the camera in the surface, one screen shows the water from both sides
-  underWater = camPos.y < start.y;
+  // From where the pixel's view starts on the near plane, as in the water shader
+  const vec4 nearPos = scene.viewProjectInv*vec4(fragCoord.x, fragCoord.y, 0.0, 1.0);
+  underWater = nearPos.y/nearPos.w < start.y;
   const float ior     = (underWater ? IorAir : IorWater);
 
   const vec3  view    = normalize(start - camPos);

@@ -493,7 +493,8 @@ void PackedMesh::packPhysics(const zenkit::Mesh& mesh, PkgType type) {
     Prim p;
     p.primId = uint32_t(i*3);
     // The underwater pass needs the wave height of the water around the camera, so water with waves stays apart
-    const bool waves = (m.group==zenkit::MaterialGroup::WATER && m.wave_max_amplitude>0.f);
+    // The renderer moves water only with a wave mode (Material), and then by wave_max_amplitude
+    const bool waves = (m.group==zenkit::MaterialGroup::WATER && m.wave_mode!=zenkit::WaveMode::NONE && m.wave_max_amplitude>0.f);
     if(m.name.find(':')==std::string::npos && !waves) {
       // unnamed materials - can merge them
       p.mat   = uint8_t(m.group);
@@ -525,6 +526,7 @@ void PackedMesh::packPhysics(const zenkit::Mesh& mesh, PkgType type) {
       auto& m = mat[mId-size_t(zenkit::MaterialGroup::NONE)];
       sub.material.name  = m.name;
       sub.material.group = m.group;
+      sub.material.wave_mode          = m.wave_mode;
       sub.material.wave_max_amplitude = m.wave_max_amplitude;
       }
 
