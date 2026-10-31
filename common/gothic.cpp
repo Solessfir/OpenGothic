@@ -169,6 +169,12 @@ Gothic::Gothic(GameModDescriptor desc) {
     iniFile->set("GAME","enableMouse",1);
 #endif
 #if defined(__ANDROID__)
+  // "Touch UI" used to be one choice of None, Icons, or Icons and text
+  if(iniFile->has("GAME","touchButtons") && !iniFile->has("GAME","touchOpacity")) {
+    const int style=iniFile->getI("GAME","touchButtons");
+    iniFile->set("GAME","touchOpacity",style==0 ? 0.f : 1.f);
+    iniFile->set("GAME","touchLabels",style==2 ? 1 : 0);
+    }
   constexpr int defaultResolutionIndex = 0; // native scene resolution
   // Copied PC settings commonly request uncapped rendering; Android starts with a writable 60 FPS preference.
   if(!iniFile->has("ENGINE", "zMaxFPS"))
@@ -208,7 +214,8 @@ Gothic::Gothic(GameModDescriptor desc) {
 #if defined(__ANDROID__)
   defaults->set("GAME", "vibration",           1);
   defaults->set("GAME", "centerPlayerBars",    1);
-  defaults->set("GAME", "touchButtons",        2);
+  defaults->set("GAME", "touchLabels",         1);
+  defaults->set("GAME", "touchOpacity",        1.f);
   defaults->set("GAME", "mouseSensitivity",   0.53f);
   defaults->set("ENGINE", "shadowMapResolution", 1024);
   defaults->set("ENGINE", "renderScale", 100);
@@ -218,6 +225,8 @@ Gothic::Gothic(GameModDescriptor desc) {
 
   defaults->set("GAME", "animatedWindows",     1);
   defaults->set("GAME", "subTitles",           1);
+  defaults->set("GAME", "subtitleScale",       0.f);
+  defaults->set("GAME", "dialogueScale",       0.f);
   defaults->set("GAME", "showFps",             0);
   defaults->set("GAME", "subTitlesPlayer",     1);
 
