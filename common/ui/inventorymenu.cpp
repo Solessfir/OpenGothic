@@ -1250,8 +1250,7 @@ void InventoryMenu::drawWheel(Painter& p,DrawPass pass) {
     if(pass==DrawPass::Front && (utilityMenu || pageButton)) {
       const auto fpsLabel=Gothic::settingsGetI("GAME","showFps")!=0 ? "FPS: On" : "FPS: Off";
       const auto debugLabel=wheelTouch ?
-          (Gothic::settingsGetI("GAME","touchButtons")==0 ? "Touch UI\nNone" :
-           (Gothic::settingsGetI("GAME","touchButtons")==1 ? "Touch UI\nIcons" : "Touch UI\nIcons and text")) :
+          (Gothic::settingsGetI("GAME","touchLabels")!=0 ? "Touch labels\nOn" : "Touch labels\nOff") :
           (Gothic::settingsGetI("DEBUG","gamepadControls")!=0 ? "Gamepad controls\nOn" : "Gamepad controls\nOff");
       const auto hudLabel=Gothic::settingsGetI("GAME","centerPlayerBars")!=0 ? "HUD\nCentered" : "HUD\nClassic";
       const auto combatLabel=Gothic::settingsGetI("GAME","useGothic1Controls")!=0 ? "Combat\nClassic" : "Combat\nModern";
