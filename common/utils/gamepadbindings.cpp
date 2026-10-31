@@ -20,7 +20,7 @@ constexpr const char* actionNames[] = {
   "AdjustLeft", "AdjustRight", "SystemWheel",
   "QuickUp", "QuickDown", "QuickLeft", "QuickRight",
   "WheelUp", "WheelDown", "WheelLeft", "WheelRight",
-  "AssignUp", "AssignDown", "AssignLeft", "AssignRight", "RenameSave"
+  "AssignUp", "AssignDown", "AssignLeft", "AssignRight", "RenameSave", "AutoRun"
   };
 static_assert(std::size(actionNames)==size_t(Action::Count));
 constexpr const char* actionLabels[] = {
@@ -34,7 +34,7 @@ constexpr const char* actionLabels[] = {
   "Quick slot up", "Quick slot down", "Quick slot left", "Quick slot right",
   "Up slot wheel", "Down slot wheel", "Left slot wheel", "Right slot wheel",
   "Assign up (hold modifier first)", "Assign down (hold modifier first)",
-  "Assign left (hold modifier first)", "Assign right (hold modifier first)", "Rename save"
+  "Assign left (hold modifier first)", "Assign right (hold modifier first)", "Rename save", "Auto run"
   };
 static_assert(std::size(actionLabels)==size_t(Action::Count));
 std::string trim(std::string s) {
@@ -70,6 +70,7 @@ Inventory=View
 Pause=Menu
 SystemWheel=Hold:Menu
 Sneak=L3
+AutoRun=LeftStickUp+LB
 Walk=None
 LockTarget=R3
 DrawSheathe=RB
@@ -393,7 +394,7 @@ std::vector<GamepadBindings::Hint> GamepadBindings::hints(Context context) const
       else if(action>=Action::Spell3 && action<=Action::Spell10)
         group=HintGroup::Spells;
       else if((action>=Action::Up && action<=Action::Right) || action==Action::Jump || action==Action::Walk ||
-              action==Action::Sneak || action==Action::FirstPerson || action==Action::LookBehind ||
+              action==Action::Sneak || action==Action::AutoRun || action==Action::FirstPerson || action==Action::LookBehind ||
               action==Action::AdjustLeft || action==Action::AdjustRight)
         group=HintGroup::Movement;
       else if(action==Action::Journal || action==Action::Inventory || action==Action::Pause || action==Action::SystemWheel ||

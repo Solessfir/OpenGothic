@@ -488,6 +488,7 @@ void GameMenu::initExtraKeys() {
   const Row rows[]={
     {"OPENGOTHIC_KEY_INTERACT","Interact","Pick up, talk, loot and use; the action key then only attacks","keyInteract"},
     {"OPENGOTHIC_KEY_SHEATH",  "Sheath weapon","Put away the weapon, bow or spell in hand","keySheath"},
+    {"OPENGOTHIC_KEY_AUTORUN", "Auto run","Keep running forward; forward or back stops it","keyAutoRun"},
     };
   size_t end=0;
   for(size_t i=0;i<std::size(hItems);++i) if(hItems[i].handle!=nullptr) end=i+1;
