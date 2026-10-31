@@ -30,6 +30,7 @@ class GameMenu : public Tempest::Widget {
     void onKeyboard(KeyCodec::Action k);
     bool adjustsHorizontally();
     bool canAdjustValue();
+    bool isBrowsingQuickLoad();
     void adjustValue(int steps);
     void onTick();
     void processMusicTheme();

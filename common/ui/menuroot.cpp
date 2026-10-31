@@ -248,7 +248,11 @@ void MenuRoot::mouseUpEvent(MouseEvent& event) {
   }
 
 void MenuRoot::mouseWheelEvent(MouseEvent &event) {
-  if(current!=nullptr) {
+  if(current!=nullptr && event.delta!=0 && current->isBrowsingQuickLoad()) {
+    // Over the quicksave row the wheel steps through the quicksaves: up for newer, down for older
+    current->onKeyboard(event.delta>0 ? KeyCodec::Right : KeyCodec::Left);
+    }
+  else if(current!=nullptr) {
     if(event.delta>0)
       current->onKeyboard(KeyCodec::Forward); else
     if(event.delta<0)
