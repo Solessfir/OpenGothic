@@ -515,11 +515,12 @@ void MainWindow::tickGamepad() {
       }
     if(touchMove==PointF())
       touchMovementBlocked = false;
-    if(touchPlayer!=nullptr && touchPlayer->interactive()!=nullptr && touchPlayer->interactive()->isLadder()) {
+    // In a mob the stick only climbs a ladder or gets up from a bench or campfire; it must not turn
+    if(touchPlayer!=nullptr && touchPlayer->interactive()!=nullptr) {
       mobileUi.setAnalogMovement(true);
       const auto raw=touchMovementBlocked ? PointF() : touchMove;
-      const auto axis=controllerBindings.movementAxis(0.f,raw.y,true);
-      player.setGamepadAxis(0.f,axis.second);
+      const auto axis=controllerBindings.movementAxis(raw.x,raw.y,true);
+      player.setGamepadAxis(axis.first,axis.second);
       return;
       }
     const bool swimming = touchPlayer!=nullptr && (touchPlayer->isSwim() || touchPlayer->isDive());
@@ -639,13 +640,14 @@ void MainWindow::tickGamepad() {
      Gothic::inst().isPause() || camera==nullptr || camera->isCutscene()) {
     controllerAxesBlocked=true;
     player.setGamepadAxis(0,0);
-    // Ladders consume vertical movement even though other interactions suppress analog steering.
+    // Mobs consume vertical movement (climbing a ladder, getting up) even though interactions suppress analog steering.
     auto pl=Gothic::inst().player();
     if(context==Context::Interaction && !Gothic::inst().isPause() && camera!=nullptr && !camera->isCutscene() &&
-       pl!=nullptr && pl->interactive()!=nullptr && pl->interactive()->isLadder()) {
+       pl!=nullptr && pl->interactive()!=nullptr) {
+      const float x=options.swapMovement ? gp.rightStickX : gp.leftStickX;
       const float y=options.swapMovement ? gp.rightStickY : gp.leftStickY;
-      const auto axis=controllerBindings.movementAxis(0.f,y);
-      player.setGamepadAxis(0.f,axis.second);
+      const auto axis=controllerBindings.movementAxis(x,y);
+      player.setGamepadAxis(axis.first,axis.second);
       }
     return;
     }
