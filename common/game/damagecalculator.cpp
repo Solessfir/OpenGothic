@@ -35,13 +35,10 @@ DamageCalculator::Val DamageCalculator::damageValue(Npc& src, Npc& other, const 
   return ret;
   }
 
-DamageCalculator::Val DamageCalculator::damageFall(Npc& npc, float speed) {
+DamageCalculator::Val DamageCalculator::damageFall(Npc& npc, float height) {
   auto  gl = npc.guild();
   auto& g  = npc.world().script().guildVal();
 
-  float   gravity     = DynamicWorld::gravity;
-  float   fallTime    = speed/gravity;
-  float   height      = 0.5f*std::abs(gravity)*fallTime*fallTime;
   float   h0          = float(g.falldown_height[gl]);
   float   dmgPerMeter = float(g.falldown_damage[gl]);
   int32_t prot        = npc.protection(::PROT_FALL);

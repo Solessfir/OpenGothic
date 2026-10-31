@@ -192,6 +192,8 @@ bool MoveAlgo::implTick(uint64_t dt, MvFlags moveFlg) {
   const auto bs    = npc.bodyStateMasked();
   const auto pos0  = npc.position();
   const auto dp    = (!grav && state!=Slide) ? npcMoveSpeed(dt,moveFlg) : npcFallSpeed(dt);
+  if(grav)
+    fallTop = std::max(fallTop, pos0.y);
   const bool walk  = bool(npc.wlkMode & WalkBit::WM_Walk) && (state==Run);
 
   DynamicWorld::CollisionTest info;
@@ -419,7 +421,7 @@ bool MoveAlgo::implTick(uint64_t dt, MvFlags moveFlg) {
   // no longer in air - ground code
   if(state==InAir || state==Falling) {
     // attach to ground
-    npc.takeFallDamage(fallSpeed);
+    npc.takeFallDamage(fallSpeed, fallTop-npc.position().y);
     setState(Run);
     }
 
@@ -816,6 +818,11 @@ void MoveAlgo::setState(State f) {
   if(isFlyLike(flags) && !isFlyLike(f)) {
     clearSpeed();
     }
+
+  // Fall damage counts the height actually fallen: speed keeps growing while the body is stuck on an edge
+  auto isGrav = [](State f) { return f==InAir || f==Falling || f==JumpUp; };
+  if(isGrav(f) && !isGrav(flags))
+    fallTop = npc.position().y;
 
   if((f==Swim) && !(flags==Swim)) {
     auto ws = npc.weaponState();
