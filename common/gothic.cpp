@@ -163,6 +163,11 @@ Gothic::Gothic(GameModDescriptor desc) {
   // It also turns quicksave keys off, which hides the quicksave row in the load menu
   if(!iniFile->has("GAME","useQuickSaveKeys"))
     iniFile->set("GAME","useQuickSaveKeys",1);
+#if !defined(__MOBILE_PLATFORM__)
+  // Some original installs ship with the mouse off
+  if(!iniFile->has("GAME","enableMouse"))
+    iniFile->set("GAME","enableMouse",1);
+#endif
 #if defined(__ANDROID__)
   constexpr int defaultResolutionIndex = 0; // native scene resolution
   constexpr int defaultSsaoHalfResolution = 1;
