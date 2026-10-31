@@ -85,6 +85,8 @@ public final class LauncherActivity extends AppCompatActivity {
     private int selected;
     private boolean importing;
     private boolean launching;
+    /** Command-line options for the next start, see launchFromIntent. */
+    private String launchArgs = "";
     private Library.Game pending;
 
     private final View[] covers = new View[Library.GAMES.length];
@@ -193,6 +195,28 @@ public final class LauncherActivity extends AppCompatActivity {
         getOnBackPressedDispatcher().addCallback(this, closeSheet);
 
         showGame();
+        if (saved == null) launchFromIntent(getIntent());
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        launchFromIntent(intent);
+    }
+
+    /**
+     * Debug start from adb, with the game's command-line options:
+     * adb shell am start -n org.opengothic.launcher/org.opengothic.app.LauncherActivity --es game Gothic2 --es args "-save q10"
+     */
+    private void launchFromIntent(Intent intent) {
+        String args = intent.getStringExtra("args");
+        if (args == null) return;
+        intent.removeExtra("args");
+        String folder = intent.getStringExtra("game");
+        if (folder != null) select(indexOf(folder));
+        launchArgs = args.replace('\n', ' ').trim();
+        play();
     }
 
     @Override
@@ -457,7 +481,7 @@ public final class LauncherActivity extends AppCompatActivity {
             askRepair(game());
             return;
         }
-        // The engine reads the folder name at start, see InstallDetect::androidGame
+        // The engine reads the folder name and the command-line options at start, see InstallDetect::androidGame and androidArgs
         try {
             GameFiles.ensureScriptsFolder(new File(root, game().folder));
         } catch (IOException e) {
@@ -465,11 +489,12 @@ public final class LauncherActivity extends AppCompatActivity {
             return;
         }
         try (FileOutputStream out = new FileOutputStream(new File(root, "game.txt"))) {
-            out.write((game().folder + "\n").getBytes(StandardCharsets.UTF_8));
+            out.write((game().folder + "\n" + launchArgs + "\n").getBytes(StandardCharsets.UTF_8));
         } catch (IOException e) {
             message(e.getMessage());
             return;
         }
+        launchArgs = "";
         // Fade to dark and open the game without a slide: its window stays empty until the engine draws the first frame,
         // and whatever shows through until then should be dark rather than the library
         launching = true;
