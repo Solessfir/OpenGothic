@@ -293,9 +293,10 @@ vec4 underWaterColorDepth(vec3 normal) {
   return vec4(back,length(fragPos1.xyz - shInp.pos.xyz));
   }
 
-// Same absorption and haze as the view from below
+// Same absorption and haze as the view from below, plus silt: from above even shallow water is a little murky
 vec3 waterScatter(vec3 back, vec3 normal, float len) {
-  return waterFog(back, len);
+  const float murk = 0.12 + 0.4*(1.0 - exp(-len/300.0));
+  return mix(waterFog(back, len), waterHaze(), murk);
   }
 
 // Seen from below when the camera is under this point of the surface: with the camera in the surface,
