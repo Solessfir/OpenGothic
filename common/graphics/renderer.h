@@ -143,6 +143,7 @@ class Renderer final {
       uint64_t       windPeriod         = 6000;
 
       GiMethod       giMethod           = GiMethod::None;
+      bool           giToggled          = false;
       bool           aaEnabled          = false;
       uint32_t       aaPreset           = 0;
 
