@@ -590,7 +590,8 @@ std::shared_ptr<const DynamicWorld::Landscape> DynamicWorld::buildLandscape(cons
     if(!sm.material.disable_collision && sm.iboLength>0) {
       if(sm.material.group==zenkit::MaterialGroup::WATER) {
         waterMesh->addIndex(pkg.indices,sm.iboOffset,sm.iboLength,sm.material.group);
-        result->waterWaves.push_back(sm.material.wave_max_amplitude);
+        // Same rule as the renderer: without a wave mode the water mesh stays flat
+        result->waterWaves.push_back(sm.material.wave_mode!=zenkit::WaveMode::NONE ? sm.material.wave_max_amplitude : 0.f);
         } else {
         landMesh ->addIndex(pkg.indices,sm.iboOffset,sm.iboLength,sm.material.group,sectors[i].c_str());
         }
