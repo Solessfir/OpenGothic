@@ -17,8 +17,6 @@ layout(binding = 3)         uniform texture2D   depth;
 layout(binding = 4)         uniform texture2D   shadowmask;
 layout(binding = 5)         uniform texture2D   directLight;
 
-#include "lighting/caustics.glsl"
-
 layout(location = 0) out vec4 outColor;
 
 float lambert(vec3 normal) {
@@ -35,8 +33,7 @@ void main() {
   const vec3  localLights = texelFetch(directLight, fragCoord, 0).rgb;
   const float light       = 1;
 
-  const float z           = texelFetch(depth, fragCoord, 0).r;
-  const vec3  illuminance = scene.sunColor * light * shadow * waterCaustics(gl_FragCoord.xy, z, light*shadow);
+  const vec3  illuminance = scene.sunColor * light * shadow;
   const vec3  linear      = textureAlbedo(diff.rgb);
   const vec3  luminance   = linear * Fd_Lambert * illuminance;
 

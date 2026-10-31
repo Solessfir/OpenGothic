@@ -78,7 +78,7 @@ vec3 traceReflection(vec3 start, vec3 dir, vec3 sky) {
     sun = 0.0;
 
   const vec3 ambient = scene.ambient + skyIrradiance(nr)*0.8 + (nr.y*0.25+0.75)*NightAmbient*Fd_Lambert;
-  const vec3 lit     = albedo*(scene.sunColor*sun*Fd_Lambert*waterCaustics(pos) + ambient)*scene.exposure;
+  const vec3 lit     = albedo*(scene.sunColor*sun*Fd_Lambert*waterCaustics(pos, scene.waterLevel) + ambient)*scene.exposure;
   return underWater ? waterFog(lit, rayT) : lit;
   }
 #endif
