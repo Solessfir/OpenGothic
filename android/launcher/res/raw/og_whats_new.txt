@@ -5,6 +5,7 @@
 - Running jumps and slopes no longer cause fall damage
 - Jumping at a steep slope slides you down instead of carrying you up it
 - Gothic 1: washing diggers no longer show blue squares
+- Quicksave keeps 10 rotating slots by default; the mouse wheel browses them in the load menu on PC
 - What's new is in the menu and shows once after each update
 
 0.6.10
