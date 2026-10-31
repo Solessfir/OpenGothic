@@ -69,6 +69,7 @@ class Renderer final {
     void prepareFog       (Tempest::Encoder<Tempest::CommandBuffer>& cmd, WorldView& wview);
     void prepareIrradiance(Tempest::Encoder<Tempest::CommandBuffer>& cmd, WorldView& wview);
     void prepareGi        (Tempest::Encoder<Tempest::CommandBuffer>& cmd, WorldView& wview);
+    void prepareDdgi      (Tempest::Encoder<Tempest::CommandBuffer>& cmd, WorldView& wview);
     void prepareExposure  (Tempest::Encoder<Tempest::CommandBuffer>& cmd, WorldView& wview);
     void prepareEpipolar  (Tempest::Encoder<Tempest::CommandBuffer>& cmd, WorldView& wview);
 
@@ -236,6 +237,16 @@ class Renderer final {
       Tempest::StorageImage     probesLighting;
       Tempest::StorageImage     probesLightingPrev;
       } gi;
+
+    struct {
+      struct Push {
+        int32_t  origin[3][4] = {}; // per cascade
+        uint32_t frame        = 0;
+        } push;
+      Tempest::Vec3             camPos;
+      Tempest::StorageImage     rays, irradiance, distance, half;
+      Tempest::StorageBuffer    probes, lightList, schedule;
+      } ddgi;
 
     struct {
       const Tempest::IVec2      gbufTile   = {8};
