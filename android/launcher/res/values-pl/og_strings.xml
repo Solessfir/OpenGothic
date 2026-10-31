@@ -36,7 +36,7 @@
     <string name="og_donate">Wesprzyj rozwój</string>
     <string name="og_feedback_problem">Problem</string>
     <string name="og_feedback_suggestion">Sugestia</string>
-    <string name="og_suggestion_body">Wysłać pomysł do autora? Wysyłany jest tylko twój tekst, wersja launchera i model telefonu.</string>
+    <string name="og_suggestion_body">Wysłać pomysł do autora? Wysyłany jest tylko twój tekst, wersja launchera i model telefonu, a także zapis, jeśli go wybierzesz.</string>
     <string name="og_suggestion_hint">Co chciałbyś zobaczyć?</string>
     <string name="og_suggestion_send">Wyślij</string>
     <string name="og_report_body">Wysłać zgłoszenie do autora? Zawiera dziennik gry i informacje o tym telefonie, ale żadnych danych konta. Zapis zostanie wysłany tylko wtedy, gdy go wybierzesz.</string>
@@ -45,6 +45,7 @@
     <string name="og_report_sent">Zgłoszenie wysłane. Dziękujemy!</string>
     <string name="og_report_failed">Nie udało się wysłać zgłoszenia. %1$s</string>
     <string name="og_report_save_none">Dołączyć zapis? (opcjonalnie)</string>
+    <string name="og_report_save_why">Zapisy pomagają mi dużo szybciej odtworzyć błędy i przetestować zgłoszone funkcje.</string>
     <string name="og_report_save">%1$s, %2$s MB</string>
     <string name="og_report_save_pick">Wybierz zapis</string>
     <string name="og_report_save_failed">Zgłoszenie wysłano, ale zapisu nie. %1$s</string>
