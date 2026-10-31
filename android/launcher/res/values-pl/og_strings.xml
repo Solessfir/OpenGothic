@@ -45,7 +45,7 @@
     <string name="og_report_sent">Zgłoszenie wysłane. Dziękujemy!</string>
     <string name="og_report_failed">Nie udało się wysłać zgłoszenia. %1$s</string>
     <string name="og_report_save_none">Dołączyć zapis? (opcjonalnie)</string>
-    <string name="og_report_save_why">Zapisy pomagają mi dużo szybciej odtworzyć błędy i przetestować zgłoszone funkcje.</string>
+    <string name="og_report_save_why">Zapisy pozwalają dużo szybciej odtworzyć błędy i przetestować zgłoszone funkcje.</string>
     <string name="og_report_save">%1$s, %2$s MB</string>
     <string name="og_report_save_pick">Wybierz zapis</string>
     <string name="og_report_save_failed">Zgłoszenie wysłano, ale zapisu nie. %1$s</string>
