@@ -1,3 +1,9 @@
+0.6.13
+- Trading by touch works again: tapping an item no longer closes the trade window
+- Touch buttons: an opacity slider (at zero they are hidden but still work) and a switch for their labels
+- Subtitle size and dialogue text size sliders in the game settings
+- Suggestions can include a save too
+
 0.6.12
 - Auto run on a controller: push the stick forward and press LB, pull the stick back to stop
 - Problem reports can include a save, so the developer can see where it happened
