@@ -21,8 +21,6 @@ layout(binding = 0, std140) uniform UboScene {
   SceneDesc scene;
   };
 
-#include "lighting/caustics.glsl"
-
 layout(binding = 1) uniform sampler2D  gbufDiffuse;
 layout(binding = 2) uniform usampler2D gbufNormal;
 layout(binding = 3) uniform sampler2D  depth;
@@ -151,7 +149,7 @@ void main(void) {
   // const vec3 linear      = vec3(1);
   const vec3 linear      = textureAlbedo(diff.rgb);
 
-  const vec3 illuminance = scene.sunColor * light * waterCaustics(gl_FragCoord.xy, d, light);
+  const vec3 illuminance = scene.sunColor * light;
   const vec3 luminance   = linear * illuminance * Fd_Lambert;
 
   outColor = vec4(luminance * scene.exposure, 0.0);

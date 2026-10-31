@@ -3,9 +3,6 @@
 
 // Expects `scene` to be declared before the include.
 
-// SceneGlobals::NoWater
-const float CausticsNoWater = -1e8;
-
 vec2 causticHash(vec2 p) {
   p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
   return fract(sin(p)*43758.5453);
@@ -31,36 +28,25 @@ float causticWeb(vec2 p, float t) {
   return line*line;
   }
 
-// Waves focus sunlight into moving bright lines on the bottom of the water around the camera.
-// Multiplies the direct sun, so shadowed ground stays without them.
-float waterCaustics(vec3 pos) {
-  if(scene.waterLevel<CausticsNoWater)
+// Waves focus sunlight into moving bright lines on the bottom of water.
+// Applied where the ground is seen through the water, so dry land never gets them.
+float waterCaustics(vec3 pos, float level) {
+  const float below = level - pos.y;
+  // Only sunlight focuses; at night and in dusk they fade out
+  const float day   = smoothstep(0.0, 0.2, scene.sunDir.y);
+  if(below<=0.0 || day<=0.0)
     return 1.0;
 
-  const float below = scene.waterLevel - pos.y;
-  if(below<=0.0)
-    return 1.0;
-
-  // The lines need a little water to focus and blur out with depth; far away other water bodies may sit below this level
-  const float dist = length(pos.xz - scene.camPos.xz);
-  const float fade = smoothstep(0.0, 30.0, below) * exp(-below/1500.0) * (1.0 - smoothstep(3000.0, 5000.0, dist));
+  // The lines need a little water to focus and blur out with depth
+  const float fade = smoothstep(0.0, 30.0, below) * exp(-below/1500.0) * day;
   if(fade<=0.001)
     return 1.0;
 
   const vec2  q = pos.xz*0.01; // meters
   const float t = float(scene.tickCount32%10000000u)*0.001*0.8;
   const float c = causticWeb(q*1.2, t) + 0.5*causticWeb(q*2.3 + 7.0, t*1.3);
-  // The web averages about 0.26, so the base keeps the average sunlight unchanged
-  return mix(1.0, 0.75 + 0.95*c, fade);
-  }
-
-// Skips pixels without direct sun, where the result would not matter
-float waterCaustics(vec2 fragCoord, float depth, float sunLight) {
-  if(scene.waterLevel<CausticsNoWater || sunLight<=0.0)
-    return 1.0;
-  const vec2 ndc  = (fragCoord*scene.screenResInv)*2.0-vec2(1.0);
-  const vec4 pos4 = scene.viewProjectInv*vec4(ndc, depth, 1.0);
-  return waterCaustics(pos4.xyz/pos4.w);
+  // The web averages about 0.26, so the base keeps the average light unchanged
+  return mix(1.0, 0.8 + 0.75*c, fade);
   }
 
 #endif

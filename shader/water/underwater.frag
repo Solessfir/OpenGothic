@@ -21,6 +21,7 @@ layout(push_constant, std430) uniform Push {
 
 #include "water/water_haze.glsl"
 #include "water/gerstner_wave.glsl"
+#include "lighting/caustics.glsl"
 
 vec3 unproject(vec4 screen) {
   const vec4 pos4 = scene.viewProjectInv * screen;
@@ -55,6 +56,8 @@ void main() {
 #if defined(SCATTERING)
   outColor = vec4(waterHaze()*(1.0-waterAbsorption(len)), 1);
 #else
-  outColor = vec4(waterAbsorption(len), 1);
+  // The ground seen from inside the water also shows its caustics
+  const float caustics = depth<1.0 ? waterCaustics(wPos, push.waterY) : 1.0;
+  outColor = vec4(waterAbsorption(len)*caustics, 1);
 #endif
   }
