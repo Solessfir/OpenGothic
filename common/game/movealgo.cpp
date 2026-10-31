@@ -282,6 +282,20 @@ bool MoveAlgo::implTick(uint64_t dt, MvFlags moveFlg) {
       fallCount += float(dt);
       }
     else if(!dead) {
+      // The take-off ends with the body already on its way down: averaged over the arc the vertical speed is about zero,
+      // and the body would hang in the air. Gothic 1's take-off also moves much faster than its run, launching the hero
+      // off ledges; the flight keeps at most the running speed.
+      if(fallCount>0) {
+        fallSpeed /= fallCount;
+        fallCount  = 0;
+        }
+      fallSpeed.y = std::min(fallSpeed.y, 0.f);
+      const float run = npc.visual.runSpeed();
+      const float hor = Tempest::Vec2(fallSpeed.x,fallSpeed.z).length();
+      if(run>0 && hor>run) {
+        fallSpeed.x *= run/hor;
+        fallSpeed.z *= run/hor;
+        }
       setState(InAir);
       }
     return true;
