@@ -25,6 +25,11 @@ void GthFont::setScale(float s) {
   fntHeight = uint32_t(std::max(float(pfnt->height)*scale, 1.f)); // avoid division by zero
   }
 
+void GthFont::fade(float opacity) {
+  const float* c = color.data();
+  color = Color(c[0],c[1],c[2],c[3]*opacity);
+  }
+
 void GthFont::drawText(Painter &p, int bx, int by, int bw, int bh,
                        std::string_view txt, Tempest::AlignFlag align, int firstLine) const {
   if(tex==nullptr || txt.empty())
@@ -38,7 +43,7 @@ void GthFont::drawText(Painter &p, int bx, int by, int bw, int bh,
 
 void GthFont::drawTextShadow(Painter& p,int x,int y,int w,int h,std::string_view txt,AlignFlag align) const {
   auto shadow=*this;
-  shadow.color=Color(0.f,0.f,0.f,0.8f);
+  shadow.color=Color(0.f,0.f,0.f,0.8f*color.data()[3]);
   const int offset=std::max(1,int(std::round(scale)));
   shadow.drawText(p,x+offset,y+offset,w,h,txt,align);
   drawText(p,x,y,w,h,txt,align);
