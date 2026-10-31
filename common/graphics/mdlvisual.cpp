@@ -980,3 +980,12 @@ void MdlVisual::stopDlgAnim(Npc& npc) {
     startFaceAnim(npc,"VISEME",1,0);
     }
   }
+
+// Horizontal speed of the plain run animation, cm per ms
+float MdlVisual::runSpeed() const {
+  auto sq = solver.solveFrm("S_RUNL");
+  if(sq==nullptr || sq->totalTime()<=0)
+    return 0;
+  const auto d = sq->translateXZ(uint64_t(sq->totalTime())) - sq->translateXZ(0);
+  return Tempest::Vec2(d.x,d.z).length()/sq->totalTime();
+  }

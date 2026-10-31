@@ -75,6 +75,7 @@ class MdlVisual final {
     bool                           isUsingTorch() const;
 
     const Pose&                    pose() const { return *skInst; }
+    float                          runSpeed() const;
     void                           setPoseInterval(uint64_t ms) { poseInterval = ms; }
     bool                           updateAnimation(Npc* npc, Interactive* mobsi, World& world, uint64_t dt, bool force);
     void                           processLayers  (World& world);
