@@ -45,7 +45,7 @@
     <string name="og_report_sent">Bericht gesendet. Danke!</string>
     <string name="og_report_failed">Der Bericht konnte nicht gesendet werden. %1$s</string>
     <string name="og_report_save_none">Spielstand anhängen? (optional)</string>
-    <string name="og_report_save_why">Spielstände helfen mir, Fehler nachzustellen und gewünschte Funktionen viel schneller zu testen.</string>
+    <string name="og_report_save_why">Spielstände helfen, Fehler nachzustellen und gewünschte Funktionen viel schneller zu testen.</string>
     <string name="og_report_save">%1$s, %2$s MB</string>
     <string name="og_report_save_pick">Spielstand auswählen</string>
     <string name="og_report_save_failed">Der Bericht wurde gesendet, der Spielstand aber nicht. %1$s</string>
