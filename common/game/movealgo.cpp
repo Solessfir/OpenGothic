@@ -258,7 +258,8 @@ bool MoveAlgo::implTick(uint64_t dt, MvFlags moveFlg) {
     return false;
 
   // jump animation (lift off)
-  if(bs==BS_JUMP && (npc.isFlyAnim() || npc.isJumpAnim()) && state!=InAir && state!=Jump && state!=JumpUp) {
+  // A jump that ended against a steep slope keeps its animation while sliding down
+  if(bs==BS_JUMP && (npc.isFlyAnim() || npc.isJumpAnim()) && state!=InAir && state!=Jump && state!=JumpUp && state!=Slide) {
     setState(Jump);
     return true;
     }
@@ -267,6 +268,13 @@ bool MoveAlgo::implTick(uint64_t dt, MvFlags moveFlg) {
   if(state==Jump) {
     if(gValid && dY<0) {
       npc.tryMove(Tempest::Vec3(0,-dY,0));
+      // Lifting onto ground too steep to stand on would carry the jump up the slope; slide down it instead
+      DynamicWorld::CollisionTest slide;
+      if(testSlide(npc.position(),normal,slide)) {
+        clearSpeed();
+        setState(Slide);
+        return true;
+        }
       }
 
     if(npc.isJumpAnim()) {
@@ -860,7 +868,7 @@ void MoveAlgo::assertStateChange(State f) {
     case Slide:
       break;
     case Jump:
-      assert(f==Run || f==InAir || f==Falling || f==Swim || f==Dive);
+      assert(f==Run || f==InAir || f==Falling || f==Slide || f==Swim || f==Dive);
       break;
     case JumpUp:
       assert(f==Run || f==InAir || f==ClimbUp);
