@@ -519,7 +519,7 @@ class Npc final {
     bool      prepareTurn();
     void      stopWalkAnimation();
     void      takeDamage(Npc& other, const Bullet* b, const CollideMask bMask, int32_t splId, bool isSpell);
-    void      takeFallDamage(const Tempest::Vec3& fallSpeed);
+    void      takeFallDamage(const Tempest::Vec3& fallSpeed, float fallHeight);
     void      takeDrownDamage();
 
     void      dropTorch(bool burnout = false);
