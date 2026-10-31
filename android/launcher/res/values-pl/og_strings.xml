@@ -17,6 +17,7 @@
     <string name="og_update_to">Aktualizuj do %1$s</string>
     <string name="og_update_downloading">Pobieranie aktualizacji · %1$d%%</string>
     <string name="og_update_title">Gothic Launcher %1$s</string>
+    <string name="og_whats_new">Co nowego</string>
     <string name="og_update_notes">Dostępna jest nowa wersja.</string>
     <string name="og_updates_title">Automatyczne aktualizacje</string>
     <string name="og_updates_body">Gothic Launcher może sam się aktualizować, gdy pojawi się nowa wersja. Android raz poprosi o zgodę na instalowanie aplikacji.</string>
@@ -32,7 +33,7 @@
     <string name="og_restore_title">Przywrócić zapisy i ustawienia gry %1$s?</string>
     <string name="og_restore_body">Zapisy w tych samych slotach oraz ustawienia zostaną zastąpione kopią. Pozostałe zapisy zostaną.</string>
     <string name="og_feedback">Opinia</string>
-    <string name="og_donate">Wesprzyj rozwój ❤️</string>
+    <string name="og_donate">Wesprzyj rozwój</string>
     <string name="og_feedback_problem">Problem</string>
     <string name="og_feedback_suggestion">Sugestia</string>
     <string name="og_suggestion_body">Wysłać pomysł do autora? Wysyłany jest tylko twój tekst, wersja launchera i model telefonu.</string>

@@ -75,6 +75,19 @@ final class Updates {
         }
     }
 
+    /**
+     * True once on the first start after an update. Launchers before 0.6.11 did not record their version, but their
+     * last check stored the release it offered; a fresh install has neither and shows nothing.
+     */
+    static boolean justUpdated(Context c) {
+        SharedPreferences p = prefs(c);
+        String installed = installedVersion(c);
+        String lastRun = p.getString("lastRun", null);
+        if (installed.equals(lastRun)) return false;
+        p.edit().putString("lastRun", installed).apply();
+        return lastRun != null || installed.equals(p.getString("version", null));
+    }
+
     /** The newest release found earlier, if it is newer than this app. */
     static Release available(Context c) {
         SharedPreferences p = prefs(c);
