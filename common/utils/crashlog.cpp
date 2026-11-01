@@ -14,6 +14,7 @@
 #include <cstdint>
 #include <dlfcn.h>  // dladdr
 #include <unwind.h> // _Unwind_Backtrace
+#include <typeinfo>
 #endif
 
 #if defined(__cpp_lib_stacktrace)
@@ -32,6 +33,54 @@
 #endif
 
 static char gpuName[64]="?";
+
+#if defined(__ANDROID__)
+struct Backtrace {
+  void*  frames[64] = {};
+  size_t count = 0;
+  };
+
+static void collectBacktrace(Backtrace& trace) {
+  trace.count = 0;
+  _Unwind_Backtrace([](_Unwind_Context* context, void* arg) {
+    auto& trace = *static_cast<Backtrace*>(arg);
+    const uintptr_t pc = _Unwind_GetIP(context);
+    if(pc!=0)
+      trace.frames[trace.count++] = reinterpret_cast<void*>(pc);
+    return trace.count==64 ? _URC_END_OF_STACK : _URC_NO_REASON;
+    }, &trace);
+  }
+
+static void writeBacktrace(std::ostream& out, const Backtrace& trace) {
+  for(size_t i=0; i<trace.count; ++i) {
+    Dl_info info = {};
+    out << "#" << i+1 << ": ";
+    if(dladdr(trace.frames[i], &info)) {
+      const uintptr_t offset = reinterpret_cast<uintptr_t>(trace.frames[i])-reinterpret_cast<uintptr_t>(info.dli_fbase);
+      out << (info.dli_sname ? info.dli_sname : "?") << " - " << (info.dli_fname ? info.dli_fname : "?");
+      out << " + 0x" << std::hex << offset << std::dec;
+      }
+    else {
+      out << trace.frames[i];
+      }
+    out << std::endl;
+    }
+  }
+
+// Where the last exception of this thread was thrown. When one escapes, the stack is already unwound by
+// the time std::terminate runs, so the crash log only knew main. Linked with -Wl,--wrap=__cxa_throw,
+// which reaches the throws inside Tempest and the statically linked C++ runtime as well.
+static thread_local Backtrace throwSite;
+
+extern "C" {
+[[noreturn]] void __real___cxa_throw(void* obj, std::type_info* type, void (*dest)(void*));
+
+[[noreturn]] void __wrap___cxa_throw(void* obj, std::type_info* type, void (*dest)(void*)) {
+  collectBacktrace(throwSite);
+  __real___cxa_throw(obj, type, dest);
+  }
+}
+#endif
 
 #ifdef __WINDOWS__
 #include <windows.h>
@@ -189,30 +238,12 @@ void CrashLog::tracebackStd(std::ostream &out) {
 
 void CrashLog::tracebackAndroid(std::ostream &out) {
 #if defined(__ANDROID__)
-  struct Backtrace {
-    void*  frames[64] = {};
-    size_t count = 0;
-    } trace;
-  _Unwind_Backtrace([](_Unwind_Context* context, void* arg) {
-    auto& trace = *static_cast<Backtrace*>(arg);
-    const uintptr_t pc = _Unwind_GetIP(context);
-    if(pc!=0)
-      trace.frames[trace.count++] = reinterpret_cast<void*>(pc);
-    return trace.count==64 ? _URC_END_OF_STACK : _URC_NO_REASON;
-    }, &trace);
-
-  for(size_t i=0; i<trace.count; ++i) {
-    Dl_info info = {};
-    out << "#" << i+1 << ": ";
-    if(dladdr(trace.frames[i], &info)) {
-      const uintptr_t offset = reinterpret_cast<uintptr_t>(trace.frames[i])-reinterpret_cast<uintptr_t>(info.dli_fbase);
-      out << (info.dli_sname ? info.dli_sname : "?") << " - " << (info.dli_fname ? info.dli_fname : "?");
-      out << " + 0x" << std::hex << offset << std::dec;
-      }
-    else {
-      out << trace.frames[i];
-      }
-    out << std::endl;
+  Backtrace trace;
+  collectBacktrace(trace);
+  writeBacktrace(out, trace);
+  if(std::current_exception()!=nullptr && throwSite.count>0) {
+    out << "thrown at:" << std::endl;
+    writeBacktrace(out, throwSite);
     }
 #endif
   }
