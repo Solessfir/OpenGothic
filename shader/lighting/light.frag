@@ -7,6 +7,10 @@
 #endif
 
 #include "lighting/rt/rt_common.glsl"
+#if defined(RAY_QUERY)
+#define CAPSULE_BINDING 12
+#include "lighting/character_capsules.glsl"
+#endif
 #include "lighting/tonemapping.glsl"
 #include "scene.glsl"
 #include "common.glsl"
@@ -48,6 +52,9 @@ bool isShadow(vec3 rayOrigin, vec3 direction, float R) {
 #if !defined(RAY_QUERY_AT)
     flags |= gl_RayFlagsOpaqueEXT;
 #endif
+
+    if(characterOccludes(rayOrigin, rayOrigin + rayDirection*rayDistance))
+      return true;
 
     rayQueryEXT rayQuery;
     rayQueryInitializeEXT(rayQuery, topLevelAS, flags, CM_ShadowCaster,
