@@ -1,0 +1,19 @@
+#version 450
+
+// Does nothing: binding the DLSS inputs as textures and its output as storage image
+// leaves them in the layouts NGX expects, with the barriers in place
+layout(local_size_x = 1) in;
+
+layout(binding = 0) uniform sampler2D color;
+layout(binding = 1) uniform sampler2D depth;
+layout(binding = 2) uniform sampler2D motion;
+layout(binding = 3) uniform writeonly image2D result;
+
+layout(push_constant, std430) uniform Push {
+  uint never;
+  } push;
+
+void main() {
+  if(push.never!=0)
+    imageStore(result, ivec2(0), texelFetch(color, ivec2(0), 0) + texelFetch(depth, ivec2(0), 0) + texelFetch(motion, ivec2(0), 0));
+  }

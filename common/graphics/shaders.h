@@ -92,6 +92,9 @@ class Shaders {
     struct {
       Tempest::ComputePipeline motion, clear, clearU, luminance, prevDepth, depthClip, lock, accumulate, rcas;
       } fsr2;
+    struct {
+      Tempest::ComputePipeline inputs, sync;
+      } dlss;
 
     // HUD
     Tempest::RenderPipeline  gizmo, lightImposter;
