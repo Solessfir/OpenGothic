@@ -23,6 +23,11 @@ static bool hasBindless() {
     Log::i("Disabling bindless material shaders for ",name);
     return false;
     }
+  // Mali: black blocks on alpha tested foliage (G68) and std::bad_alloc crashes (G720) with the bindless path
+  if(name.find("Mali")!=std::string_view::npos) {
+    Log::i("Disabling bindless material shaders for ",name);
+    return false;
+    }
 #endif
   if(p.descriptors.nonUniformIndexing && p.descriptors.maxTexture>=65000 && p.descriptors.maxStorage>=65000)
     return true;
