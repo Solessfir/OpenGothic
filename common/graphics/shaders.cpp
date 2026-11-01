@@ -229,6 +229,8 @@ void Shaders::compileShaders() noexcept {
   smaaWeights[uint32_t(AaPreset::MEDIUM)] = postEffect("triangle_uv", "smaa_weights",        RenderState::ZTestMode::Always);
   smaaWeights[uint32_t(AaPreset::ULTRA)]  = postEffect("triangle_uv", "smaa_weights_ultra",  RenderState::ZTestMode::Always);
   smaaBlend                               = postEffect("triangle_uv", "smaa_blend",          RenderState::ZTestMode::Always);
+  taa                                     = computeShader("taa.comp.sprv");
+  taaSharpen                              = computeShader("taa_sharpen.comp.sprv");
 
   {
     RenderState state;
