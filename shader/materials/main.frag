@@ -195,7 +195,7 @@ vec4 diffuseTex() {
   const         uint tId = 0;
 #endif
 
-  vec4 tex = texture(sampler2D(textureMain[tId], samplerMain),uv);
+  vec4 tex = texture(sampler2D(textureMain[tId], samplerMain), uv, scene.mipBias);
 
 #if !defined(SIMPLE_MAT)
   tex.a *= alphaWeight;
