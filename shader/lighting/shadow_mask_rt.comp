@@ -4,13 +4,14 @@
 #define LWC 1
 
 #include "lighting/rt/rt_common.glsl"
-#include "lighting/shadow_sampling.glsl"
+#define CAPSULE_BINDING 12
+#include "lighting/character_capsules.glsl"
 #include "scene.glsl"
 #include "common.glsl"
 
 // Ray traced sun shadows: one ray per pixel towards the sun gives the visibility of the world and how far
 // the blocker is, which sizes the penumbra for shadow_blur.comp. Characters are not in the ray tracing
-// scene; shadow maps with only characters in them add their shadows.
+// scene; their bone capsules add their shadows.
 layout(local_size_x = 8, local_size_y = 8) in;
 
 layout(push_constant, std430) uniform Push {
@@ -23,8 +24,6 @@ layout(binding = 0, std140) uniform UboScene {
 layout(binding = 1) uniform writeonly image2D result; // r: visibility, g: penumbra radius in pixels, b: linear depth in meters
 layout(binding = 2) uniform usampler2D gbufNormal;
 layout(binding = 3) uniform sampler2D  depth;
-layout(binding = 4) uniform sampler2D  textureSm0;
-layout(binding = 5) uniform sampler2D  textureSm1;
 
 const float SunTan      = 0.01;     // same softness as shadow_mask.comp
 const float MaxPenumbra = 40.0;     // cm
@@ -43,22 +42,6 @@ bool rayTest(vec3 pos, vec3 dir, float tMin, float tMax, out float rayT) {
     return false;
   rayT = rayQueryGetIntersectionTEXT(rayQuery, true);
   return true;
-  }
-
-// characters from the shadow maps, with their blocker distance in cm (-1 without blocker)
-float characterShadow(vec3 pos, vec3 normal, out float blockerCm) {
-  blockerCm = -1;
-  const vec3 shPos0 = shadowCascadePos(scene.viewShadowLwc[0], textureSm0, pos, normal);
-  const vec3 shPos1 = shadowCascadePos(scene.viewShadowLwc[1], textureSm1, pos, normal);
-  const float vis   = calcShadow(scene, textureSm0, shPos0, textureSm1, shPos1);
-  if(vis<1.0 && abs(shPos0.x)<0.99 && abs(shPos0.y)<0.99) {
-    const vec4  d       = textureGather(textureSm0, shPos0.xy*0.5+0.5);
-    const float blocker = max(max(d.x,d.y), max(d.z,d.w)); // larger depth is closer to the sun
-    const mat4  m       = scene.viewShadowLwc[0];
-    const float depthCm = length(vec3(m[0][2], m[1][2], m[2][2]));
-    blockerCm = max(blocker - shPos0.z, 0.0)/depthCm/max(scene.sunDir.y, 0.01);
-    }
-  return vis;
   }
 
 void main() {
@@ -90,11 +73,13 @@ void main() {
   float hitT = 0;
   const bool hit = rayTest(pos + push.originLwc + normal*offset, scene.sunDir, 1.0, MaxDistance, hitT);
 
-  float blockerCm = -1;
-  const float chars = characterShadow(pos + normal*0.0015, normal, blockerCm);
+  // characters within reach of the capsule list, the world ray already covers everything else
+  const vec3  wpos      = pos + push.originLwc + normal*offset;
+  float       blockerCm = -1;
+  const bool  character = characterOccludes(wpos, wpos + scene.sunDir*3000.0, blockerCm);
 
   float distCm = hit ? hitT : -1.0;
-  if(blockerCm>=0)
+  if(character)
     distCm = distCm>=0 ? min(distCm, blockerCm) : blockerCm;
 
   float radius = 0;
@@ -104,6 +89,6 @@ void main() {
     radius = min(penumbraCm/pixelCm, MaxRadius);
     }
 
-  const float vis = (hit ? 0.0 : 1.0)*chars;
+  const float vis = (hit || character) ? 0.0 : 1.0;
   imageStore(result, at, vec4(vis, radius, linDepth*0.01, 0));
   }

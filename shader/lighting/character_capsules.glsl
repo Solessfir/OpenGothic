@@ -19,15 +19,16 @@ layout(binding = CAPSULE_BINDING, std430) readonly buffer CharacterCapsules {
   vec4         capsules[]; // pairs: (start, radius), (end, unused)
   } characters;
 
-// squared distance between segments p0-p1 and q0-q1 (Ericson, Real-Time Collision Detection 5.1.9)
-float segmentDistanceSq(vec3 p0, vec3 p1, vec3 q0, vec3 q1) {
+// squared distance between segments p0-p1 and q0-q1, s is where on p0-p1 (Ericson, Real-Time Collision Detection 5.1.9)
+float segmentDistanceSq(vec3 p0, vec3 p1, vec3 q0, vec3 q1, out float s) {
   const vec3  d1 = p1-p0;
   const vec3  d2 = q1-q0;
   const vec3  r  = p0-q0;
   const float a  = dot(d1,d1);
   const float e  = dot(d2,d2);
   const float f  = dot(d2,r);
-  float s = 0, t = 0;
+  float t = 0;
+  s = 0;
   if(a<=1e-6 && e<=1e-6)
     return dot(r,r);
   if(a<=1e-6) {
@@ -63,8 +64,9 @@ float pointSegmentDistanceSq(vec3 p, vec3 a, vec3 b) {
   return dot(d,d);
   }
 
-// does a character block the segment from a receiver at `from` to `to`
-bool characterOccludes(vec3 from, vec3 to) {
+// does a character block the segment from a receiver at `from` to `to`; dist is how far from `from`
+bool characterOccludes(vec3 from, vec3 to, out float dist) {
+  dist = -1;
   const uint count = min(characters.groupCount, MaxCapsuleGroups);
   for(uint g=0; g<count; ++g) {
     const CapsuleGroup grp = characters.groups[g];
@@ -78,11 +80,19 @@ bool characterOccludes(vec3 from, vec3 to) {
       // a capsule the receiver lies in is its own body: a character does not shadow itself there
       if(pointSegmentDistanceSq(from, c0.xyz, c1) < cr*cr*1.44)
         continue;
-      if(segmentDistanceSq(from, to, c0.xyz, c1) < cr*cr)
-        return true;
+      float s = 0;
+      if(segmentDistanceSq(from, to, c0.xyz, c1, s) < cr*cr) {
+        const float d = s*length(to-from);
+        dist = dist<0 ? d : min(dist, d);
+        }
       }
     }
-  return false;
+  return dist>=0;
+  }
+
+bool characterOccludes(vec3 from, vec3 to) {
+  float dist = 0;
+  return characterOccludes(from, to, dist);
   }
 
 #endif

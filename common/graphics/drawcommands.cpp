@@ -461,10 +461,6 @@ void DrawCommands::drawCommon(Tempest::Encoder<Tempest::CommandBuffer>& cmd, Sce
     switch(viewId) {
       case SceneGlobals::V_Shadow0:
       case SceneGlobals::V_Shadow1:
-        if(shadowCharactersOnly && cx.type!=Type::Animated && cx.type!=Type::Morph)
-          break;
-        pso = cx.pShadow;
-        break;
       case SceneGlobals::V_Vsm:
         pso = cx.pShadow;
         break;

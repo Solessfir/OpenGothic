@@ -59,9 +59,6 @@ class DrawCommands {
     void     drawHiZ(Tempest::Encoder<Tempest::CommandBuffer>& cmd);
     void     drawCommon(Tempest::Encoder<Tempest::CommandBuffer>& cmd, SceneGlobals::VisCamera viewId, Material::AlphaFunc func);
 
-    // draws only characters into shadow maps, for ray traced sun shadows that lack them
-    bool     shadowCharactersOnly = false;
-
     void     drawVsm(Tempest::Encoder<Tempest::CommandBuffer>& cmd);
 
   private:
