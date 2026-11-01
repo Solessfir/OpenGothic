@@ -24,6 +24,7 @@
 #include "gothic.h"
 #include "build.h"
 #include "commandline.h"
+#include "graphics/dlss.h"
 
 #include <dmusic.h>
 
@@ -55,6 +56,7 @@ std::unique_ptr<Tempest::AbstractGraphicsApi> mkApi(const CommandLine& g) {
 #endif
     case CommandLine::Vulkan:
 #if !defined(__APPLE__)
+      Dlss::requestExtensions();
       return std::make_unique<Tempest::VulkanApi>(flg);
 #else
       break;
@@ -64,6 +66,7 @@ std::unique_ptr<Tempest::AbstractGraphicsApi> mkApi(const CommandLine& g) {
 #if defined(__APPLE__)
   return std::make_unique<Tempest::MetalApi>(flg);
 #else
+  Dlss::requestExtensions();
   return std::make_unique<Tempest::VulkanApi>(flg);
 #endif
   }

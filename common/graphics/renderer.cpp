@@ -933,7 +933,22 @@ void Renderer::drawFsr2(Encoder<CommandBuffer>& cmd, uint8_t fId, const WorldVie
   in.frameTimeMs = upscale.lastTick==0 ? 16.f : float(now-upscale.lastTick);
   in.reset       = upscale.output==nullptr;
   upscale.lastTick = now;
-  upscale.output   = &upscale.fsr2.draw(cmd, fId, scene, in);
+
+  if(CommandLine::inst().dlss()) {
+    Dlss::Inputs di;
+    di.color       = in.color;
+    di.depth       = in.depth;
+    di.velocity    = in.velocity;
+    di.display     = in.display;
+    di.jitter      = in.jitter;
+    di.frameTimeMs = in.frameTimeMs;
+    di.reset       = in.reset;
+    if(auto out = upscale.dlss.draw(cmd, scene, di)) {
+      upscale.output = out;
+      return;
+      }
+    }
+  upscale.output = &upscale.fsr2.draw(cmd, fId, scene, in);
   }
 
 void Renderer::drawSMAA(Tempest::Attachment& result, Tempest::Encoder<Tempest::CommandBuffer>& cmd, const WorldView& wview) {
