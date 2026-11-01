@@ -74,6 +74,7 @@ class Renderer final {
     void prepareGi        (Tempest::Encoder<Tempest::CommandBuffer>& cmd, WorldView& wview);
     void prepareDdgi      (Tempest::Encoder<Tempest::CommandBuffer>& cmd, WorldView& wview);
     void prepareExposure  (Tempest::Encoder<Tempest::CommandBuffer>& cmd, WorldView& wview);
+    void checkHoles       (Tempest::Encoder<Tempest::CommandBuffer>& cmd, WorldView& wview, uint8_t fId);
     void prepareEpipolar  (Tempest::Encoder<Tempest::CommandBuffer>& cmd, WorldView& wview);
 
     void prepareLightsBvh (Tempest::Encoder<Tempest::CommandBuffer>& cmd, WorldView& wview);
@@ -249,6 +250,13 @@ class Renderer final {
       std::vector<Tempest::Vec4>   bones;
       std::vector<uint8_t>         data;
       } capsules;
+
+    struct {
+      Tempest::StorageBuffer       buf[Resources::MaxFramesInFlight];
+      bool                         pending[Resources::MaxFramesInFlight] = {};
+      uint64_t                     frame   = 0;
+      uint64_t                     lastLog = 0;
+      } holes;
 
     struct {
       Fsr2                         fsr2;

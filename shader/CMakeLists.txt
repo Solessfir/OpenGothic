@@ -344,6 +344,7 @@ add_shader(clouds_lut.comp           sky/clouds_lut.comp)
 add_shader(fog_view_lut.comp         sky/fog_view_lut.comp -DSUN_SCATTERING -DMULTI_SCATTERING)
 add_shader(fog_view_lut_sep.comp     sky/fog_view_lut.comp -DSUN_SCATTERING -DMULTI_SCATTERING -DSEPARABLE)
 
+add_shader(sky_hole_check.comp       sky/hole_check.comp)
 add_shader(sky.frag                  sky/sky.frag)
 add_shader(sky_sep.frag              sky/sky.frag -DSEPARABLE)
 add_shader(fog3d.comp                sky/fog.frag -S comp -DVOLUMETRIC)
