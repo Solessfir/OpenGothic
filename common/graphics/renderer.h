@@ -245,7 +245,7 @@ class Renderer final {
         uint32_t frame        = 0;
         } push;
       Tempest::Vec3             camPos;
-      Tempest::StorageImage     rays, irradiance, distance, half;
+      Tempest::StorageImage     rays, irradiance, distance, half, fog;
       Tempest::StorageBuffer    probes, lightList, schedule;
       } ddgi;
 
