@@ -141,6 +141,9 @@ void main() {
   // multi-bounce from last frame's probes
   float w      = 0;
   vec3  bounce = ddgiSampleIrradiance(pos, nr, -dir, w);
+  // the first frame after a lighting jump still holds the old light, it would feed back into the new
+  if(push.reset>=3)
+    w = 0;
   bounce = mix(scene.ambient, bounce, w);
 
   const vec3 torch = pointLights(pos, nr, uint(slot*DdgiRays + ray) ^ (push.frame*0x9E3779B9u));
