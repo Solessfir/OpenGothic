@@ -199,7 +199,7 @@ void Renderer::setupSettings() {
     lights.directLightPso = &shaders.lights;
 
   // the menu option, unless -gi or the debug toggle picked a method
-  if(Shaders::options().doGi==GiMethod::None && !settings.giToggled)
+  if(!CommandLine::inst().hasGiArg() && !settings.giToggled)
     settings.giMethod = Gothic::settingsGetI("ENGINE","globalIllumination")!=0 ? GiMethod::Ddgi : GiMethod::None;
 
   const auto gi = settings.giMethod;
