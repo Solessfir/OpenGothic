@@ -94,6 +94,7 @@ class Renderer final {
     void drawShadowMap    (Tempest::Encoder<Tempest::CommandBuffer>& cmd, uint8_t fId, WorldView& view);
     void drawShadowResolve(Tempest::Encoder<Tempest::CommandBuffer>& cmd, const WorldView& view);
     void drawLights       (Tempest::Encoder<Tempest::CommandBuffer>& cmd, const WorldView& view);
+    void prepareCharacterCapsules(uint8_t fId, const Camera& camera);
     void drawSky          (Tempest::Encoder<Tempest::CommandBuffer>& cmd, const WorldView& view);
     void drawAmbient      (Tempest::Encoder<Tempest::CommandBuffer>& cmd, const WorldView& view);
     void drawTonemapping  (Tempest::Attachment& result, Tempest::Encoder<Tempest::CommandBuffer>& cmd, const WorldView& wview);
@@ -241,6 +242,14 @@ class Renderer final {
       uint8_t                   current = 0;
       bool                      valid   = false;
       } taa;
+
+    // characters as capsules for shadow rays, see shader/lighting/character_capsules.glsl
+    struct {
+      Tempest::StorageBuffer       buf[Resources::MaxFramesInFlight];
+      const Tempest::StorageBuffer* current = nullptr;
+      std::vector<Tempest::Vec4>   bones;
+      std::vector<uint8_t>         data;
+      } capsules;
 
     struct {
       Fsr2                         fsr2;
