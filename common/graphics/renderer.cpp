@@ -187,7 +187,9 @@ void Renderer::setupSettings() {
   if(settings.taaEnabled)
     settings.aaEnabled = false;
 
-  settings.rtShadows = settings.softShadows && CommandLine::inst().rtShadows() && Shaders::options().doRayQuery &&
+  const int32_t rtShadowsArg = CommandLine::inst().rtShadows();
+  const bool    rtShadowsOn  = rtShadowsArg>=0 ? rtShadowsArg>0 : Gothic::settingsGetI("ENGINE","rtShadows")!=0;
+  settings.rtShadows = settings.softShadows && rtShadowsOn && Shaders::options().doRayQuery &&
                        Resources::device().properties().descriptors.nonUniformIndexing &&
                        !settings.rtsmEnabled && !settings.vsmEnabled && settings.shadowResolution>0;
 
@@ -947,7 +949,8 @@ void Renderer::drawFsr2(Encoder<CommandBuffer>& cmd, uint8_t fId, const WorldVie
   in.reset       = upscale.output==nullptr;
   upscale.lastTick = now;
 
-  if(CommandLine::inst().dlss()) {
+  const int32_t dlssArg = CommandLine::inst().dlss();
+  if(dlssArg>=0 ? dlssArg>0 : Gothic::settingsGetI("ENGINE","upscaler")==0) {
     Dlss::Inputs di;
     di.color       = in.color;
     di.depth       = in.depth;
