@@ -26,6 +26,8 @@ if(ANDROID)
   add_library(Gothic2Notr SHARED)
   set_target_properties(Gothic2Notr PROPERTIES OUTPUT_NAME "opengothic")
   target_link_options(Gothic2Notr PRIVATE "$<$<CONFIG:Release>:-Wl,--thinlto-jobs=4>")
+  # crash logs record where an uncaught exception was thrown, see utils/crashlog.cpp
+  target_link_options(Gothic2Notr PRIVATE "-Wl,--wrap=__cxa_throw")
 else()
   add_executable(Gothic2Notr)
   add_executable(Spacer)
