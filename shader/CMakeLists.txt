@@ -322,6 +322,8 @@ add_shader(fog3d_hq.frag             sky/fog.frag -DVOLUMETRIC)
 add_shader(fog3d_hq_gi.frag          sky/fog.frag -DVOLUMETRIC -DGI)
 add_shader(fog_epipolar.frag         sky/fog_epipolar.frag)
 add_shader(fog.frag                  sky/fog.frag)
+add_shader(sun_shafts.comp           sky/sun_shafts.comp)
+add_shader(sun_shafts.frag           sky/sun_shafts.frag)
 #
 add_shader(fog_epipolar_vsm.comp       epipolar/fog_epipolar.comp)
 add_shader(fog_epipolar_occlusion.comp epipolar/fog_epipolar_occlusion.comp)

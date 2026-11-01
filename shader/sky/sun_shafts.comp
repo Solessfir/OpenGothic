@@ -1,0 +1,49 @@
+#version 450
+#extension GL_GOOGLE_include_directive : enable
+
+#include "scene.glsl"
+#include "common.glsl"
+
+// Screen-space sun rays: the sky around the sun, smeared towards the sun and cut by everything in front of it
+layout(local_size_x = 8, local_size_y = 8) in;
+
+layout(binding = 0, std140) uniform UboScene {
+  SceneDesc scene;
+  };
+layout(binding = 1) uniform writeonly image2D result;
+layout(binding = 2) uniform sampler2D depth;
+
+const int   Samples = 48;
+const float Decay   = 0.97;
+const float Falloff = 14.0; // how fast the sky glow fades away from the sun, per screen height
+
+void main() {
+  const ivec2 at   = ivec2(gl_GlobalInvocationID.xy);
+  const ivec2 size = imageSize(result);
+  if(at.x>=size.x || at.y>=size.y)
+    return;
+
+  const vec4 sunClip = scene.viewProject*vec4(scene.sunDir, 0);
+  if(sunClip.w<=0.0 || scene.sunDir.y<=0.0) {
+    imageStore(result, at, vec4(0));
+    return;
+    }
+
+  const vec2  aspect = vec2(float(size.x)/float(size.y), 1.0);
+  const vec2  sunUv  = (sunClip.xy/sunClip.w)*0.5+0.5;
+  const vec2  uv     = (vec2(at)+0.5)/vec2(size);
+  const vec2  stepUv = (sunUv-uv)/float(Samples);
+  const float dither = interleavedGradientNoise(vec2(at));
+
+  float sum    = 0;
+  float weight = 1;
+  for(int i=0; i<Samples; ++i) {
+    const vec2 p = uv + stepUv*(float(i)+dither);
+    if(any(lessThan(p, vec2(0))) || any(greaterThan(p, vec2(1))))
+      break;
+    if(textureLod(depth, p, 0).r>=1.0)
+      sum += exp(-length((p-sunUv)*aspect)*Falloff)*weight;
+    weight *= Decay;
+    }
+  imageStore(result, at, vec4(sum/float(Samples)));
+  }

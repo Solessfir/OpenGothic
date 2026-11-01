@@ -65,7 +65,8 @@ class Shaders {
     Tempest::RenderPipeline  skyTransmittance, skyMultiScattering;
     Tempest::RenderPipeline  skyViewLut, skyViewCldLut, sky, skySep;
     Tempest::RenderPipeline  fog;
-    Tempest::RenderPipeline  fog3dHQ;
+    Tempest::RenderPipeline  fog3dHQ, sunShafts;
+    Tempest::ComputePipeline sunShaftsTrace;
     Tempest::RenderPipeline  sun;
     Tempest::ComputePipeline cloudsLut, fogOcclusion;
     Tempest::ComputePipeline fogViewLut3d, fogViewLutSep;

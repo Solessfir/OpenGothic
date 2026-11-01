@@ -141,6 +141,8 @@ void Shaders::compileShaders() noexcept {
   skySep             = postEffect("sky_sep");
   fog                = fogShader ("fog");
   fog3dHQ            = fogShader ("fog3d_hq");
+  sunShaftsTrace     = computeShader("sun_shafts.comp.sprv");
+  sunShafts          = fogShader ("sun_shafts");
 
   {
     RenderState state;
