@@ -10,6 +10,7 @@
 
 #include "worldview.h"
 #include "shaders.h"
+#include "fsr2.h"
 
 class Camera;
 class InventoryMenu;
@@ -100,6 +101,7 @@ class Renderer final {
     void drawUnderwater   (Tempest::Encoder<Tempest::CommandBuffer>& cmd, const WorldView& wview, const Camera& camera);
     void drawFog          (Tempest::Encoder<Tempest::CommandBuffer>& cmd, const WorldView& wview);
     void drawTaa          (Tempest::Encoder<Tempest::CommandBuffer>& cmd, const WorldView& wview);
+    void drawFsr2         (Tempest::Encoder<Tempest::CommandBuffer>& cmd, uint8_t fId, const WorldView& wview, const Camera& camera, Tempest::Size display);
     void drawSunMoon      (Tempest::Encoder<Tempest::CommandBuffer>& cmd, const WorldView& wview);
     void drawSunMoon      (Tempest::Encoder<Tempest::CommandBuffer>& cmd, const WorldView& wview, bool isSun);
     void drawGizmo        (Tempest::Encoder<Tempest::CommandBuffer>& cmd, const WorldView& wview);
@@ -142,6 +144,7 @@ class Renderer final {
       bool           zFogRadial         = false;
       bool           sunShafts          = false; // screen-space sun rays, untested on mobile GPUs
       bool           taaEnabled         = false; // temporal anti-aliasing, experimental
+      bool           fsrEnabled         = false; // FSR2 upscaling from the reduced render resolution
       bool           softShadows        = false; // penumbra blur of the sun shadow maps, PC only
 
       bool           zWindEnabled       = false;
@@ -235,6 +238,13 @@ class Renderer final {
       uint8_t                   current = 0;
       bool                      valid   = false;
       } taa;
+
+    struct {
+      Fsr2                         fsr2;
+      const Tempest::StorageImage* output       = nullptr;
+      uint32_t                     jitterPhases = 8;
+      uint64_t                     lastTick     = 0;
+      } upscale;
 
     struct {
       Tempest::StorageImage     hiZ;
