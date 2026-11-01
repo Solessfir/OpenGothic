@@ -421,6 +421,8 @@ void Renderer::prepareUniforms(WorldView& wview, const Camera& camera) {
   wview.setSkyIrradiance(textureCast<const Texture2d&>(sky.irradianceLut));
   wview.setWindEnabled(settings.zWindEnabled, settings.windPeriod);
   wview.setTemporalJitter(settings.taaEnabled || settings.fsrEnabled, upscale.jitterPhases);
+  // the upscalers rebuild detail at the display resolution, so textures are sampled as sharp as there (AMD and NVIDIA guidance)
+  wview.setMipBias(settings.fsrEnabled ? std::log2(settings.renderScale) - 1.f : 0.f);
   Vec4 fadeTarget = {};
   const auto player = Gothic::inst().player();
   if(player!=nullptr && !camera.isFirstPerson() && !camera.isCutscene() && !camera.isFree()) {
@@ -954,7 +956,15 @@ void Renderer::drawFsr2(Encoder<CommandBuffer>& cmd, uint8_t fId, const WorldVie
     di.frameTimeMs = in.frameTimeMs;
     di.reset       = in.reset;
     if(auto out = upscale.dlss.draw(cmd, scene, di)) {
-      upscale.output = out;
+      // the same contrast adaptive sharpening as TAA, FSR2 has its own
+      auto& sharp = usesImage2d(upscale.sharpened, TextureFormat::RGBA16F, display);
+      cmd.setDebugMarker("DLSS-sharpen");
+      cmd.setFramebuffer({});
+      cmd.setBinding(0, sharp);
+      cmd.setBinding(1, *out, Sampler::nearest(ClampMode::ClampToEdge));
+      cmd.setPipeline(shaders.taaSharpen);
+      cmd.dispatchThreads(display);
+      upscale.output = &sharp;
       return;
       }
     }
