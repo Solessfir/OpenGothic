@@ -42,6 +42,9 @@ Shaders* Shaders::instance = nullptr;
 
 Shaders::Shaders() {
   instance = this;
+#if !defined(__ANDROID__)
+  motionVectors = CommandLine::inst().taa()>0;
+#endif
   setupOptions();
   compileKeyShaders();
   deferredCompilation = std::async(std::launch::async, [this]() {
@@ -658,6 +661,13 @@ const RenderPipeline* Shaders::materialPipeline(const Material& mat, DrawCommand
       typeVsM = "";
       typeFsM = "_x";
       break;
+    }
+
+  // the gbuffer also gets motion vectors: objects need their previous transform, the rest only the camera's
+  if(motionVectors && (alpha==Material::Solid || alpha==Material::AlphaTest)) {
+    if(t!=DrawCommands::Landscape && t!=DrawCommands::Pfx)
+      typeVsM = "_mv";
+    typeFsM = trivial ? "_g_s_mv" : (alpha==Material::AlphaTest ? "_g_at_mv" : "_g_mv");
     }
 
   const char* typeVs = "";

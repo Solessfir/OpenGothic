@@ -177,7 +177,7 @@ void Renderer::setupSettings() {
   const int32_t aaArg = CommandLine::inst().aaPreset();
   settings.aaPreset    = uint32_t(std::clamp(aaArg>=0 ? aaArg : Gothic::settingsGetI("ENGINE","antiAliasing"), 0, int32_t(AaPreset::PRESETS_COUNT)-1));
   settings.aaEnabled   = (settings.aaPreset>0) && (settings.vidResIndex==0);
-  settings.taaEnabled  = CommandLine::inst().taa()>0 && settings.vidResIndex==0;
+  settings.taaEnabled  = shaders.motionVectors && settings.vidResIndex==0;
   if(settings.taaEnabled)
     settings.aaEnabled = false;
 
@@ -465,6 +465,8 @@ void Renderer::resetViewport(Tempest::Size res, Tempest::Size fullRes) {
 
   gbufDiffuse   = device.attachment(TextureFormat::RGBA8,w,h);
   gbufNormal    = device.attachment(TextureFormat::R32U, w,h);
+  if(shaders.motionVectors)
+    gbufVelocity = device.attachment(TextureFormat::RG16, w,h);
 
   ssao     = decltype(ssao)();
   epipolar = decltype(epipolar)();
@@ -891,6 +893,7 @@ void Renderer::drawTaa(Encoder<CommandBuffer>& cmd, const WorldView& wview) {
   cmd.setBinding(2, sceneLinear,        Sampler::nearest (ClampMode::ClampToEdge));
   cmd.setBinding(3, taa.history[prev],  Sampler::bilinear(ClampMode::ClampToEdge));
   cmd.setBinding(4, zbuffer,            Sampler::nearest (ClampMode::ClampToEdge));
+  cmd.setBinding(5, gbufVelocity,       Sampler::nearest (ClampMode::ClampToEdge));
   cmd.setPushData(push);
   cmd.setPipeline(shaders.taa);
   cmd.dispatchThreads(sceneLinear.size());
@@ -1848,9 +1851,17 @@ void Renderer::drawSwr(Tempest::Encoder<Tempest::CommandBuffer>& cmd, WorldView&
 
 void Renderer::drawGBuffer(Encoder<CommandBuffer>& cmd, uint8_t fId, WorldView& view) {
   cmd.setDebugMarker("GBuffer");
-  cmd.setFramebuffer({{gbufDiffuse, Tempest::Vec4(), Tempest::Preserve},
-                      {gbufNormal,  Tempest::Vec4(), Tempest::Preserve}},
-                     {zbuffer, Tempest::Preserve, Tempest::Preserve});
+  if(shaders.motionVectors) {
+    // zero velocity marks pixels without geometry
+    cmd.setFramebuffer({{gbufDiffuse,  Tempest::Vec4(), Tempest::Preserve},
+                        {gbufNormal,   Tempest::Vec4(), Tempest::Preserve},
+                        {gbufVelocity, Tempest::Vec4(), Tempest::Preserve}},
+                       {zbuffer, Tempest::Preserve, Tempest::Preserve});
+    } else {
+    cmd.setFramebuffer({{gbufDiffuse, Tempest::Vec4(), Tempest::Preserve},
+                        {gbufNormal,  Tempest::Vec4(), Tempest::Preserve}},
+                       {zbuffer, Tempest::Preserve, Tempest::Preserve});
+    }
   view.drawGBuffer(cmd,fId);
   }
 

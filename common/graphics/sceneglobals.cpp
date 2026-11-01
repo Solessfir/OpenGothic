@@ -209,8 +209,10 @@ void SceneGlobals::setTime(uint64_t time) {
   uboGlobalCpu.tickCount32 = uint32_t(tickCount);
 
   // A zero direction stops the sway
+  // w keeps the previous phase for motion vectors
   const float phase = (float(tickCount%windPeriod)/float(windPeriod)*2.f-1.f)*float(M_PI);
-  uboGlobalCpu.wind = zWindEnabled ? Tempest::Vec4(0,1,phase,0) : Tempest::Vec4();
+  const float prev  = uboGlobalCpu.wind.y!=0 ? uboGlobalCpu.wind.z : phase;
+  uboGlobalCpu.wind = zWindEnabled ? Tempest::Vec4(0,1,phase,prev) : Tempest::Vec4();
   }
 
 void SceneGlobals::commitUbo(uint8_t fId) {

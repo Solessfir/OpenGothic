@@ -131,7 +131,7 @@ class SceneGlobals final {
       float                           cameraFadeFar2 = 0;
       float                           waterLevel = NoWater; // around the camera, for caustics
       Tempest::Vec4                    cameraFadeTarget = {};
-      Tempest::Vec4                    wind = {}; // direction, phase
+      Tempest::Vec4                    wind = {}; // direction, phase, previous phase
       float                           waterWaves = 0; // wave_max_amplitude of the water at waterLevel
       float                           padding0 = 0, padding1 = 0, padding2 = 0;
       Tempest::Matrix4x4              viewProjectPrev; // previous frame, without jitter
