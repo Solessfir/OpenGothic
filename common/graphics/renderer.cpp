@@ -2288,6 +2288,8 @@ void Renderer::prepareShadowMask(Encoder<CommandBuffer>& cmd, WorldView& wview) 
     cmd.setBinding(2,  gbufNormal, Sampler::nearest());
     cmd.setBinding(3,  zbuffer,    Sampler::nearest());
     cmd.setBinding(12, *capsules.current);
+    cmd.setBinding(4,  shadowMap[0], Resources::shadowSampler());
+    cmd.setBinding(5,  shadowMap[1], Resources::shadowSampler());
     cmd.setBinding(6,  scene.rtScene.tlas);
     cmd.setBinding(7,  Sampler::bilinear());
     cmd.setBinding(8,  scene.rtScene.tex);
