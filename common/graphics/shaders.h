@@ -173,6 +173,9 @@ class Shaders {
 
     const Tempest::RenderPipeline* materialPipeline(const Material& desc, DrawCommands::Type t, PipelineType pt, bool bindless) const;
 
+    // gbuffer pipelines write a third target with motion vectors, decided once at startup
+    bool                     motionVectors = false;
+
   private:
     struct Entry {
       Tempest::RenderPipeline pipeline;

@@ -42,7 +42,7 @@ struct SceneDesc {
   float cameraFadeFar2;
   float waterLevel; // around the camera, for caustics
   vec4  cameraFadeTarget;
-  vec4  wind; // direction, phase
+  vec4  wind; // direction, phase, previous phase
   float waterWaves; // wave_max_amplitude of the water at waterLevel
   float padding0, padding1, padding2;
   mat4  viewProjectPrev; // previous frame, without jitter

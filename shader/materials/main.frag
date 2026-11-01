@@ -51,6 +51,9 @@ layout(location = DEBUG_DRAW_LOC) in flat uint debugId;
 #if defined(GBUFFER)
 layout(location = 0) out vec4 outDiffuse;
 layout(location = 1) out uint outNormal;
+#if defined(MOTION_VECTORS)
+layout(location = 2) out vec2 outVelocity;
+#endif
 #elif defined(WATER)
 layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec4 outDiffuse;
@@ -203,11 +206,30 @@ vec4 diffuseTex() {
   }
 #endif
 
+#if defined(GBUFFER) && defined(MOTION_VECTORS)
+// Screen motion since the previous frame in NDC, without jitter
+vec2 motionVector() {
+  const vec2 ndc = (gl_FragCoord.xy*scene.screenResInv)*2.0-vec2(1.0);
+#if defined(MAT_PREV_CLIP)
+  const vec4 prev = shInp.prevClip;
+#elif defined(MAT_POSITION)
+  const vec4 prev = scene.viewProjectPrev*vec4(shInp.pos,1.0);
+#else
+  const vec4 wpos = scene.viewProjectInv*vec4(ndc, gl_FragCoord.z, 1.0);
+  const vec4 prev = scene.viewProjectPrev*vec4(wpos.xyz/wpos.w, 1.0);
+#endif
+  return (ndc - scene.jitter) - prev.xy/prev.w;
+  }
+#endif
+
 #if defined(GBUFFER)
 void mainGBuffer(vec4 t) {
   outDiffuse.rgb = t.rgb;
   outDiffuse.a   = encodeHintBits();
   outNormal      = encodeNormal(shInp.normal);
+#if defined(MOTION_VECTORS)
+  outVelocity    = encodeVelocity(motionVector());
+#endif
   // outNormal      = vec4(flatNormal()*0.5 + vec3(0.5), 1.0);
 #if DEBUG_DRAW
   outDiffuse.rgb *= debugColors[debugId%debugColors.length()];
