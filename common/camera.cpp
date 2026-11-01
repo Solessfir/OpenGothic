@@ -403,25 +403,26 @@ Matrix4x4 Camera::mkViewShadowVsm(const Vec3& cameraPos, const Vec3& ldir) const
   }
 
 Matrix4x4 Camera::viewShadow(const Vec3& lightDir, size_t layer) const {
-  auto  vp       = viewProj();
-  float rotation = (angles.y-90);
-  // if(layer==0)
-  //   return viewShadowVsm(cameraPos,rotation,vp,lightDir);
-  return mkViewShadow(inter.target,rotation,vp,lightDir,layer);
+  return mkViewShadow(inter.target,viewProj(),lightDir,Vec3(),layer);
   }
 
 Matrix4x4 Camera::viewShadowLwc(const Tempest::Vec3& lightDir, size_t layer) const {
-  auto  vp       = viewProjLwc();
-  float rotation = (angles.y-90);
-  // if(layer==0)
-  //   return viewShadowVsm(cameraPos-origin,rotation,vp,lightDir);
-  return mkViewShadow(inter.target-origin,rotation,vp,lightDir,layer);
+  return mkViewShadow(inter.target-origin,viewProjLwc(),lightDir,Vec3()-origin,layer);
   }
 
-Matrix4x4 Camera::mkViewShadow(const Vec3& cameraPos, float rotation, const Tempest::Matrix4x4& viewProj, const Vec3& lightDir, size_t layer) const {
-  Vec3  ldir     = lightDir;
-  float eps      = 0.005f;
+// The cascades stay fixed to the world and move in whole texels, so turning or walking does not resample them
+// and shadow edges stand still.
+Matrix4x4 Camera::mkViewShadow(const Vec3& cameraPos, const Matrix4x4& viewProj, const Vec3& lightDir,
+                               const Vec3& worldZero, size_t layer) const {
+  // The sun moves every frame; any change of the projection resamples every shadow edge, which flickers on
+  // walls the sun grazes. It moves about 0.06 degrees per second, so steps of 0.2 degrees come every few seconds.
+  const float sunStep = 0.2f*float(M_PI)/180.f;
+  const float ldirLen = lightDir.length();
+  const float az   = std::round(std::atan2(lightDir.z, lightDir.x)/sunStep)*sunStep;
+  const float el   = std::round(std::asin(std::clamp(lightDir.y/std::max(ldirLen,1e-6f), -1.f, 1.f))/sunStep)*sunStep;
 
+  Vec3  ldir = Vec3(std::cos(el)*std::cos(az), std::sin(el), std::cos(el)*std::sin(az));
+  float eps  = 0.005f;
   if(std::abs(ldir.y)<eps) {
     float k = (1.f-eps*eps)/std::sqrt(ldir.x*ldir.x + ldir.z*ldir.z);
     ldir.y = (ldir.y<0) ? -eps : eps;
@@ -429,110 +430,52 @@ Matrix4x4 Camera::mkViewShadow(const Vec3& cameraPos, float rotation, const Temp
     ldir.z *= k;
     }
 
-  Vec3 center = cameraPos;
-  auto vp = viewProj;
-  vp.project(center);
-
-  vp.inverse();
-  Vec3 l = {-1,center.y,center.z}, r = {1,center.y,center.z};
-  vp.project(l);
-  vp.project(r);
-
-  float smWidth    = 0;
-  float smDepth    = 5120*5;
-  switch(layer) {
-    case 0:
-      smWidth    = (r-l).length();
-      smWidth    = std::max(smWidth,1024.f); // ~4 pixels per santimeter
-      smDepth    = 5120;
-      break;
-    case 1:
-      smWidth    = 5120;
-      smDepth    = 5120*5;
-      break;
-    };
-
-  float smWidthInv = 1.f/smWidth;
-  float zScale     = 1.f/smDepth;
+  const float smWidth  = (layer==0) ? 2048 : 2*5120;
+  const float smDepth  = (layer==0) ? 5120 : 5120*5;
+  // the near cascade stays centered on the player, so turning does not move its border either
+  const float ahead    = (layer==0) ? 0.f  : 0.3f;
+  const float snapGrid = 512; // a multiple of every shadow map resolution in use
 
   Matrix4x4 view;
   view.identity();
   view.rotate(-90, 1, 0, 0);     // +Y -> -Z
-  view.rotate(rotation, 0, 1, 0);
-  view.scale(smWidthInv, zScale, smWidthInv);
+  view.scale(1.f/smWidth, 1.f/smDepth, 1.f/smWidth);
   view.translate(cameraPos);
   view.scale(-1,-1,-1);
 
-  // sun direction
-  if(ldir.y!=0.f) {
-    float lx = ldir.x/std::abs(ldir.y);
-    float lz = ldir.z/std::abs(ldir.y);
+  // oblique projection along the sun onto the ground
+  view.set(1,0, (ldir.x/std::abs(ldir.y))/smWidth);
+  view.set(1,1, (ldir.z/std::abs(ldir.y))/smWidth);
 
-    const float ang = -rotation*float(M_PI)/180.f;
-    const float c   = std::cos(ang), s = std::sin(ang);
+  // the far cascade is centered a bit ahead of the camera, where most of the view is
+  Vec3 front0 = {0,0,0.5f}, front1 = {0,0,0.99f};
+  auto vpInv  = viewProj;
+  vpInv.inverse();
+  vpInv.project(front0);
+  vpInv.project(front1);
+  Vec3 forward = front1-front0;
+  forward.y = 0;
+  const float len = forward.length();
+  forward = len>0 ? forward/len : Vec3();
 
-    float dx = lx*c-lz*s;
-    float dz = lx*s+lz*c;
+  Vec3 center = cameraPos + forward*(smWidth*ahead);
+  Vec3 cam    = cameraPos;
+  Vec3 zero   = worldZero;
+  view.project(center);
+  view.project(cam);
+  view.project(zero);
 
-    view.set(1,0, dx*smWidthInv);
-    view.set(1,1, dz*smWidthInv);
-    }
+  // keep the world origin on the texel grid
+  const float step = 2.f/snapGrid;
+  Vec3 shift = zero - center;
+  shift.x = std::round(shift.x/step)*step - shift.x;
+  shift.y = std::round(shift.y/step)*step - shift.y;
 
-  // stretch shadowmap on light dir
-  if(ldir.y!=0.f) {
-    // stretch view to camera
-    float r0 = std::fmod(rotation, 360.f);
-    float r  = std::fmod(std::atan2(ldir.z,ldir.x)*180.f/float(M_PI), 360.f);
-    r -= r0;
-
-    float s = std::abs(ldir.y);
-    Matrix4x4 proj;
-    proj.identity();
-    proj.rotate( r, 0, 0, 1);
-    proj.translate(-0.5f,0,0);
-    proj.scale(s, 1, 1);
-    //proj.scale(0.1f, 1, 1);
-    proj.translate(0.5f,0,0);
-    proj.rotate(-r, 0, 0, 1);
-    proj.mul(view);
-    view = proj;
-    }
-
-  if(layer>0) {
-    // projective shadowmap
-    Tempest::Matrix4x4 proj;
-    proj.identity();
-
-    static float k = -0.4f;
-    proj.set(1,3, k);
-    proj.mul(view);
-    view = proj;
-    }
-
-  auto inv = view;
-  inv.inverse();
-  Vec3 mid = {};
-  inv.project(mid);
-  view.translate(mid-cameraPos);
-
-  {
-    Matrix4x4 proj;
-    proj.identity();
-    switch(layer) {
-      case 0:
-        proj.translate(0.f, 0.8f, 0.5f);
-        break;
-      case 1: {
-        proj.translate(0.f, 0.5f, 0.5f);
-        break;
-        }
-      }
-
-    proj.mul(view);
-    view = proj;
-    }
-
-  return view;
+  Matrix4x4 proj;
+  proj.identity();
+  proj.translate(shift.x - center.x, shift.y - center.y, 0.5f - cam.z);
+  proj.mul(view);
+  return proj;
   }
 
 Camera::ListenerPos Camera::listenerPosition() const {

@@ -72,10 +72,8 @@ void main() {
   const vec4 wpos4  = scene.viewProjectLwcInv*vec4(ndc, z, 1) + vec4(normal*0.0015, 0);
   const vec3 pos    = wpos4.xyz/wpos4.w;
 
-  const vec4 sp0    = scene.viewShadowLwc[0]*vec4(pos + normal*5,  1.0);
-  const vec4 sp1    = scene.viewShadowLwc[1]*vec4(pos + normal*25, 1.0);
-  const vec3 shPos0 = sp0.xyz/sp0.w;
-  const vec3 shPos1 = sp1.xyz/sp1.w;
+  const vec3 shPos0 = shadowCascadePos(scene.viewShadowLwc[0], textureSm0, pos, normal);
+  const vec3 shPos1 = shadowCascadePos(scene.viewShadowLwc[1], textureSm1, pos, normal);
 
   // same cascade choice as calcShadow
   const vec4  lay1 = shadowSample(textureSm1, shPos1.xy);
@@ -101,7 +99,7 @@ void main() {
     }
   imageStore(result, at, vec4(radius));
 #else
-  const float vis    = near ? calcShadowMs4(textureSm0, shPos0) : (far ? calcShadowMs4(textureSm1, shPos1) : 1.0);
+  const float vis    = calcShadow(scene, textureSm0, shPos0, textureSm1, shPos1);
   const float radius = textureLod(penumbra, (vec2(at)+0.5)/vec2(size), 0).r;
   imageStore(result, at, vec4(vis, radius, linearDepth(z, scene.clipInfo)*0.01, 0));
 #endif
