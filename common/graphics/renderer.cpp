@@ -1,5 +1,6 @@
 #include "renderer.h"
 
+#include <Tempest/Application>
 #include <Tempest/Color>
 #include <Tempest/Fence>
 #include <Tempest/Log>
@@ -178,6 +179,7 @@ void Renderer::setupSettings() {
   settings.aaPreset    = uint32_t(std::clamp(aaArg>=0 ? aaArg : Gothic::settingsGetI("ENGINE","antiAliasing"), 0, int32_t(AaPreset::PRESETS_COUNT)-1));
   settings.aaEnabled   = (settings.aaPreset>0) && (settings.vidResIndex==0);
   settings.taaEnabled  = shaders.motionVectors && settings.vidResIndex==0;
+  settings.fsrEnabled  = shaders.motionVectors && settings.vidResIndex>0;
   if(settings.taaEnabled)
     settings.aaEnabled = false;
 
@@ -408,7 +410,7 @@ void Renderer::prepareUniforms(WorldView& wview, const Camera& camera) {
   wview.setSceneImages(textureCast<const Texture2d&>(sceneOpaque), textureCast<const Texture2d&>(sceneDepth), zbuffer);
   wview.setSkyIrradiance(textureCast<const Texture2d&>(sky.irradianceLut));
   wview.setWindEnabled(settings.zWindEnabled, settings.windPeriod);
-  wview.setTemporalJitter(settings.taaEnabled);
+  wview.setTemporalJitter(settings.taaEnabled || settings.fsrEnabled, upscale.jitterPhases);
   Vec4 fadeTarget = {};
   const auto player = Gothic::inst().player();
   if(player!=nullptr && !camera.isFirstPerson() && !camera.isCutscene() && !camera.isFree()) {
@@ -721,6 +723,7 @@ void Renderer::draw(Tempest::Attachment& result, Encoder<CommandBuffer>& cmd, ui
   if(res!=zbuffer.size()) {
     resetViewport(res, result.size());
     }
+  upscale.jitterPhases = settings.fsrEnabled ? Fsr2::jitterPhases(res.w, result.w()) : 8;
 
   if(requiresRtScene())
     wview.updateRtScene();
@@ -820,6 +823,7 @@ void Renderer::draw(Tempest::Attachment& result, Encoder<CommandBuffer>& cmd, ui
   drawFog(cmd, wview);
   drawUnderwater(cmd, wview, camera);
   drawTaa(cmd, wview);
+  drawFsr2(cmd, fId, wview, camera, result.size());
 
   if(settings.aaEnabled) {
     cmd.setDebugMarker("Tonemapping & SMAA");
@@ -855,13 +859,16 @@ void Renderer::drawTonemapping(Attachment& result, Encoder<CommandBuffer>& cmd, 
   if(mul>0)
     p.mul = mul;
 
-  auto& pso = (settings.vidResIndex==0) ? shaders.tonemapping : shaders.tonemappingUpscale;
+  const bool upscaled = upscale.output!=nullptr;
+  auto& pso = (settings.vidResIndex==0 || upscaled) ? shaders.tonemapping : shaders.tonemappingUpscale;
   cmd.setFramebuffer({ {result, Tempest::Discard, Tempest::Preserve} });
   cmd.setBinding(0, wview.sceneGlobals().uboGlobal[SceneGlobals::V_Main]);
   // This Lanczos implementation pairs adjacent weights using bilinear sampling.
   // Keep nearest sampling at native resolution.
-  const auto sampler = settings.vidResIndex==0 ? Sampler::nearest(ClampMode::ClampToEdge) :
-                                               Sampler::bilinear(ClampMode::ClampToEdge);
+  const auto sampler = (settings.vidResIndex==0 || upscaled) ? Sampler::nearest(ClampMode::ClampToEdge) :
+                                                             Sampler::bilinear(ClampMode::ClampToEdge);
+  if(upscaled)
+    cmd.setBinding(1, *upscale.output, sampler); else
   if(settings.taaEnabled && taa.valid)
     cmd.setBinding(1, taa.output, sampler); else
     cmd.setBinding(1, sceneLinear, sampler);
@@ -903,6 +910,30 @@ void Renderer::drawTaa(Encoder<CommandBuffer>& cmd, const WorldView& wview) {
   cmd.setPipeline(shaders.taaSharpen);
   cmd.dispatchThreads(sceneLinear.size());
   taa.valid = true;
+  }
+
+void Renderer::drawFsr2(Encoder<CommandBuffer>& cmd, uint8_t fId, const WorldView& wview, const Camera& camera, Size display) {
+  if(!settings.fsrEnabled) {
+    upscale.output = nullptr;
+    return;
+    }
+  auto&          scene = wview.sceneGlobals();
+  const uint64_t now   = Application::tickCount();
+  const Vec2     j     = scene.jitter();
+
+  Fsr2::Inputs in;
+  in.color       = &sceneLinear;
+  in.depth       = &zbuffer;
+  in.velocity    = &gbufVelocity;
+  in.display     = display;
+  in.jitter      = Vec2(j.x*float(sceneLinear.w())*0.5f, j.y*float(sceneLinear.h())*0.5f);
+  in.zNear       = camera.zNear();
+  in.zFar        = camera.zFar();
+  in.cotHalfFovY = std::abs(camera.projective().at(1,1));
+  in.frameTimeMs = upscale.lastTick==0 ? 16.f : float(now-upscale.lastTick);
+  in.reset       = upscale.output==nullptr;
+  upscale.lastTick = now;
+  upscale.output   = &upscale.fsr2.draw(cmd, fId, scene, in);
   }
 
 void Renderer::drawSMAA(Tempest::Attachment& result, Tempest::Encoder<Tempest::CommandBuffer>& cmd, const WorldView& wview) {
