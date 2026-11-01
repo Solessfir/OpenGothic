@@ -11,6 +11,7 @@
 #include "worldview.h"
 #include "shaders.h"
 #include "fsr2.h"
+#include "dlss.h"
 
 class Camera;
 class InventoryMenu;
@@ -241,6 +242,7 @@ class Renderer final {
 
     struct {
       Fsr2                         fsr2;
+      Dlss                         dlss;
       const Tempest::StorageImage* output       = nullptr;
       uint32_t                     jitterPhases = 8;
       uint64_t                     lastTick     = 0;
