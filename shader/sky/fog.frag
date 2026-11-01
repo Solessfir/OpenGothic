@@ -34,6 +34,11 @@ layout(binding = 3, std140) uniform UboScene {
 
 #include "water/gerstner_wave.glsl"
 
+#if defined(GI) && !defined(GL_COMPUTE_SHADER)
+#include "lighting/ddgi/ddgi_fog.glsl"
+layout(binding = 5) uniform sampler3D fogGi;
+#endif
+
 vec3 inverse(vec3 pos) {
   vec4 ret = scene.viewProjectInv*vec4(pos,1.0);
   return (ret.xyz/ret.w)/100.f;
@@ -164,7 +169,15 @@ vec4 fog(vec2 uv, float z) {
   const float d             = (distZ)/(dist);
   const vec4  ms            = textureLod(fogLutMs, vec3(uv,d), 0);
   const float transmittance = ms.a;
+#if defined(GI)
+  // the probes see walls and roofs, so the sky ambient of the near haze fades indoors and takes the color of nearby light
+  const float rGi   = min(distZ, DdgiFogRange);
+  const vec3  msGi  = textureLod(fogLutMs, vec3(uv,rGi/dist), 0).rgb;
+  const vec3  giMul = textureLod(fogGi, vec3(uv, ddgiFogSliceCoord(rGi, textureSize(fogGi,0).z)), 0).rgb;
+  return vec4(scatteredLight + ms.rgb - msGi + msGi*giMul, transmittance);
+#else
   return vec4(scatteredLight+ms.rgb, transmittance);
+#endif
 #endif
   }
 #else
