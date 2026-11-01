@@ -947,7 +947,7 @@ void Renderer::drawFog(Tempest::Encoder<Tempest::CommandBuffer>& cmd, const Worl
     }
   cmd.draw(nullptr, 0, 3);
 
-  if(sky.quality==VolumetricHQ && settings.sunShafts && !sky.sunShafts.isEmpty()) {
+  if(sky.quality==VolumetricHQ && sky.sunShaftsActive) {
     cmd.setBinding(0, scene.uboGlobal[SceneGlobals::V_Main]);
     cmd.setBinding(1, sky.sunShafts, Sampler::bilinear(ClampMode::ClampToEdge));
     cmd.setPipeline(shaders.sunShafts);
@@ -2221,7 +2221,15 @@ void Renderer::prepareFog(Encoder<Tempest::CommandBuffer>& cmd, WorldView& wview
       }
     }
 
+  // the rays fade within a third of the screen from the sun, so a sun far off screen adds nothing
+  sky.sunShaftsActive = false;
   if(sky.quality==VolumetricHQ && settings.sunShafts) {
+    const Vec3 sun = wview.mainLight().dir();
+    Vec4 clip = Vec4(sun.x, sun.y, sun.z, 0);
+    viewProj.project(clip);
+    sky.sunShaftsActive = sun.y>0 && clip.w>0 && std::abs(clip.x/clip.w)<1.7f && std::abs(clip.y/clip.w)<1.7f;
+    }
+  if(sky.sunShaftsActive) {
     auto& shafts = usesImage2d(sky.sunShafts, TextureFormat::R16, uint32_t(zbuffer.w()+3)/4, uint32_t(zbuffer.h()+3)/4);
     cmd.setDebugMarker("Sun-shafts");
     cmd.setFramebuffer({});
