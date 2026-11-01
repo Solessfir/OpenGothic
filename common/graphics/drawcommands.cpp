@@ -293,8 +293,8 @@ void DrawCommands::visibilityPass(Encoder<CommandBuffer>& cmd, int pass) {
     push.znear        = scene.znear;
     if(viewport==SceneGlobals::V_Shadow1) {
       // Small objects are geometry-heavy in the far cascade and barely visible there.
-      // Measured against a 2048 map, so the shadow resolution does not change what is skipped.
-      push.minRadius = Gothic::settingsGetF("ENGINE","shadowFarMinTexels")*2.f/2048.f;
+      // The setting reads as texels of a 2048 map at 40 m, converted to radius over camera distance.
+      push.minRadius = Gothic::settingsGetF("ENGINE","shadowFarMinTexels")/1600.f;
       }
 
     auto* pso = &Shaders::inst().visibilityPassSh;
