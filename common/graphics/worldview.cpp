@@ -102,6 +102,10 @@ void WorldView::setSceneImages(const Tempest::Texture2d& clr, const Tempest::Tex
   sGlobal.zbuffer    = &textureCast<const Texture2d&>(depthNative);
   }
 
+void WorldView::setTemporalJitter(bool enabled) {
+  sGlobal.taaJitter = enabled;
+  }
+
 void WorldView::setWindEnabled(bool enabled, uint64_t period) {
   sGlobal.zWindEnabled = enabled && period>0;
   sGlobal.windPeriod   = period;

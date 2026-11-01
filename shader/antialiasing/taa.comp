@@ -1,0 +1,134 @@
+#version 450
+#extension GL_GOOGLE_include_directive : enable
+
+#include "scene.glsl"
+#include "common.glsl"
+
+// Temporal anti-aliasing: the jittered frame blended into the reprojected history.
+// Motion comes from the camera only (depth reprojection), moving objects rely on the neighborhood clip.
+layout(local_size_x = 8, local_size_y = 8) in;
+
+layout(binding = 0, std140) uniform UboScene {
+  SceneDesc scene;
+  };
+layout(binding = 1) uniform writeonly image2D result;
+layout(binding = 2) uniform sampler2D current;
+layout(binding = 3) uniform sampler2D history;
+layout(binding = 4) uniform sampler2D depth;
+
+layout(push_constant, std430) uniform Push {
+  uint resetHistory;
+  } push;
+
+const float HistoryWeight = 0.9;
+
+// HDR values are compressed before mixing, so bright pixels do not dominate the neighborhood
+vec3 toYCoCg(vec3 c) {
+  c = c/(1.0 + max(c.r, max(c.g, c.b)));
+  return vec3( 0.25*c.r + 0.5*c.g + 0.25*c.b,
+               0.5 *c.r            - 0.5 *c.b,
+              -0.25*c.r + 0.5*c.g - 0.25*c.b);
+  }
+
+vec3 fromYCoCg(vec3 y) {
+  const vec3 c = vec3(y.x + y.y - y.z, y.x + y.z, y.x - y.y - y.z);
+  return c/max(1.0 - max(c.r, max(c.g, c.b)), 1e-4);
+  }
+
+// Catmull-Rom history sample with 5 bilinear taps, keeps the history sharp
+vec3 sampleHistory(vec2 uv, vec2 size) {
+  const vec2 pos = uv*size;
+  const vec2 c   = floor(pos - 0.5) + 0.5;
+  const vec2 f   = pos - c;
+  const vec2 w0  = f*(-0.5 + f*(1.0 - 0.5*f));
+  const vec2 w1  = 1.0 + f*f*(-2.5 + 1.5*f);
+  const vec2 w2  = f*(0.5 + f*(2.0 - 1.5*f));
+  const vec2 w3  = f*f*(-0.5 + 0.5*f);
+  const vec2 w12 = w1 + w2;
+  const vec2 tc0 = (c - 1.0)/size;
+  const vec2 tc3 = (c + 2.0)/size;
+  const vec2 tc12 = (c + w2/w12)/size;
+
+  vec3 ret = vec3(0);
+  ret += textureLod(history, vec2(tc12.x, tc0.y ), 0).rgb * (w12.x*w0.y );
+  ret += textureLod(history, vec2(tc0.x,  tc12.y), 0).rgb * (w0.x *w12.y);
+  ret += textureLod(history, vec2(tc12.x, tc12.y), 0).rgb * (w12.x*w12.y);
+  ret += textureLod(history, vec2(tc3.x,  tc12.y), 0).rgb * (w3.x *w12.y);
+  ret += textureLod(history, vec2(tc12.x, tc3.y ), 0).rgb * (w12.x*w3.y );
+  const float wsum = w12.x*w0.y + w0.x*w12.y + w12.x*w12.y + w3.x*w12.y + w12.x*w3.y;
+  return max(ret/wsum, vec3(0));
+  }
+
+// the 3x3 neighborhoods of a group share their loads
+shared vec3  tileColor[10][10];
+shared float tileDepth[10][10];
+
+void main() {
+  const ivec2 at   = ivec2(gl_GlobalInvocationID.xy);
+  const ivec2 size = imageSize(result);
+
+  const ivec2 base = ivec2(gl_WorkGroupID.xy*gl_WorkGroupSize.xy) - 1;
+  for(uint i=gl_LocalInvocationIndex; i<100; i+=64) {
+    const ivec2 l = ivec2(i%10, i/10);
+    const ivec2 p = clamp(base+l, ivec2(0), size-1);
+    tileColor[l.y][l.x] = toYCoCg(texelFetch(current, p, 0).rgb);
+    tileDepth[l.y][l.x] = texelFetch(depth, p, 0).r;
+    }
+  barrier();
+
+  if(at.x>=size.x || at.y>=size.y)
+    return;
+
+  // neighborhood of the current frame, and the closest depth for the reprojection (keeps edges of near objects)
+  const ivec2 lc = ivec2(gl_LocalInvocationID.xy) + 1;
+  vec3  m1 = vec3(0), m2 = vec3(0);
+  float zMin = 1;
+  for(int y=-1; y<=1; ++y)
+    for(int x=-1; x<=1; ++x) {
+      const vec3 c = tileColor[lc.y+y][lc.x+x];
+      m1  += c;
+      m2  += c*c;
+      zMin = min(zMin, tileDepth[lc.y+y][lc.x+x]);
+      }
+  const vec3 center = tileColor[lc.y][lc.x];
+  if(push.resetHistory!=0) {
+    imageStore(result, at, vec4(fromYCoCg(center), 1));
+    return;
+    }
+
+  // where this pixel was in the previous frame
+  const vec2 uv   = (vec2(at)+0.5)/vec2(size);
+  const vec2 ndc  = uv*2.0-1.0;
+  const vec4 wpos = scene.viewProjectInv*vec4(ndc, zMin, 1.0);
+  const vec4 prev = scene.viewProjectPrev*vec4(wpos.xyz/wpos.w, 1.0);
+  const vec2 motion = (ndc - scene.jitter) - prev.xy/prev.w; // in NDC, without jitter
+  const vec2 uvPrev = uv - motion*0.5;
+
+  if(any(lessThan(uvPrev, vec2(0))) || any(greaterThan(uvPrev, vec2(1))) || prev.w<=0) {
+    imageStore(result, at, vec4(fromYCoCg(center), 1));
+    return;
+    }
+
+  // clip the history into the color range of the neighborhood (variance clipping)
+  const vec3 mean  = m1/9.0;
+  const vec3 sigma = sqrt(max(m2/9.0 - mean*mean, vec3(0)));
+  const vec3 boxMin = mean - 1.25*sigma;
+  const vec3 boxMax = mean + 1.25*sigma;
+
+  vec3 hist = toYCoCg(sampleHistory(uvPrev, vec2(size)));
+  {
+    const vec3 c = 0.5*(boxMax+boxMin);
+    const vec3 e = 0.5*(boxMax-boxMin) + 1e-5;
+    const vec3 v = hist - c;
+    const vec3 a = abs(v/e);
+    const float m = max(a.x, max(a.y, a.z));
+    if(m>1.0)
+      hist = c + v/m;
+  }
+
+  // a fast moving pixel gets less history, it would only smear
+  const float speed  = length(motion*0.5*vec2(size));
+  const float weight = HistoryWeight*clamp(1.0 - speed*0.02, 0.5, 1.0);
+  const vec3  ret    = mix(center, hist, weight);
+  imageStore(result, at, vec4(fromYCoCg(ret), 1));
+  }

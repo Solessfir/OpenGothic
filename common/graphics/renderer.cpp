@@ -177,6 +177,9 @@ void Renderer::setupSettings() {
   const int32_t aaArg = CommandLine::inst().aaPreset();
   settings.aaPreset    = uint32_t(std::clamp(aaArg>=0 ? aaArg : Gothic::settingsGetI("ENGINE","antiAliasing"), 0, int32_t(AaPreset::PRESETS_COUNT)-1));
   settings.aaEnabled   = (settings.aaPreset>0) && (settings.vidResIndex==0);
+  settings.taaEnabled  = CommandLine::inst().taa()>0 && settings.vidResIndex==0;
+  if(settings.taaEnabled)
+    settings.aaEnabled = false;
 
   // direct lighting
   if(settings.rtsmEnabled)
@@ -405,6 +408,7 @@ void Renderer::prepareUniforms(WorldView& wview, const Camera& camera) {
   wview.setSceneImages(textureCast<const Texture2d&>(sceneOpaque), textureCast<const Texture2d&>(sceneDepth), zbuffer);
   wview.setSkyIrradiance(textureCast<const Texture2d&>(sky.irradianceLut));
   wview.setWindEnabled(settings.zWindEnabled, settings.windPeriod);
+  wview.setTemporalJitter(settings.taaEnabled);
   Vec4 fadeTarget = {};
   const auto player = Gothic::inst().player();
   if(player!=nullptr && !camera.isFirstPerson() && !camera.isCutscene() && !camera.isFree()) {
@@ -813,6 +817,7 @@ void Renderer::draw(Tempest::Attachment& result, Encoder<CommandBuffer>& cmd, ui
   cmd.setDebugMarker("Fog");
   drawFog(cmd, wview);
   drawUnderwater(cmd, wview, camera);
+  drawTaa(cmd, wview);
 
   if(settings.aaEnabled) {
     cmd.setDebugMarker("Tonemapping & SMAA");
@@ -855,10 +860,46 @@ void Renderer::drawTonemapping(Attachment& result, Encoder<CommandBuffer>& cmd, 
   // Keep nearest sampling at native resolution.
   const auto sampler = settings.vidResIndex==0 ? Sampler::nearest(ClampMode::ClampToEdge) :
                                                Sampler::bilinear(ClampMode::ClampToEdge);
-  cmd.setBinding(1, sceneLinear, sampler);
+  if(settings.taaEnabled && taa.valid)
+    cmd.setBinding(1, taa.output, sampler); else
+    cmd.setBinding(1, sceneLinear, sampler);
   cmd.setPushData(p);
   cmd.setPipeline(pso);
   cmd.draw(nullptr, 0, 3);
+  }
+
+void Renderer::drawTaa(Encoder<CommandBuffer>& cmd, const WorldView& wview) {
+  if(!settings.taaEnabled) {
+    taa.valid = false;
+    return;
+    }
+  const bool resized = taa.history[0].size()!=sceneLinear.size();
+  for(auto& h:taa.history)
+    usesImage2d(h, TextureFormat::RGBA16F, sceneLinear.size());
+  usesImage2d(taa.output, TextureFormat::RGBA16F, sceneLinear.size());
+
+  const uint8_t prev = taa.current;
+  taa.current = uint8_t(1-taa.current);
+
+  struct Push { uint32_t resetHistory; } push;
+  push.resetHistory = (!taa.valid || resized) ? 1 : 0;
+
+  cmd.setDebugMarker("TAA");
+  cmd.setFramebuffer({});
+  cmd.setBinding(0, wview.sceneGlobals().uboGlobal[SceneGlobals::V_Main]);
+  cmd.setBinding(1, taa.history[taa.current]);
+  cmd.setBinding(2, sceneLinear,        Sampler::nearest (ClampMode::ClampToEdge));
+  cmd.setBinding(3, taa.history[prev],  Sampler::bilinear(ClampMode::ClampToEdge));
+  cmd.setBinding(4, zbuffer,            Sampler::nearest (ClampMode::ClampToEdge));
+  cmd.setPushData(push);
+  cmd.setPipeline(shaders.taa);
+  cmd.dispatchThreads(sceneLinear.size());
+
+  cmd.setBinding(0, taa.output);
+  cmd.setBinding(1, taa.history[taa.current], Sampler::nearest(ClampMode::ClampToEdge));
+  cmd.setPipeline(shaders.taaSharpen);
+  cmd.dispatchThreads(sceneLinear.size());
+  taa.valid = true;
   }
 
 void Renderer::drawSMAA(Tempest::Attachment& result, Tempest::Encoder<Tempest::CommandBuffer>& cmd, const WorldView& wview) {
