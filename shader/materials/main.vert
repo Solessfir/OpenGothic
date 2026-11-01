@@ -304,6 +304,9 @@ void meshShader(const uvec4 task) {
 #if defined(MAT_NORMAL)
     shOut[laneID].normal.xyz = var.normal; // normal is vec3, applying the workaround
 #endif
+#if defined(MAT_PREV_CLIP)
+    shOut[laneID].prevClip = var.prevClip;
+#endif
     }
   }
 #endif

@@ -104,6 +104,7 @@ void WorldView::setSceneImages(const Tempest::Texture2d& clr, const Tempest::Tex
 
 void WorldView::setTemporalJitter(bool enabled) {
   sGlobal.taaJitter = enabled;
+  visuals.setKeepPreviousInstances(enabled);
   }
 
 void WorldView::setWindEnabled(bool enabled, uint64_t period) {

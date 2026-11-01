@@ -17,6 +17,7 @@
   VT_COLOR
   ATEST
   BINDLESS
+  MOTION_VECTORS
 */
 
 #define DEBUG_DRAW 0
@@ -48,6 +49,7 @@ const uint L_SceneClr   = 12;
 const uint L_GDepth     = 13;
 const uint L_CmdOffsets = 14;
 const uint L_SkyIrr     = 15;
+const uint L_InstPrev   = 16;
 const uint L_VsmPages   = L_Shadow0;
 const uint L_VsmLights  = L_Shadow1;
 
@@ -82,7 +84,12 @@ const uint L_VsmLights  = L_Shadow1;
 #define MAT_COLOR 1
 #endif
 
-#if defined(MAT_UV) || defined(MAT_NORMAL) || defined(MAT_POSITION) || defined(MAT_COLOR)
+// objects carry their previous clip position; landscape reprojects its position, particles their depth
+#if defined(MOTION_VECTORS) && !defined(MAT_POSITION) && (MESH_TYPE!=T_PFX)
+#define MAT_PREV_CLIP 1
+#endif
+
+#if defined(MAT_UV) || defined(MAT_NORMAL) || defined(MAT_POSITION) || defined(MAT_COLOR) || defined(MAT_PREV_CLIP)
 #define MAT_VARYINGS 1
 #endif
 
@@ -107,6 +114,10 @@ struct Varyings {
   vec4 color;
 #endif
 
+#if defined(MAT_PREV_CLIP)
+  vec4 prevClip;
+#endif
+
 #if !defined(MAT_VARYINGS)
   float dummy; // GLSL has no support for empty structs
 #endif
@@ -116,6 +127,14 @@ layout(binding = L_Scene,    std140) uniform UboScene     { SceneDesc scene;    
 
 #if (MESH_TYPE!=T_PFX)
 layout(binding = L_Instance, std430) readonly buffer Mem  { uint    instanceMem[]; };
+#if defined(MOTION_VECTORS) && !defined(GL_FRAGMENT_SHADER)
+layout(binding = L_InstPrev, std430) readonly buffer MemP { uint    instanceMemPrev[]; };
+// set while the previous frame's position is computed
+bool pullPrev = false;
+#define INSTANCE_MEM(i) (pullPrev ? instanceMemPrev[i] : instanceMem[i])
+#else
+#define INSTANCE_MEM(i) instanceMem[i]
+#endif
 layout(binding = L_Payload,  std430) readonly buffer Pbo  { uvec4   payload[];     };
 layout(binding = L_Bucket,   std140) readonly buffer Bbo  { Bucket  bucket[];      };
 #endif
@@ -159,53 +178,53 @@ layout(binding = L_VsmLights,  std430) readonly buffer Lights      { LightSource
 mat4 pullMatrix(uint i) {
   i *= 16;
   mat4 ret;
-  ret[0][0] = uintBitsToFloat(instanceMem[i+0]);
-  ret[0][1] = uintBitsToFloat(instanceMem[i+1]);
-  ret[0][2] = uintBitsToFloat(instanceMem[i+2]);
-  ret[0][3] = uintBitsToFloat(instanceMem[i+3]);
-  ret[1][0] = uintBitsToFloat(instanceMem[i+4]);
-  ret[1][1] = uintBitsToFloat(instanceMem[i+5]);
-  ret[1][2] = uintBitsToFloat(instanceMem[i+6]);
-  ret[1][3] = uintBitsToFloat(instanceMem[i+7]);
-  ret[2][0] = uintBitsToFloat(instanceMem[i+8]);
-  ret[2][1] = uintBitsToFloat(instanceMem[i+9]);
-  ret[2][2] = uintBitsToFloat(instanceMem[i+10]);
-  ret[2][3] = uintBitsToFloat(instanceMem[i+11]);
-  ret[3][0] = uintBitsToFloat(instanceMem[i+12]);
-  ret[3][1] = uintBitsToFloat(instanceMem[i+13]);
-  ret[3][2] = uintBitsToFloat(instanceMem[i+14]);
-  ret[3][3] = uintBitsToFloat(instanceMem[i+15]);
+  ret[0][0] = uintBitsToFloat(INSTANCE_MEM(i+0));
+  ret[0][1] = uintBitsToFloat(INSTANCE_MEM(i+1));
+  ret[0][2] = uintBitsToFloat(INSTANCE_MEM(i+2));
+  ret[0][3] = uintBitsToFloat(INSTANCE_MEM(i+3));
+  ret[1][0] = uintBitsToFloat(INSTANCE_MEM(i+4));
+  ret[1][1] = uintBitsToFloat(INSTANCE_MEM(i+5));
+  ret[1][2] = uintBitsToFloat(INSTANCE_MEM(i+6));
+  ret[1][3] = uintBitsToFloat(INSTANCE_MEM(i+7));
+  ret[2][0] = uintBitsToFloat(INSTANCE_MEM(i+8));
+  ret[2][1] = uintBitsToFloat(INSTANCE_MEM(i+9));
+  ret[2][2] = uintBitsToFloat(INSTANCE_MEM(i+10));
+  ret[2][3] = uintBitsToFloat(INSTANCE_MEM(i+11));
+  ret[3][0] = uintBitsToFloat(INSTANCE_MEM(i+12));
+  ret[3][1] = uintBitsToFloat(INSTANCE_MEM(i+13));
+  ret[3][2] = uintBitsToFloat(INSTANCE_MEM(i+14));
+  ret[3][3] = uintBitsToFloat(INSTANCE_MEM(i+15));
   return ret;
   }
 
 Instance pullInstance(uint i) {
   i *= 16;
   Instance ret;
-  ret.mat[0][0] = uintBitsToFloat(instanceMem[i+0]);
-  ret.mat[0][1] = uintBitsToFloat(instanceMem[i+1]);
-  ret.mat[0][2] = uintBitsToFloat(instanceMem[i+2]);
-  ret.mat[1][0] = uintBitsToFloat(instanceMem[i+3]);
-  ret.mat[1][1] = uintBitsToFloat(instanceMem[i+4]);
-  ret.mat[1][2] = uintBitsToFloat(instanceMem[i+5]);
-  ret.mat[2][0] = uintBitsToFloat(instanceMem[i+6]);
-  ret.mat[2][1] = uintBitsToFloat(instanceMem[i+7]);
-  ret.mat[2][2] = uintBitsToFloat(instanceMem[i+8]);
-  ret.mat[3][0] = uintBitsToFloat(instanceMem[i+9]);
-  ret.mat[3][1] = uintBitsToFloat(instanceMem[i+10]);
-  ret.mat[3][2] = uintBitsToFloat(instanceMem[i+11]);
-  ret.fatness   = uintBitsToFloat(instanceMem[i+12]);
-  ret.animPtr   = instanceMem[i+13];
-  ret.wind      = uintBitsToFloat(instanceMem[i+14]);
+  ret.mat[0][0] = uintBitsToFloat(INSTANCE_MEM(i+0));
+  ret.mat[0][1] = uintBitsToFloat(INSTANCE_MEM(i+1));
+  ret.mat[0][2] = uintBitsToFloat(INSTANCE_MEM(i+2));
+  ret.mat[1][0] = uintBitsToFloat(INSTANCE_MEM(i+3));
+  ret.mat[1][1] = uintBitsToFloat(INSTANCE_MEM(i+4));
+  ret.mat[1][2] = uintBitsToFloat(INSTANCE_MEM(i+5));
+  ret.mat[2][0] = uintBitsToFloat(INSTANCE_MEM(i+6));
+  ret.mat[2][1] = uintBitsToFloat(INSTANCE_MEM(i+7));
+  ret.mat[2][2] = uintBitsToFloat(INSTANCE_MEM(i+8));
+  ret.mat[3][0] = uintBitsToFloat(INSTANCE_MEM(i+9));
+  ret.mat[3][1] = uintBitsToFloat(INSTANCE_MEM(i+10));
+  ret.mat[3][2] = uintBitsToFloat(INSTANCE_MEM(i+11));
+  ret.fatness   = uintBitsToFloat(INSTANCE_MEM(i+12));
+  ret.animPtr   = INSTANCE_MEM(i+13);
+  ret.wind      = uintBitsToFloat(INSTANCE_MEM(i+14));
   return ret;
   }
 
 MorphDesc pullMorphDesc(uint i) {
   i *= 4;
   MorphDesc ret;
-  ret.indexOffset         = instanceMem[i+0];
-  ret.sample0             = instanceMem[i+1];
-  ret.sample1             = instanceMem[i+2];
-  ret.alpha16_intensity16 = instanceMem[i+3];
+  ret.indexOffset         = INSTANCE_MEM(i+0);
+  ret.sample0             = INSTANCE_MEM(i+1);
+  ret.sample1             = INSTANCE_MEM(i+2);
+  ret.alpha16_intensity16 = INSTANCE_MEM(i+3);
   return ret;
   }
 

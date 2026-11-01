@@ -116,6 +116,7 @@ endfunction(add_shader)
 #   ATEST      - use alpha test
 #   WATER      - water material
 #   GHOST      - ghost material
+#   MOTION_VECTORS - gbuffer also gets the motion since the previous frame
 
 function(add_geom_shader OUTPUT)
   list(SUBLIST ARGV 1 -1 VARS)
@@ -188,6 +189,12 @@ add_geom_shader(main_mph_d_at  "-DMESH_TYPE=3" -DDEPTH_ONLY -DATEST)
 add_geom_shader(main_mph_v     "-DMESH_TYPE=3" -DDEPTH_ONLY -DVIRTUAL_SHADOW)
 add_geom_shader(main_mph_v_at  "-DMESH_TYPE=3" -DDEPTH_ONLY -DVIRTUAL_SHADOW -DATEST)
 
+if(NOT ANDROID)
+  add_geom_shader(main_obj_mv  "-DMESH_TYPE=1" -DMOTION_VECTORS)
+  add_geom_shader(main_ani_mv  "-DMESH_TYPE=2" -DMOTION_VECTORS)
+  add_geom_shader(main_mph_mv  "-DMESH_TYPE=3" -DMOTION_VECTORS)
+endif()
+
 # tesselation
 add_shader(main_lnd_f_slot.tesc      materials/main.tesc  "-DMESH_TYPE=0" -DWATER)
 add_shader(main_lnd_f_slot.tese      materials/main.tese  "-DMESH_TYPE=0" -DWATER)
@@ -207,6 +214,11 @@ add_frag_shader(main_lnd_d     -DFLAT_NORMAL -DDEPTH_ONLY)
 add_frag_shader(main_lnd_d_at  -DFLAT_NORMAL -DDEPTH_ONLY -DATEST)
 add_frag_shader(main_lnd_v     -DFLAT_NORMAL -DDEPTH_ONLY -DVIRTUAL_SHADOW)
 add_frag_shader(main_lnd_v_at  -DFLAT_NORMAL -DDEPTH_ONLY -DVIRTUAL_SHADOW -DATEST)
+if(NOT ANDROID)
+  add_frag_shader(main_lnd_g_s_mv  -DFLAT_NORMAL -DGBUFFER -DSIMPLE_MAT -DMOTION_VECTORS)
+  add_frag_shader(main_lnd_g_mv    -DFLAT_NORMAL -DGBUFFER -DMOTION_VECTORS)
+  add_frag_shader(main_lnd_g_at_mv -DFLAT_NORMAL -DGBUFFER -DATEST -DMOTION_VECTORS)
+endif()
 
 # materials objects
 add_frag_shader(main_obj_g     -DGBUFFER)
@@ -219,6 +231,10 @@ add_frag_shader(main_obj_d     -DDEPTH_ONLY)
 add_frag_shader(main_obj_d_at  -DDEPTH_ONLY -DATEST)
 add_frag_shader(main_obj_v     -DDEPTH_ONLY -DVIRTUAL_SHADOW)
 add_frag_shader(main_obj_v_at  -DDEPTH_ONLY -DVIRTUAL_SHADOW -DATEST)
+if(NOT ANDROID)
+  add_frag_shader(main_obj_g_mv    -DGBUFFER -DMOTION_VECTORS)
+  add_frag_shader(main_obj_g_at_mv -DGBUFFER -DATEST -DMOTION_VECTORS)
+endif()
 
 # pfx geometry
 add_shader(main_pfx.vert       materials/pfx.vert   "-DMESH_TYPE=4" -DVT_COLOR)
@@ -238,6 +254,10 @@ endif()
 # materials pfx
 add_shader(main_pfx_g.frag     materials/main.frag  "-DMESH_TYPE=4" -DGBUFFER    -DVT_COLOR)
 add_shader(main_pfx_g_at.frag  materials/main.frag  "-DMESH_TYPE=4" -DGBUFFER    -DVT_COLOR -DATEST)
+if(NOT ANDROID)
+  add_shader(main_pfx_g_mv.frag    materials/main.frag "-DMESH_TYPE=4" -DGBUFFER -DVT_COLOR -DMOTION_VECTORS)
+  add_shader(main_pfx_g_at_mv.frag materials/main.frag "-DMESH_TYPE=4" -DGBUFFER -DVT_COLOR -DATEST -DMOTION_VECTORS)
+endif()
 add_shader(main_pfx_f.frag     materials/main.frag  "-DMESH_TYPE=4" -DFORWARD    -DVT_COLOR)
 add_shader(main_pfx_f_at.frag  materials/main.frag  "-DMESH_TYPE=4" -DFORWARD    -DVT_COLOR -DATEST)
 add_shader(main_pfx_e.frag     materials/main.frag  "-DMESH_TYPE=4" -DEMISSIVE   -DVT_COLOR)
