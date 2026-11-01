@@ -782,6 +782,7 @@ void Renderer::draw(Tempest::Attachment& result, Encoder<CommandBuffer>& cmd, ui
   wview.visibilityPass(cmd, 1);
   drawGBuffer(cmd, fId, wview);
 
+  prepareCharacterCapsules(fId, camera);
   drawShadowMap(cmd, fId, wview);
   prepareEpipolar(cmd, wview);
 
@@ -803,7 +804,6 @@ void Renderer::draw(Tempest::Attachment& result, Encoder<CommandBuffer>& cmd, ui
   cmd.setFramebuffer({{sceneLinear, Tempest::Discard, Tempest::Preserve}}, {zbuffer, Tempest::Readonly});
   drawShadowResolve(cmd, wview);
   drawAmbient(cmd, wview);
-  prepareCharacterCapsules(fId, camera);
   drawLights(cmd, wview);
   drawSky(cmd, wview);
   drawLightTreeDbg(sceneLinear, cmd, wview);
@@ -2033,18 +2033,6 @@ void Renderer::drawShadowMap(Encoder<CommandBuffer>& cmd, uint8_t fId, WorldView
     cmd.setFramebuffer({}, {shadowMap[i], 0.f, Tempest::Preserve});
     if(view.mainLight().dir().y > Camera::minShadowY)
       view.drawShadow(cmd,fId,i);
-
-    // the full maps stay for fog and GI; characters are the only casters the rays can not see
-    if(settings.rtShadows) {
-      if(charShadowMap[i].size()!=shadowMap[i].size()) {
-        Resources::recycle(std::move(charShadowMap[i]));
-        charShadowMap[i] = Resources::device().zbuffer(shadowFormat, uint32_t(shadowMap[i].w()), uint32_t(shadowMap[i].h()));
-        }
-      cmd.setDebugMarker(string_frm("ShadowMap-characters #",i));
-      cmd.setFramebuffer({}, {charShadowMap[i], 0.f, Tempest::Preserve});
-      if(view.mainLight().dir().y > Camera::minShadowY)
-        view.drawShadowCharacters(cmd,i);
-      }
     }
   }
 
@@ -2125,7 +2113,7 @@ void Renderer::prepareCharacterCapsules(uint8_t fId, const Camera& camera) {
 
   Header hdr;
   capsules.bones.clear();
-  if(auto world = Gothic::inst().world(); world!=nullptr && lights.directLightPso==&shaders.lightsRq) {
+  if(auto world = Gothic::inst().world(); world!=nullptr && (lights.directLightPso==&shaders.lightsRq || settings.rtShadows)) {
     const Vec3 cam = camera.originLwc();
     for(uint32_t i=0; i<world->npcCount() && hdr.count<MaxGroups; ++i) {
       const Npc* npc = world->npcById(i);
@@ -2296,8 +2284,7 @@ void Renderer::prepareShadowMask(Encoder<CommandBuffer>& cmd, WorldView& wview) 
     cmd.setBinding(1,  mask);
     cmd.setBinding(2,  gbufNormal, Sampler::nearest());
     cmd.setBinding(3,  zbuffer,    Sampler::nearest());
-    cmd.setBinding(4,  charShadowMap[0], Resources::shadowSampler());
-    cmd.setBinding(5,  charShadowMap[1], Resources::shadowSampler());
+    cmd.setBinding(12, *capsules.current);
     cmd.setBinding(6,  scene.rtScene.tlas);
     cmd.setBinding(7,  Sampler::bilinear());
     cmd.setBinding(8,  scene.rtScene.tex);
