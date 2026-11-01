@@ -44,7 +44,8 @@ struct SceneDesc {
   vec4  cameraFadeTarget;
   vec4  wind; // direction, phase, previous phase
   float waterWaves; // wave_max_amplitude of the water at waterLevel
-  float padding0, padding1, padding2;
+  float mipBias;  // texture LOD bias while an upscaler reconstructs a higher resolution
+  float padding1, padding2;
   mat4  viewProjectPrev; // previous frame, without jitter
   vec2  jitter;          // sub-pixel offset of this frame, in NDC
   vec2  padding3;
