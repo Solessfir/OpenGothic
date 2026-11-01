@@ -1,0 +1,34 @@
+#version 450
+#extension GL_GOOGLE_include_directive : enable
+
+#include "scene.glsl"
+
+// Counts every 4th pixel in x and y where nothing was drawn but the view looks down at the ground,
+// so a report can show if parts of the world went missing.
+layout(local_size_x = 8, local_size_y = 8) in;
+
+layout(binding = 0, std140) uniform UboScene {
+  SceneDesc scene;
+  };
+layout(binding = 1) uniform sampler2D depth;
+layout(binding = 2, std430) buffer Result {
+  uint holes;
+  uint samples;
+  } result;
+
+void main() {
+  const ivec2 size = textureSize(depth, 0);
+  const ivec2 at   = ivec2(gl_GlobalInvocationID.xy)*4;
+  if(at.x>=size.x || at.y>=size.y)
+    return;
+
+  atomicAdd(result.samples, 1);
+  if(texelFetch(depth, at, 0).r<1.0)
+    return;
+
+  const vec2 ndc = ((vec2(at)+0.5)/vec2(size))*2.0 - 1.0;
+  const vec4 far = scene.viewProjectInv*vec4(ndc, 1.0, 1.0);
+  const vec3 dir = normalize(far.xyz/far.w - scene.camPos);
+  if(dir.y < -0.2)
+    atomicAdd(result.holes, 1);
+  }

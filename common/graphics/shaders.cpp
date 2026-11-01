@@ -159,6 +159,7 @@ void Shaders::compileShaders() noexcept {
   fogOcclusion       = computeShader("fog3d.comp.sprv");
 
   skyExposure        = computeShader("sky_exposure.comp.sprv");
+  skyHoleCheck       = computeShader("sky_hole_check.comp.sprv");
   sky                = postEffect("sky");
   skySep             = postEffect("sky_sep");
   fog                = fogShader ("fog");
