@@ -37,6 +37,7 @@ class CommandLine {
     bool                isWindowMode()     const { return isWindow;     }
     bool                isRayQuery()       const { return isRQuery;     }
     GiMethod            isRtGi()           const { return isGi;         }
+    bool                hasGiArg()         const { return giArg;        }
     bool                isMeshShading()    const { return isMeshSh;     }
     bool                isBindless()       const { return isBindlessSh; }
     bool                isVirtualShadow()  const { return isVsm;        }
@@ -82,6 +83,7 @@ class CommandLine {
     bool                isVsm        = false;
     bool                isRtSm       = false;
     GiMethod            isGi         = GiMethod::None;
+    bool                giArg        = false;
     bool                forceG1      = false;
     bool                forceG2      = false;
     bool                forceG2NR    = false;
