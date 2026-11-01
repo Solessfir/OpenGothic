@@ -51,6 +51,7 @@ class CommandLine {
     int32_t             taa()              const { return isTaa;        }
     bool                dlss()             const { return isDlss;       }
     bool                rtShadows()        const { return isRtShadows;  }
+    int32_t             renderScale()      const { return scale;        }
     std::string_view    defaultSave()      const { return saveDef;    }
     // Pitch and yaw in degrees (yaw relative to the player) and zoom 0..1, for repeatable test views
     const float*        startCamera()      const { return hasCamera ? camera : nullptr; }
@@ -94,5 +95,6 @@ class CommandLine {
     int32_t             isTaa      = -1;
     bool                isDlss     = true;
     bool                isRtShadows = false;
+    int32_t             scale       = -1;
   };
 
