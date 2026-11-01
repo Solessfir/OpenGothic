@@ -48,6 +48,8 @@ class Shaders {
 
     Tempest::RenderPipeline  lights, lightsRq, lightsVsm;
     Tempest::RenderPipeline  directLight,  directLightSh, directLightRq;
+    Tempest::RenderPipeline  directLightMask, directLightMaskRq;
+    Tempest::ComputePipeline shadowMask, shadowPenumbra, shadowBlurH, shadowBlurV;
     Tempest::RenderPipeline  ambientLight, ambientLightSsao, ambientLightSurf;
 
     Tempest::ComputePipeline copyBuf;
