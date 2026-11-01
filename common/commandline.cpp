@@ -69,6 +69,7 @@ static const char* helpText =
   "  -taa <0|1>             temporal anti-aliasing instead of SMAA (experimental)\n"
   "  -dlss <0|1>            upscale with DLSS when available, FSR2 otherwise (with -taa 1 and a reduced resolution)\n"
   "  -rtshadows <0|1>       ray traced sun shadows, characters from the shadow maps (PC, ray query)\n"
+  "  -scale <50..100>       render resolution in percent, overrides the game setting\n"
   "  -help, -h, -?          show this help\n";
 
 static void printHelp() {
@@ -217,6 +218,17 @@ CommandLine::CommandLine(int argc, const char** argv) {
       ++i;
       if(i<argc)
         isRtShadows = boolArg(argv[i]);
+      }
+    else if(arg=="-scale") {
+      ++i;
+      if(i<argc) {
+        try {
+          scale = std::clamp(std::stoi(argv[i]), 50, 100);
+          }
+        catch(...) {
+          Log::e("-scale: expected a percentage");
+          }
+        }
       }
     else if(arg=="-aa") {
       ++i;

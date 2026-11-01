@@ -175,6 +175,10 @@ void Renderer::setupSettings() {
   settings.renderScale = float(std::clamp(Gothic::settingsGetI("ENGINE","renderScale"),50,100))/100.f;
   settings.vidResIndex = settings.renderScale==1.f ? 0 : 1;
 #endif
+  if(CommandLine::inst().renderScale()>0) {
+    settings.renderScale = float(CommandLine::inst().renderScale())/100.f;
+    settings.vidResIndex = settings.renderScale==1.f ? 0 : 1;
+    }
   const int32_t aaArg = CommandLine::inst().aaPreset();
   settings.aaPreset    = uint32_t(std::clamp(aaArg>=0 ? aaArg : Gothic::settingsGetI("ENGINE","antiAliasing"), 0, int32_t(AaPreset::PRESETS_COUNT)-1));
   settings.aaEnabled   = (settings.aaPreset>0) && (settings.vidResIndex==0);
