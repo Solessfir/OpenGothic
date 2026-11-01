@@ -112,6 +112,26 @@ if(WIN32)
   target_link_libraries(${PROJECT_NAME} edd_dbg)
 endif()
 
+# DLSS: optional, needs a local copy of the NVIDIA DLSS SDK (https://github.com/NVIDIA/DLSS), which this repository does not include
+set(OPENGOTHIC_DLSS_SDK "" CACHE PATH "NVIDIA DLSS SDK directory; DLSS is built when set")
+if(OPENGOTHIC_DLSS_SDK AND WIN32 AND NOT ANDROID)
+  target_compile_definitions(${PROJECT_NAME} PRIVATE OPENGOTHIC_WITH_DLSS)
+  target_include_directories(${PROJECT_NAME} PRIVATE "${OPENGOTHIC_DLSS_SDK}/include" "$ENV{VULKAN_SDK}/include")
+  target_link_libraries(${PROJECT_NAME} "${OPENGOTHIC_DLSS_SDK}/lib/Windows_x86_64/x64/nvsdk_ngx_d.lib")
+  add_custom_command(TARGET Gothic2Notr POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${OPENGOTHIC_DLSS_SDK}/lib/Windows_x86_64/rel/nvngx_dlss.dll" $<TARGET_FILE_DIR:Gothic2Notr>)
+endif()
+
+# DLSS: optional, needs a local copy of the NVIDIA DLSS SDK (https://github.com/NVIDIA/DLSS), which this repository does not include
+set(OPENGOTHIC_DLSS_SDK "" CACHE PATH "NVIDIA DLSS SDK directory; DLSS is built when set")
+if(OPENGOTHIC_DLSS_SDK AND WIN32 AND NOT ANDROID)
+  target_compile_definitions(${PROJECT_NAME} PRIVATE OPENGOTHIC_WITH_DLSS)
+  target_include_directories(${PROJECT_NAME} PRIVATE "${OPENGOTHIC_DLSS_SDK}/include" "$ENV{VULKAN_SDK}/include")
+  target_link_libraries(${PROJECT_NAME} "${OPENGOTHIC_DLSS_SDK}/lib/Windows_x86_64/x64/nvsdk_ngx_d.lib")
+  add_custom_command(TARGET Gothic2Notr POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${OPENGOTHIC_DLSS_SDK}/lib/Windows_x86_64/rel/nvngx_dlss.dll" $<TARGET_FILE_DIR:Gothic2Notr>)
+endif()
+
 if(WIN32)
   target_link_libraries(${PROJECT_NAME} shlwapi DbgHelp)
 elseif(ANDROID)
