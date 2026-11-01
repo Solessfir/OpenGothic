@@ -49,8 +49,8 @@ class CommandLine {
     bool                doForceG2NR()      const { return forceG2NR;    }
     int32_t             aaPreset()         const { return aaPresetId;   }
     int32_t             taa()              const { return isTaa;        }
-    bool                dlss()             const { return isDlss;       }
-    bool                rtShadows()        const { return isRtShadows;  }
+    int32_t             dlss()             const { return isDlss;       } // -1 when not given: the game setting decides
+    int32_t             rtShadows()        const { return isRtShadows;  }
     int32_t             renderScale()      const { return scale;        }
     std::string_view    defaultSave()      const { return saveDef;    }
     // Pitch and yaw in degrees (yaw relative to the player) and zoom 0..1, for repeatable test views
@@ -93,8 +93,8 @@ class CommandLine {
     bool                forceG2NR    = false;
     int32_t             aaPresetId = -1; // -1: use the game settings
     int32_t             isTaa      = -1;
-    bool                isDlss     = true;
-    bool                isRtShadows = false;
+    int32_t             isDlss      = -1;
+    int32_t             isRtShadows = -1;
     int32_t             scale       = -1;
   };
 

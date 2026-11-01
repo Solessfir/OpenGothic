@@ -519,6 +519,12 @@ void GameMenu::initExtraOptions() {
      "Smooths jagged edges (SMAA). Needs the full rendering resolution.", "ENGINE"},
     {"OPENGOTHIC_GI", "Indirect light", "globalIllumination", "Off|On",
      "Bounced light from the sun, sky and torches. Needs a GPU with ray tracing.", "ENGINE"},
+    {"OPENGOTHIC_TAA", "Temporal AA", "temporalAA", "Off|On",
+     "Smooths edges over several frames, needed for upscaling. Applies after a restart.", "ENGINE"},
+    {"OPENGOTHIC_UPSCALER", "Upscaler", "upscaler", "DLSS|FSR",
+     "Used when Resolution is an upscale and Temporal AA is on. DLSS needs an NVIDIA RTX GPU, FSR otherwise.", "ENGINE"},
+    {"OPENGOTHIC_RT_SHADOWS", "RT shadows", "rtShadows", "Off|On",
+     "Sun shadows traced exactly at any distance. Needs a GPU with ray tracing.", "ENGINE"},
     });
 #endif
   }
