@@ -59,9 +59,43 @@ bool SceneGlobals::isShadowView(VisCamera v) {
   return false;
   }
 
-void SceneGlobals::setViewProject(const Tempest::Matrix4x4& v, const Tempest::Matrix4x4& p,
+static float halton(uint32_t i, uint32_t base) {
+  float f = 1, r = 0;
+  for(; i>0; i/=base) {
+    f /= float(base);
+    r += f*float(i%base);
+    }
+  return r;
+  }
+
+// Shifts the projection by the sub-pixel offset of this frame
+Tempest::Matrix4x4 SceneGlobals::jittered(const Tempest::Matrix4x4& p) const {
+  auto ret = p;
+  for(int k=0; k<4; ++k) {
+    ret.set(k, 0, ret.at(k,0) + uboGlobalCpu.jitter.x*ret.at(k,3));
+    ret.set(k, 1, ret.at(k,1) + uboGlobalCpu.jitter.y*ret.at(k,3));
+    }
+  return ret;
+  }
+
+void SceneGlobals::setViewProject(const Tempest::Matrix4x4& v, const Tempest::Matrix4x4& projUnjittered,
                                   float zNear, float zFar,
                                   const Tempest::Matrix4x4* sh) {
+  auto vpUnjittered = projUnjittered;
+  vpUnjittered.mul(v);
+  uboGlobalCpu.viewProjectPrev = hasPrev ? viewProjectPrev : vpUnjittered;
+  viewProjectPrev = vpUnjittered;
+  hasPrev         = true;
+
+  uboGlobalCpu.jitter = Tempest::Vec2();
+  if(taaJitter) {
+    // Halton(2,3) over 8 frames, in pixels around the pixel center
+    const uint32_t i = (taaFrame++)%8 + 1;
+    uboGlobalCpu.jitter = Tempest::Vec2((halton(i,2)-0.5f)*2.f*uboGlobalCpu.screenResInv.x,
+                                        (halton(i,3)-0.5f)*2.f*uboGlobalCpu.screenResInv.y);
+    }
+  const auto p = jittered(projUnjittered);
+
   view = v;
   proj = p;
 
@@ -108,7 +142,7 @@ void SceneGlobals::setViewProject(const Tempest::Matrix4x4& v, const Tempest::Ma
 void SceneGlobals::setViewLwc(const Tempest::Matrix4x4& view, const Tempest::Matrix4x4& proj, const Tempest::Matrix4x4* sh) {
   viewLwc = view;
 
-  auto m = proj;
+  auto m = jittered(proj);
   m.mul(viewLwc);
   m.inverse();
   uboGlobalCpu.viewProjectLwcInv = m;

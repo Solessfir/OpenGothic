@@ -66,6 +66,7 @@ static const char* helpText =
   "  -gi <number>           ray-traced global illumination method, 0 is off\n"
   "  -ms <boolean>          enable or disable meshlets\n"
   "  -aa <number>           anti-aliasing: 0 off, 1 medium, 2 ultra; overrides the game setting\n"
+  "  -taa <0|1>             temporal anti-aliasing instead of SMAA (experimental)\n"
   "  -help, -h, -?          show this help\n";
 
 static void printHelp() {
@@ -199,6 +200,11 @@ CommandLine::CommandLine(int argc, const char** argv) {
       ++i;
       if(i<argc)
         isRQuery = boolArg(argv[i]);
+      }
+    else if(arg=="-taa") {
+      ++i;
+      if(i<argc)
+        isTaa = boolArg(argv[i]) ? 1 : 0;
       }
     else if(arg=="-aa") {
       ++i;
