@@ -245,6 +245,7 @@ class Renderer final {
     struct {
       Fsr2                         fsr2;
       Dlss                         dlss;
+      Tempest::StorageImage        sharpened; // DLSS has no sharpening of its own
       const Tempest::StorageImage* output       = nullptr;
       uint32_t                     jitterPhases = 8;
       uint64_t                     lastTick     = 0;
