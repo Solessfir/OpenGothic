@@ -30,7 +30,7 @@ static void bitSet(std::vector<uint32_t>& b, size_t id) {
   reinterpret_cast<std::atomic<uint32_t>&>(bits).fetch_or(1u << id, std::memory_order_relaxed);
   }
 
-static bool bitAt(std::vector<uint32_t>& b, size_t id) {
+static bool bitAt(const std::vector<uint32_t>& b, size_t id) {
   auto bits = b[id/32];
   id %= 32;
   return bits & (1u << id);
@@ -128,47 +128,39 @@ bool InstanceStorage::commit(Encoder<CommandBuffer>& cmd, uint8_t fId) {
   join();
 
   const size_t dataSize = (dataCpu.size() + 0xFFF) & ~size_t(0xFFF);
-  if(dataGpu.byteSize()!=dataSize) {
+  if(dataGpu.byteSize()!=dataSize || (keepPrev && prevGpu.byteSize()!=dataSize)) {
     Resources::recycle(std::move(dataGpu));
     dataGpu = device.ssbo(BufferHeap::Device,Tempest::Uninitialized,dataSize);
     dataGpu.update(dataCpu);
+    if(keepPrev) {
+      // no motion for one frame
+      Resources::recycle(std::move(prevGpu));
+      prevGpu = device.ssbo(BufferHeap::Device,Tempest::Uninitialized,dataSize);
+      prevGpu.update(dataCpu);
+      }
     std::memset(durty.data(), 0, durty.size()*sizeof(uint32_t));
+    std::memset(fresh.data(), 0, fresh.size()*sizeof(uint32_t));
     return true;
+    }
+
+  if(keepPrev) {
+    cmd.setFramebuffer({});
+    cmd.setBinding(0, prevGpu);
+    cmd.setBinding(1, dataGpu);
+    cmd.setPipeline(Shaders::inst().copyBuf);
+    cmd.dispatchThreads(dataSize/sizeof(uint32_t));
     }
 
   patchBlock.clear();
   size_t payloadSize = 0;
-  for(size_t i = 0; i<blockCnt; ++i) {
-    if(i%32==0 && durty[i/32]==0) {
-      i+=31;
-      continue;
-      }
-    if(!bitAt(durty,i))
-      continue;
-    auto begin = i; ++i;
-    while(i<blockCnt) {
-      if(!bitAt(durty,i))
-        break;
-      ++i;
-      }
-
-    uint32_t size    = uint32_t((i-begin)*blockSz);
-    uint32_t chunkSz = 256;
-
-    Path p = {};
-    p.dst  = uint32_t(begin*blockSz);
-    p.src  = uint32_t(payloadSize);
-    while(size>0) {
-      p.size       = std::min<uint32_t>(size, chunkSz);
-      size        -= p.size;
-      patchBlock.push_back(p);
-
-      payloadSize += p.size;
-      p.dst       += p.size;
-      p.src       += p.size;
-      }
-    }
+  // fresh regions go first, so their part of the patch can also go to the previous frame's copy
+  const auto& first = keepPrev ? fresh : durty;
+  collectPatches(first, nullptr, payloadSize);
+  const size_t freshCount = keepPrev ? patchBlock.size() : 0;
+  if(keepPrev)
+    collectPatches(durty, &fresh, payloadSize);
   std::memset(durty.data(), 0, durty.size()*sizeof(durty[0]));
+  std::memset(fresh.data(), 0, fresh.size()*sizeof(fresh[0]));
 
   if(patchBlock.size()==0)
     return false;
@@ -203,7 +195,48 @@ bool InstanceStorage::commit(Encoder<CommandBuffer>& cmd, uint8_t fId) {
   cmd.setBinding(1, path);
   cmd.setPipeline(Shaders::inst().patch);
   cmd.dispatch(patchBlock.size());
+
+  if(freshCount>0) {
+    cmd.setBinding(0, prevGpu);
+    cmd.setBinding(1, path);
+    cmd.setPipeline(Shaders::inst().patch);
+    cmd.dispatch(freshCount);
+    }
   return false;
+  }
+
+void InstanceStorage::collectPatches(const std::vector<uint32_t>& mask, const std::vector<uint32_t>* skip, size_t& payloadSize) {
+  auto isSet = [&](size_t i) { return bitAt(mask,i) && (skip==nullptr || !bitAt(*skip,i)); };
+  for(size_t i = 0; i<blockCnt; ++i) {
+    if(i%32==0 && mask[i/32]==0) {
+      i+=31;
+      continue;
+      }
+    if(!isSet(i))
+      continue;
+    auto begin = i; ++i;
+    while(i<blockCnt) {
+      if(!isSet(i))
+        break;
+      ++i;
+      }
+
+    uint32_t size    = uint32_t((i-begin)*blockSz);
+    uint32_t chunkSz = 256;
+
+    Path p = {};
+    p.dst  = uint32_t(begin*blockSz);
+    p.src  = uint32_t(payloadSize);
+    while(size>0) {
+      p.size       = std::min<uint32_t>(size, chunkSz);
+      size        -= p.size;
+      patchBlock.push_back(p);
+
+      payloadSize += p.size;
+      p.dst       += p.size;
+      p.src       += p.size;
+      }
+    }
   }
 
 void InstanceStorage::join() {
@@ -224,6 +257,7 @@ InstanceStorage::Id InstanceStorage::alloc(const size_t size) {
       auto ret = rgn[i];
       ret.asize = size;
       rgn.erase(rgn.begin()+intptr_t(i));
+      markFresh(ret);
       return Id(*this,ret);
       }
     }
@@ -239,6 +273,7 @@ InstanceStorage::Id InstanceStorage::alloc(const size_t size) {
     ret.asize = size;
     rgn[retId].begin += nsize;
     rgn[retId].size  -= nsize;
+    markFresh(ret);
     return Id(*this,ret);
     }
   Range r;
@@ -250,6 +285,8 @@ InstanceStorage::Id InstanceStorage::alloc(const size_t size) {
 
   blockCnt = (dataCpu.size()+blockSz-1)/blockSz;
   durty.resize((blockCnt+32-1)/32, 0);
+  fresh.resize(durty.size(), 0);
+  markFresh(r);
   return Id(*this,r);
   }
 
@@ -283,6 +320,15 @@ bool InstanceStorage::realloc(Id& id, const size_t size) {
 
 const Tempest::StorageBuffer& InstanceStorage::ssbo() const {
   return dataGpu;
+  }
+
+const Tempest::StorageBuffer& InstanceStorage::ssboPrev() const {
+  return prevGpu.isEmpty() ? dataGpu : prevGpu;
+  }
+
+void InstanceStorage::markFresh(const Range& r) {
+  for(size_t i=0; i<r.size; i+=blockSz)
+    bitSet(fresh, (r.begin+i)/blockSz);
   }
 
 void InstanceStorage::free(const Range& r) {

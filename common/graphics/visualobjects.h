@@ -64,6 +64,8 @@ class VisualObjects final {
     InstanceStorage::Id alloc(size_t size);
     bool                realloc(InstanceStorage::Id& id, size_t size);
     auto                instanceSsbo() const -> const Tempest::StorageBuffer&;
+    auto                instanceSsboPrev() const -> const Tempest::StorageBuffer& { return instanceMem.ssboPrev(); }
+    void                setKeepPreviousInstances(bool keep) { instanceMem.setKeepPrevious(keep); }
 
     const DrawClusters& clusters()     const { return clustersMem; }
     const DrawCommands& drawCommands() const { return drawCmd; }

@@ -110,7 +110,12 @@ vec3 processVertexCommon(out Varyings shOut, in Vertex v, uint bucketId, uint in
 #if (MESH_TYPE==T_OBJ || MESH_TYPE==T_MORPH)
   {
     // Trees and grass sway: shear the up axis along the wind direction
-    const float a = obj.wind*cos(scene.wind.z + dot(obj.mat[3].xz, scene.wind.xy)*0.0001);
+#if defined(MOTION_VECTORS)
+    const float phase = pullPrev ? scene.wind.w : scene.wind.z;
+#else
+    const float phase = scene.wind.z;
+#endif
+    const float a = obj.wind*cos(phase + dot(obj.mat[3].xz, scene.wind.xy)*0.0001);
     obj.mat[1][0] += scene.wind.x*a;
     obj.mat[1][2] += scene.wind.y*a;
   }
@@ -171,6 +176,15 @@ vec3 processVertexCommon(out Varyings shOut, in Vertex v, uint bucketId, uint in
 
 vec4 processVertex(out Varyings shOut, in Vertex v, uint bucketId, uint instanceId, uint vboOffset) {
   vec3 pos = processVertexCommon(shOut, v, bucketId, instanceId, vboOffset);
+#if defined(MAT_PREV_CLIP)
+  {
+    Varyings unused;
+    pullPrev = true;
+    const vec3 prev = processVertexCommon(unused, v, bucketId, instanceId, vboOffset);
+    pullPrev = false;
+    shOut.prevClip = scene.viewProjectPrev*vec4(prev,1.0);
+  }
+#endif
   return scene.viewProject*vec4(pos,1.0);
   }
 

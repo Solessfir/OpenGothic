@@ -85,6 +85,8 @@ void DrawCommands::setBindings(Tempest::Encoder<CommandBuffer>& cmd, const DrawC
   cmd.setBinding(L_Payload,  views[v].visClusters);
   cmd.setBinding(L_Instance, owner.instanceSsbo());
   cmd.setBinding(L_Bucket,   buckets.ssbo());
+  if(v==SceneGlobals::V_Main)
+    cmd.setBinding(L_InstPrev, owner.instanceSsboPrev());
 
   if(cx.isBindless()) {
     cmd.setBinding(L_Ibo, buckets.ibo());
