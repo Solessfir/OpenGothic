@@ -1,3 +1,4 @@
+#include <algorithm>
 #include "mdlvisual.h"
 
 #include "graphics/mesh/skeleton.h"
@@ -552,6 +553,29 @@ Vec3 MdlVisual::mapBone(const size_t boneId) const {
 
   auto mat = pose.bone(boneId);
   return {mat.at(3,0), mat.at(3,1), mat.at(3,2)};
+  }
+
+void MdlVisual::shadowCapsules(std::vector<Tempest::Vec4>& out) const {
+  if(skeleton==nullptr || skInst==nullptr)
+    return;
+  auto&        nodes = skeleton->nodes;
+  const size_t count = std::min(nodes.size(), skInst->boneCount());
+  for(size_t i=0; i<count; ++i) {
+    const size_t p = nodes[i].parent;
+    if(p>=count)
+      continue;
+    // ZS_ nodes are attachment slots for weapons and items, not limbs
+    if(nodes[i].name.rfind("ZS_",0)==0 || nodes[p].name.rfind("ZS_",0)==0)
+      continue;
+    const Vec3  a   = mapBone(p);
+    const Vec3  b   = mapBone(i);
+    const float len = (b-a).length();
+    if(len<10.f || len>150.f)
+      continue;
+    const float r = std::clamp(len*0.28f, 4.f, 22.f);
+    out.emplace_back(a.x, a.y, a.z, r);
+    out.emplace_back(b.x, b.y, b.z, 0.f);
+    }
   }
 
 Vec3 MdlVisual::mapWeaponBone() const {
