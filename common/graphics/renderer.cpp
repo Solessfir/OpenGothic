@@ -2892,6 +2892,17 @@ void Renderer::prepareDdgi(Encoder<CommandBuffer>& cmd, WorldView& wview) {
     }
   ddgi.push.frame++;
 
+  // A time skip (sleeping, the console) moves the sun at once; the slow blend would keep the old light for
+  // many seconds, which the new exposure blows out. The scene uniforms see the new sun a frame later, so
+  // the probes are refreshed in the three frames after the jump; push.reset counts them down from 3.
+  const Vec3 sunDir = wview.mainLight().dir();
+  if(Vec3::dotProduct(sunDir, ddgi.sunDir) < std::cos(5.f*float(M_PI)/180.f))
+    ddgi.resetFrames = 4;
+  ddgi.sunDir     = sunDir;
+  ddgi.push.reset = ddgi.resetFrames<4 ? ddgi.resetFrames : 0;
+  if(ddgi.resetFrames>0)
+    --ddgi.resetFrames;
+
   auto& scene = wview.sceneGlobals();
   cmd.setFramebuffer({});
 

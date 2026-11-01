@@ -273,8 +273,11 @@ class Renderer final {
       struct Push {
         int32_t  origin[3][4] = {}; // per cascade
         uint32_t frame        = 0;
+        uint32_t reset        = 0;
         } push;
       Tempest::Vec3             camPos;
+      Tempest::Vec3             sunDir;
+      uint32_t                  resetFrames = 0;
       Tempest::StorageImage     rays, irradiance, distance, half, fog;
       Tempest::StorageBuffer    probes, lightList, schedule;
       } ddgi;
