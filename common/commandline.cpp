@@ -68,6 +68,7 @@ static const char* helpText =
   "  -aa <number>           anti-aliasing: 0 off, 1 medium, 2 ultra; overrides the game setting\n"
   "  -taa <0|1>             temporal anti-aliasing instead of SMAA (experimental)\n"
   "  -dlss <0|1>            upscale with DLSS when available, FSR2 otherwise (with -taa 1 and a reduced resolution)\n"
+  "  -rtshadows <0|1>       ray traced sun shadows, characters from the shadow maps (PC, ray query)\n"
   "  -help, -h, -?          show this help\n";
 
 static void printHelp() {
@@ -211,6 +212,11 @@ CommandLine::CommandLine(int argc, const char** argv) {
       ++i;
       if(i<argc)
         isDlss = boolArg(argv[i]);
+      }
+    else if(arg=="-rtshadows") {
+      ++i;
+      if(i<argc)
+        isRtShadows = boolArg(argv[i]);
       }
     else if(arg=="-aa") {
       ++i;

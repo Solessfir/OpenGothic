@@ -183,8 +183,14 @@ void Renderer::setupSettings() {
   if(settings.taaEnabled)
     settings.aaEnabled = false;
 
+  settings.rtShadows = settings.softShadows && CommandLine::inst().rtShadows() && Shaders::options().doRayQuery &&
+                       Resources::device().properties().descriptors.nonUniformIndexing &&
+                       !settings.rtsmEnabled && !settings.vsmEnabled && settings.shadowResolution>0;
+
   // direct lighting
-  if(settings.rtsmEnabled)
+  if(settings.rtShadows)
+    shadow.directLightPso = &shaders.directLightMask;
+  else if(settings.rtsmEnabled)
     shadow.directLightPso = &shaders.rtsmDirectLight;
   else if(settings.vsmEnabled)
     shadow.directLightPso = &shaders.vsmDirectLight; //TODO: naming
@@ -2012,6 +2018,18 @@ void Renderer::drawShadowMap(Encoder<CommandBuffer>& cmd, uint8_t fId, WorldView
     cmd.setFramebuffer({}, {shadowMap[i], 0.f, Tempest::Preserve});
     if(view.mainLight().dir().y > Camera::minShadowY)
       view.drawShadow(cmd,fId,i);
+
+    // the full maps stay for fog and GI; characters are the only casters the rays can not see
+    if(settings.rtShadows) {
+      if(charShadowMap[i].size()!=shadowMap[i].size()) {
+        Resources::recycle(std::move(charShadowMap[i]));
+        charShadowMap[i] = Resources::device().zbuffer(shadowFormat, uint32_t(shadowMap[i].w()), uint32_t(shadowMap[i].h()));
+        }
+      cmd.setDebugMarker(string_frm("ShadowMap-characters #",i));
+      cmd.setFramebuffer({}, {charShadowMap[i], 0.f, Tempest::Preserve});
+      if(view.mainLight().dir().y > Camera::minShadowY)
+        view.drawShadowCharacters(cmd,i);
+      }
     }
   }
 
@@ -2196,6 +2214,41 @@ void Renderer::prepareShadowMask(Encoder<CommandBuffer>& cmd, WorldView& wview) 
   auto& scene = wview.sceneGlobals();
   auto& mask  = usesImage2d(shadow.mask,    TextureFormat::RGBA16F, zbuffer.size());
   auto& tmp   = usesImage2d(shadow.maskTmp, TextureFormat::RGBA16F, zbuffer.size());
+
+  if(settings.rtShadows) {
+    cmd.setDebugMarker("Shadow-mask-RT");
+    cmd.setFramebuffer({});
+    auto originLwc = scene.originLwc;
+    cmd.setPushData(&originLwc, sizeof(originLwc));
+    cmd.setBinding(0,  scene.uboGlobal[SceneGlobals::V_Main]);
+    cmd.setBinding(1,  mask);
+    cmd.setBinding(2,  gbufNormal, Sampler::nearest());
+    cmd.setBinding(3,  zbuffer,    Sampler::nearest());
+    cmd.setBinding(4,  charShadowMap[0], Resources::shadowSampler());
+    cmd.setBinding(5,  charShadowMap[1], Resources::shadowSampler());
+    cmd.setBinding(6,  scene.rtScene.tlas);
+    cmd.setBinding(7,  Sampler::bilinear());
+    cmd.setBinding(8,  scene.rtScene.tex);
+    cmd.setBinding(9,  scene.rtScene.vbo);
+    cmd.setBinding(10, scene.rtScene.ibo);
+    cmd.setBinding(11, scene.rtScene.rtDesc);
+    cmd.setPipeline(shaders.shadowMaskRt);
+    cmd.dispatchThreads(mask.size());
+
+    cmd.setDebugMarker("Shadow-blur");
+    cmd.setBinding(0, scene.uboGlobal[SceneGlobals::V_Main]);
+    cmd.setBinding(1, tmp);
+    cmd.setBinding(2, mask, Sampler::nearest());
+    cmd.setPipeline(shaders.shadowBlurHRt);
+    cmd.dispatchThreads(tmp.size());
+
+    cmd.setBinding(0, scene.uboGlobal[SceneGlobals::V_Main]);
+    cmd.setBinding(1, mask);
+    cmd.setBinding(2, tmp, Sampler::nearest());
+    cmd.setPipeline(shaders.shadowBlurVRt);
+    cmd.dispatchThreads(mask.size());
+    return;
+    }
   auto& pen   = usesImage2d(shadow.penumbra, TextureFormat::RGBA16F, uint32_t(zbuffer.w()+1)/2, uint32_t(zbuffer.h()+1)/2);
 
   cmd.setDebugMarker("Shadow-mask");
