@@ -536,8 +536,10 @@ void GameScript::initializeInstanceItem(const std::shared_ptr<zenkit::IItem>& it
 void GameScript::saveQuests(Serialize &fout) {
   quests.save(fout);
   fout.write(uint32_t(dlgKnownInfos.size()));
-  for(auto& i:dlgKnownInfos)
-    fout.write(uint32_t(i.first),uint32_t(i.second));
+  for(auto& i:dlgKnownInfos) {
+    fout.writeSymbol(i.first);
+    fout.writeSymbol(i.second);
+    }
 
   fout.write(gilAttitudes);
   }
@@ -547,9 +549,10 @@ void GameScript::loadQuests(Serialize& fin) {
   uint32_t sz=0;
   fin.read(sz);
   for(size_t i=0;i<sz;++i){
-    uint32_t f=0,s=0;
-    fin.read(f,s);
-    dlgKnownInfos.insert(std::make_pair(f,s));
+    const size_t f = fin.readSymbol();
+    const size_t s = fin.readSymbol();
+    if(f!=size_t(-1) && s!=size_t(-1))
+      dlgKnownInfos.insert(std::make_pair(f,s));
     }
 
   fin.read(gilAttitudes);
@@ -562,6 +565,82 @@ void GameScript::saveVar(Serialize &fout) {
     auto* sym = vm.find_symbol_by_index(i); // never returns nullptr
     saveSym(fout,*sym);
     }
+  }
+
+std::vector<std::string> GameScript::symbolNames() const {
+  std::vector<std::string> ret;
+  ret.reserve(vm.symbols().size());
+  for(auto& i:vm.symbols())
+    ret.push_back(i.name());
+  return ret;
+  }
+
+Serialize::SymbolRemap GameScript::symbolRemap(const std::vector<std::string>& names) {
+  if(names.empty())
+    return nullptr;
+  auto   remap = std::make_shared<std::vector<uint32_t>>(names.size(), std::numeric_limits<uint32_t>::max());
+  size_t moved = 0, missing = 0;
+  for(size_t i=0; i<names.size(); ++i) {
+    if(i<vm.symbols().size() && vm.symbols()[i].name()==names[i]) {
+      (*remap)[i] = uint32_t(i);
+      }
+    else if(auto* s = vm.find_symbol_by_name(names[i])) {
+      (*remap)[i] = s->index();
+      if(s->index()!=i)
+        ++moved;
+      } else {
+      ++missing;
+      }
+    }
+  if(moved==0 && missing==0 && names.size()==vm.symbols().size())
+    return nullptr;
+  Tempest::Log::i("savegame made with other scripts: ", moved, " symbols moved, ", missing, " missing");
+  return remap;
+  }
+
+bool GameScript::hasSameSymbols(Serialize& fin) {
+  // the saved variables are in symbol order, their names show where the indices still match
+  if(!fin.setEntry("game/daedalus"))
+    return true;
+  uint32_t sz = 0;
+  fin.read(sz);
+  if(sz!=vm.symbols().size())
+    return false;
+  std::string name, str;
+  for(uint32_t i=0; i<sz; ++i) {
+    uint32_t t = 0;
+    fin.read(t);
+    name.clear();
+    switch(zenkit::DaedalusDataType(t)) {
+      case zenkit::DaedalusDataType::INT:
+      case zenkit::DaedalusDataType::FLOAT:
+      case zenkit::DaedalusDataType::STRING: {
+        uint32_t count = 0, value = 0;
+        fin.read(name, count);
+        for(uint32_t j=0; j<count; ++j) {
+          if(zenkit::DaedalusDataType(t)==zenkit::DaedalusDataType::STRING)
+            fin.read(str); else
+            fin.read(value); // int or float, 4 bytes
+          }
+        break;
+        }
+      case zenkit::DaedalusDataType::INSTANCE: {
+        uint8_t  dataClass = 0;
+        uint32_t id        = 0;
+        fin.read(dataClass);
+        if(dataClass!=0)
+          fin.read(name, id);
+        if(dataClass==3)
+          fin.read(id);
+        break;
+        }
+      default:
+        break;
+      }
+    if(!name.empty() && vm.find_symbol_by_index(i)->name()!=name)
+      return false;
+    }
+  return true;
   }
 
 void GameScript::loadVar(Serialize &fin) {
@@ -641,9 +720,8 @@ void GameScript::loadVar(Serialize &fin) {
             s->set_instance(itm != nullptr ? itm->handlePtr() : nullptr);
             }
           else if(dataClass==3) {
-            uint32_t itmClass=0;
-            fin.read(itmClass);
-            if(auto npc = world().npcById(id)) {
+            const size_t itmClass = fin.readSymbol();
+            if(auto npc = world().npcById(id); npc!=nullptr && itmClass!=size_t(-1)) {
               auto itm = npc->getItem(itmClass);
               s->set_instance(itm ? itm->handlePtr() : nullptr);
               }
@@ -738,7 +816,8 @@ void GameScript::saveSym(Serialize &fout, zenkit::DaedalusSymbol& i) {
             auto& n = *w.npcById(r);
             if(n.itemCount(item->symbol_index())>0) {
               idNpc = r;
-              fout.write(uint8_t(3),i.name(),idNpc,uint32_t(item->symbol_index()));
+              fout.write(uint8_t(3),i.name(),idNpc);
+              fout.writeSymbol(item->symbol_index());
               break;
               }
             }

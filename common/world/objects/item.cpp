@@ -35,22 +35,26 @@ Item::Item(World &owner, Serialize &fin, Type type)
 
   Tempest::Matrix4x4 mat;
 
-  uint32_t instanceSymbol=0;
-  fin.read(instanceSymbol);
+  const size_t instanceSymbol = fin.readSymbol();
 
-  auto& vm = owner.script().getVm();
-  auto* sym = vm.find_symbol_by_index(instanceSymbol);
+  auto& vm  = owner.script().getVm();
+  auto* sym = instanceSymbol==size_t(-1) ? nullptr : vm.find_symbol_by_index(uint32_t(instanceSymbol));
 
-  if (sym != nullptr) {
+  try {
     vm.allocate_instance(h, sym);
-    } else {
-    Tempest::Log::e("Loading unknown item from save: " , instanceSymbol);
+    }
+  catch(const zenkit::DaedalusVmException&) {
+    // saved with other scripts
+    Tempest::Log::e("Loading unknown item from save: ", sym ? sym->name() : std::string("?"));
     }
 
   fin.read(h->id,h->name,h->name_id,h->hp,h->hp_max,h->main_flag);
   fin.read(reinterpret_cast<int&>(h->flags),h->weight,h->value,h->damage_type,h->damage_total,h->damage);
   fin.read(h->wear,h->protection,h->nutrition,h->cond_atr,h->cond_value,h->change_atr,h->change_value,h->magic);
-  fin.read(h->on_equip,h->on_unequip,h->on_state);
+  h->on_equip   = fin.readSymbolInt();
+  h->on_unequip = fin.readSymbolInt();
+  for(auto& i:h->on_state)
+    i = fin.readSymbolInt();
   fin.read(h->owner,h->owner_guild,h->disguise_guild,h->visual,h->visual_change);
   fin.read(h->effect,h->visual_skin,h->scheme_name,h->material);
   fin.read(h->munition,h->spell,h->range,h->mag_circle);
@@ -116,11 +120,14 @@ void Item::drawVobRay(DbgPainter& p, const Npc& npc) const {
 
 void Item::save(Serialize &fout) const {
   auto& h = *hitem;
-  fout.write(uint32_t(h.symbol_index()));
+  fout.writeSymbol(h.symbol_index());
   fout.write(h.id,h.name,h.name_id,h.hp,h.hp_max,h.main_flag);
   fout.write(reinterpret_cast<int&>(h.flags),h.weight,h.value,h.damage_type,h.damage_total,h.damage);
   fout.write(h.wear,h.protection,h.nutrition,h.cond_atr,h.cond_value,h.change_atr,h.change_value,h.magic);
-  fout.write(h.on_equip,h.on_unequip,h.on_state);
+  fout.writeSymbolInt(h.on_equip);
+  fout.writeSymbolInt(h.on_unequip);
+  for(auto i:h.on_state)
+    fout.writeSymbolInt(i);
   fout.write(h.owner,h.owner_guild,h.disguise_guild,h.visual,h.visual_change);
   fout.write(h.effect,h.visual_skin,h.scheme_name,h.material);
   fout.write(h.munition,h.spell,h.range,h.mag_circle);
