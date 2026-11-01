@@ -36,6 +36,7 @@ struct DdgiSchedule {
   layout(push_constant, std430) uniform UboPush {       \
     ivec4 origin[DdgiCascades];                         \
     uint  frame;                                        \
+    uint  reset; /* lighting jumped: refresh every probe */ \
     } push;
 
 float ddgiSpacing(int c) {
