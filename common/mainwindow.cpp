@@ -1416,8 +1416,10 @@ uint64_t MainWindow::tick() {
   auto st = Gothic::inst().checkLoading();
   if(st==Gothic::LoadState::Finalize || st==Gothic::LoadState::FailedLoad || st==Gothic::LoadState::FailedSave) {
     Gothic::inst().finishLoading();
-    if(st==Gothic::LoadState::FailedLoad)
+    if(st==Gothic::LoadState::FailedLoad) {
       rootMenu.setMainMenu();
+      Gothic::inst().onPrint("unable to load savegame file");
+      }
     if(st==Gothic::LoadState::FailedSave)
       Gothic::inst().onPrint("unable to write savegame file");
     return 0;

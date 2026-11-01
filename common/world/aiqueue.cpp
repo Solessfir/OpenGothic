@@ -3,6 +3,11 @@
 #include <limits>
 #include "game/serialize.h"
 
+// actions that keep an item class in i0
+static bool isItemAction(Action act) {
+  return act==AI_EquipArmor || act==AI_UseItem || act==AI_UseItemToState;
+  }
+
 AiQueue::AiQueue() {
   }
 
@@ -11,7 +16,11 @@ void AiQueue::save(Serialize& fout) const {
   for(auto& i:aiActions){
     fout.write(uint32_t(i.act));
     fout.write(i.target,i.victim);
-    fout.write(i.point,i.func,i.i0,i.i1,i.s0);
+    fout.write(i.point,i.func);
+    if(isItemAction(i.act))
+      fout.writeSymbolInt(i.i0); else
+      fout.write(i.i0);
+    fout.write(i.i1,i.s0);
     if(i.act==AI_PrintScreen)
       fout.write(i.i2,i.s1);
     }
@@ -24,7 +33,11 @@ void AiQueue::load(Serialize& fin) {
   for(auto& i:aiActions){
     fin.read(reinterpret_cast<uint32_t&>(i.act));
     fin.read(i.target,i.victim);
-    fin.read(i.point,i.func,i.i0,i.i1,i.s0);
+    fin.read(i.point,i.func);
+    if(isItemAction(i.act))
+      i.i0 = fin.readSymbolInt(); else
+      fin.read(i.i0);
+    fin.read(i.i1,i.s0);
     if(i.act==AI_PrintScreen)
       fin.read(i.i2,i.s1);
     }

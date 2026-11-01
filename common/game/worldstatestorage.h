@@ -27,4 +27,8 @@ class WorldStateStorage final {
 
     std::string          name;
     std::vector<uint8_t> storage;
+
+    // names of the script symbols when storage came from a save made with other scripts, and their mapping
+    std::vector<std::string>                     symbols;
+    std::shared_ptr<const std::vector<uint32_t>> symRemap;
   };

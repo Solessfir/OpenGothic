@@ -17,11 +17,18 @@ WorldStateStorage::WorldStateStorage(World &w)
 void WorldStateStorage::save(Serialize &fout) const {
   fout.setEntry("worlds/",name,".zip");
   fout.write(storage);
+  if(!symbols.empty()) {
+    fout.setEntry("worlds/",name,".symbols");
+    fout.write(symbols);
+    }
   }
 
 void WorldStateStorage::load(Serialize& fin) {
   fin.setEntry("worlds/",name,".zip");
   fin.read(storage);
+  symbols.clear();
+  if(fin.setEntry("worlds/",name,".symbols"))
+    fin.read(symbols);
   }
 
 bool WorldStateStorage::compareName(std::string_view n) const {

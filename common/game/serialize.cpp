@@ -264,19 +264,37 @@ void Serialize::implRead(const WayPoint*& wptr) {
   wptr = ctx==nullptr ? nullptr : ctx->findPoint(tmpStr,false);
   }
 
+void Serialize::writeSymbol(size_t id) {
+  implWrite(id<std::numeric_limits<uint32_t>::max() ? uint32_t(id) : std::numeric_limits<uint32_t>::max());
+  }
+
+size_t Serialize::readSymbol() {
+  uint32_t v = 0;
+  implRead(v);
+  if(v==std::numeric_limits<uint32_t>::max())
+    return size_t(-1);
+  if(symRemap!=nullptr)
+    v = v<symRemap->size() ? (*symRemap)[v] : std::numeric_limits<uint32_t>::max();
+  else if(ctx!=nullptr && v>=ctx->script().getVm().symbols().size())
+    v = std::numeric_limits<uint32_t>::max();
+  return v==std::numeric_limits<uint32_t>::max() ? size_t(-1) : v;
+  }
+
+int32_t Serialize::readSymbolInt() {
+  int32_t v = 0;
+  implRead(v);
+  if(v==0 || symRemap==nullptr)
+    return v;
+  const auto id = uint32_t(v);
+  return id<symRemap->size() && (*symRemap)[id]!=std::numeric_limits<uint32_t>::max() ? int32_t((*symRemap)[id]) : 0;
+  }
+
 void Serialize::implWrite(const ScriptFn& fn) {
-  uint32_t v = uint32_t(-1);
-  if(fn.ptr<uint64_t(std::numeric_limits<uint32_t>::max()))
-    v = uint32_t(fn.ptr);
-  implWrite(v);
+  writeSymbol(fn.ptr);
   }
 
 void Serialize::implRead(ScriptFn& fn) {
-  uint32_t v=0;
-  implRead(v);
-  if(v==std::numeric_limits<uint32_t>::max())
-    fn.ptr = size_t(-1); else
-    fn.ptr = v;
+  fn.ptr = readSymbol();
   }
 
 void Serialize::implWrite(const Npc* npc) {
@@ -340,29 +358,30 @@ void Serialize::implRead(Tempest::Pixmap& p) {
   }
 
 void Serialize::implWrite(const zenkit::INpc& h) {
-  write(uint32_t(h.symbol_index()));
+  writeSymbol(h.symbol_index());
   write(h.id,h.name,h.slot,h.effect,int32_t(h.type));
   write(int32_t(h.flags));
   write(h.attribute,h.hitchance,h.protection,h.damage);
   write(h.damage_type,h.guild,h.level);
   write(h.mission);
   write(h.fight_tactic,h.weapon,h.voice,h.voice_pitch,h.body_mass);
-  write(h.daily_routine,h.start_aistate);
+  writeSymbolInt(h.daily_routine);
+  writeSymbolInt(h.start_aistate);
   write(h.spawnpoint,h.spawn_delay,h.senses,h.senses_range);
   write(h.aivar);
   write(h.wp,h.exp,h.exp_next,h.lp,h.bodystate_interruptable_override,h.no_focus);
   }
 
 void Serialize::readNpc(zenkit::DaedalusVm& vm, std::shared_ptr<zenkit::INpc>& h) {
-  uint32_t instanceSymbol=0;
-  read(instanceSymbol);
+  const size_t instanceSymbol = readSymbol();
+  auto*        sym            = instanceSymbol==size_t(-1) ? nullptr : vm.find_symbol_by_index(uint32_t(instanceSymbol));
 
-  auto sym = vm.find_symbol_by_index(instanceSymbol);
-
-  if (sym != nullptr) {
+  try {
     vm.allocate_instance(h, sym);
-    } else {
-    Tempest::Log::e("Cannot load serialized NPC ", instanceSymbol, ": Symbol not found.");
+    }
+  catch(const zenkit::DaedalusVmException&) {
+    // saved with other scripts: keep the data, the NPC just has no script instance
+    Tempest::Log::e("Cannot load serialized NPC ", sym ? sym->name() : std::string("?"), ": not an NPC in these scripts");
     }
 
   read(h->id,h->name,h->slot,h->effect, reinterpret_cast<int32_t&>(h->type));
@@ -371,7 +390,8 @@ void Serialize::readNpc(zenkit::DaedalusVm& vm, std::shared_ptr<zenkit::INpc>& h
   read(h->damage_type,h->guild,h->level);
   read(h->mission);
   read(h->fight_tactic,h->weapon,h->voice,h->voice_pitch,h->body_mass);
-  read(h->daily_routine,h->start_aistate);
+  h->daily_routine = readSymbolInt();
+  h->start_aistate = readSymbolInt();
   read(h->spawnpoint,h->spawn_delay,h->senses,h->senses_range);
   read(h->aivar);
   read(h->wp,h->exp,h->exp_next,h->lp,h->bodystate_interruptable_override,h->no_focus);

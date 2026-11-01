@@ -147,6 +147,22 @@ GameSession::GameSession(Serialize &fin) {
   vm->initDialogs();
   time.step("load/script-construction");
 
+  // Script symbols are saved by index. The names saved next to them map the indices when the scripts differ;
+  // saves without names (older ones, other builds) only fit the scripts they were made with.
+  std::vector<std::string> symbols;
+  if(fin.setEntry("game/symbols"))
+    fin.read(symbols);
+  else if(!vm->hasSameSymbols(fin))
+    throw std::runtime_error("the savegame was made with different game scripts");
+  fin.setSymbolRemap(vm->symbolRemap(symbols));
+  for(auto& i:visitedWorlds) {
+    if(i.symbols.empty())
+      i.symbols = symbols;
+    i.symRemap = vm->symbolRemap(i.symbols);
+    if(i.symRemap==nullptr)
+      i.symbols.clear();
+    }
+
   if(true) {
     setWorld(std::unique_ptr<World>(new World(*this,wname,false,[&](int v){
       Gothic::inst().setLoadingProgress(int(v*0.55));
@@ -242,6 +258,8 @@ void GameSession::save(Serialize &fout, std::string_view name, const Pixmap& scr
 
   fout.setEntry("game/daedalus");
   vm->saveVar(fout);
+  fout.setEntry("game/symbols");
+  fout.write(vm->symbolNames());
   time.step("save/script-variables");
   Gothic::inst().setLoadingProgress(80);
   }
@@ -416,6 +434,7 @@ auto GameSession::implChangeWorld(std::unique_ptr<GameSession>&& game,
   if(!wss.isEmpty()) {
     Tempest::MemReader rd {wss.storage.data(),wss.storage.size()};
     Serialize          fin{rd};
+    fin.setSymbolRemap(wss.symRemap);
     wrld->load(fin);
     }
 
