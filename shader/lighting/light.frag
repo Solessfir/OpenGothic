@@ -39,7 +39,8 @@ bool isShadow(vec3 rayOrigin, vec3 direction, float R) {
   {
     const float dirLength    = length(direction);
     const vec3  rayDirection = -direction/dirLength;
-    const float rayDistance  = dirLength - cenPosition.w*0.0375; //NOTE: padding of ~3%, in case if light inside wall
+    // the light usually sits inside a lamp housing or a torch: its own geometry must not shadow it
+    const float rayDistance  = dirLength - max(cenPosition.w*0.0375, 40.0);
     if(rayDistance<=0)
       return false;
 
