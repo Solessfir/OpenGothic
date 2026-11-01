@@ -185,9 +185,9 @@ void runCluster(const uint clusterId) {
 
 #if !defined(MAIN_VIEW)
   if(push.minRadius>0 && cluster.instanceId!=0xFFFFFFFF) {
-    // Objects too small to matter in the far shadow cascade: small as seen from the camera,
-    // so nearby crates and roof parts keep their shadows where the near cascade ends
-    if(cluster.sphere.w < push.minRadius*distance(cluster.sphere.xyz, scene.camPos))
+    // Objects too small to matter in the far shadow cascade. A fixed size, not one relative to the camera:
+    // then a shadow does not switch on and off while the player walks.
+    if(cluster.sphere.w < push.minRadius)
       return;
     }
 #endif
