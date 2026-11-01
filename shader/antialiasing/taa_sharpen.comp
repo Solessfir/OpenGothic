@@ -1,0 +1,37 @@
+#version 450
+#extension GL_GOOGLE_include_directive : enable
+
+// Contrast-adaptive sharpening of the TAA result for display; the history itself stays unsharpened,
+// or the sharpening would build up frame after frame
+layout(local_size_x = 8, local_size_y = 8) in;
+
+layout(binding = 0) uniform writeonly image2D result;
+layout(binding = 1) uniform sampler2D src;
+
+const float Sharpness = 0.5; // 0..1
+
+// HDR compressed into 0..1, so the contrast limits below apply
+vec3 compress(vec3 c) { return c/(1.0 + max(c.r, max(c.g, c.b))); }
+vec3 expand  (vec3 c) { return c/max(1.0 - max(c.r, max(c.g, c.b)), 1e-4); }
+
+void main() {
+  const ivec2 at   = ivec2(gl_GlobalInvocationID.xy);
+  const ivec2 size = imageSize(result);
+  if(at.x>=size.x || at.y>=size.y)
+    return;
+
+  const vec3 c = compress(texelFetch(src, at, 0).rgb);
+  const vec3 n = compress(texelFetch(src, clamp(at+ivec2( 0,-1), ivec2(0), size-1), 0).rgb);
+  const vec3 s = compress(texelFetch(src, clamp(at+ivec2( 0, 1), ivec2(0), size-1), 0).rgb);
+  const vec3 w = compress(texelFetch(src, clamp(at+ivec2(-1, 0), ivec2(0), size-1), 0).rgb);
+  const vec3 e = compress(texelFetch(src, clamp(at+ivec2( 1, 0), ivec2(0), size-1), 0).rgb);
+
+  // AMD CAS: less sharpening where the neighborhood already has strong contrast
+  const vec3 mn  = min(c, min(min(n, s), min(w, e)));
+  const vec3 mx  = max(c, max(max(n, s), max(w, e)));
+  const vec3 amp = sqrt(clamp(min(mn, 1.0-mx)/max(mx, 1e-4), 0.0, 1.0));
+  const vec3 wgt = -amp/mix(8.0, 5.0, Sharpness);
+  const vec3 ret = clamp((c + (n+s+w+e)*wgt)/(1.0 + 4.0*wgt), 0.0, 0.999);
+
+  imageStore(result, at, vec4(expand(ret), 1));
+  }

@@ -48,6 +48,7 @@ class CommandLine {
     bool                doForceG2()        const { return forceG2;      }
     bool                doForceG2NR()      const { return forceG2NR;    }
     int32_t             aaPreset()         const { return aaPresetId;   }
+    int32_t             taa()              const { return isTaa;        }
     std::string_view    defaultSave()      const { return saveDef;    }
     // Pitch and yaw in degrees (yaw relative to the player) and zoom 0..1, for repeatable test views
     const float*        startCamera()      const { return hasCamera ? camera : nullptr; }
@@ -88,5 +89,6 @@ class CommandLine {
     bool                forceG2      = false;
     bool                forceG2NR    = false;
     int32_t             aaPresetId = -1; // -1: use the game settings
+    int32_t             isTaa      = -1;
   };
 

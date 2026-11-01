@@ -30,6 +30,7 @@ class SceneGlobals final {
     // Water level that turns caustics off, matched in shader/lighting/caustics.glsl
     static constexpr float NoWater = -1e9f;
 
+    // proj is without jitter; with taaJitter set it gets this frame's sub-pixel offset
     void setViewProject(const Tempest::Matrix4x4& view, const Tempest::Matrix4x4& proj,
                         float zNear, float zFar,
                         const Tempest::Matrix4x4 *sh);
@@ -133,6 +134,9 @@ class SceneGlobals final {
       Tempest::Vec4                    wind = {}; // direction, phase
       float                           waterWaves = 0; // wave_max_amplitude of the water at waterLevel
       float                           padding0 = 0, padding1 = 0, padding2 = 0;
+      Tempest::Matrix4x4              viewProjectPrev; // previous frame, without jitter
+      Tempest::Vec2                   jitter;          // sub-pixel offset of this frame, in NDC
+      Tempest::Vec2                   padding3;
       };
 
     Tempest::UniformBuffer<UboGlobal> uboGlobalPf[Resources::MaxFramesInFlight][V_Count];
@@ -141,11 +145,17 @@ class SceneGlobals final {
     Frustrum                          frustrum[V_Count];
 
     bool                              zWindEnabled = false;
+    bool                              taaJitter    = false;
     uint64_t                          windPeriod = 6000;
 
     RtScene                           rtScene;
 
   private:
+    Tempest::Matrix4x4                jittered(const Tempest::Matrix4x4& proj) const;
+
     UboGlobal                         uboGlobalCpu;
+    Tempest::Matrix4x4                viewProjectPrev;
+    bool                              hasPrev  = false;
+    uint32_t                          taaFrame = 0;
   };
 
