@@ -138,6 +138,7 @@ class Renderer final {
       bool           fogHalfResolution  = false;
       float          cameraObstructionDistance = 0;
       bool           zFogRadial         = false;
+      bool           sunShafts          = false; // screen-space sun rays, untested on mobile GPUs
 
       bool           zWindEnabled       = false;
       uint64_t       windPeriod         = 6000;
@@ -203,7 +204,7 @@ class Renderer final {
       bool                   lutIsInitialized = false;
       Tempest::Attachment    transLut, multiScatLut, viewLut, viewCldLut;
       Tempest::StorageImage  cloudsLut, fogLut3D, fogLut3DMs;
-      Tempest::StorageImage  occlusionLut, irradianceLut;
+      Tempest::StorageImage  occlusionLut, irradianceLut, sunShafts;
       } sky;
 
     struct SSAO {
