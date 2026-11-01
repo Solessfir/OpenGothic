@@ -185,10 +185,9 @@ void runCluster(const uint clusterId) {
 
 #if !defined(MAIN_VIEW)
   if(push.minRadius>0 && cluster.instanceId!=0xFFFFFFFF) {
-    // Objects too small to matter in the far shadow cascade
-    const vec4  c = scene.viewProject*vec4(cluster.sphere.xyz, 1.0);
-    const float s = length(vec3(scene.viewProject[0][0], scene.viewProject[1][0], scene.viewProject[2][0]));
-    if(cluster.sphere.w*s < push.minRadius*abs(c.w))
+    // Objects too small to matter in the far shadow cascade: small as seen from the camera,
+    // so nearby crates and roof parts keep their shadows where the near cascade ends
+    if(cluster.sphere.w < push.minRadius*distance(cluster.sphere.xyz, scene.camPos))
       return;
     }
 #endif
