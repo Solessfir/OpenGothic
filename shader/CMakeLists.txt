@@ -451,6 +451,22 @@ add_shader(lightstree_dbg.frag   lighting/lightstree/lightstree_dbg.frag)
 # SMAA
 add_shader(taa.comp                  antialiasing/taa.comp)
 add_shader(taa_sharpen.comp          antialiasing/taa_sharpen.comp)
+
+# FSR 2.2.1 temporal upscaler (AMD, MIT), sources in antialiasing/fsr2
+if(NOT ANDROID)
+  set(FSR2_VARS -S comp --target-env spirv1.3 -DFFX_GPU=1 -DFFX_GLSL=1 -DFFX_HALF=0 -DFFX_FSR2_OPTION_HDR_COLOR_INPUT=1
+                -DFFX_FSR2_OPTION_LOW_RESOLUTION_MOTION_VECTORS=1 -DFFX_FSR2_OPTION_JITTERED_MOTION_VECTORS=0
+                -DFFX_FSR2_OPTION_INVERTED_DEPTH=0 -I${CMAKE_SOURCE_DIR}/shader/antialiasing/fsr2)
+  add_shader(fsr2_motion.comp          antialiasing/fsr2_motion.comp)
+  add_shader(fsr2_clear.comp           antialiasing/fsr2_clear.comp)
+  add_shader(fsr2_clear_u.comp         antialiasing/fsr2_clear.comp -DUINT)
+  add_shader(fsr2_luminance.comp       antialiasing/fsr2/ffx_fsr2_compute_luminance_pyramid_pass.glsl ${FSR2_VARS})
+  add_shader(fsr2_prev_depth.comp      antialiasing/fsr2/ffx_fsr2_reconstruct_previous_depth_pass.glsl ${FSR2_VARS})
+  add_shader(fsr2_depth_clip.comp      antialiasing/fsr2/ffx_fsr2_depth_clip_pass.glsl ${FSR2_VARS})
+  add_shader(fsr2_lock.comp            antialiasing/fsr2/ffx_fsr2_lock_pass.glsl ${FSR2_VARS})
+  add_shader(fsr2_accumulate.comp      antialiasing/fsr2/ffx_fsr2_accumulate_pass.glsl ${FSR2_VARS} -DFFX_FSR2_OPTION_APPLY_SHARPENING=1)
+  add_shader(fsr2_rcas.comp            antialiasing/fsr2/ffx_fsr2_rcas_pass.glsl ${FSR2_VARS})
+endif()
 add_shader(smaa_edges.frag          antialiasing/smaa/edges.frag)
 add_shader(smaa_edges_ultra.frag    antialiasing/smaa/edges.frag -DULTRA)
 add_shader(smaa_weights.frag        antialiasing/smaa/weights.frag)

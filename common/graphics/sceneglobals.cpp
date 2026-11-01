@@ -1,3 +1,4 @@
+#include <algorithm>
 #include "sceneglobals.h"
 
 #include "graphics/shaders.h"
@@ -90,7 +91,7 @@ void SceneGlobals::setViewProject(const Tempest::Matrix4x4& v, const Tempest::Ma
   uboGlobalCpu.jitter = Tempest::Vec2();
   if(taaJitter) {
     // Halton(2,3) over 8 frames, in pixels around the pixel center
-    const uint32_t i = (taaFrame++)%8 + 1;
+    const uint32_t i = (taaFrame++)%std::max(taaPhases, 1u) + 1;
     uboGlobalCpu.jitter = Tempest::Vec2((halton(i,2)-0.5f)*2.f*uboGlobalCpu.screenResInv.x,
                                         (halton(i,3)-0.5f)*2.f*uboGlobalCpu.screenResInv.y);
     }

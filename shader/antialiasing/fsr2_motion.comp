@@ -1,0 +1,32 @@
+#version 450
+#extension GL_GOOGLE_include_directive : enable
+
+#include "scene.glsl"
+#include "common.glsl"
+
+// FSR2 motion vectors: UV offset to the previous frame (prevUv = uv + mv), for every pixel.
+// Pixels without a gbuffer motion vector (sky, water) reproject their depth with the camera.
+layout(local_size_x = 8, local_size_y = 8) in;
+
+layout(binding = 0, std140) uniform UboScene {
+  SceneDesc scene;
+  };
+layout(binding = 1, rg32f) uniform writeonly image2D result;
+layout(binding = 2) uniform sampler2D velocity;
+layout(binding = 3) uniform sampler2D depth;
+
+void main() {
+  const ivec2 at   = ivec2(gl_GlobalInvocationID.xy);
+  const ivec2 size = imageSize(result);
+  if(at.x>=size.x || at.y>=size.y)
+    return;
+
+  vec2 motion;
+  if(!decodeVelocity(texelFetch(velocity, at, 0).rg, motion)) {
+    const vec2 ndc  = (vec2(at)+0.5)/vec2(size)*2.0-1.0;
+    const vec4 wpos = scene.viewProjectInv*vec4(ndc, texelFetch(depth, at, 0).r, 1.0);
+    const vec4 prev = scene.viewProjectPrev*vec4(wpos.xyz/wpos.w, 1.0);
+    motion = prev.w>0 ? (ndc - scene.jitter) - prev.xy/prev.w : vec2(0);
+    }
+  imageStore(result, at, vec4(-0.5*motion, 0, 0));
+  }
