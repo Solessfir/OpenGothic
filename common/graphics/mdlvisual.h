@@ -81,6 +81,8 @@ class MdlVisual final {
     void                           processLayers  (World& world);
     bool                           processEvents(World& world, uint64_t &barrier, Animation::EvCount &ev);
     auto                           mapBone(const size_t boneId) const -> Tempest::Vec3;
+    // a capsule along each bone, for shadows the ray tracing scene can not give: pairs of (start, radius), (end, 0)
+    void                           shadowCapsules(std::vector<Tempest::Vec4>& out) const;
     auto                           mapWeaponBone() const -> Tempest::Vec3;
     auto                           mapHeadBone() const -> Tempest::Vec3;
 

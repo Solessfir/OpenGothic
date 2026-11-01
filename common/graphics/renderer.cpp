@@ -803,6 +803,7 @@ void Renderer::draw(Tempest::Attachment& result, Encoder<CommandBuffer>& cmd, ui
   cmd.setFramebuffer({{sceneLinear, Tempest::Discard, Tempest::Preserve}}, {zbuffer, Tempest::Readonly});
   drawShadowResolve(cmd, wview);
   drawAmbient(cmd, wview);
+  prepareCharacterCapsules(fId, camera);
   drawLights(cmd, wview);
   drawSky(cmd, wview);
   drawLightTreeDbg(sceneLinear, cmd, wview);
@@ -2107,6 +2108,62 @@ void Renderer::drawShadowResolve(Encoder<CommandBuffer>& cmd, const WorldView& w
   cmd.draw(nullptr, 0, 3);
   }
 
+void Renderer::prepareCharacterCapsules(uint8_t fId, const Camera& camera) {
+  // must match shader/lighting/character_capsules.glsl
+  struct Group {
+    Vec4     sphere;
+    uint32_t first = 0, count = 0, padding0 = 0, padding1 = 0;
+    };
+  struct Header {
+    uint32_t count = 0, padding[3] = {};
+    Group    groups[64];
+    };
+  constexpr size_t   MaxGroups   = 64;
+  constexpr size_t   MaxCapsules = 2048;
+  constexpr float    Reach       = 3000; // cm from the camera, torch light rarely reaches further
+  constexpr uint32_t Size        = sizeof(Header) + MaxCapsules*2*sizeof(Vec4);
+
+  Header hdr;
+  capsules.bones.clear();
+  if(auto world = Gothic::inst().world(); world!=nullptr && lights.directLightPso==&shaders.lightsRq) {
+    const Vec3 cam = camera.originLwc();
+    for(uint32_t i=0; i<world->npcCount() && hdr.count<MaxGroups; ++i) {
+      const Npc* npc = world->npcById(i);
+      if(npc==nullptr || (npc->position()-cam).length()>Reach)
+        continue;
+      const size_t first = capsules.bones.size();
+      npc->shadowCapsules(capsules.bones);
+      const size_t count = (capsules.bones.size()-first)/2;
+      if(count==0 || capsules.bones.size()/2>MaxCapsules) {
+        capsules.bones.resize(first);
+        continue;
+        }
+      Vec3 lo = Vec3(capsules.bones[first].x, capsules.bones[first].y, capsules.bones[first].z), hi = lo;
+      float maxR = 0;
+      for(size_t c=first; c<capsules.bones.size(); ++c) {
+        const auto& p = capsules.bones[c];
+        lo = Vec3(std::min(lo.x,p.x), std::min(lo.y,p.y), std::min(lo.z,p.z));
+        hi = Vec3(std::max(hi.x,p.x), std::max(hi.y,p.y), std::max(hi.z,p.z));
+        maxR = std::max(maxR, p.w);
+        }
+      const Vec3 center = (lo+hi)*0.5f;
+      auto& g  = hdr.groups[hdr.count++];
+      g.sphere = Vec4(center.x, center.y, center.z, (hi-center).length() + maxR);
+      g.first  = uint32_t(first/2);
+      g.count  = uint32_t(count);
+      }
+    }
+
+  capsules.data.resize(Size);
+  std::memcpy(capsules.data.data(), &hdr, sizeof(hdr));
+  std::memcpy(capsules.data.data()+sizeof(hdr), capsules.bones.data(), capsules.bones.size()*sizeof(Vec4));
+  auto& buf = capsules.buf[fId];
+  if(buf.byteSize()!=Size)
+    buf = Resources::device().ssbo(BufferHeap::Upload, capsules.data.data(), Size); else
+    buf.update(capsules.data.data(), 0, sizeof(hdr) + capsules.bones.size()*sizeof(Vec4));
+  capsules.current = &buf;
+  }
+
 void Renderer::drawLights(Encoder<CommandBuffer>& cmd, const WorldView& wview) {
   static bool light = true;
   if(!light)
@@ -2128,6 +2185,7 @@ void Renderer::drawLights(Encoder<CommandBuffer>& cmd, const WorldView& wview) {
     cmd.setBinding(6, vsm.pageData);
     }
   if(lights.directLightPso==&shaders.lightsRq) {
+    cmd.setBinding(12, *capsules.current);
     cmd.setBinding(6, scene.rtScene.tlas);
     cmd.setBinding(7, Sampler::bilinear());
     cmd.setBinding(8, scene.rtScene.tex);
