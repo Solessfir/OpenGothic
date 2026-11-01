@@ -802,6 +802,7 @@ void Renderer::draw(Tempest::Attachment& result, Encoder<CommandBuffer>& cmd, ui
   prepareFog (cmd, wview);
   prepareGi  (cmd, wview);
   prepareSurfels(cmd, wview);
+  checkHoles(cmd, wview, fId);
 
   cmd.setFramebuffer({{sceneLinear, Tempest::Discard, Tempest::Preserve}}, {zbuffer, Tempest::Readonly});
   drawShadowResolve(cmd, wview);
@@ -3081,6 +3082,43 @@ void Renderer::prepareExposure(Encoder<CommandBuffer>& cmd, WorldView& wview) {
   cmd.setPushData(&push, sizeof(push));
   cmd.setPipeline(shaders.skyExposure);
   cmd.dispatch(1);
+  }
+
+void Renderer::checkHoles(Encoder<CommandBuffer>& cmd, WorldView& wview, uint8_t fId) {
+  // Missing world geometry shows the sky below the horizon (seen on Adreno 829). Logged so reports show where.
+  auto& b = holes.buf[fId];
+  if(holes.pending[fId]) {
+    // this frame slot's fence has passed, the counts are ready
+    uint32_t c[2] = {};
+    Resources::device().readBytes(b, c, sizeof(c));
+    holes.pending[fId] = false;
+    const uint64_t now = Application::tickCount();
+    if(c[1]>0 && c[0]*100>c[1] && (holes.lastLog==0 || now-holes.lastLog>10000)) {
+      holes.lastLog = now;
+      const auto pl = Gothic::inst().player();
+      const Vec3 p  = pl ? pl->position() : Vec3();
+      Log::i("Holes in the world: ", c[0]*100/c[1], "% of the screen, at ",
+             int(p.x), " ", int(p.y), " ", int(p.z), " facing ", int(pl ? pl->rotation() : 0.f));
+      }
+    }
+  if(holes.frame++%16!=0)
+    return;
+
+  const uint32_t zero[2] = {};
+  if(b.isEmpty())
+    b = Resources::device().ssbo(BufferHeap::Readback, zero, sizeof(zero));
+  else
+    b.update(zero, 0, sizeof(zero));
+
+  auto& scene = wview.sceneGlobals();
+  cmd.setDebugMarker("HoleCheck");
+  cmd.setFramebuffer({});
+  cmd.setBinding(0, scene.uboGlobal[SceneGlobals::V_Main]);
+  cmd.setBinding(1, zbuffer, Sampler::nearest());
+  cmd.setBinding(2, b);
+  cmd.setPipeline(shaders.skyHoleCheck);
+  cmd.dispatchThreads(size_t(zbuffer.w()+3)/4, size_t(zbuffer.h()+3)/4);
+  holes.pending[fId] = true;
   }
 
 void Renderer::drawPathtrace(Tempest::Encoder<Tempest::CommandBuffer>& cmd, WorldView& wview, uint8_t fId) {
