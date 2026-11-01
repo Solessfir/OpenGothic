@@ -21,7 +21,7 @@ void main() {
   if(slot>=DdgiTotal)
     return;
   const ivec3 g = ddgiGridOf(slot, push.origin[slot/DdgiCount].xyz);
-  if(ddgiIsCurrent(ddgiProbes[slot], g) && !ddgiIsScheduled(slot, push.frame))
+  if(push.reset==0 && ddgiIsCurrent(ddgiProbes[slot], g) && !ddgiIsScheduled(slot, push.frame))
     return;
   const uint at = atomicAdd(schedule.dispatch.x, 1);
   schedule.slot[at] = slot;
