@@ -429,6 +429,8 @@ add_shader(lights_bvh.comp       lighting/lightstree/lights_bvh.comp)
 add_shader(lightstree_dbg.frag   lighting/lightstree/lightstree_dbg.frag)
 
 # SMAA
+add_shader(taa.comp                  antialiasing/taa.comp)
+add_shader(taa_sharpen.comp          antialiasing/taa_sharpen.comp)
 add_shader(smaa_edges.frag          antialiasing/smaa/edges.frag)
 add_shader(smaa_edges_ultra.frag    antialiasing/smaa/edges.frag -DULTRA)
 add_shader(smaa_weights.frag        antialiasing/smaa/weights.frag)

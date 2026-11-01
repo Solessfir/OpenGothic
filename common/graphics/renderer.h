@@ -99,6 +99,7 @@ class Renderer final {
     void drawReflections  (Tempest::Encoder<Tempest::CommandBuffer>& cmd, const WorldView& wview, bool underWater);
     void drawUnderwater   (Tempest::Encoder<Tempest::CommandBuffer>& cmd, const WorldView& wview, const Camera& camera);
     void drawFog          (Tempest::Encoder<Tempest::CommandBuffer>& cmd, const WorldView& wview);
+    void drawTaa          (Tempest::Encoder<Tempest::CommandBuffer>& cmd, const WorldView& wview);
     void drawSunMoon      (Tempest::Encoder<Tempest::CommandBuffer>& cmd, const WorldView& wview);
     void drawSunMoon      (Tempest::Encoder<Tempest::CommandBuffer>& cmd, const WorldView& wview, bool isSun);
     void drawGizmo        (Tempest::Encoder<Tempest::CommandBuffer>& cmd, const WorldView& wview);
@@ -140,6 +141,7 @@ class Renderer final {
       float          cameraObstructionDistance = 0;
       bool           zFogRadial         = false;
       bool           sunShafts          = false; // screen-space sun rays, untested on mobile GPUs
+      bool           taaEnabled         = false; // temporal anti-aliasing, experimental
       bool           softShadows        = false; // penumbra blur of the sun shadow maps, PC only
 
       bool           zWindEnabled       = false;
@@ -225,6 +227,13 @@ class Renderer final {
       Tempest::Attachment       color, edges, weights;
       Tempest::Texture2d        area, search;
       } smaa;
+
+    struct Taa {
+      Tempest::StorageImage     history[2];
+      Tempest::StorageImage     output; // sharpened for display
+      uint8_t                   current = 0;
+      bool                      valid   = false;
+      } taa;
 
     struct {
       Tempest::StorageImage     hiZ;
