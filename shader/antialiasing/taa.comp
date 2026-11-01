@@ -5,7 +5,7 @@
 #include "common.glsl"
 
 // Temporal anti-aliasing: the jittered frame blended into the reprojected history.
-// Motion comes from the camera only (depth reprojection), moving objects rely on the neighborhood clip.
+// Motion comes from the gbuffer motion vectors; pixels without them (sky, water) reproject their depth.
 layout(local_size_x = 8, local_size_y = 8) in;
 
 layout(binding = 0, std140) uniform UboScene {
@@ -15,6 +15,7 @@ layout(binding = 1) uniform writeonly image2D result;
 layout(binding = 2) uniform sampler2D current;
 layout(binding = 3) uniform sampler2D history;
 layout(binding = 4) uniform sampler2D depth;
+layout(binding = 5) uniform sampler2D velocity;
 
 layout(push_constant, std430) uniform Push {
   uint resetHistory;
@@ -83,12 +84,17 @@ void main() {
   const ivec2 lc = ivec2(gl_LocalInvocationID.xy) + 1;
   vec3  m1 = vec3(0), m2 = vec3(0);
   float zMin = 1;
+  ivec2 zAt  = ivec2(0);
   for(int y=-1; y<=1; ++y)
     for(int x=-1; x<=1; ++x) {
-      const vec3 c = tileColor[lc.y+y][lc.x+x];
+      const vec3  c = tileColor[lc.y+y][lc.x+x];
+      const float z = tileDepth[lc.y+y][lc.x+x];
       m1  += c;
       m2  += c*c;
-      zMin = min(zMin, tileDepth[lc.y+y][lc.x+x]);
+      if(z<zMin) {
+        zMin = z;
+        zAt  = ivec2(x,y);
+        }
       }
   const vec3 center = tileColor[lc.y][lc.x];
   if(push.resetHistory!=0) {
@@ -97,14 +103,19 @@ void main() {
     }
 
   // where this pixel was in the previous frame
-  const vec2 uv   = (vec2(at)+0.5)/vec2(size);
-  const vec2 ndc  = uv*2.0-1.0;
-  const vec4 wpos = scene.viewProjectInv*vec4(ndc, zMin, 1.0);
-  const vec4 prev = scene.viewProjectPrev*vec4(wpos.xyz/wpos.w, 1.0);
-  const vec2 motion = (ndc - scene.jitter) - prev.xy/prev.w; // in NDC, without jitter
+  const vec2 uv  = (vec2(at)+0.5)/vec2(size);
+  const vec2 ndc = uv*2.0-1.0;
+  vec2 motion; // in NDC, without jitter
+  bool behind = false;
+  if(!decodeVelocity(texelFetch(velocity, clamp(at+zAt, ivec2(0), size-1), 0).rg, motion)) {
+    const vec4 wpos = scene.viewProjectInv*vec4(ndc, zMin, 1.0);
+    const vec4 prev = scene.viewProjectPrev*vec4(wpos.xyz/wpos.w, 1.0);
+    motion = (ndc - scene.jitter) - prev.xy/prev.w;
+    behind = prev.w<=0;
+    }
   const vec2 uvPrev = uv - motion*0.5;
 
-  if(any(lessThan(uvPrev, vec2(0))) || any(greaterThan(uvPrev, vec2(1))) || prev.w<=0) {
+  if(any(lessThan(uvPrev, vec2(0))) || any(greaterThan(uvPrev, vec2(1))) || behind) {
     imageStore(result, at, vec4(fromYCoCg(center), 1));
     return;
     }
