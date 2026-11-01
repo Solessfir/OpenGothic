@@ -212,12 +212,12 @@ CommandLine::CommandLine(int argc, const char** argv) {
     else if(arg=="-dlss") {
       ++i;
       if(i<argc)
-        isDlss = boolArg(argv[i]);
+        isDlss = boolArg(argv[i]) ? 1 : 0;
       }
     else if(arg=="-rtshadows") {
       ++i;
       if(i<argc)
-        isRtShadows = boolArg(argv[i]);
+        isRtShadows = boolArg(argv[i]) ? 1 : 0;
       }
     else if(arg=="-scale") {
       ++i;

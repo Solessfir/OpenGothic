@@ -212,6 +212,9 @@ Gothic::Gothic(GameModDescriptor desc) {
   defaults->set("GAME", "quickSaveSlots", 10);
   defaults->set("ENGINE", "antiAliasing", 2);
   defaults->set("ENGINE", "globalIllumination", 1);
+  defaults->set("ENGINE", "temporalAA", 0);
+  defaults->set("ENGINE", "upscaler", 0);
+  defaults->set("ENGINE", "rtShadows", 0);
 #if defined(__ANDROID__)
   defaults->set("GAME", "vibration",           1);
   defaults->set("GAME", "centerPlayerBars",    1);
