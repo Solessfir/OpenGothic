@@ -182,6 +182,7 @@ class Renderer final {
 
     Tempest::Attachment       gbufDiffuse;
     Tempest::Attachment       gbufNormal;
+    Tempest::Attachment       gbufVelocity; // RG16, see encodeVelocity in common.glsl
 
     struct Shadow {
       Tempest::RenderPipeline* directLightPso = nullptr;
