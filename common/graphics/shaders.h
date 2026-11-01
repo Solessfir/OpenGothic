@@ -88,6 +88,7 @@ class Shaders {
     Tempest::RenderPipeline  smaaEdges[uint32_t(AaPreset::PRESETS_COUNT)];
     Tempest::RenderPipeline  smaaWeights[uint32_t(AaPreset::PRESETS_COUNT)];
     Tempest::RenderPipeline  smaaBlend;
+    Tempest::ComputePipeline taa, taaSharpen;
 
     // HUD
     Tempest::RenderPipeline  gizmo, lightImposter;
