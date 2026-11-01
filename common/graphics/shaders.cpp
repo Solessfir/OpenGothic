@@ -244,6 +244,8 @@ void Shaders::compileShaders() noexcept {
     fsr2.lock       = computeShader("fsr2_lock.comp.sprv");
     fsr2.accumulate = computeShader("fsr2_accumulate.comp.sprv");
     fsr2.rcas       = computeShader("fsr2_rcas.comp.sprv");
+    dlss.inputs     = computeShader("dlss_inputs.comp.sprv");
+    dlss.sync       = computeShader("dlss_sync.comp.sprv");
     }
 
   {

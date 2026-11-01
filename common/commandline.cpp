@@ -67,6 +67,7 @@ static const char* helpText =
   "  -ms <boolean>          enable or disable meshlets\n"
   "  -aa <number>           anti-aliasing: 0 off, 1 medium, 2 ultra; overrides the game setting\n"
   "  -taa <0|1>             temporal anti-aliasing instead of SMAA (experimental)\n"
+  "  -dlss <0|1>            upscale with DLSS when available, FSR2 otherwise (with -taa 1 and a reduced resolution)\n"
   "  -help, -h, -?          show this help\n";
 
 static void printHelp() {
@@ -205,6 +206,11 @@ CommandLine::CommandLine(int argc, const char** argv) {
       ++i;
       if(i<argc)
         isTaa = boolArg(argv[i]) ? 1 : 0;
+      }
+    else if(arg=="-dlss") {
+      ++i;
+      if(i<argc)
+        isDlss = boolArg(argv[i]);
       }
     else if(arg=="-aa") {
       ++i;
