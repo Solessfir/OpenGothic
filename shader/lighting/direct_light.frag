@@ -25,7 +25,9 @@ layout(binding = 1) uniform sampler2D  gbufDiffuse;
 layout(binding = 2) uniform usampler2D gbufNormal;
 layout(binding = 3) uniform sampler2D  depth;
 
-#if defined(SHADOW_MAP)
+#if defined(SHADOW_MASK)
+layout(binding = 4) uniform sampler2D shadowMask; // softened by shadow_blur.comp
+#elif defined(SHADOW_MAP)
 layout(binding = 4) uniform sampler2D textureSm0;
 layout(binding = 5) uniform sampler2D textureSm1;
 #endif
@@ -53,7 +55,11 @@ vec4 worldPos(float depth) {
   return worldPos(gl_FragCoord.xy,depth);
   }
 
-#if defined(SHADOW_MAP)
+#if defined(SHADOW_MASK)
+float calcShadow(vec4 pos) {
+  return texelFetch(shadowMask, ivec2(gl_FragCoord.xy), 0).r;
+  }
+#elif defined(SHADOW_MAP)
 float calcShadow(vec4 pos) {
   return calcShadow(pos, scene, textureSm0, textureSm1);
   }

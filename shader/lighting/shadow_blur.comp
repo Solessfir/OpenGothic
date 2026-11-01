@@ -1,0 +1,53 @@
+#version 450
+#extension GL_GOOGLE_include_directive : enable
+
+#include "scene.glsl"
+#include "common.glsl"
+
+// One direction of the penumbra blur: a gaussian as wide as the penumbra, kept within one surface by depth
+layout(local_size_x = 8, local_size_y = 8) in;
+
+layout(binding = 0, std140) uniform UboScene {
+  SceneDesc scene;
+  };
+layout(binding = 1) uniform writeonly image2D result;
+layout(binding = 2) uniform sampler2D src; // r: visibility, g: penumbra radius in pixels, b: linear depth
+
+#if defined(VERTICAL)
+const ivec2 Dir = ivec2(0,1);
+#else
+const ivec2 Dir = ivec2(1,0);
+#endif
+const int Taps = 6; // per side
+
+void main() {
+  const ivec2 at   = ivec2(gl_GlobalInvocationID.xy);
+  const ivec2 size = imageSize(result);
+  if(at.x>=size.x || at.y>=size.y)
+    return;
+
+  const vec4 center = texelFetch(src, at, 0);
+  if(center.g<0.5) {
+    imageStore(result, at, center);
+    return;
+    }
+
+  const float z0     = center.b;
+  const float stride = center.g/float(Taps);
+  const float sigma  = center.g*0.5;
+  float sum = center.r;
+  float wsum = 1;
+  for(int i=1; i<=Taps; ++i) {
+    const float x = float(i)*stride;
+    const float g = exp(-0.5*(x*x)/(sigma*sigma));
+    for(int s=-1; s<=1; s+=2) {
+      const ivec2 p = clamp(at + Dir*int(round(x*float(s))), ivec2(0), size-1);
+      const vec4  sp = texelFetch(src, p, 0);
+      const float dz = abs(sp.b-z0)/(z0*0.02);
+      const float w  = g*exp(-dz*dz);
+      sum  += sp.r*w;
+      wsum += w;
+      }
+    }
+  imageStore(result, at, vec4(sum/wsum, center.gb, 0));
+  }

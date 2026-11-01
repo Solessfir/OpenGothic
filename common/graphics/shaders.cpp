@@ -120,6 +120,13 @@ void Shaders::compileShaders() noexcept {
   directLightSh    = postEffect("direct_light_sh", RenderState::ZTestMode::NoEqual);
   if(opts.doRayQuery && device.properties().descriptors.nonUniformIndexing)
     directLightRq  = postEffect("direct_light_rq", RenderState::ZTestMode::NoEqual);
+  if(opts.doRayQuery && device.properties().descriptors.nonUniformIndexing)
+    directLightMaskRq = postEffect("direct_light_mask_rq", RenderState::ZTestMode::NoEqual);
+  directLightMask  = postEffect("direct_light_mask", RenderState::ZTestMode::NoEqual);
+  shadowMask       = computeShader("shadow_mask.comp.sprv");
+  shadowPenumbra   = computeShader("shadow_penumbra.comp.sprv");
+  shadowBlurH      = computeShader("shadow_blur_h.comp.sprv");
+  shadowBlurV      = computeShader("shadow_blur_v.comp.sprv");
 
   ambientLight       = ambientLightShader("ambient_light");
   ambientLightSsao   = ambientLightShader("ambient_light_ssao");
