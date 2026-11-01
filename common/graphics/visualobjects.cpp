@@ -537,6 +537,12 @@ void VisualObjects::drawGBuffer(Tempest::Encoder<CommandBuffer>& cmd) {
   drawCmd.drawCommon(cmd, SceneGlobals::V_Main, Material::AlphaTest);
   }
 
+void VisualObjects::drawShadowCharacters(Tempest::Encoder<Tempest::CommandBuffer>& cmd, int layer) {
+  drawCmd.shadowCharactersOnly = true;
+  drawShadow(cmd, layer);
+  drawCmd.shadowCharactersOnly = false;
+  }
+
 void VisualObjects::drawShadow(Tempest::Encoder<Tempest::CommandBuffer>& cmd, int layer) {
   // return;
   auto view = SceneGlobals::VisCamera(SceneGlobals::V_Shadow0 + layer);

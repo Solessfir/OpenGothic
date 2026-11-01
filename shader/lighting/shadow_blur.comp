@@ -19,6 +19,10 @@ const ivec2 Dir = ivec2(0,1);
 const ivec2 Dir = ivec2(1,0);
 #endif
 const int Taps = 6; // per side
+#if defined(DILATE)
+const int   DilateTaps   = 6;
+const float DilateStride = 4.0; // pixels, covers the widest penumbra of 24
+#endif
 
 void main() {
   const ivec2 at   = ivec2(gl_GlobalInvocationID.xy);
@@ -26,7 +30,19 @@ void main() {
   if(at.x>=size.x || at.y>=size.y)
     return;
 
-  const vec4 center = texelFetch(src, at, 0);
+  vec4 center = texelFetch(src, at, 0);
+#if defined(DILATE)
+  // Ray traced radii exist only on the shadowed side of an edge. A neighbour whose penumbra reaches
+  // this pixel widens it, so the lit side gets blurred as well.
+  for(int i=1; i<=DilateTaps; ++i) {
+    const float x = float(i)*DilateStride;
+    for(int s=-1; s<=1; s+=2) {
+      const vec4 sp = texelFetch(src, clamp(at + Dir*int(x*float(s)), ivec2(0), size-1), 0);
+      if(sp.g>=x && abs(sp.b-center.b)<center.b*0.05)
+        center.g = max(center.g, sp.g);
+      }
+    }
+#endif
   if(center.g<0.5) {
     imageStore(result, at, center);
     return;
