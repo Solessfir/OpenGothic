@@ -148,7 +148,7 @@ class Renderer final {
       bool           taaEnabled         = false; // temporal anti-aliasing, experimental
       bool           fsrEnabled         = false; // FSR2 upscaling from the reduced render resolution
       bool           softShadows        = false; // penumbra blur of the sun shadow maps, PC only
-      bool           rtShadows          = false; // ray traced sun shadows, characters from their own shadow maps
+      bool           rtShadows          = false; // ray traced sun shadows, characters from their bone capsules
 
       bool           zWindEnabled       = false;
       uint64_t       windPeriod         = 6000;
@@ -181,7 +181,6 @@ class Renderer final {
     Tempest::Attachment       hdrComposite;
     float                     hdrPeakRatio = 0;
     Tempest::ZBuffer          zbuffer, shadowMap[Resources::ShadowLayers];
-    Tempest::ZBuffer          charShadowMap[Resources::ShadowLayers]; // characters only, for ray traced sun shadows
     Tempest::ZBuffer          zbufferUi;
 
     Tempest::Attachment       sceneOpaque;
