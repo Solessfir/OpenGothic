@@ -234,6 +234,17 @@ void Shaders::compileShaders() noexcept {
   smaaBlend                               = postEffect("triangle_uv", "smaa_blend",          RenderState::ZTestMode::Always);
   taa                                     = computeShader("taa.comp.sprv");
   taaSharpen                              = computeShader("taa_sharpen.comp.sprv");
+  if(motionVectors) {
+    fsr2.motion     = computeShader("fsr2_motion.comp.sprv");
+    fsr2.clear      = computeShader("fsr2_clear.comp.sprv");
+    fsr2.clearU     = computeShader("fsr2_clear_u.comp.sprv");
+    fsr2.luminance  = computeShader("fsr2_luminance.comp.sprv");
+    fsr2.prevDepth  = computeShader("fsr2_prev_depth.comp.sprv");
+    fsr2.depthClip  = computeShader("fsr2_depth_clip.comp.sprv");
+    fsr2.lock       = computeShader("fsr2_lock.comp.sprv");
+    fsr2.accumulate = computeShader("fsr2_accumulate.comp.sprv");
+    fsr2.rcas       = computeShader("fsr2_rcas.comp.sprv");
+    }
 
   {
     RenderState state;

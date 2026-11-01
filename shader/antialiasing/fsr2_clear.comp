@@ -1,0 +1,25 @@
+#version 450
+
+// Fills an FSR2 image with a value: history resets and first-use initialization
+layout(local_size_x = 8, local_size_y = 8) in;
+
+#if defined(UINT)
+layout(binding = 0) uniform writeonly uimage2D result;
+#else
+layout(binding = 0) uniform writeonly image2D result;
+#endif
+
+layout(push_constant, std430) uniform Push {
+  vec4 value;
+  } push;
+
+void main() {
+  const ivec2 at = ivec2(gl_GlobalInvocationID.xy);
+  if(any(greaterThanEqual(at, imageSize(result))))
+    return;
+#if defined(UINT)
+  imageStore(result, at, uvec4(push.value));
+#else
+  imageStore(result, at, push.value);
+#endif
+  }

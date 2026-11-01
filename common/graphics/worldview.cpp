@@ -102,8 +102,9 @@ void WorldView::setSceneImages(const Tempest::Texture2d& clr, const Tempest::Tex
   sGlobal.zbuffer    = &textureCast<const Texture2d&>(depthNative);
   }
 
-void WorldView::setTemporalJitter(bool enabled) {
+void WorldView::setTemporalJitter(bool enabled, uint32_t phases) {
   sGlobal.taaJitter = enabled;
+  sGlobal.taaPhases = phases;
   visuals.setKeepPreviousInstances(enabled);
   }
 
