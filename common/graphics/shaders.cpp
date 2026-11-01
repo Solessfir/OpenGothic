@@ -130,6 +130,11 @@ void Shaders::compileShaders() noexcept {
   shadowPenumbra   = computeShader("shadow_penumbra.comp.sprv");
   shadowBlurH      = computeShader("shadow_blur_h.comp.sprv");
   shadowBlurV      = computeShader("shadow_blur_v.comp.sprv");
+  if(opts.doRayQuery && device.properties().descriptors.nonUniformIndexing) {
+    shadowMaskRt   = computeShader("shadow_mask_rt.comp.sprv");
+    shadowBlurHRt  = computeShader("shadow_blur_h_rt.comp.sprv");
+    shadowBlurVRt  = computeShader("shadow_blur_v_rt.comp.sprv");
+    }
 
   ambientLight       = ambientLightShader("ambient_light");
   ambientLightSsao   = ambientLightShader("ambient_light_ssao");
