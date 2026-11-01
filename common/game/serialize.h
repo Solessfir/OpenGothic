@@ -6,6 +6,7 @@
 
 #include <Tempest/Matrix4x4>
 
+#include <memory>
 #include <vector>
 #include <unordered_set>
 #include <cstdint>
@@ -86,6 +87,17 @@ class Serialize {
       }
 
     void readNpc(zenkit::DaedalusVm& vm, std::shared_ptr<zenkit::INpc>& npc);
+
+    // Script symbol indices. A save made with other scripts maps them to the loaded scripts
+    // through the save's symbol names (setSymbolRemap); size_t(-1) when missing.
+    void   writeSymbol(size_t id);
+    size_t readSymbol();
+    // the same for script integers where 0 means none
+    void    writeSymbolInt(int32_t id) { implWrite(id); }
+    int32_t readSymbolInt();
+
+    using SymbolRemap = std::shared_ptr<const std::vector<uint32_t>>;
+    void  setSymbolRemap(SymbolRemap r) { symRemap = std::move(r); }
 
   private:
     Serialize();
@@ -292,6 +304,7 @@ class Serialize {
     std::string              tmpStr;
     std::unordered_set<std::string> outFileList;
     World*                   ctx       = nullptr;
+    SymbolRemap              symRemap;
 
     mz_zip_archive           impl      = {};
     std::string              entryName;

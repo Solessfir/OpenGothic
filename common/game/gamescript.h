@@ -72,6 +72,9 @@ class GameScript final {
     void         loadQuests(Serialize& fin);
     void         saveVar(Serialize& fout);
     void         loadVar(Serialize& fin);
+    bool         hasSameSymbols(Serialize& fin);
+    std::vector<std::string>                      symbolNames() const;
+    std::shared_ptr<const std::vector<uint32_t>>  symbolRemap(const std::vector<std::string>& names);
     void         savePerc(Serialize& fout);
     void         loadPerc(Serialize& fin);
 

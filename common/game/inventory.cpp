@@ -139,7 +139,8 @@ void Inventory::implLoad(Npc* owner, World& world, Serialize &s) {
     active=&range;
   else if(3<=id && id<10)
     active=&numslot[id-3];
-  s.read(curItem,stateItem);
+  curItem   = s.readSymbolInt();
+  stateItem = s.readSymbolInt();
 
   if(owner!=nullptr)
     updateView(*owner);
@@ -187,7 +188,8 @@ void Inventory::save(Serialize &fout) const {
     if(active==&numslot[i])
       id = uint8_t(3+i);
   fout.write(id);
-  fout.write(curItem,stateItem);
+  fout.writeSymbolInt(curItem);
+  fout.writeSymbolInt(stateItem);
   }
 
 Inventory::Iterator Inventory::iterator(IteratorType t) const {

@@ -221,9 +221,7 @@ void Npc::save(Serialize &fout, size_t id, std::string_view directory) {
 
   // extra state
   fout.write(lastHitType,lastHitSpell);
-  if(currentSpellCast<uint32_t(-1))
-    fout.write(uint32_t(currentSpellCast)); else
-    fout.write(uint32_t(-1));
+  fout.writeSymbol(currentSpellCast);
   fout.write(uint8_t(castLevel),castNextTime,manaInvested,aiExpectedInvest);
   fout.write(spellInfo);
 
@@ -279,11 +277,7 @@ void Npc::load(Serialize &fin, size_t id, std::string_view directory) {
 
   // extra state
   fin.read(lastHitType,lastHitSpell);
-  {
-  uint32_t currentSpellCastU32 = uint32_t(-1);
-  fin.read(currentSpellCastU32);
-  currentSpellCast = (currentSpellCastU32==uint32_t(-1) ? size_t(-1) : currentSpellCastU32);
-  }
+  currentSpellCast = fin.readSymbol();
   fin.read(reinterpret_cast<uint8_t&>(castLevel),castNextTime);
   if(fin.version()>44)
     fin.read(manaInvested,aiExpectedInvest);
