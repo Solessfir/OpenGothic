@@ -65,7 +65,6 @@ class WorldView {
 
     void drawHiZ        (Tempest::Encoder<Tempest::CommandBuffer>& cmd);
     void drawShadow     (Tempest::Encoder<Tempest::CommandBuffer>& cmd, uint8_t frameId, uint8_t layer);
-    void drawShadowCharacters(Tempest::Encoder<Tempest::CommandBuffer>& cmd, uint8_t layer) { visuals.drawShadowCharacters(cmd, layer); }
     void drawVsm        (Tempest::Encoder<Tempest::CommandBuffer>& cmd);
     void drawGBuffer    (Tempest::Encoder<Tempest::CommandBuffer>& cmd, uint8_t frameId);
     void drawWater      (Tempest::Encoder<Tempest::CommandBuffer>& cmd);
