@@ -48,7 +48,9 @@ Shaders* Shaders::instance = nullptr;
 Shaders::Shaders() {
   instance = this;
 #if !defined(__ANDROID__)
-  motionVectors = CommandLine::inst().taa()>0;
+  // the material pipelines differ, so the menu choice applies after a restart
+  const int32_t taa = CommandLine::inst().taa();
+  motionVectors = taa>=0 ? taa>0 : Gothic::settingsGetI("ENGINE","temporalAA")!=0;
 #endif
   setupOptions();
   compileKeyShaders();
