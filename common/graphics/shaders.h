@@ -89,6 +89,9 @@ class Shaders {
     Tempest::RenderPipeline  smaaWeights[uint32_t(AaPreset::PRESETS_COUNT)];
     Tempest::RenderPipeline  smaaBlend;
     Tempest::ComputePipeline taa, taaSharpen;
+    struct {
+      Tempest::ComputePipeline motion, clear, clearU, luminance, prevDepth, depthClip, lock, accumulate, rcas;
+      } fsr2;
 
     // HUD
     Tempest::RenderPipeline  gizmo, lightImposter;

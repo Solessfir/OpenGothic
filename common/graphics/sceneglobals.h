@@ -31,6 +31,7 @@ class SceneGlobals final {
     static constexpr float NoWater = -1e9f;
 
     // proj is without jitter; with taaJitter set it gets this frame's sub-pixel offset
+    Tempest::Vec2 jitter() const { return uboGlobalCpu.jitter; } // in NDC
     void setViewProject(const Tempest::Matrix4x4& view, const Tempest::Matrix4x4& proj,
                         float zNear, float zFar,
                         const Tempest::Matrix4x4 *sh);
@@ -146,6 +147,7 @@ class SceneGlobals final {
 
     bool                              zWindEnabled = false;
     bool                              taaJitter    = false;
+    uint32_t                          taaPhases    = 8; // length of the jitter sequence
     uint64_t                          windPeriod = 6000;
 
     RtScene                           rtScene;
