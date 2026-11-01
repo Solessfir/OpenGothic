@@ -74,6 +74,7 @@ class Shaders {
     Tempest::ComputePipeline cloudsLut, fogOcclusion;
     Tempest::ComputePipeline fogViewLut3d, fogViewLutSep;
     Tempest::ComputePipeline skyExposure;
+    Tempest::ComputePipeline skyHoleCheck;
 
     Tempest::RenderPipeline  skyPathTrace;
 
