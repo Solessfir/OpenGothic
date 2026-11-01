@@ -364,6 +364,7 @@ class Npc final {
     auto      mapWeaponBone() const -> Tempest::Vec3;
     auto      mapHeadBone() const -> Tempest::Vec3;
     auto      mapBone(std::string_view bone) const -> Tempest::Vec3;
+    void      shadowCapsules(std::vector<Tempest::Vec4>& out) const { visual.shadowCapsules(out); }
 
     bool      turnTo  (float dx, float dz, bool noAnim, uint64_t dt);
     bool      rotateTo(float dx, float dz, float speed, AnimationSolver::TurnType anim, uint64_t dt);
