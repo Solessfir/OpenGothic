@@ -919,7 +919,12 @@ void Renderer::drawFog(Tempest::Encoder<Tempest::CommandBuffer>& cmd, const Worl
       cmd.setBinding(2, zbuffer,        Sampler::nearest());
       cmd.setBinding(3, scene.uboGlobal[SceneGlobals::V_Main]);
       cmd.setBinding(4, sky.occlusionLut);
-      cmd.setPipeline(shaders.fog3dHQ);
+      if(settings.giMethod==GiMethod::Ddgi && settings.zCloudShadowScale && !ddgi.fog.isEmpty()) {
+        cmd.setBinding(5, ddgi.fog, Sampler::bilinear(ClampMode::ClampToEdge));
+        cmd.setPipeline(shaders.fog3dHQGi);
+        } else {
+        cmd.setPipeline(shaders.fog3dHQ);
+        }
       break;
       }
     case Epipolar: {
@@ -2725,6 +2730,21 @@ void Renderer::prepareDdgi(Encoder<CommandBuffer>& cmd, WorldView& wview) {
   cmd.setPushData(ddgi.push);
   cmd.setPipeline(shaders.ddgiApply);
   cmd.dispatchThreads(half.size());
+
+  if(sky.quality==VolumetricHQ) {
+    if(ddgi.fog.isEmpty())
+      ddgi.fog = device.image3d(TextureFormat::RGBA16F, 64, 32, 32);
+    cmd.setDebugMarker("GI-Probes-Fog");
+    cmd.setBinding(0, scene.uboGlobal[SceneGlobals::V_Main]);
+    cmd.setBinding(1, ddgi.fog);
+    cmd.setBinding(2, sky.irradianceLut);
+    cmd.setBinding(3, irr,  Sampler::bilinear(ClampMode::ClampToEdge));
+    cmd.setBinding(4, dist, Sampler::bilinear(ClampMode::ClampToEdge));
+    cmd.setBinding(5, ddgi.probes);
+    cmd.setPushData(ddgi.push);
+    cmd.setPipeline(shaders.ddgiFog);
+    cmd.dispatchThreads(uint32_t(ddgi.fog.w()), uint32_t(ddgi.fog.h()), uint32_t(ddgi.fog.d()));
+    }
   }
 
 void Renderer::prepareExposure(Encoder<CommandBuffer>& cmd, WorldView& wview) {
