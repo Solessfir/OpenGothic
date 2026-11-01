@@ -1,0 +1,108 @@
+#version 450
+#extension GL_GOOGLE_include_directive : enable
+
+#define LWC 1
+
+#include "lighting/shadow_sampling.glsl"
+#include "scene.glsl"
+#include "common.glsl"
+
+// Sun shadow visibility from the cascades and the size of its penumbra on screen.
+// The penumbra grows with the distance from the blocker, so leaves high up cast soft shadows
+// and a post standing on the ground a sharp one. shadow_blur.comp then softens by that size.
+// The PENUMBRA variant does the expensive blocker search at half resolution, the size changes slowly.
+layout(local_size_x = 8, local_size_y = 8) in;
+
+layout(binding = 0, std140) uniform UboScene {
+  SceneDesc scene;
+  };
+#if defined(PENUMBRA)
+layout(binding = 1) uniform writeonly image2D result; // r: penumbra radius in pixels
+#else
+layout(binding = 1) uniform writeonly image2D result; // r: visibility, g: penumbra radius in pixels, b: linear depth in meters
+layout(binding = 6) uniform sampler2D  penumbra;
+#endif
+layout(binding = 2) uniform usampler2D gbufNormal;
+layout(binding = 3) uniform sampler2D  depth;
+layout(binding = 4) uniform sampler2D  textureSm0;
+layout(binding = 5) uniform sampler2D  textureSm1;
+
+const float SunTan      = 0.01; // tangent of the sun's half angle, about twice the real sun for a softer look
+const float MaxPenumbra = 40.0; // cm
+const float MaxRadius   = 24.0; // pixels
+
+// average depth of the blockers around shPos, in shadow clip depth; -1 without any
+float blockerDepth(in sampler2D sm, vec3 shPos, float radiusUv) {
+  float sum = 0;
+  float cnt = 0;
+  for(int y=-1; y<=1; ++y)
+    for(int x=-1; x<=1; ++x) {
+      const vec2 at = shPos.xy + vec2(x,y)*radiusUv;
+      const vec4 d  = textureGather(sm, at*0.5+0.5);
+      const vec4 b  = step(vec4(shPos.z), d); // the map stores larger depth closer to the sun
+      sum += dot(d, b);
+      cnt += b.x+b.y+b.z+b.w;
+      }
+  return cnt>0 ? sum/cnt : -1.0;
+  }
+
+vec3 row(mat4 m, int i) {
+  return vec3(m[0][i], m[1][i], m[2][i]);
+  }
+
+void main() {
+  const ivec2 at   = ivec2(gl_GlobalInvocationID.xy);
+  const ivec2 size = imageSize(result);
+  if(at.x>=size.x || at.y>=size.y)
+    return;
+
+#if defined(PENUMBRA)
+  const ivec2 pix = min(at*2, textureSize(depth,0)-1);
+#else
+  const ivec2 pix = at;
+#endif
+  const float z = texelFetch(depth, pix, 0).r;
+  if(z>=1.0) {
+    imageStore(result, at, vec4(1, 0, 1e4, 0));
+    return;
+    }
+
+  const vec3 normal = normalFetch(gbufNormal, pix);
+  const vec2 ndc    = ((vec2(pix)+0.5)*scene.screenResInv)*2.0 - vec2(1.0);
+  const vec4 wpos4  = scene.viewProjectLwcInv*vec4(ndc, z, 1) + vec4(normal*0.0015, 0);
+  const vec3 pos    = wpos4.xyz/wpos4.w;
+
+  const vec4 sp0    = scene.viewShadowLwc[0]*vec4(pos + normal*5,  1.0);
+  const vec4 sp1    = scene.viewShadowLwc[1]*vec4(pos + normal*25, 1.0);
+  const vec3 shPos0 = sp0.xyz/sp0.w;
+  const vec3 shPos1 = sp1.xyz/sp1.w;
+
+  // same cascade choice as calcShadow
+  const vec4  lay1 = shadowSample(textureSm1, shPos1.xy);
+  const bool  near = abs(shPos0.x)<0.99 && abs(shPos0.y)<0.99 && max(max(lay1.x,lay1.y), max(lay1.z,lay1.w))<scene.closeupShadowSlice[1];
+  const bool  far  = !near && abs(shPos1.x)<1.0 && abs(shPos1.y)<1.0;
+
+#if defined(PENUMBRA)
+  float radius = 0;
+  if((near || far) && scene.sunDir.y>0.01) {
+    const mat4  m       = near ? scene.viewShadowLwc[0] : scene.viewShadowLwc[1];
+    const vec3  shPos   = near ? shPos0 : shPos1;
+    const float clipCm  = max(length(row(m,0)), length(row(m,1))); // shadow clip units per cm
+    const float depthCm = length(row(m,2));
+    // the blocker search reaches as far as the widest penumbra
+    const float searchUv = MaxPenumbra*clipCm;
+    const float blocker  = near ? blockerDepth(textureSm0, shPos, searchUv) : blockerDepth(textureSm1, shPos, searchUv);
+    if(blocker>=0) {
+      const float distCm     = ((blocker - shPos.z)/depthCm)/scene.sunDir.y;
+      const float penumbraCm = min(distCm*SunTan, MaxPenumbra);
+      const float pixelCm    = linearDepth(z, scene.clipInfo)*2.0/(scene.project[1][1]*float(textureSize(depth,0).y));
+      radius = min(penumbraCm/pixelCm, MaxRadius);
+      }
+    }
+  imageStore(result, at, vec4(radius));
+#else
+  const float vis    = near ? calcShadowMs4(textureSm0, shPos0) : (far ? calcShadowMs4(textureSm1, shPos1) : 1.0);
+  const float radius = textureLod(penumbra, (vec2(at)+0.5)/vec2(size), 0).r;
+  imageStore(result, at, vec4(vis, radius, linearDepth(z, scene.clipInfo)*0.01, 0));
+#endif
+  }

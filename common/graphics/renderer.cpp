@@ -142,6 +142,7 @@ void Renderer::setupSettings() {
   settings.zFogRadial         = Gothic::settingsGetI("RENDERER_D3D","zFogRadial")!=0;
 #if !defined(__ANDROID__)
   settings.sunShafts          = settings.zFogRadial;
+  settings.softShadows        = true;
 #endif
   {
     // wind
@@ -183,9 +184,9 @@ void Renderer::setupSettings() {
   else if(settings.vsmEnabled)
     shadow.directLightPso = &shaders.vsmDirectLight; //TODO: naming
   else if(Shaders::options().doRayQuery && settings.shadowResolution>0)
-    shadow.directLightPso = &shaders.directLightRq;
+    shadow.directLightPso = settings.softShadows ? &shaders.directLightMaskRq : &shaders.directLightRq;
   else if(settings.shadowResolution>0)
-    shadow.directLightPso = &shaders.directLightSh;
+    shadow.directLightPso = settings.softShadows ? &shaders.directLightMask : &shaders.directLightSh;
   else
     shadow.directLightPso = &shaders.directLight;
 
@@ -773,6 +774,7 @@ void Renderer::draw(Tempest::Attachment& result, Encoder<CommandBuffer>& cmd, ui
   prepareIrradiance(cmd, wview);
   prepareExposure(cmd, wview);
   prepareSSAO(cmd, wview);
+  prepareShadowMask(cmd, wview);
   prepareFog (cmd, wview);
   prepareGi  (cmd, wview);
   prepareSurfels(cmd, wview);
@@ -1935,11 +1937,15 @@ void Renderer::drawShadowResolve(Encoder<CommandBuffer>& cmd, const WorldView& w
     cmd.setBinding(6, vsm.pageData);
     cmd.setBinding(8, scene.vsmDbg);
     }
-  else if(shadow.directLightPso==&shaders.directLightRq) {
-    for(size_t r=0; r<Resources::ShadowLayers; ++r) {
-      if(shadowMap[r].isEmpty())
-        continue;
-      cmd.setBinding(4+r, shadowMap[r], Resources::shadowSampler());
+  else if(shadow.directLightPso==&shaders.directLightRq || shadow.directLightPso==&shaders.directLightMaskRq) {
+    if(shadow.directLightPso==&shaders.directLightMaskRq) {
+      cmd.setBinding(4, shadow.mask, Sampler::nearest());
+      } else {
+      for(size_t r=0; r<Resources::ShadowLayers; ++r) {
+        if(shadowMap[r].isEmpty())
+          continue;
+        cmd.setBinding(4+r, shadowMap[r], Resources::shadowSampler());
+        }
       }
     cmd.setBinding(6, scene.rtScene.tlas);
     cmd.setBinding(7, Sampler::bilinear());
@@ -1951,6 +1957,9 @@ void Renderer::drawShadowResolve(Encoder<CommandBuffer>& cmd, const WorldView& w
   else if(shadow.directLightPso==&shaders.rtsmDirectLight) {
     cmd.setBinding(4, rtsm.outputImage);
     cmd.setBinding(5, rtsm.outputImageClr.isEmpty() ? Resources::fallbackBlack() : textureCast<Texture2d&>(rtsm.outputImageClr));
+    }
+  else if(shadow.directLightPso==&shaders.directLightMask) {
+    cmd.setBinding(4, shadow.mask, Sampler::nearest());
     }
   else {
     for(size_t r=0; r<Resources::ShadowLayers; ++r) {
@@ -2081,6 +2090,49 @@ void Renderer::prepareSSAO(Encoder<CommandBuffer>& cmd, WorldView& wview) {
   cmd.setBinding(3, zbuffer, Sampler::nearest(ClampMode::ClampToEdge));
   cmd.setPipeline(halfResolution ? shaders.ssaoUpsample : shaders.ssaoBlur);
   cmd.dispatchThreads(ssao.ssaoBlur.size());
+  }
+
+void Renderer::prepareShadowMask(Encoder<CommandBuffer>& cmd, WorldView& wview) {
+  if(shadow.directLightPso!=&shaders.directLightMask && shadow.directLightPso!=&shaders.directLightMaskRq)
+    return;
+  auto& scene = wview.sceneGlobals();
+  auto& mask  = usesImage2d(shadow.mask,    TextureFormat::RGBA16F, zbuffer.size());
+  auto& tmp   = usesImage2d(shadow.maskTmp, TextureFormat::RGBA16F, zbuffer.size());
+  auto& pen   = usesImage2d(shadow.penumbra, TextureFormat::RGBA16F, uint32_t(zbuffer.w()+1)/2, uint32_t(zbuffer.h()+1)/2);
+
+  cmd.setDebugMarker("Shadow-mask");
+  cmd.setFramebuffer({});
+  cmd.setBinding(0, scene.uboGlobal[SceneGlobals::V_Main]);
+  cmd.setBinding(1, pen);
+  cmd.setBinding(2, gbufNormal, Sampler::nearest());
+  cmd.setBinding(3, zbuffer,    Sampler::nearest());
+  cmd.setBinding(4, shadowMap[0], Resources::shadowSampler());
+  cmd.setBinding(5, shadowMap[1], Resources::shadowSampler());
+  cmd.setPipeline(shaders.shadowPenumbra);
+  cmd.dispatchThreads(pen.size());
+
+  cmd.setBinding(0, scene.uboGlobal[SceneGlobals::V_Main]);
+  cmd.setBinding(1, mask);
+  cmd.setBinding(2, gbufNormal, Sampler::nearest());
+  cmd.setBinding(3, zbuffer,    Sampler::nearest());
+  cmd.setBinding(4, shadowMap[0], Resources::shadowSampler());
+  cmd.setBinding(5, shadowMap[1], Resources::shadowSampler());
+  cmd.setBinding(6, pen, Sampler::bilinear(ClampMode::ClampToEdge));
+  cmd.setPipeline(shaders.shadowMask);
+  cmd.dispatchThreads(mask.size());
+
+  cmd.setDebugMarker("Shadow-blur");
+  cmd.setBinding(0, scene.uboGlobal[SceneGlobals::V_Main]);
+  cmd.setBinding(1, tmp);
+  cmd.setBinding(2, mask, Sampler::nearest());
+  cmd.setPipeline(shaders.shadowBlurH);
+  cmd.dispatchThreads(tmp.size());
+
+  cmd.setBinding(0, scene.uboGlobal[SceneGlobals::V_Main]);
+  cmd.setBinding(1, mask);
+  cmd.setBinding(2, tmp, Sampler::nearest());
+  cmd.setPipeline(shaders.shadowBlurV);
+  cmd.dispatchThreads(mask.size());
   }
 
 void Renderer::prepareFog(Encoder<Tempest::CommandBuffer>& cmd, WorldView& wview) {
