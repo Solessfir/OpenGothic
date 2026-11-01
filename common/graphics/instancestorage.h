@@ -52,11 +52,16 @@ class InstanceStorage {
     Id   alloc(const size_t size);
     bool realloc(Id& id, const size_t size);
     auto ssbo () const -> const Tempest::StorageBuffer&;
+    // last frame's data at the same offsets; regions allocated since then hold this frame's data
+    auto ssboPrev() const -> const Tempest::StorageBuffer&;
+    void setKeepPrevious(bool keep) { keepPrev = keep; }
     bool commit(Tempest::Encoder<Tempest::CommandBuffer>& cmd, uint8_t fId);
     void join();
 
   private:
     void free(const Range& r);
+    void markFresh(const Range& r);
+    void collectPatches(const std::vector<uint32_t>& mask, const std::vector<uint32_t>* skip, size_t& payloadSize);
     void uploadMain();
 
     struct Path {
@@ -67,6 +72,7 @@ class InstanceStorage {
 
     std::vector<Range>      rgn;
     std::vector<uint32_t>   durty;
+    std::vector<uint32_t>   fresh;
     size_t                  blockCnt = 0;
 
     Tempest::StorageBuffer  patchGpu[Resources::MaxFramesInFlight];
@@ -74,6 +80,8 @@ class InstanceStorage {
     std::vector<Path>       patchBlock;
 
     Tempest::StorageBuffer  dataGpu;
+    Tempest::StorageBuffer  prevGpu;
+    bool                    keepPrev = false;
     std::vector<uint8_t>    dataCpu;
 
     std::thread             uploadTh;

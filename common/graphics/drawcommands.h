@@ -93,6 +93,7 @@ class DrawCommands {
       L_GDepth     = 13,
       L_CmdOffsets = 14,
       L_SkyIrr     = 15,
+      L_InstPrev   = 16,
       L_VsmPages   = L_Shadow0,
       L_Lights     = L_Shadow1,
       };

@@ -375,6 +375,17 @@ vec3 decodeNormal(uint n) {
   return i_octahedral_32(n);
   }
 
+// Motion vectors in an RG16 unorm target: NDC motion within +-2, no motion is exactly code 32767
+// and code 0 is left for pixels without one
+vec2 encodeVelocity(vec2 v) {
+  return clamp((v*16383.75 + 32767.0)/65535.0, vec2(1.0/65535.0), vec2(1.0));
+  }
+
+bool decodeVelocity(vec2 e, out vec2 v) {
+  v = (e*65535.0 - 32767.0)/16383.75;
+  return e.x>0.0;
+  }
+
 vec3 normalFetch(in usampler2D gbufNormal, ivec2 p) {
   const uint n = texelFetch(gbufNormal, p, 0).r;
   return decodeNormal(n);
