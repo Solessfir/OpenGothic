@@ -56,15 +56,15 @@ vec4 worldPos(float depth) {
   }
 
 #if defined(SHADOW_MASK)
-float calcShadow(vec4 pos) {
+float calcShadow(vec3 pos, const vec3 normal) {
   return texelFetch(shadowMask, ivec2(gl_FragCoord.xy), 0).r;
   }
 #elif defined(SHADOW_MAP)
-float calcShadow(vec4 pos) {
-  return calcShadow(pos, scene, textureSm0, textureSm1);
+float calcShadow(vec3 pos, const vec3 normal) {
+  return calcShadow(pos, normal, scene, textureSm0, textureSm1);
   }
 #else
-float calcShadow(vec4 pos) { return 1.0; }
+float calcShadow(vec3 pos, const vec3 normal) { return 1.0; }
 #endif
 
 #if defined(RAY_QUERY)
@@ -89,12 +89,12 @@ bool rayTest(vec3 pos, float tMin, float tMax) {
   return rayTest(pos, scene.sunDir, tMin, tMax, t);
   }
 
-float calcRayShadow(vec4 pos4, vec3 pos) {
-  vec4 sp = scene.viewShadowLwc[1]*vec4(pos4);
+float calcRayShadow(vec3 pos, vec3 normal, float depth) {
+  vec4 sp = scene.viewShadowLwc[1]*vec4(pos,1);
   if(all(lessThan(abs(sp.xy/sp.w), vec2(0.999))))
     return 1.0;
 
-  const float tMin = 0;
+  const float tMin = 5;
   if(!rayTest(pos + push.originLwc, tMin, 5000*100))
     return 1.0;
   return 0.0;
@@ -106,18 +106,18 @@ float shadowFactor(const float depth, const vec3 normal, bool isFlat) {
   if(light<=0)
     return 0;
 
-  const vec4  pos4  = worldPosLwc(gl_FragCoord.xy, depth);
-  const vec4  wpos4 = pos4 + vec4(normal * (0.0015 + 5.0*pos4.w), 0);
+  const float NormalBias = 0.0015;
+  const vec4  wpos4 = worldPosLwc(gl_FragCoord.xy, depth) + vec4(normal*NormalBias, 0);
   const vec3  wpos  = wpos4.xyz/wpos4.w;
 
   if(planetOcclusion(wpos.y, scene.sunDir))
     return 0;
 
-  light *= calcShadow(wpos4);
+  light *= calcShadow(wpos, normal);
 
 #if defined(RAY_QUERY)
     if(light>0.001) {
-      light *= calcRayShadow(wpos4, wpos);
+      light *= calcRayShadow(wpos, normal, depth);
       }
 #endif
 
