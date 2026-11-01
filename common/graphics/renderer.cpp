@@ -140,6 +140,9 @@ void Renderer::setupSettings() {
   settings.cameraObstructionDistance = Gothic::settingsGetI("ENGINE","cameraObstructionFade")!=0 && std::isfinite(fadeDistance)
                                       ? std::clamp(fadeDistance,50.f,500.f) : 0.f;
   settings.zFogRadial         = Gothic::settingsGetI("RENDERER_D3D","zFogRadial")!=0;
+#if !defined(__ANDROID__)
+  settings.sunShafts          = settings.zFogRadial;
+#endif
   {
     // wind
     settings.zWindEnabled = Gothic::settingsGetI("ENGINE","zWindEnabled")!=0;
@@ -941,6 +944,13 @@ void Renderer::drawFog(Tempest::Encoder<Tempest::CommandBuffer>& cmd, const Worl
       return;
     }
   cmd.draw(nullptr, 0, 3);
+
+  if(sky.quality==VolumetricHQ && settings.sunShafts && !sky.sunShafts.isEmpty()) {
+    cmd.setBinding(0, scene.uboGlobal[SceneGlobals::V_Main]);
+    cmd.setBinding(1, sky.sunShafts, Sampler::bilinear(ClampMode::ClampToEdge));
+    cmd.setPipeline(shaders.sunShafts);
+    cmd.draw(nullptr, 0, 3);
+    }
   }
 
 void Renderer::drawSunMoon(Tempest::Encoder<Tempest::CommandBuffer>& cmd, const WorldView& wview) {
@@ -2157,6 +2167,17 @@ void Renderer::prepareFog(Encoder<Tempest::CommandBuffer>& cmd, WorldView& wview
     case PathTrace: {
       break;
       }
+    }
+
+  if(sky.quality==VolumetricHQ && settings.sunShafts) {
+    auto& shafts = usesImage2d(sky.sunShafts, TextureFormat::R16, uint32_t(zbuffer.w()+3)/4, uint32_t(zbuffer.h()+3)/4);
+    cmd.setDebugMarker("Sun-shafts");
+    cmd.setFramebuffer({});
+    cmd.setBinding(0, scene.uboGlobal[SceneGlobals::V_Main]);
+    cmd.setBinding(1, shafts);
+    cmd.setBinding(2, zbuffer, Sampler::nearest(ClampMode::ClampToEdge));
+    cmd.setPipeline(shaders.sunShaftsTrace);
+    cmd.dispatchThreads(shafts.size());
     }
   }
 
