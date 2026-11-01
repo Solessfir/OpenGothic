@@ -67,6 +67,7 @@ class Renderer final {
     void prepareSky       (Tempest::Encoder<Tempest::CommandBuffer>& cmd, WorldView& wview);
     void prepareSSAO      (Tempest::Encoder<Tempest::CommandBuffer>& cmd, WorldView& wview);
     void prepareFog       (Tempest::Encoder<Tempest::CommandBuffer>& cmd, WorldView& wview);
+    void prepareShadowMask(Tempest::Encoder<Tempest::CommandBuffer>& cmd, WorldView& wview);
     void prepareIrradiance(Tempest::Encoder<Tempest::CommandBuffer>& cmd, WorldView& wview);
     void prepareGi        (Tempest::Encoder<Tempest::CommandBuffer>& cmd, WorldView& wview);
     void prepareDdgi      (Tempest::Encoder<Tempest::CommandBuffer>& cmd, WorldView& wview);
@@ -139,6 +140,7 @@ class Renderer final {
       float          cameraObstructionDistance = 0;
       bool           zFogRadial         = false;
       bool           sunShafts          = false; // screen-space sun rays, untested on mobile GPUs
+      bool           softShadows        = false; // penumbra blur of the sun shadow maps, PC only
 
       bool           zWindEnabled       = false;
       uint64_t       windPeriod         = 6000;
@@ -181,6 +183,7 @@ class Renderer final {
 
     struct Shadow {
       Tempest::RenderPipeline* directLightPso = nullptr;
+      Tempest::StorageImage    mask, maskTmp, penumbra;
       } shadow;
 
     struct Lights {
