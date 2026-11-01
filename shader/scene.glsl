@@ -45,6 +45,9 @@ struct SceneDesc {
   vec4  wind; // direction, phase
   float waterWaves; // wave_max_amplitude of the water at waterLevel
   float padding0, padding1, padding2;
+  mat4  viewProjectPrev; // previous frame, without jitter
+  vec2  jitter;          // sub-pixel offset of this frame, in NDC
+  vec2  padding3;
   };
 
 struct LightSource {
