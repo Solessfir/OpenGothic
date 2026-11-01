@@ -208,6 +208,7 @@ class Renderer final {
       Tempest::Attachment    transLut, multiScatLut, viewLut, viewCldLut;
       Tempest::StorageImage  cloudsLut, fogLut3D, fogLut3DMs;
       Tempest::StorageImage  occlusionLut, irradianceLut, sunShafts;
+      bool                   sunShaftsActive = false;
       } sky;
 
     struct SSAO {
