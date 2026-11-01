@@ -106,8 +106,8 @@ class Shaders {
     Tempest::ComputePipeline probeInit, probeClear, probeClearHash, probeMakeHash;
     Tempest::ComputePipeline probeVote, probePrune, probeAlocation;
     Tempest::ComputePipeline probeTrace, probeLighting;
-    Tempest::ComputePipeline ddgiTrace, ddgiBlendIrr, ddgiBlendDist, ddgiApply, ddgiLights, ddgiLightsClear, ddgiSchedule, ddgiScheduleClear;
-    Tempest::RenderPipeline  ddgiAmbient;
+    Tempest::ComputePipeline ddgiTrace, ddgiBlendIrr, ddgiBlendDist, ddgiApply, ddgiFog, ddgiLights, ddgiLightsClear, ddgiSchedule, ddgiScheduleClear;
+    Tempest::RenderPipeline  ddgiAmbient, fog3dHQGi;
     Tempest::RenderPipeline  probeAmbient;
 
     // GI-Surf

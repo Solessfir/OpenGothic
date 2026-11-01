@@ -308,6 +308,8 @@ void Shaders::compileShaders() noexcept {
     ddgiBlendIrr  = computeShader("ddgi_blend_irr.comp.sprv");
     ddgiBlendDist = computeShader("ddgi_blend_dist.comp.sprv");
     ddgiApply     = computeShader("ddgi_apply.comp.sprv");
+    ddgiFog       = computeShader("ddgi_fog.comp.sprv");
+    fog3dHQGi     = fogShader("fog3d_hq_gi");
     ddgiLights    = computeShader("ddgi_lights.comp.sprv");
     ddgiLightsClear = computeShader("ddgi_lights_clear.comp.sprv");
     ddgiSchedule  = computeShader("ddgi_schedule.comp.sprv");
