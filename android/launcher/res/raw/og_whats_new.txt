@@ -1,3 +1,8 @@
+0.6.15
+- Sun shadows stay put when you turn the camera, their edges no longer crawl
+- Phones with a Mali GPU use a simpler texture path, against crashes and black blocks on plants
+- Crash reports now say where the game failed, so crashes can be fixed faster
+
 0.6.14
 - Sitting on a chair, bench or at a campfire: push the stick to stand up again (touch and controller)
 - Gothic 1: a running jump no longer launches you forward and floats
