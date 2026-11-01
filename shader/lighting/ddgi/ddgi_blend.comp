@@ -69,9 +69,9 @@ void main() {
   const vec4  old = imageLoad(atlas, at);
   vec4 val = sum.w>0 ? vec4(sum.rgb/sum.w, 1) : old;
 #if defined(IRRADIANCE)
-  const float hysteresis = isNew ? 0.0 : 0.97;
+  const float hysteresis = (isNew || push.reset!=0) ? 0.0 : 0.97;
 #else
-  const float hysteresis = isNew ? 0.0 : 0.95;
+  const float hysteresis = (isNew || push.reset!=0) ? 0.0 : 0.95;
 #endif
   imageStore(atlas, at, mix(val, old, hysteresis));
 
