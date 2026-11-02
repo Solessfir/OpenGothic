@@ -76,7 +76,7 @@ Supported systems are:
 
 Install `GothicLauncher-arm64.apk` from the [latest release](https://github.com/Solessfir/OpenGothic/releases/latest).
 Gothic Launcher runs Gothic, Gothic II: Gold Edition and Archolos side by side, downloads the games you own on Steam and updates itself.
-Without Steam, import a `game-data.zip` of your own installation; see [Import game files](android/README.md#import-game-files).
+Without Steam, import a ZIP of your own installation; see [Import game files](android/README.md#import-game-files).
 You need legally owned game files and an ARM64 phone with Vulkan 1.1.
 Use clean game files without Union or Windows DLL plugins, which are unsupported and can break the game.
 See [the Android guide](android/README.md) for building, touch and gamepad controls, settings and save transfer.
