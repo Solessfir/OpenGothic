@@ -136,7 +136,12 @@ void Renderer::setupSettings() {
   settings.zEnvMappingEnabled = Gothic::settingsGetI("ENGINE","zEnvMappingEnabled")!=0;
   settings.zCloudShadowScale  = Gothic::settingsGetI("ENGINE","zCloudShadowScale") !=0;
   settings.ssaoHalfResolution = Gothic::settingsGetI("ENGINE","ssaoHalfResolution")!=0;
+#if defined(__ANDROID__)
+  // full-resolution fog costs a lot on phones and looks the same
+  settings.fogHalfResolution  = true;
+#else
   settings.fogHalfResolution  = Gothic::settingsGetI("ENGINE","fogHalfResolution")==1;
+#endif
   const float fadeDistance = Gothic::settingsGetF("ENGINE","cameraObstructionFadeDistance");
   settings.cameraObstructionDistance = Gothic::settingsGetI("ENGINE","cameraObstructionFade")!=0 && std::isfinite(fadeDistance)
                                       ? std::clamp(fadeDistance,50.f,500.f) : 0.f;
@@ -2439,7 +2444,7 @@ void Renderer::prepareFog(Encoder<Tempest::CommandBuffer>& cmd, WorldView& wview
 
   // the rays fade within a third of the screen from the sun, so a sun far off screen adds nothing
   sky.sunShaftsActive = false;
-  if(sky.quality==VolumetricHQ && settings.sunShafts) {
+  if(sky.quality==VolumetricHQ && settings.sunShafts && !shaders.sunShafts.isEmpty()) {
     const Vec3 sun = wview.mainLight().dir();
     Vec4 clip = Vec4(sun.x, sun.y, sun.z, 0);
     viewProj.project(clip);
@@ -3086,6 +3091,10 @@ void Renderer::prepareExposure(Encoder<CommandBuffer>& cmd, WorldView& wview) {
 
 void Renderer::checkHoles(Encoder<CommandBuffer>& cmd, WorldView& wview, uint8_t fId) {
   // Missing world geometry shows the sky below the horizon (seen on Adreno 829). Logged so reports show where.
+  // Only on Adreno: reading the counts back crashed Mali-G78 (Pixel 6a) as soon as a game started.
+  static const bool adreno = std::string_view(Resources::device().properties().name).find("Adreno")!=std::string_view::npos;
+  if(!adreno)
+    return;
   auto& b = holes.buf[fId];
   if(holes.pending[fId]) {
     // this frame slot's fence has passed, the counts are ready
