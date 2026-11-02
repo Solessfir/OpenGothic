@@ -675,8 +675,7 @@ void GameMenu::initAndroidVideo() {
   const Row rows[]={
     {"ANDROID_SCALE","Resolution","","ENGINE","renderScale"},
     {"ANDROID_FPS","Frame rate","30 FPS|60 FPS|Unlocked","ENGINE","frameRateLimit"},
-    {"ANDROID_FOG","Half-res fog","Off|On","ENGINE","fogHalfResolution"},
-    {"ANDROID_SSAO","Half-res SSAO","Off|On","ENGINE","ssaoHalfResolution"},
+    {"ANDROID_SSAO","SSAO","Off|On","ENGINE","zCloudShadowScale"},
     {"ANDROID_SHADOWS","Shadows","512|1024|1536|2048","ENGINE","shadowMapResolution"},
     {"ANDROID_BRIGHTNESS","Brightness","","VIDEO","zVidBrightness"},
     {"ANDROID_CONTRAST","Contrast","","VIDEO","zVidContrast"},
@@ -1740,7 +1739,7 @@ void GameMenu::execChgOption(Item &item, int slideDx) {
     Gothic::settingsSetI(sec,opt,values[item.value]);
     return;
     }
-  if((item.name=="ANDROID_FOG" || item.name=="ANDROID_SSAO") && slideDx==0) {
+  if(item.name=="ANDROID_SSAO" && slideDx==0) {
     Gothic::settingsSetI(sec,opt,!Gothic::settingsGetI(sec,opt));
     return;
     }
