@@ -9,6 +9,7 @@ import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
+import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.Typeface;
 import android.graphics.Matrix;
@@ -19,10 +20,12 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
 import android.provider.DocumentsContract;
+import android.provider.OpenableColumns;
 import android.provider.Settings;
 import android.text.Editable;
 import android.text.InputFilter;
 import android.text.TextWatcher;
+import android.text.format.Formatter;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -276,7 +279,10 @@ public final class LauncherActivity extends AppCompatActivity {
             if (importing && !Importer.running) {
                 importing = false;
                 if (Importer.error != null) message(Importer.error);
-                else if (Importer.imported != null) select(indexOf(Importer.imported));
+                else if (Importer.imported != null) {
+                    select(indexOf(Importer.imported));
+                    offerDeleteArchive(Library.byFolder(Importer.imported), Importer.source);
+                }
             }
             File apk = Updates.ready;
             if (apk != null) {
@@ -606,6 +612,33 @@ public final class LauncherActivity extends AppCompatActivity {
                 handler.post(() -> message(e.getMessage()));
             }
         }, "save-backup").start();
+    }
+
+    /** The imported ZIP is no longer needed, but it is the player's file, so they decide. */
+    private void offerDeleteArchive(Library.Game game, Uri uri) {
+        if (game == null || uri == null) return;
+        String name;
+        long size;
+        try (Cursor c = getContentResolver().query(uri, new String[] {OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE, DocumentsContract.Document.COLUMN_FLAGS}, null, null, null)) {
+            if (c == null || !c.moveToFirst() || (c.getInt(2) & DocumentsContract.Document.FLAG_SUPPORTS_DELETE) == 0) return;
+            name = c.getString(0);
+            size = c.getLong(1);
+        } catch (RuntimeException e) {
+            return;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.og_import_delete_title)
+                .setMessage(getString(R.string.og_import_delete_body, game.title, name, Formatter.formatShortFileSize(this, size)))
+                .setPositiveButton(R.string.og_delete, (dialog, which) -> {
+                    try {
+                        if (DocumentsContract.deleteDocument(getContentResolver(), uri)) return;
+                    } catch (Exception ignored) {
+                        // Shown below like a refusal
+                    }
+                    Toast.makeText(this, R.string.og_err_delete_zip, Toast.LENGTH_LONG).show();
+                })
+                .setNegativeButton(R.string.og_keep, null)
+                .show();
     }
 
     private void confirmRestore(final Library.Game game, final Uri uri) {
@@ -1168,10 +1201,15 @@ public final class LauncherActivity extends AppCompatActivity {
 
     private void sendReport(final Library.Game game, final String problem, final String note, final boolean suggestion, final File save,
                             final List<Uri> shots) {
+        // Uploads can take a while; without a sign that it went out, players send the same report again
+        Toast.makeText(this, R.string.og_report_sending, Toast.LENGTH_SHORT).show();
         new Thread(() -> {
             try {
                 Reports.send(this, game, problem, note, suggestion, save, shots);
-                handler.post(() -> Toast.makeText(this, R.string.og_report_sent, Toast.LENGTH_LONG).show());
+                handler.post(() -> {
+                    if (isFinishing() || isDestroyed()) Toast.makeText(getApplicationContext(), R.string.og_report_sent, Toast.LENGTH_LONG).show();
+                    else message(getString(R.string.og_report_sent));
+                });
             } catch (Reports.SaveNotSent e) {
                 handler.post(() -> message(getString(R.string.og_report_save_failed, e.getMessage())));
             } catch (Reports.ShotsNotSent e) {

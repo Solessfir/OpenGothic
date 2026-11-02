@@ -14,7 +14,7 @@ public final class PrivateAssets {
         void update(long completed, long total, String path);
     }
 
-    private static final String INDEX = "opengothic-private-v1.tsv";
+    static final String INDEX ="opengothic-private-v1.tsv";
     private static final int BUFFER = 1024 * 1024;
 
     private static final class Item {

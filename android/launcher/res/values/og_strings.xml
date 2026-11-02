@@ -43,6 +43,7 @@
     <string name="og_report_body">Send a report to the developer? It holds the game\'s log and details about this phone, but no account data. A save, screenshots or videos are sent only if you pick them.</string>
     <string name="og_report_hint">What happened? (optional)</string>
     <string name="og_report_send">Send report</string>
+    <string name="og_report_sending">Sending the report…</string>
     <string name="og_report_sent">Report sent. Thank you!</string>
     <string name="og_report_failed">The report could not be sent. %1$s</string>
     <string name="og_report_save_none">Attach a save? (optional)</string>
@@ -87,6 +88,11 @@
     <string name="og_importing_other">Importing game files. The game will appear when the import finishes.</string>
     <string name="og_uninstall_title">Uninstall %1$s?</string>
     <string name="og_uninstall_body">The game files are deleted. Saves and settings stay on this phone.</string>
+    <string name="og_import_delete_title">Delete the ZIP?</string>
+    <string name="og_import_delete_body">%1$s is installed. Delete %2$s to free %3$s?</string>
+    <string name="og_delete">Delete</string>
+    <string name="og_keep">Keep</string>
+    <string name="og_err_delete_zip">Could not delete the ZIP.</string>
     <string name="og_storage_unavailable">App storage is unavailable. Unlock the phone and try again.</string>
     <string name="og_session_ended">Your Steam session has ended. Sign in again to download.</string>
 

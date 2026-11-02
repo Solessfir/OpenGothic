@@ -13,7 +13,7 @@ The default build is **Gothic Launcher** (`org.opengothic.launcher`): one app fo
 3. Pick a game on the left and tap **Download**. Gothic and Gothic II need to be in your Steam library; Archolos is free and is added to it when you download.
 
 Downloads continue in the background with a notification and can be paused. Only the files the engine reads are kept: `Data`, `_work` and the game's own ini files, never executables or Windows plugins.
-Without a Steam account, **Import a ZIP** takes a `game-data.zip` from the setup scripts (see below); the launcher detects which game it holds.
+Without a Steam account, **Import a ZIP** takes a ZIP of the game folder as it is on Windows, or a `game-data.zip` from the setup scripts (see below); the launcher keeps only what the engine reads and detects which game it holds.
 The library art comes from Steam's image servers and is kept for offline use. Steam needs Android 8; ZIP import works on Android 7.
 
 The launcher updates itself: when it starts, and every six hours while it stays open, it checks the fork's GitHub releases, shows **Update to x.y** in its header when a newer one exists, and opens Android's installer for it. Android asks once to allow installing apps from the launcher.
@@ -55,7 +55,7 @@ Archolos is also available as a separate build. Select **The Chronicles of Myrta
 - [Gamepad controls and remapping](CONTROLLER.md)
 - [Graphics, camera, UI size and other settings](CONFIGURATION.md)
 
-Android defaults include landscape gameplay, full render resolution, half-resolution SSAO/fog, automatic HDR where supported, and a 60 FPS cap. Video settings include a 50-100% resolution slider and fog, SSAO and shadow quality controls; ray tracing and mesh shaders are off.
+Android defaults include landscape gameplay, full render resolution, half-resolution fog, SSAO off, SDR output, and a 60 FPS cap. Video settings include a 50-100% resolution slider and SSAO and shadow quality controls; ray tracing and mesh shaders are off.
 Audio pauses in the background, gameplay keeps the screen awake, and volume buttons control media volume.
 
 **Update rather than uninstall:** uninstalling also removes game files, settings and saves.
