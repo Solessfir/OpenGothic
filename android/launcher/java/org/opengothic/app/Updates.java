@@ -21,7 +21,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.UUID;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -107,6 +109,26 @@ final class Updates {
         checked = now;
         new Thread(() -> {
             try {
+                String config = fetch(CONFIG);
+                new JSONObject(config);
+                p.edit().putString("config", config).apply();
+            } catch (IOException | JSONException ignored) {
+                // The config fetched before stays in use
+            }
+            // Notices and whether this install is blocked come from the relay, which keeps its lists private;
+            // asked before the slower release list, so a verdict is in place soon after the launcher opens
+            String relay = reportRelay(app);
+            if (relay != null) {
+                try {
+                    String query = "?install=" + URLEncoder.encode(installId(app), "UTF-8") + "&device=" + URLEncoder.encode(device(), "UTF-8");
+                    String remote = fetch(relay.replaceAll("/+$", "") + "/config" + query);
+                    new JSONObject(remote);
+                    p.edit().putString("remote", remote).apply();
+                } catch (IOException | JSONException ignored) {
+                    // The answer fetched before stays in use
+                }
+            }
+            try {
                 Release newest = newest(new JSONArray(fetch(RELEASES)));
                 SharedPreferences.Editor e = p.edit().remove("version");
                 if (newest != null) {
@@ -117,14 +139,43 @@ final class Updates {
             } catch (IOException | JSONException ignored) {
                 // Offline or rate limited: the release found before stays shown
             }
-            try {
-                String config = fetch(CONFIG);
-                new JSONObject(config);
-                p.edit().putString("config", config).apply();
-            } catch (IOException | JSONException ignored) {
-                // The config fetched before stays in use
-            }
         }, "update-check").start();
+    }
+
+    /** A random name for this installation, so a report can be told apart from others; it says nothing about the player. */
+    static String installId(Context c) {
+        SharedPreferences p = prefs(c);
+        String id = p.getString("install", null);
+        if (id == null) {
+            id = UUID.randomUUID().toString();
+            p.edit().putString("install", id).apply();
+        }
+        return id;
+    }
+
+    /** Manufacturer, model, hardware and chip, matched by the unsupported and blocked lists. */
+    static String device() {
+        return Build.MANUFACTURER + " " + Build.MODEL + " " + Build.HARDWARE + (Build.VERSION.SDK_INT >= 31 ? " " + Build.SOC_MODEL : "");
+    }
+
+    private static JSONObject remote(Context c) {
+        try {
+            return new JSONObject(prefs(c).getString("remote", "{}"));
+        } catch (JSONException e) {
+            return new JSONObject();
+        }
+    }
+
+    /** Messages from the developer that need no new launcher version, each with an id and its text by language. */
+    static JSONArray notices(Context c) {
+        JSONArray list = remote(c).optJSONArray("notices");
+        return list != null ? list : new JSONArray();
+    }
+
+    /** Why this install may not play, or null. */
+    static String blocked(Context c) {
+        JSONObject r = remote(c);
+        return r.isNull("blocked") ? null : r.optString("blocked");
     }
 
     private static JSONObject config(Context c) {
@@ -149,7 +200,7 @@ final class Updates {
         if (!c.getPackageManager().hasSystemFeature(PackageManager.FEATURE_VULKAN_HARDWARE_VERSION, 0x00401000)) {
             return c.getString(R.string.og_no_vulkan);
         }
-        String device = Build.MANUFACTURER + " " + Build.MODEL + " " + Build.HARDWARE + (Build.VERSION.SDK_INT >= 31 ? " " + Build.SOC_MODEL : "");
+        String device = device();
         JSONArray list = config(c).optJSONArray("unsupported");
         for (int i = 0; list != null && i < list.length(); ++i) {
             JSONObject entry = list.optJSONObject(i);

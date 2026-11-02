@@ -72,6 +72,7 @@ public final class LauncherActivity extends AppCompatActivity {
     private static final int SIGN_IN = 2;
     private static final int BACKUP = 5;
     private static final int RESTORE = 6;
+    private static final int PICK_SHOTS = 7;
     private static final long REFRESH_INTERVAL = 10 * 60 * 1000;
 
     private static volatile boolean refreshing;
@@ -88,6 +89,8 @@ public final class LauncherActivity extends AppCompatActivity {
     /** Command-line options for the next start, see launchFromIntent. */
     private String launchArgs = "";
     private Library.Game pending;
+    /** The open report dialog's answer to the screenshot picker. */
+    private java.util.function.Consumer<List<Uri>> shotsPicked;
 
     private final View[] covers = new View[Library.GAMES.length];
     private ImageView hero;
@@ -290,6 +293,7 @@ public final class LauncherActivity extends AppCompatActivity {
                 Toast.makeText(LauncherActivity.this, error, Toast.LENGTH_LONG).show();
             }
             render();
+            showNotice();
             handler.postDelayed(this, 500);
         }
     };
@@ -550,6 +554,19 @@ public final class LauncherActivity extends AppCompatActivity {
             writeBackup(pending, data.getData());
         } else if (request == RESTORE && result == RESULT_OK && data != null && data.getData() != null && pending != null) {
             confirmRestore(pending, data.getData());
+        } else if (request == PICK_SHOTS && result == RESULT_OK && data != null && shotsPicked != null) {
+            List<Uri> picked = new java.util.ArrayList<>();
+            if (data.getClipData() != null) {
+                for (int i = 0; i < data.getClipData().getItemCount() && picked.size() < Reports.MAX_SHOTS; ++i)
+                    picked.add(data.getClipData().getItemAt(i).getUri());
+            } else if (data.getData() != null) {
+                picked.add(data.getData());
+            }
+            // Too long a video would only fail after the report is sent, so it is turned away right here
+            if (picked.removeIf(u -> Reports.isVideo(this, u) && Reports.size(this, u) > Reports.MAX_VIDEO)) {
+                message(getString(R.string.og_report_video_too_large));
+            }
+            if (!picked.isEmpty()) shotsPicked.accept(picked);
         }
         render();
     }
@@ -945,12 +962,35 @@ public final class LauncherActivity extends AppCompatActivity {
         };
         showSave.run();
         if (!saves.isEmpty()) page.addView(save);
+        // Screenshots show what the text cannot, like how it looks next to how it should look
+        final List<Uri> shots = new java.util.ArrayList<>();
+        final LinearLayout shotsBox = new LinearLayout(this);
+        final Runnable showShots = new Runnable() {
+            @Override public void run() {
+                shotsBox.removeAllViews();
+                LinearLayout row = shotsRow(shots);
+                row.setPaddingRelative(Math.round(4 * getResources().getDisplayMetrics().density), row.getPaddingTop(), 0, row.getPaddingBottom());
+                row.setOnClickListener(v -> pickShots(picked -> { shots.clear(); shots.addAll(picked); run(); }));
+                if (!shots.isEmpty()) {
+                    ImageView clear = new ImageView(LauncherActivity.this);
+                    clear.setImageResource(R.drawable.og_ic_close);
+                    clear.setColorFilter(ContextCompat.getColor(LauncherActivity.this, R.color.og_muted));
+                    int box = Math.round(36 * getResources().getDisplayMetrics().density);
+                    clear.setPadding(box / 4, box / 4, box / 4, box / 4);
+                    clear.setOnClickListener(v -> { shots.clear(); run(); });
+                    row.addView(clear, new LinearLayout.LayoutParams(box, box));
+                }
+                shotsBox.addView(row, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+            }
+        };
+        showShots.run();
+        page.addView(shotsBox);
         final AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle(problem != null ? problem : getString(R.string.og_feedback))
                 .setMessage(R.string.og_report_body)
                 .setPositiveButton(R.string.og_report_send, (d, which) -> {
                     boolean suggestion = kind.getCheckedRadioButtonId() == idea.getId();
-                    sendReport(game, problem, note.getText().toString().trim(), suggestion, attached[0]);
+                    sendReport(game, problem, note.getText().toString().trim(), suggestion, attached[0], new java.util.ArrayList<>(shots));
                 })
                 .setNegativeButton(problem != null ? R.string.og_not_now : R.string.og_cancel, null)
                 .create();
@@ -958,7 +998,10 @@ public final class LauncherActivity extends AppCompatActivity {
         dialog.setView(page, pad, 0, pad, 0);
         // Typing is easier in portrait, so the screen follows the phone until the dialog closes
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_FULL_USER);
-        dialog.setOnDismissListener(d -> setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE));
+        dialog.setOnDismissListener(d -> {
+            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+            shotsPicked = null;
+        });
         dialog.show();
         // A suggestion needs its text; a problem report is useful from the logs alone.
         final Runnable update = () -> {
@@ -977,6 +1020,75 @@ public final class LauncherActivity extends AppCompatActivity {
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
             @Override public void afterTextChanged(Editable s) { update.run(); }
         });
+    }
+
+    /** The system's photo picker, for up to Reports.MAX_SHOTS screenshots or videos. */
+    private void pickShots(java.util.function.Consumer<List<Uri>> picked) {
+        shotsPicked = picked;
+        Intent intent;
+        if (Build.VERSION.SDK_INT >= 33) {
+            intent = new Intent(android.provider.MediaStore.ACTION_PICK_IMAGES)
+                    .putExtra(android.provider.MediaStore.EXTRA_PICK_IMAGES_MAX, Reports.MAX_SHOTS);
+        } else {
+            intent = new Intent(Intent.ACTION_GET_CONTENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*")
+                    .putExtra(Intent.EXTRA_MIME_TYPES, new String[] {"image/*", "video/*"})
+                    .putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+        }
+        startActivityForResult(intent, PICK_SHOTS);
+    }
+
+    /** Thumbnails of the picked screenshots; without any, the prompt to attach some. */
+    private LinearLayout shotsRow(List<Uri> shots) {
+        final float dp = getResources().getDisplayMetrics().density;
+        LinearLayout row = new LinearLayout(this);
+        row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        row.setMinimumHeight(Math.round(56 * dp));
+        row.setPadding(Math.round(20 * dp), Math.round(6 * dp), Math.round(12 * dp), Math.round(6 * dp));
+        android.util.TypedValue ripple = new android.util.TypedValue();
+        getTheme().resolveAttribute(android.R.attr.selectableItemBackground, ripple, true);
+        row.setBackgroundResource(ripple.resourceId);
+
+        if (shots.isEmpty()) {
+            ImageView icon = new ImageView(this);
+            icon.setImageResource(R.drawable.og_ic_image);
+            icon.setColorFilter(ContextCompat.getColor(this, R.color.og_muted));
+            LinearLayout.LayoutParams size = new LinearLayout.LayoutParams(Math.round(20 * dp), Math.round(20 * dp));
+            size.setMarginEnd(Math.round(14 * dp));
+            row.addView(icon, size);
+        } else {
+            for (final Uri shot : shots) {
+                final ImageView image = new ImageView(this);
+                image.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                image.setBackgroundColor(ContextCompat.getColor(this, R.color.og_surface));
+                LinearLayout.LayoutParams size = new LinearLayout.LayoutParams(Math.round(48 * dp), Math.round(36 * dp));
+                size.setMarginEnd(Math.round(6 * dp));
+                row.addView(image, size);
+                final int width = size.width;
+                new Thread(() -> {
+                    Bitmap preview = Reports.imagePreview(this, shot, width);
+                    if (preview != null) handler.post(() -> image.setImageBitmap(preview));
+                }, "shot-preview").start();
+            }
+        }
+
+        LinearLayout text = new LinearLayout(this);
+        text.setOrientation(LinearLayout.VERTICAL);
+        TextView name = new TextView(this);
+        name.setText(shots.isEmpty() ? getString(R.string.og_report_shots_none) : getString(R.string.og_report_shots, shots.size()));
+        name.setTextSize(15);
+        name.setTextColor(ContextCompat.getColor(this, shots.isEmpty() ? R.color.og_muted : R.color.og_text));
+        name.setTypeface(ResourcesCompat.getFont(this, R.font.og_plex_regular));
+        text.addView(name);
+        if (shots.isEmpty()) {
+            TextView details = new TextView(this);
+            details.setText(R.string.og_report_shots_why);
+            details.setTextSize(13);
+            details.setTextColor(ContextCompat.getColor(this, R.color.og_muted));
+            details.setTypeface(ResourcesCompat.getFont(this, R.font.og_plex_regular));
+            text.addView(details);
+        }
+        row.addView(text, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+        return row;
     }
 
     /** The game's saves, newest first, to pick one for a report. */
@@ -1054,13 +1166,16 @@ public final class LauncherActivity extends AppCompatActivity {
         return row;
     }
 
-    private void sendReport(final Library.Game game, final String problem, final String note, final boolean suggestion, final File save) {
+    private void sendReport(final Library.Game game, final String problem, final String note, final boolean suggestion, final File save,
+                            final List<Uri> shots) {
         new Thread(() -> {
             try {
-                Reports.send(this, game, problem, note, suggestion, save);
+                Reports.send(this, game, problem, note, suggestion, save, shots);
                 handler.post(() -> Toast.makeText(this, R.string.og_report_sent, Toast.LENGTH_LONG).show());
             } catch (Reports.SaveNotSent e) {
                 handler.post(() -> message(getString(R.string.og_report_save_failed, e.getMessage())));
+            } catch (Reports.ShotsNotSent e) {
+                handler.post(() -> message(getString(R.string.og_report_shots_failed, e.getMessage())));
             } catch (IOException | RuntimeException e) {
                 handler.post(() -> message(getString(R.string.og_report_failed, e.getMessage())));
             }
@@ -1069,6 +1184,15 @@ public final class LauncherActivity extends AppCompatActivity {
 
     /** On a phone known not to run the games, warns once per reason; true while the warning shows. */
     private boolean warnUnsupported(final Runnable then) {
+        final String blocked = Updates.blocked(this);
+        if (blocked != null) {
+            new AlertDialog.Builder(this)
+                    .setTitle(R.string.og_blocked_title)
+                    .setMessage(blocked.isEmpty() ? getString(R.string.og_blocked_body) : blocked)
+                    .setPositiveButton(android.R.string.ok, null)
+                    .show();
+            return true;
+        }
         final String reason = Updates.unsupported(this);
         if (reason == null || reason.equals(prefs.getString("unsupported_ok", null))) return false;
         new AlertDialog.Builder(this)
@@ -1081,6 +1205,46 @@ public final class LauncherActivity extends AppCompatActivity {
                 .setNegativeButton(R.string.og_cancel, null)
                 .show();
         return true;
+    }
+
+    private boolean noticeShowing;
+
+    /** The first notice from the developer this player has not seen yet, once. */
+    private void showNotice() {
+        if (noticeShowing || isFinishing()) return;
+        org.json.JSONArray list = Updates.notices(this);
+        Set<String> seen = prefs.getStringSet("notices_seen", java.util.Collections.emptySet());
+        for (int i = 0; i < list.length(); ++i) {
+            org.json.JSONObject notice = list.optJSONObject(i);
+            final String id = notice == null ? "" : notice.optString("id");
+            if (id.isEmpty() || seen.contains(id)) continue;
+            String text = localized(notice.opt("text"));
+            if (text.isEmpty()) continue;
+            noticeShowing = true;
+            new AlertDialog.Builder(this)
+                    .setTitle(R.string.og_notice_title)
+                    .setMessage(text)
+                    .setPositiveButton(android.R.string.ok, null)
+                    .setOnDismissListener(d -> {
+                        Set<String> now = new java.util.HashSet<>(prefs.getStringSet("notices_seen", java.util.Collections.emptySet()));
+                        now.add(id);
+                        prefs.edit().putStringSet("notices_seen", now).apply();
+                        noticeShowing = false;
+                    })
+                    .show();
+            return;
+        }
+    }
+
+    /** A text in the phone's language, else English, else any; a plain string is the same in every language. */
+    private static String localized(Object text) {
+        if (text instanceof String) return (String) text;
+        if (!(text instanceof org.json.JSONObject)) return "";
+        org.json.JSONObject byLanguage = (org.json.JSONObject) text;
+        String ret = byLanguage.optString(Locale.getDefault().getLanguage());
+        if (ret.isEmpty()) ret = byLanguage.optString("en");
+        if (ret.isEmpty() && byLanguage.keys().hasNext()) ret = byLanguage.optString(byLanguage.keys().next());
+        return ret;
     }
 
     private void confirmUninstall() {
