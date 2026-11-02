@@ -1,3 +1,13 @@
+0.6.19
+- Distant shadows no longer flicker
+- Fixed the game closing after the intro on PowerVR phones
+- Touch buttons, radial menus and video settings follow the game's language (Russian, Polish, German)
+- The feedback text box scrolls instead of growing off the screen
+- Leaving the game fades back to the launcher instead of sliding
+- Hold an item in a chest, on a body or at a trader to take the whole stack
+- The equipment wheel shows how many arrows or bolts are left for a bow or crossbow
+- The launcher follows the language of a German, Polish or Russian game
+
 0.6.18
 - Import a ZIP of the whole game folder, as it is on Windows; afterwards the launcher offers to delete the ZIP
 - Radial menus: drag away from the screen edge and back to reach every choice
