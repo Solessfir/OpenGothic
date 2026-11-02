@@ -1,3 +1,8 @@
+0.6.17
+- Light from fires and candles looks white again, with normal contrast
+- Problem reports can include screenshots and short videos
+- Short news from the developer can appear in the launcher
+
 0.6.16
 - New saves also load with another version or language of the game (older saves only with the same one)
 - Problem reports now note where parts of the world fail to draw, to help fix black patches
