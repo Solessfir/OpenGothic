@@ -18,13 +18,10 @@ static bool hasBindless() {
   const auto& p = Resources::device().properties();
 #if defined(__ANDROID__)
   const std::string_view name = p.name;
-  // Adreno drivers crash compiling the bindless depth pipelines (seen on Adreno 610, 642L, 650 and 725)
-  if(name.find("Adreno")!=std::string_view::npos) {
-    Log::i("Disabling bindless material shaders for ",name);
-    return false;
-    }
-  // Mali: black blocks on alpha tested foliage (G68) and std::bad_alloc crashes (G720) with the bindless path
-  if(name.find("Mali")!=std::string_view::npos) {
+  // Only Xclipse runs the bindless path reliably. Adreno drivers crash compiling the bindless depth pipelines
+  // (610, 642L, 650, 725), Mali shows black blocks on foliage (G68) and runs out of memory (G720), and PowerVR
+  // crashes updating the descriptor arrays on the first draw (BXM-8-256).
+  if(name.find("Xclipse")==std::string_view::npos) {
     Log::i("Disabling bindless material shaders for ",name);
     return false;
     }
