@@ -1,7 +1,6 @@
 #include "camera.h"
 
 #include <Tempest/Application>
-#include <Tempest/Log>
 
 #include "world/objects/npc.h"
 #include "world/objects/interactive.h"
@@ -403,17 +402,18 @@ Matrix4x4 Camera::mkViewShadowVsm(const Vec3& cameraPos, const Vec3& ldir) const
   }
 
 Matrix4x4 Camera::viewShadow(const Vec3& lightDir, size_t layer) const {
-  return mkViewShadow(inter.target,viewProj(),lightDir,Vec3(),layer);
+  return mkViewShadow(inter.target,lightDir,Vec3(),layer);
   }
 
 Matrix4x4 Camera::viewShadowLwc(const Tempest::Vec3& lightDir, size_t layer) const {
-  return mkViewShadow(inter.target-origin,viewProjLwc(),lightDir,Vec3()-origin,layer);
+  // LWC space is centered on the shaken camera, like viewLwc()
+  const Vec3 zero = origin+shake;
+  return mkViewShadow(inter.target-zero,lightDir,Vec3()-zero,layer);
   }
 
 // The cascades stay fixed to the world and move in whole texels, so turning or walking does not resample them
 // and shadow edges stand still.
-Matrix4x4 Camera::mkViewShadow(const Vec3& cameraPos, const Matrix4x4& viewProj, const Vec3& lightDir,
-                               const Vec3& worldZero, size_t layer) const {
+Matrix4x4 Camera::mkViewShadow(const Vec3& cameraPos, const Vec3& lightDir, const Vec3& worldZero, size_t layer) const {
   // The sun moves every frame; any change of the projection resamples every shadow edge, which flickers on
   // walls the sun grazes. It moves about 0.06 degrees per second, so steps of 0.2 degrees come every few seconds.
   const float sunStep = 0.2f*float(M_PI)/180.f;
@@ -447,14 +447,11 @@ Matrix4x4 Camera::mkViewShadow(const Vec3& cameraPos, const Matrix4x4& viewProj,
   view.set(1,0, (ldir.x/std::abs(ldir.y))/smWidth);
   view.set(1,1, (ldir.z/std::abs(ldir.y))/smWidth);
 
-  // the far cascade is centered a bit ahead of the camera, where most of the view is
-  Vec3 front0 = {0,0,0.5f}, front1 = {0,0,0.99f};
-  auto vpInv  = viewProj;
-  vpInv.inverse();
-  vpInv.project(front0);
-  vpInv.project(front1);
-  Vec3 forward = front1-front0;
-  forward.y = 0;
+  // The far cascade is centered a bit ahead of the camera, where most of the view is. The direction comes
+  // from the camera axes: unprojecting points near the far plane jittered it by float precision, which flipped
+  // the cascade between two texel steps every frame and made far shadows flicker while standing still.
+  const auto rot = viewLwc();
+  Vec3 forward = {rot.at(0,2), 0, rot.at(2,2)};
   const float len = forward.length();
   forward = len>0 ? forward/len : Vec3();
 
