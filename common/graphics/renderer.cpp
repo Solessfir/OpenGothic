@@ -93,6 +93,7 @@ Renderer::Renderer() {
   Gothic::inst().toggleGi  .bind(this, &Renderer::toggleGi);
   Gothic::inst().toggleVsm .bind(this, &Renderer::toggleVsm);
   Gothic::inst().toggleRtsm.bind(this, &Renderer::toggleRtsm);
+  Gothic::inst().toggleShadowDebug.bind(this, &Renderer::toggleShadowDebug);
 
   Gothic::inst().togglePathtrace.bind(this, &Renderer::togglePathtrace);
 
@@ -276,6 +277,11 @@ void Renderer::toggleVsm() {
   setupSettings();
   }
 
+void Renderer::toggleShadowDebug() {
+  settings.shadowDebug = !settings.shadowDebug;
+  Log::i("Shadow cascade debug: ", settings.shadowDebug ? "on" : "off");
+  }
+
 void Renderer::toggleRtsm() {
   if(!Shaders::isRtsmSupported())
     return;
@@ -430,6 +436,7 @@ void Renderer::prepareUniforms(WorldView& wview, const Camera& camera) {
   wview.setTemporalJitter(settings.taaEnabled || settings.fsrEnabled, upscale.jitterPhases);
   // the upscalers rebuild detail at the display resolution, so textures are sampled as sharp as there (AMD and NVIDIA guidance)
   wview.setMipBias(settings.fsrEnabled ? std::log2(settings.renderScale) - 1.f : 0.f);
+  wview.setShadowDebug(settings.shadowDebug);
   Vec4 fadeTarget = {};
   const auto player = Gothic::inst().player();
   if(player!=nullptr && !camera.isFirstPerson() && !camera.isCutscene() && !camera.isFree()) {
