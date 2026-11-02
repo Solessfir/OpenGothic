@@ -1,12 +1,18 @@
 // Gothic Launcher sends problem reports here and this Worker files them as GitHub issues.
 // The GitHub token stays a Worker secret, because anything inside the app can be pulled out of the APK.
 // An attached save goes to the "saves" release of the same private repository, linked from the issue.
+// launcher.json in that repository holds notices for the launcher and blocked installs or devices; only the
+// verdict for the asking launcher leaves the Worker, never the list. Changes reach launchers within minutes:
+//   { "notices": [{ "id": "lighting", "text": { "en": "...", "ru": "..." }, "until": "2026-12-01" }],
+//     "blocked": [{ "install": "<id from a report>", "reason": "..." }, { "match": "<regex on the device>", "reason": "..." }] }
 const SAVE_SIZE = 64 * 1024 * 1024;
+const SETTINGS_AGE = 5 * 60 * 1000;
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (request.method === "PUT" && url.pathname === "/save") return save(request, env, url);
+    if (request.method === "GET" && url.pathname === "/config") return launcherConfig(env, url);
     if (request.method !== "POST") return new Response("Not found", { status: 404 });
     if (Number(request.headers.get("Content-Length")) > 200000) return new Response("Report too large", { status: 413 });
     const { success } = await env.LIMIT.limit({ key: request.headers.get("CF-Connecting-IP") ?? "" });
@@ -21,6 +27,7 @@ export default {
     const title = typeof report?.title === "string" ? report.title.slice(0, 200) : "";
     const body = typeof report?.body === "string" ? report.body.slice(0, 65000) : "";
     if (!title || !body) return new Response("Not a report", { status: 400 });
+    if (blockedReason(await settings(env), report.install, report.device) !== null) return new Response("Blocked", { status: 403 });
 
     const issue = await github(env, `https://api.github.com/repos/${env.REPO}/issues`, { method: "POST", body: JSON.stringify({ title, body }) });
     if (!issue.ok) return new Response("GitHub refused the report", { status: 502 });
@@ -54,9 +61,52 @@ async function save(request, env, url) {
   if (!asset.ok) return new Response("GitHub refused the save", { status: 502 });
   const link = (await asset.json()).browser_download_url;
 
-  const comment = `Save: [${name}](${link}), ${(size / 1e6).toFixed(1)} MB`;
+  // Screenshots show inline; the issue's readers are signed in, so the private release asset loads for them
+  const mb = `${(size / 1e6).toFixed(1)} MB`;
+  const comment = /\.(jpe?g|png)$/i.test(name) ? `Screenshot: [${name}](${link})\n\n![${name}](${link})`
+    : /\.(mp4|webm|3gp|mkv|mov)$/i.test(name) ? `Video: [${name}](${link}), ${mb}`
+    : `Save: [${name}](${link}), ${mb}`;
   await github(env, `https://api.github.com/repos/${env.REPO}/issues/${issue}/comments`, { method: "POST", body: JSON.stringify({ body: comment }) });
   return new Response(null, { status: 204 });
+}
+
+/** The notices still current, and why this install or device is blocked (null when it is not). */
+async function launcherConfig(env, url) {
+  const s = await settings(env);
+  const today = new Date().toISOString().slice(0, 10);
+  const notices = (Array.isArray(s.notices) ? s.notices : []).filter(n => n && n.id && (!n.until || n.until >= today));
+  return Response.json({ notices, blocked: blockedReason(s, url.searchParams.get("install"), url.searchParams.get("device")) });
+}
+
+function blockedReason(s, install, device) {
+  for (const b of Array.isArray(s.blocked) ? s.blocked : []) {
+    if (!b) continue;
+    if (b.install && b.install === install) return b.reason ?? "";
+    if (b.match && typeof device === "string") {
+      try {
+        if (new RegExp(b.match, "i").test(device)) return b.reason ?? "";
+      } catch {
+        // A broken entry blocks nobody
+      }
+    }
+  }
+  return null;
+}
+
+let cached = { at: 0, value: {} };
+
+/** launcher.json from the repository, kept for a few minutes; empty when it is missing or broken. */
+async function settings(env) {
+  if (Date.now() - cached.at < SETTINGS_AGE) return cached.value;
+  let value = {};
+  try {
+    const r = await github(env, `https://api.github.com/repos/${env.REPO}/contents/launcher.json`, { headers: { Accept: "application/vnd.github.raw+json" } });
+    if (r.ok) value = await r.json();
+  } catch {
+    // Keep serving without notices rather than failing the launcher
+  }
+  cached = { at: Date.now(), value };
+  return value;
 }
 
 function github(env, url, init = {}) {
