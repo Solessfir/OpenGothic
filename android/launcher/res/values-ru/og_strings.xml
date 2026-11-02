@@ -42,6 +42,7 @@
     <string name="og_report_body">Отправить отчёт разработчику? В нём журнал игры и сведения об этом телефоне, но нет данных аккаунта. Сохранение, скриншоты или видео отправляются, только если вы их выберете.</string>
     <string name="og_report_hint">Что произошло? (необязательно)</string>
     <string name="og_report_send">Отправить отчёт</string>
+    <string name="og_report_sending">Отправка отчёта…</string>
     <string name="og_report_sent">Отчёт отправлен. Спасибо!</string>
     <string name="og_report_failed">Не удалось отправить отчёт. %1$s</string>
     <string name="og_report_save_none">Прикрепить сохранение? (необязательно)</string>
@@ -86,6 +87,11 @@
     <string name="og_importing_other">Импорт файлов игры. Игра появится, когда импорт завершится.</string>
     <string name="og_uninstall_title">Удалить %1$s?</string>
     <string name="og_uninstall_body">Файлы игры будут удалены. Сохранения и настройки останутся на телефоне.</string>
+    <string name="og_import_delete_title">Удалить ZIP?</string>
+    <string name="og_import_delete_body">%1$s установлена. Удалить %2$s и освободить %3$s?</string>
+    <string name="og_delete">Удалить</string>
+    <string name="og_keep">Оставить</string>
+    <string name="og_err_delete_zip">Не удалось удалить ZIP.</string>
     <string name="og_storage_unavailable">Хранилище приложения недоступно. Разблокируйте телефон и повторите попытку.</string>
     <string name="og_session_ended">Сеанс Steam завершён. Войдите снова, чтобы скачивать.</string>
 

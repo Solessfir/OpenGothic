@@ -42,6 +42,7 @@
     <string name="og_report_body">Wysłać zgłoszenie do autora? Zawiera dziennik gry i informacje o tym telefonie, ale żadnych danych konta. Zapis, zrzuty ekranu lub filmy zostaną wysłane tylko wtedy, gdy je wybierzesz.</string>
     <string name="og_report_hint">Co się stało? (opcjonalnie)</string>
     <string name="og_report_send">Wyślij zgłoszenie</string>
+    <string name="og_report_sending">Wysyłanie zgłoszenia…</string>
     <string name="og_report_sent">Zgłoszenie wysłane. Dziękujemy!</string>
     <string name="og_report_failed">Nie udało się wysłać zgłoszenia. %1$s</string>
     <string name="og_report_save_none">Dołączyć zapis? (opcjonalnie)</string>
@@ -86,6 +87,11 @@
     <string name="og_importing_other">Importowanie plików gry. Gra pojawi się po zakończeniu importu.</string>
     <string name="og_uninstall_title">Odinstalować %1$s?</string>
     <string name="og_uninstall_body">Pliki gry zostaną usunięte. Zapisy i ustawienia zostaną na telefonie.</string>
+    <string name="og_import_delete_title">Usunąć ZIP?</string>
+    <string name="og_import_delete_body">%1$s jest zainstalowana. Usunąć %2$s, aby zwolnić %3$s?</string>
+    <string name="og_delete">Usuń</string>
+    <string name="og_keep">Zostaw</string>
+    <string name="og_err_delete_zip">Nie udało się usunąć pliku ZIP.</string>
     <string name="og_storage_unavailable">Pamięć aplikacji jest niedostępna. Odblokuj telefon i spróbuj ponownie.</string>
     <string name="og_session_ended">Sesja Steam wygasła. Zaloguj się ponownie, aby pobierać.</string>
 
