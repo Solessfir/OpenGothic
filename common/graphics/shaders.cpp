@@ -164,8 +164,16 @@ void Shaders::compileShaders() noexcept {
   skySep             = postEffect("sky_sep");
   fog                = fogShader ("fog");
   fog3dHQ            = fogShader ("fog3d_hq");
-  sunShaftsTrace     = computeShader("sun_shafts.comp.sprv");
-  sunShafts          = fogShader ("sun_shafts");
+  try {
+    sunShaftsTrace   = computeShader("sun_shafts.comp.sprv");
+    sunShafts        = fogShader ("sun_shafts");
+    }
+  catch(const std::system_error& e) {
+    // PowerVR GM9446 fails to build this pipeline; sun rays are optional
+    Log::e("Sun rays are unavailable: ", e.what());
+    sunShaftsTrace   = ComputePipeline();
+    sunShafts        = RenderPipeline();
+    }
 
   {
     RenderState state;
