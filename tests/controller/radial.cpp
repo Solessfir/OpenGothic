@@ -85,6 +85,17 @@ int main() {
           }
         }
       }
+    {
+      // Opened 80 px from the right edge: pull left, then come back right to reach the right-hand choice
+      float ox=2260, oy=82;
+      RadialInput::followTouch(2000,82,ox,oy,2340,1080);
+      check(RadialInput::touchSector(2000,82,ox,oy,2340,1080,5)==4,"Pulling away from the edge selects the left choice");
+      RadialInput::followTouch(2140,82,ox,oy,2340,1080);
+      check(RadialInput::touchSector(2140,82,ox,oy,2340,1080,5)==1,"Coming back selects the right choice within the screen");
+      float sx=100, sy=100;
+      RadialInput::followTouch(130,100,sx,sy,2340,1080);
+      check(sx==100 && sy==100,"Short drags keep the origin where the wheel opened");
+    }
     const auto small=RadialInput::layout(2340,1080,3.f,2,24);
     const auto full=RadialInput::layout(2340,1080,3.f,8,24);
     check(small.outer<full.outer,"Two choices use a smaller wheel than eight choices");
