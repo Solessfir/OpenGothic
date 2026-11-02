@@ -6,6 +6,11 @@
 #include "game/gametime.h"
 #include "camera.h"
 #include "shaders.h"
+#include "utils/string_frm.h"
+
+#include <Tempest/Log>
+#include <algorithm>
+#include <cmath>
 
 using namespace Tempest;
 
@@ -36,6 +41,38 @@ bool WorldView::isInPfxRange(const Vec3& pos) const {
   return pfxGroup.isInPfxRange(pos);
   }
 
+// "toggle shadowdebug": what moves the cascades between frames. The drawing matrix works in world space,
+// the sampling one around the camera; both should put a world point on the same texel.
+void WorldView::logShadowCascades(const Camera& camera, const Tempest::Vec3& ldir,
+                                  const Tempest::Matrix4x4* shadow, const Tempest::Matrix4x4* shadowLwc) {
+  static int lines = 0;
+  static Tempest::Vec4 prev[Resources::ShadowLayers];
+  static int prevAz = 0, prevEl = 0;
+  if(lines>=400)
+    return;
+  const float step = 0.2f*float(M_PI)/180.f;
+  const int   az   = int(std::lround(std::atan2(ldir.z, ldir.x)/step));
+  const int   el   = int(std::lround(std::asin(std::clamp(ldir.y/std::max(ldir.length(),1e-6f), -1.f, 1.f))/step));
+  const auto  zero = camera.originLwc();
+  bool changed = (az!=prevAz || el!=prevEl);
+  prevAz = az;
+  prevEl = el;
+  std::string msg(std::string_view(string_frm("shadowdbg t=", Application::tickCount(), " sun=", ldir.x, ",", ldir.y, ",", ldir.z, " az=", az, " el=", el)));
+  for(size_t i=0; i<Resources::ShadowLayers; ++i) {
+    Tempest::Vec3 a = zero, b = Tempest::Vec3(0);
+    shadow[i].project(a);
+    shadowLwc[i].project(b);
+    const Tempest::Vec4 cur = {shadow[i].at(3,0), shadow[i].at(3,1), a.x-b.x, a.y-b.y};
+    changed |= (cur.x!=prev[i].x || cur.y!=prev[i].y);
+    prev[i] = cur;
+    msg += std::string_view(string_frm(" c", i, "=", cur.x, ",", cur.y, " mismatch", i, "=", cur.z, ",", cur.w));
+    }
+  if(!changed)
+    return;
+  ++lines;
+  Log::i(msg);
+  }
+
 void WorldView::preFrameUpdate(const Camera& camera, uint64_t tickCount, uint8_t fId) {
   const auto ldir = gSky.sunLight().dir();
   Tempest::Matrix4x4 shadow   [Resources::ShadowLayers];
@@ -44,6 +81,9 @@ void WorldView::preFrameUpdate(const Camera& camera, uint64_t tickCount, uint8_t
     shadow   [i] = camera.viewShadow(ldir,i);
     shadowLwc[i] = camera.viewShadowLwc(ldir,i);
     }
+
+  if(sGlobal.shadowDebug())
+    logShadowCascades(camera, ldir, shadow, shadowLwc);
 
   sGlobal.setViewProject(camera.view(),camera.projective(),camera.zNear(),camera.zFar(),shadow);
   sGlobal.setViewLwc(camera.viewLwc(),camera.projective(),shadowLwc);

@@ -70,6 +70,7 @@ class Marvin {
       C_ToggleVsm,
       C_ToggleRtsm,
       C_TogglePathtrace,
+      C_ToggleShadowDebug,
       };
 
     struct Cmd {
