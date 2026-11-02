@@ -1,3 +1,7 @@
+0.6.16
+- New saves also load with another version or language of the game (older saves only with the same one)
+- Problem reports now note where parts of the world fail to draw, to help fix black patches
+
 0.6.15
 - Sun shadows stay put when you turn the camera, their edges no longer crawl
 - Phones with a Mali GPU use a simpler texture path, against crashes and black blocks on plants
