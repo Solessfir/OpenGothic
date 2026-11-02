@@ -69,6 +69,34 @@ float calcShadow(in SceneDesc scene,
   return ret;
   }
 
+// Which cascade calcShadow takes, for "toggle shadowdebug": 1 near, 2 near fading to far, 3 far,
+// 4 far fading to lit, 5 outside both, 6 inside the near cascade but sent to the far one by its depth slice
+float shadowCascadeDebug(in SceneDesc scene, in sampler2D shadowMap1, vec3 shPos0, vec3 shPos1) {
+  vec2 m1;
+  vec4 lay1 = shadowSample(shadowMap1, shPos1.xy, m1);
+  const float edge0 = max(abs(shPos0.x), abs(shPos0.y));
+  const float edge1 = max(abs(shPos1.x), abs(shPos1.y));
+  const bool  slab  = max(max(lay1.x,lay1.y), max(lay1.z,lay1.w))<scene.closeupShadowSlice[1];
+  if(edge0<0.99 && slab)
+    return edge0<0.8 ? 1.0 : 2.0;
+  if(edge1>=1.0)
+    return 5.0;
+  if(edge0<0.99)
+    return 6.0;
+  return edge1<0.85 ? 3.0 : 4.0;
+  }
+
+vec3 shadowDebugTint(float category) {
+  const int c = int(category+0.5);
+  if(c==1) return vec3(1,0,0);
+  if(c==2) return vec3(1,1,0);
+  if(c==3) return vec3(0,1,0);
+  if(c==4) return vec3(0,1,1);
+  if(c==5) return vec3(0,0,1);
+  if(c==6) return vec3(1,0,1);
+  return vec3(0);
+  }
+
 // Receiver position in a cascade, offset along the normal by half a texel of that cascade. Where the sun grazes
 // a wall, any offset slides the shadow edges along it by offset/tan(angle), so a fixed offset in cm made the
 // near and far cascades disagree and cut shadows at their border. Half a texel keeps acne away.

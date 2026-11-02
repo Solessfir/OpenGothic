@@ -101,6 +101,7 @@ void main() {
 #else
   const float vis    = calcShadow(scene, textureSm0, shPos0, textureSm1, shPos1);
   const float radius = textureLod(penumbra, (vec2(at)+0.5)/vec2(size), 0).r;
-  imageStore(result, at, vec4(vis, radius, linearDepth(z, scene.clipInfo)*0.01, 0));
+  const float cat    = scene.shadowDebug>0 ? shadowCascadeDebug(scene, textureSm1, shPos0, shPos1) : 0.0;
+  imageStore(result, at, vec4(vis, radius, linearDepth(z, scene.clipInfo)*0.01, cat));
 #endif
   }
