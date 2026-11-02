@@ -190,8 +190,8 @@ class Camera final {
     Tempest::Matrix4x4    mkView    (const Tempest::Vec3& pos, const Tempest::Vec3& spin) const;
     Tempest::Matrix4x4    mkRotation(const Tempest::Vec3& spin) const;
     Tempest::Matrix4x4    mkViewShadowVsm(const Tempest::Vec3& cameraPos, const Tempest::Vec3& ldir) const;
-    Tempest::Matrix4x4    mkViewShadow(const Tempest::Vec3& cameraPos, const Tempest::Matrix4x4& viewProj,
-                                       const Tempest::Vec3& lightDir, const Tempest::Vec3& worldZero, size_t layer) const;
+    Tempest::Matrix4x4    mkViewShadow(const Tempest::Vec3& cameraPos, const Tempest::Vec3& lightDir,
+                                       const Tempest::Vec3& worldZero, size_t layer) const;
 
     Tempest::Vec3         followTarget(Tempest::Vec3 pos,  Tempest::Vec3 dest, float dtF);
     Tempest::Vec3         followTrans (Tempest::Vec3 pos,  Tempest::Vec3 dest, float dtF, float velo);
