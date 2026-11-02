@@ -142,6 +142,8 @@ class InventoryMenu : public Tempest::Widget {
     int                       assignmentDirection = -1;
     bool                      touchWasSelected = false;
     bool                      touchHeld = false;
+    int                       touchStartY = 0;
+    size_t                    touchStartScroll = 0;
     const char*               pinLabel = nullptr;
     uint64_t                  assignmentUntil = 0;
     void                      drawWheel(Tempest::Painter& p, DrawPass pass);

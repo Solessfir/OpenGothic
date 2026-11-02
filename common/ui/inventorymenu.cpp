@@ -549,6 +549,8 @@ bool InventoryMenu::touchBegin(Point pos) {
   if(!selectCellAt(pos))
     return false;
   touchWasSelected = before==page && sel==activePageSel().sel;
+  touchStartY      = pos.y;
+  touchStartScroll = activePageSel().scroll;
   return true;
   }
 
@@ -578,7 +580,24 @@ void InventoryMenu::touchHold() {
   update();
   }
 
-void InventoryMenu::touchMove(Point) {
+void InventoryMenu::touchMove(Point pos) {
+  // Dragging scrolls the grid the touch started in by whole rows
+  const int cellH = slotSize().h;
+  if(player==nullptr || state==State::Closed || wheelActive || cellH<=0)
+    return;
+  auto&        pg        = activePage();
+  auto&        sel       = activePageSel();
+  const size_t hcount    = rowsCount();
+  const size_t rows      = (pg.size()+columsCount-1)/columsCount;
+  const size_t maxScroll = rows>hcount ? rows-hcount : 0;
+  const auto   scroll    = size_t(std::clamp<ptrdiff_t>(ptrdiff_t(touchStartScroll)+(touchStartY-pos.y)/cellH,0,ptrdiff_t(maxScroll)));
+  if(scroll==sel.scroll || pg.size()==0)
+    return;
+  sel.scroll = scroll;
+  // Keep the selection on screen, otherwise adjustScroll scrolls back to it
+  sel.sel = std::clamp(sel.sel,scroll*columsCount,std::min(pg.size(),(scroll+hcount)*columsCount)-1);
+  Feedback::play(Feedback::Effect::Navigate);
+  update();
   }
 
 void InventoryMenu::touchEnd(bool tap) {
