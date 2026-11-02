@@ -185,13 +185,16 @@ void Renderer::setupSettings() {
     settings.renderScale = float(CommandLine::inst().renderScale())/100.f;
     settings.vidResIndex = settings.renderScale==1.f ? 0 : 1;
     }
-  const int32_t aaArg = CommandLine::inst().aaPreset();
-  settings.aaPreset    = uint32_t(std::clamp(aaArg>=0 ? aaArg : Gothic::settingsGetI("ENGINE","antiAliasing"), 0, int32_t(AaPreset::PRESETS_COUNT)-1));
-  settings.aaEnabled   = (settings.aaPreset>0) && (settings.vidResIndex==0);
-  settings.taaEnabled  = shaders.motionVectors && settings.vidResIndex==0;
-  settings.fsrEnabled  = shaders.motionVectors && settings.vidResIndex>0;
-  if(settings.taaEnabled)
-    settings.aaEnabled = false;
+  // Anti-aliasing: 0 off, 1-2 SMAA presets, 3 TAA, 4 FSR, 5 DLSS. The temporal ones need the motion vectors the
+  // material shaders were built with. TAA cannot upscale, so it gives way to FSR below full resolution;
+  // FSR and DLSS at full resolution are their native anti-aliasing (DLSS: DLAA).
+  const int32_t aaArg    = CommandLine::inst().aaPreset();
+  const int32_t aaChoice = Gothic::settingsGetI("ENGINE","antiAliasing");
+  settings.aaPreset    = uint32_t(std::clamp(aaArg>=0 ? aaArg : std::min(aaChoice, 2), 0, int32_t(AaPreset::PRESETS_COUNT)-1));
+  settings.aaEnabled   = (settings.aaPreset>0) && (settings.vidResIndex==0) && !shaders.motionVectors;
+  settings.taaEnabled  = shaders.motionVectors && settings.vidResIndex==0 && aaChoice<4;
+  settings.fsrEnabled  = shaders.motionVectors && !settings.taaEnabled;
+  settings.dlss        = aaChoice==5;
 
   const int32_t rtShadowsArg = CommandLine::inst().rtShadows();
   const bool    rtShadowsOn  = rtShadowsArg>=0 ? rtShadowsArg>0 : Gothic::settingsGetI("ENGINE","rtShadows")!=0;
@@ -963,7 +966,7 @@ void Renderer::drawFsr2(Encoder<CommandBuffer>& cmd, uint8_t fId, const WorldVie
   upscale.lastTick = now;
 
   const int32_t dlssArg = CommandLine::inst().dlss();
-  if(dlssArg>=0 ? dlssArg>0 : Gothic::settingsGetI("ENGINE","upscaler")==0) {
+  if(dlssArg>=0 ? dlssArg>0 : settings.dlss) {
     Dlss::Inputs di;
     di.color       = in.color;
     di.depth       = in.depth;

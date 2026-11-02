@@ -189,6 +189,11 @@ Gothic::Gothic(GameModDescriptor desc) {
   // At full resolution SSAO costs about 1.5 ms and the fog's sunshaft occlusion about 0.5 ms more at 2K on a 4090 Laptop, and both look the same
   constexpr int defaultSsaoHalfResolution = 1;
   constexpr int defaultFogHalfResolution = 1;
+  if(iniFile->getI("ENGINE", "temporalAA")!=0) {
+    // Temporal AA and the upscaler became choices of the anti-aliasing setting: 3 TAA, 4 FSR, 5 DLSS
+    iniFile->set("ENGINE", "antiAliasing", iniFile->getI("ENGINE", "upscaler")==0 ? 5 : 4);
+    iniFile->set("ENGINE", "temporalAA", 0);
+    }
   if(!iniFile->has("INTERNAL", "vidResIndex")) {
     // The original game's display-mode index is not an OpenGothic render-scale choice.
     iniFile->set("INTERNAL", "vidResIndex", defaultResolutionIndex);
@@ -212,8 +217,6 @@ Gothic::Gothic(GameModDescriptor desc) {
   defaults->set("GAME", "quickSaveSlots", 10);
   defaults->set("ENGINE", "antiAliasing", 2);
   defaults->set("ENGINE", "globalIllumination", 1);
-  defaults->set("ENGINE", "temporalAA", 0);
-  defaults->set("ENGINE", "upscaler", 0);
   defaults->set("ENGINE", "rtShadows", 0);
 #if defined(__ANDROID__)
   defaults->set("GAME", "vibration",           1);

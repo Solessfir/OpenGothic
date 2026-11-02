@@ -149,7 +149,8 @@ class Renderer final {
       bool           zFogRadial         = false;
       bool           sunShafts          = false; // screen-space sun rays, untested on mobile GPUs
       bool           taaEnabled         = false; // temporal anti-aliasing, experimental
-      bool           fsrEnabled         = false; // FSR2 upscaling from the reduced render resolution
+      bool           fsrEnabled         = false; // FSR2 or DLSS: upscaling, or their native anti-aliasing at full resolution
+      bool           dlss               = false;
       bool           softShadows        = false; // penumbra blur of the sun shadow maps, PC only
       bool           rtShadows          = false; // ray traced sun shadows, characters from their bone capsules
 
