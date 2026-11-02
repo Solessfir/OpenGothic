@@ -1,3 +1,7 @@
+0.6.20
+- Drag the inventory, a chest or a trader with your finger to scroll through items that do not fit on the screen
+- Gothic 1: water splashing off a washing digger no longer shows as solid squares
+
 0.6.19
 - Distant shadows no longer flicker
 - Fixed the game closing after the intro on PowerVR phones
