@@ -58,7 +58,7 @@ Focus range is not attack reach or guaranteed safety; see [targeting settings](C
 - Keep the same finger down, drag a little toward a choice, then release to apply.
 - Release without selecting, or return to the finger's starting point, to cancel.
 
-The wheel is drawn in the screen center, but selection is relative to your finger's position when it opened.
+The wheel is drawn in the screen center, but selection is relative to your finger's position when it opened. Dragging farther pulls that point along, so from a button at the screen edge you can drag away from the edge and then back to reach every choice.
 You do not need to reach the wheel. Equipment pages show usable owned weapons, assigned spells and the items you added from the inventory.
 For more pages, hold toward Previous/Next, return near the starting point, then select.
 The world keeps running; other touch controls are suspended until the wheel closes.
