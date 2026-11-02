@@ -6,6 +6,7 @@
 #include "utils/feedback.h"
 #include "utils/mouseutil.h"
 #include "gothic.h"
+#include "utils/uitext.h"
 
 using namespace Tempest;
 
@@ -39,6 +40,7 @@ void MenuRoot::initSettings() {
 
   vmLang = lang;
   vm     = Gothic::inst().createPhoenixVm("MENU.DAT", ScriptLang(vmLang));
+  UiText::detect(*vm);
   vm->register_external("apply_options_video",[](){
     Log::d("TODO: apply_options_video");
     });

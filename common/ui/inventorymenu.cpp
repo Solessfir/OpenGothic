@@ -21,6 +21,7 @@
 #include "gothic.h"
 #include "resources.h"
 #include "utils/gamepadbindings.h"
+#include "utils/uitext.h"
 
 using namespace Tempest;
 
@@ -534,7 +535,7 @@ void InventoryMenu::paintNumOverlay(PaintEvent& e) {
     // In the middle of the screen, where the finger holding the item does not cover it
     const float scale = Gothic::interfaceScale(this);
     const auto& fnt   = Resources::font(scale*1.2f);
-    const auto  text  = std::string_view(pinLabel)=="Added" ? "Added to the equipment wheel" : "Removed from the equipment wheel";
+    const auto  text  = UiText::tr(std::string_view(pinLabel)=="Added" ? "Added to the equipment wheel" : "Removed from the equipment wheel");
     fnt.drawTextShadow(p,0,h()/2,w(),fnt.pixelSize(),text,AlignHCenter);
     }
   }
@@ -1262,26 +1263,26 @@ void InventoryMenu::drawWheel(Painter& p,DrawPass pass) {
       const auto label=wheelKind==WheelKind::System ? systemLabels[i] :
                        (wheelKind==WheelKind::Character ? (i==0 ? "Stats" : "Journal") : (i==6 ? "<" : ">"));
       const bool twoLines=wheelKind==WheelKind::System && i!=0;
-      font.drawTextShadow(p,at.x-cell,at.y+(twoLines ? 0 : line/2),2*cell,twoLines ? 2*line : line,label,AlignHCenter);
+      font.drawTextShadow(p,at.x-cell,at.y+(twoLines ? 0 : line/2),2*cell,twoLines ? 2*line : line,UiText::tr(label),AlignHCenter);
       }
     }
   if(pass==DrawPass::Front) {
     // Gothic fonts position text by its baseline, not by the top of its box.
     const int centerWidth=int(center*1.9f);
     const char* centerLabel=!wheelTouch && wheelSelected>=0 ? "Selected" : "Cancel";
-    font.drawTextShadow(p,int(cx)-centerWidth/2,int(cy)+line/2,centerWidth,line,centerLabel,AlignHCenter);
+    font.drawTextShadow(p,int(cx)-centerWidth/2,int(cy)+line/2,centerWidth,line,UiText::tr(centerLabel),AlignHCenter);
     auto item=utilityMenu ? nullptr : player->getItem(wheelSelection());
     const auto pages=std::max<size_t>(1,(wheelItems.size()+wheelPageSize()-1)/wheelPageSize());
-    const auto categoryTitle=wheelFilter==QuickSlots::Kind::Empty ? std::string_view("Equipment") : QuickSlots::title(wheelFilter);
+    const auto categoryTitle=UiText::tr(wheelFilter==QuickSlots::Kind::Empty ? std::string_view("Equipment") : QuickSlots::title(wheelFilter));
     string_frm pagedTitle(categoryTitle," ",wheelPageId+1," / ",pages);
-    const std::string_view title=wheelKind==WheelKind::System ? "System" :
-                                 (wheelKind==WheelKind::Character ? "Character" : (pages>1 ? std::string_view(pagedTitle.c_str()) : categoryTitle));
+    const std::string_view title=wheelKind==WheelKind::System ? UiText::tr("System") :
+                                 (wheelKind==WheelKind::Character ? UiText::tr("Character") : (pages>1 ? std::string_view(pagedTitle.c_str()) : categoryTitle));
     font.drawTextShadow(p,footerLeft,int(cy-layout.outer)-pad,footerWidth,line,title,AlignHCenter);
-    const std::string_view name=item ? item->description() : (wheelItems.empty() && !utilityMenu ? "No usable items" : "");
-    string_frm itemLabel(name,item && item->isEquipped() ? " (Equipped)" : "");
+    const std::string_view name=item ? item->description() : (wheelItems.empty() && !utilityMenu ? UiText::tr("No usable items") : "");
+    string_frm itemLabel(name,item && item->isEquipped() ? UiText::tr(" (Equipped)") : "");
     font.drawTextShadow(p,footerLeft+pad,footerTop+line,footerWidth-2*pad,2*line,itemLabel.c_str(),AlignHCenter);
     if(pages>1) {
-      const std::string_view hint=wheelTouch ? "Hold < / > to change page" : std::string_view(wheelPageHint);
+      const std::string_view hint=wheelTouch ? UiText::tr("Hold < / > to change page") : std::string_view(wheelPageHint);
       font.drawTextShadow(p,footerLeft+pad,footerTop+layout.footer-pad,footerWidth-2*pad,line,hint,AlignHCenter);
       }
     }

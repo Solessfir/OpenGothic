@@ -10,6 +10,7 @@
 #include "utils/touchmovement.h"
 
 #include "touchasset.h"
+#include "utils/uitext.h"
 
 #include <algorithm>
 #include <cmath>
@@ -585,9 +586,9 @@ void TouchInput::drawControls(Painter& p) {
       return;
     const int width = int(radius*4.f);
     const int y     = int(center.y+radius)+font.pixelSize()+int(2.f*u);
-    font.drawTextShadow(p,int(center.x)-width/2,y,width,font.pixelSize(),text,AlignHCenter);
+    font.drawTextShadow(p,int(center.x)-width/2,y,width,font.pixelSize(),UiText::tr(text),AlignHCenter);
     if(!hint.empty())
-      small.drawTextShadow(p,int(center.x)-width/2,y+small.pixelSize(),width,small.pixelSize(),hint,AlignHCenter);
+      small.drawTextShadow(p,int(center.x)-width/2,y+small.pixelSize(),width,small.pixelSize(),UiText::tr(hint),AlignHCenter);
     };
   auto left = [&](PointF center,float radius,std::string_view text,std::string_view hint) {
     if(!buttonLabels)
@@ -595,9 +596,9 @@ void TouchInput::drawControls(Painter& p) {
     const int width = int(240.f*u);
     const int x     = int(center.x-radius*1.4f)-width;
     const int y     = int(center.y)-(hint.empty() ? -font.pixelSize()/2 : 0);
-    font.drawTextShadow(p,x,y,width,font.pixelSize(),text,AlignRight);
+    font.drawTextShadow(p,x,y,width,font.pixelSize(),UiText::tr(text),AlignRight);
     if(!hint.empty())
-      small.drawTextShadow(p,x,y+small.pixelSize(),width,small.pixelSize(),hint,AlignRight);
+      small.drawTextShadow(p,x,y+small.pixelSize(),width,small.pixelSize(),UiText::tr(hint),AlignRight);
     };
 
   for(size_t i=0;i<std::size(Buttons);++i) {
