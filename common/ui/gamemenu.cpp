@@ -24,6 +24,7 @@
 #include "gothic.h"
 #include "resources.h"
 #include "build.h"
+#include "utils/uitext.h"
 
 using namespace Tempest;
 
@@ -684,11 +685,12 @@ void GameMenu::initAndroidVideo() {
   int y=1650;
   for(const auto& row:rows) {
     const std::string labelName=std::string(row.name)+"_LABEL";
-    auto& label=add(labelName.c_str(),row.label,1000,y,3700,zenkit::MenuItemType::TEXT,false);
+    const std::string labelText(UiText::tr(row.label)), valuesText(UiText::tr(row.values));
+    auto& label=add(labelName.c_str(),labelText.c_str(),1000,y,3700,zenkit::MenuItemType::TEXT,false);
     label.handle->fontname=labelFont;
     label.handle->dim_y=600;
     label.handle->user_string[0]=row.name;
-    auto& item=add(row.name,row.values,4800,y,2200,
+    auto& item=add(row.name,valuesText.c_str(),4800,y,2200,
                    row.values[0]==0 ? zenkit::MenuItemType::SLIDER : zenkit::MenuItemType::CHOICEBOX,true);
     item.handle->on_chg_set_option_section=row.section;
     item.handle->on_chg_set_option=row.option;
