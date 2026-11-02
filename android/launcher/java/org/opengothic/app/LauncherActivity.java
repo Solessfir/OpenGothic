@@ -44,10 +44,12 @@ import android.widget.Toast;
 import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatDelegate;
 import androidx.appcompat.widget.PopupMenu;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.res.ResourcesCompat;
 import androidx.core.graphics.Insets;
+import androidx.core.os.LocaleListCompat;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -244,6 +246,7 @@ public final class LauncherActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         launching = false;
+        if (applyGameLanguage()) return;
         findViewById(R.id.og_root).setAlpha(1.f);
         hideSystemBars();
         refreshLibrary(false);
@@ -252,6 +255,22 @@ public final class LauncherActivity extends AppCompatActivity {
         askInstallPermission();
         offerReport();
         handler.post(tick);
+    }
+
+    /**
+     * A German, Polish or Russian game shows the launcher in its language too, so a player of a Russian game sees
+     * a Russian launcher on an English phone. The engine records the language in the game's Gothic.ini (MenuRoot).
+     * Other games leave the phone's language. Returns true when the launcher restarts in another language.
+     */
+    private boolean applyGameLanguage() {
+        File root = Library.root(this);
+        Library.Game last = Library.byFolder(prefs.getString("last_game", ""));
+        String lang = root != null && last != null ? GameFiles.iniValue(new File(Library.user(root, last), "Gothic.ini"), "INTERNAL", "uiLanguage") : null;
+        boolean translated = "de".equals(lang) || "pl".equals(lang) || "ru".equals(lang);
+        LocaleListCompat want = translated ? LocaleListCompat.forLanguageTags(lang) : LocaleListCompat.getEmptyLocaleList();
+        if (want.equals(AppCompatDelegate.getApplicationLocales())) return false;
+        AppCompatDelegate.setApplicationLocales(want);
+        return true;
     }
 
     @Override
@@ -491,6 +510,7 @@ public final class LauncherActivity extends AppCompatActivity {
             askRepair(game());
             return;
         }
+        prefs.edit().putString("last_game", game().folder).apply();
         // The engine reads the folder name and the command-line options at start, see InstallDetect::androidGame and androidArgs
         try {
             GameFiles.ensureScriptsFolder(new File(root, game().folder));

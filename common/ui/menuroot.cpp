@@ -41,6 +41,15 @@ void MenuRoot::initSettings() {
   vmLang = lang;
   vm     = Gothic::inst().createPhoenixVm("MENU.DAT", ScriptLang(vmLang));
   UiText::detect(*vm);
+  {
+    // The launcher shows itself in this language too, see LauncherActivity.applyGameLanguage
+    static const char* codes[] = {"en","de","pl","ru"};
+    const char* code = codes[int(UiText::language())];
+    if(Gothic::settingsGetS("INTERNAL","uiLanguage")!=code) {
+      Gothic::settingsSetS("INTERNAL","uiLanguage",code);
+      Gothic::flushSettings();
+      }
+  }
   vm->register_external("apply_options_video",[](){
     Log::d("TODO: apply_options_video");
     });
