@@ -40,7 +40,7 @@
     <string name="og_suggestion_body">Send an idea to the developer? Only your text, the launcher version and the phone model are sent, and a save if you pick one.</string>
     <string name="og_suggestion_hint">What would you like to see?</string>
     <string name="og_suggestion_send">Send</string>
-    <string name="og_report_body">Send a report to the developer? It holds the game\'s log and details about this phone, but no account data. A save is sent only if you pick one.</string>
+    <string name="og_report_body">Send a report to the developer? It holds the game\'s log and details about this phone, but no account data. A save, screenshots or videos are sent only if you pick them.</string>
     <string name="og_report_hint">What happened? (optional)</string>
     <string name="og_report_send">Send report</string>
     <string name="og_report_sent">Report sent. Thank you!</string>
@@ -50,6 +50,14 @@
     <string name="og_report_save">%1$s, %2$s MB</string>
     <string name="og_report_save_pick">Choose a save</string>
     <string name="og_report_save_failed">The report was sent, but not the save. %1$s</string>
+    <string name="og_report_shots_none">Attach screenshots or videos? (optional)</string>
+    <string name="og_report_shots_why">Up to 3, videos up to 60 MB. For example how it looks and how it should look.</string>
+    <string name="og_report_shots">Attached: %1$d of 3</string>
+    <string name="og_report_shots_failed">The report was sent, but not the screenshots or videos. %1$s</string>
+    <string name="og_report_video_too_large">This video is larger than 60 MB. Please trim it or record a shorter clip.</string>
+    <string name="og_notice_title">From the developer</string>
+    <string name="og_blocked_title">Not available on this phone</string>
+    <string name="og_blocked_body">Gothic Launcher cannot start games on this phone.</string>
     <string name="og_unsupported_title">Sorry, this phone is not supported</string>
     <string name="og_try_anyway">Try anyway</string>
     <string name="og_no_vulkan">The games need Vulkan 1.1 graphics, which this phone does not have.</string>
