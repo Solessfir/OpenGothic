@@ -59,6 +59,17 @@ inline int touchSector(float x, float y, float originX, float originY, int width
   return sector(x-originX,y-originY,touchDeadZone(width,height),std::numeric_limits<float>::max(),count);
   }
 
+// Drags the selection origin behind a finger that moved farther than a short leash, like a floating stick.
+// A wheel opened from a button at the screen edge still reaches every choice: pull away from the edge, then back.
+inline void followTouch(float x, float y, float& originX, float& originY, int width, int height) {
+  const float leash=3.f*touchDeadZone(width,height);
+  const float dx=x-originX, dy=y-originY;
+  const float distance=std::hypot(dx,dy);
+  if(distance<=leash) return;
+  originX=x-dx/distance*leash;
+  originY=y-dy/distance*leash;
+  }
+
 inline Layout layout(int width, int height, float scale, int choices, int lineHeight) {
   if(width<=0 || height<=0) return {};
   const float side=float(std::min(width,height));
