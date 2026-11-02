@@ -1092,6 +1092,9 @@ void InventoryMenu::beginTouchWheel(Point origin) {
 
 void InventoryMenu::touchWheelMove(Point pos, uint64_t now) {
   if(!wheelActive || !wheelTouch) return;
+  float ox=float(wheelTouchOrigin.x), oy=float(wheelTouchOrigin.y);
+  RadialInput::followTouch(float(pos.x),float(pos.y),ox,oy,w(),h());
+  wheelTouchOrigin=Point(int(std::lround(ox)),int(std::lround(oy)));
   const auto delta=pos-wheelTouchOrigin;
   const int selected=RadialInput::touchSector(float(pos.x),float(pos.y),float(wheelTouchOrigin.x),float(wheelTouchOrigin.y),
                                             w(),h(),int(wheelSectorCount()));
