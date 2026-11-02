@@ -160,6 +160,21 @@ void main(void) {
 
   outColor = vec4(luminance * scene.exposure, 0.0);
 
+  if(scene.shadowDebug>0) {
+    // added on top, so the cascade shows in shadow too
+#if defined(SHADOW_MASK)
+    const float cat = texelFetch(shadowMask, fragCoord, 0).a;
+#elif defined(SHADOW_MAP)
+    const vec4  p4  = worldPosLwc(gl_FragCoord.xy, d) + vec4(normal*0.0015, 0);
+    const vec3  p   = p4.xyz/p4.w;
+    const float cat = shadowCascadeDebug(scene, textureSm1, shadowCascadePos(scene.viewShadowLwc[0], textureSm0, p, normal),
+                                         shadowCascadePos(scene.viewShadowLwc[1], textureSm1, p, normal));
+#else
+    const float cat = 0;
+#endif
+    outColor.rgb += linear*shadowDebugTint(cat)*scene.sunColor*Fd_Lambert*scene.exposure*0.35;
+    }
+
   // outColor = vec4(vec3(lcolor), diff.a); // debug
   // if(diff.a>0)
   //   outColor.r = 0;
