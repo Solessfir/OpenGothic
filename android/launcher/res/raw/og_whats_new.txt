@@ -1,3 +1,11 @@
+0.6.18
+- Import a ZIP of the whole game folder, as it is on Windows; afterwards the launcher offers to delete the ZIP
+- Radial menus: drag away from the screen edge and back to reach every choice
+- Fixed a crash right after the intro on some Mali phones (Pixel 6a)
+- Fixed a crash at start on some PowerVR phones
+- Video settings: SSAO can now be turned on (off by default, it costs some speed); fog always uses half resolution
+- The launcher now confirms when a report was sent
+
 0.6.17
 - Light from fires and candles looks white again, with normal contrast
 - Problem reports can include screenshots and short videos
