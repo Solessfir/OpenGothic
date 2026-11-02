@@ -154,6 +154,7 @@ Marvin::Marvin() {
     {"toggle vsm",                 C_ToggleVsm},
     {"toggle rtsm",                C_ToggleRtsm},
     {"toggle pathtrace",           C_TogglePathtrace},
+    {"toggle shadowdebug",         C_ToggleShadowDebug},
     };
   }
 
@@ -522,6 +523,9 @@ bool Marvin::exec(std::string_view v) {
       return true;
     case C_TogglePathtrace:
       Gothic::inst().togglePathtrace();
+      return true;
+    case C_ToggleShadowDebug:
+      Gothic::inst().toggleShadowDebug();
       return true;
     }
 

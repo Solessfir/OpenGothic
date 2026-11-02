@@ -50,6 +50,9 @@ class WorldView {
     void setWindEnabled(bool enabled, uint64_t period);
     void setTemporalJitter(bool enabled, uint32_t phases);
     void setMipBias(float bias) { sGlobal.setMipBias(bias); }
+    void setShadowDebug(bool on) { sGlobal.setShadowDebug(on); }
+    void logShadowCascades(const Camera& camera, const Tempest::Vec3& ldir,
+                           const Tempest::Matrix4x4* shadow, const Tempest::Matrix4x4* shadowLwc);
     void setCameraObstructionFade(float distance, const Tempest::Vec4& target) { sGlobal.setCameraObstructionFade(distance, target); }
     void setWaterLevel(float y, float waves) { sGlobal.setWaterLevel(y, waves); }
     void setSkyIrradiance(const Tempest::Texture2d& t) { sGlobal.skyIrradiance = &t; }

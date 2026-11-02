@@ -133,10 +133,12 @@ class Renderer final {
     void toggleGi();
     void toggleVsm();
     void toggleRtsm();
+    void toggleShadowDebug();
     void togglePathtrace();
 
     struct Settings {
       uint32_t       shadowResolution   = 2048;
+      bool           shadowDebug        = false;
       bool           swrEnabled         = false;
       bool           swrtEnabled        = false;
       bool           pathTraceEnabled   = false;
