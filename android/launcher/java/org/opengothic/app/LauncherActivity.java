@@ -952,6 +952,9 @@ public final class LauncherActivity extends AppCompatActivity {
         final EditText note = new EditText(this);
         note.setHint(R.string.og_report_hint);
         note.setFilters(new InputFilter[] {new InputFilter.LengthFilter(2000)});
+        // Long text scrolls inside the field instead of pushing the dialog off the screen
+        note.setMaxLines(5);
+        note.setVerticalScrollBarEnabled(true);
         final RadioGroup kind = new RadioGroup(this);
         kind.setOrientation(RadioGroup.HORIZONTAL);
         final RadioButton bug = new RadioButton(this);
@@ -1028,7 +1031,10 @@ public final class LauncherActivity extends AppCompatActivity {
                 .setNegativeButton(problem != null ? R.string.og_not_now : R.string.og_cancel, null)
                 .create();
         int pad = Math.round(20 * getResources().getDisplayMetrics().density);
-        dialog.setView(page, pad, 0, pad, 0);
+        // On a short landscape screen even that can be too tall, so the whole page scrolls too
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(page);
+        dialog.setView(scroll, pad, 0, pad, 0);
         // Typing is easier in portrait, so the screen follows the phone until the dialog closes
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_FULL_USER);
         dialog.setOnDismissListener(d -> {
