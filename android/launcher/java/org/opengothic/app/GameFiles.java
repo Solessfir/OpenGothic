@@ -171,6 +171,25 @@ final class GameFiles {
         return false;
     }
 
+    /** A value from an ini file such as Gothic.ini, or null. */
+    static String iniValue(File ini, String section, String key) {
+        String current = "";
+        try (java.io.BufferedReader in = new java.io.BufferedReader(new java.io.InputStreamReader(new java.io.FileInputStream(ini), StandardCharsets.ISO_8859_1))) {
+            for (String line; (line = in.readLine()) != null; ) {
+                line = line.trim();
+                if (line.startsWith("[") && line.endsWith("]")) {
+                    current = line.substring(1, line.length() - 1);
+                } else if (current.equalsIgnoreCase(section)) {
+                    int eq = line.indexOf('=');
+                    if (eq > 0 && line.substring(0, eq).trim().equalsIgnoreCase(key)) return line.substring(eq + 1).trim();
+                }
+            }
+        } catch (IOException e) {
+            // A game that never started has no Gothic.ini yet
+        }
+        return null;
+    }
+
     static void delete(File f) throws IOException {
         File[] list = f.listFiles();
         if (list != null) {
