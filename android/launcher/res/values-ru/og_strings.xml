@@ -39,7 +39,7 @@
     <string name="og_suggestion_body">Отправить идею разработчику? Отправляются только ваш текст, версия лаунчера и модель телефона, а также сохранение, если вы его выберете.</string>
     <string name="og_suggestion_hint">Что бы вы хотели увидеть?</string>
     <string name="og_suggestion_send">Отправить</string>
-    <string name="og_report_body">Отправить отчёт разработчику? В нём журнал игры и сведения об этом телефоне, но нет данных аккаунта. Сохранение отправляется, только если вы его выберете.</string>
+    <string name="og_report_body">Отправить отчёт разработчику? В нём журнал игры и сведения об этом телефоне, но нет данных аккаунта. Сохранение, скриншоты или видео отправляются, только если вы их выберете.</string>
     <string name="og_report_hint">Что произошло? (необязательно)</string>
     <string name="og_report_send">Отправить отчёт</string>
     <string name="og_report_sent">Отчёт отправлен. Спасибо!</string>
@@ -49,6 +49,14 @@
     <string name="og_report_save">%1$s, %2$s МБ</string>
     <string name="og_report_save_pick">Выберите сохранение</string>
     <string name="og_report_save_failed">Отчёт отправлен, а сохранение нет. %1$s</string>
+    <string name="og_report_shots_none">Прикрепить скриншоты или видео? (необязательно)</string>
+    <string name="og_report_shots_why">До 3, видео до 60 МБ. Например, как это выглядит и как должно выглядеть.</string>
+    <string name="og_report_shots">Прикреплено: %1$d из 3</string>
+    <string name="og_report_shots_failed">Отчёт отправлен, а скриншоты или видео нет. %1$s</string>
+    <string name="og_report_video_too_large">Это видео больше 60 МБ. Обрежьте его или запишите более короткий клип.</string>
+    <string name="og_notice_title">От разработчика</string>
+    <string name="og_blocked_title">Недоступно на этом телефоне</string>
+    <string name="og_blocked_body">Gothic Launcher не может запускать игры на этом телефоне.</string>
     <string name="og_unsupported_title">К сожалению, этот телефон не поддерживается</string>
     <string name="og_try_anyway">Всё равно попробовать</string>
     <string name="og_no_vulkan">Играм нужна графика Vulkan 1.1, а этот телефон её не поддерживает.</string>

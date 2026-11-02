@@ -6,6 +6,7 @@ import android.app.ApplicationExitInfo;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.net.Uri;
 import android.os.Build;
 
 import org.json.JSONObject;
@@ -53,6 +54,19 @@ final class Reports {
             super(message);
         }
     }
+
+    /** The report was filed, but its screenshots did not arrive. */
+    static final class ShotsNotSent extends IOException {
+        ShotsNotSent(String message) {
+            super(message);
+        }
+    }
+
+    static final int MAX_SHOTS = 3;
+    /** The relay takes 64 MB per file; a minute or so of phone video. */
+    static final long MAX_VIDEO = 60L * 1000 * 1000;
+    /** Longest side of a sent screenshot: enough to see the problem, small enough for a phone upload. */
+    private static final int SHOT_SIZE = 1920;
 
     /** The game started last, see LauncherActivity.play. */
     static Library.Game lastPlayed(File root) {
@@ -151,12 +165,15 @@ final class Reports {
 
     /**
      * Sends the report to the relay named in the launcher config, which files the issue. The relay keeps the GitHub token,
-     * so the app never holds one. A save follows the report, which the relay links from the issue.
+     * so the app never holds one. A save and screenshots follow the report, which the relay links from the issue.
      */
-    static void send(Context c, Library.Game game, String problem, String note, boolean suggestion, File save) throws IOException {
+    static void send(Context c, Library.Game game, String problem, String note, boolean suggestion, File save, List<Uri> shots)
+            throws IOException {
         String relay = Updates.reportRelay(c);
         if (relay == null) throw new IOException(App.text(R.string.og_err_reports_unavailable));
         Map<String, String> report = new HashMap<>();
+        report.put("install", Updates.installId(c));
+        report.put("device", Updates.device());
         if (suggestion) {
             String line = note.split("\n", 2)[0];
             report.put("title", "Suggestion: " + (line.length() > 80 ? line.substring(0, 80) + "…" : line));
@@ -178,20 +195,134 @@ final class Reports {
             int code = connection.getResponseCode();
             if (code == 429) throw new IOException(App.text(R.string.og_err_reports_limit));
             if (code / 100 != 2) throw new IOException("The report server answered " + code + ".");
+            if (save == null && shots.isEmpty()) return;
+            JSONObject filed;
+            try {
+                filed = new JSONObject(read(connection.getInputStream()));
+            } catch (IOException | org.json.JSONException e) {
+                throw save != null ? new SaveNotSent(e.getMessage()) : new ShotsNotSent(e.getMessage());
+            }
+            String saveError = null;
             if (save != null) {
                 try {
-                    sendSave(relay, new JSONObject(read(connection.getInputStream())), save);
+                    sendFile(relay, filed, save.getName(), save);
                 } catch (IOException | org.json.JSONException e) {
-                    throw new SaveNotSent(e.getMessage());
+                    saveError = e.getMessage();
                 }
             }
+            String shotsError = null;
+            for (int i = 0; i < shots.size() && i < MAX_SHOTS; ++i) {
+                File shot = new File(c.getCacheDir(), "report-attachment");
+                try {
+                    Uri picked = shots.get(i);
+                    if (isVideo(c, picked)) {
+                        // A video goes as it is: shrinking it would mean re-encoding on the phone
+                        copy(c, picked, shot, MAX_VIDEO);
+                        String type = c.getContentResolver().getType(picked);
+                        String ext = android.webkit.MimeTypeMap.getSingleton().getExtensionFromMimeType(type);
+                        sendFile(relay, filed, "video-" + (i + 1) + "." + (ext != null ? ext : "mp4"), shot);
+                    } else {
+                        shrink(c, picked, shot);
+                        sendFile(relay, filed, "screenshot-" + (i + 1) + ".jpg", shot);
+                    }
+                } catch (IOException | org.json.JSONException | RuntimeException e) {
+                    shotsError = e.getMessage();
+                } finally {
+                    shot.delete();
+                }
+            }
+            if (saveError != null) throw new SaveNotSent(saveError);
+            if (shotsError != null) throw new ShotsNotSent(shotsError);
         } finally {
             connection.disconnect();
         }
     }
 
-    private static void sendSave(String relay, JSONObject filed, File save) throws IOException, org.json.JSONException {
-        String query = "?issue=" + filed.getInt("number") + "&key=" + filed.getString("upload") + "&name=" + save.getName();
+    static boolean isVideo(Context c, Uri u) {
+        String type = c.getContentResolver().getType(u);
+        return type != null && type.startsWith("video/");
+    }
+
+    /** The picked file's size in bytes, -1 when the provider does not say. */
+    static long size(Context c, Uri u) {
+        try (android.database.Cursor cursor = c.getContentResolver().query(u, new String[] {android.provider.OpenableColumns.SIZE}, null, null, null)) {
+            if (cursor != null && cursor.moveToFirst() && !cursor.isNull(0)) return cursor.getLong(0);
+        } catch (RuntimeException ignored) {
+            // Unknown size
+        }
+        return -1;
+    }
+
+    private static void copy(Context c, Uri from, File to, long limit) throws IOException {
+        try (InputStream in = c.getContentResolver().openInputStream(from); OutputStream out = new java.io.FileOutputStream(to)) {
+            if (in == null) throw new IOException("The file could not be read.");
+            byte[] buffer = new byte[64 * 1024];
+            long total = 0;
+            for (int n; (n = in.read(buffer)) > 0; ) {
+                total += n;
+                if (total > limit) throw new IOException(App.text(R.string.og_report_video_too_large));
+                out.write(buffer, 0, n);
+            }
+        }
+    }
+
+    /** A picked image or video scaled down to about the given width, for its thumbnail. */
+    static Bitmap imagePreview(Context c, Uri image, int width) {
+        if (Build.VERSION.SDK_INT >= 29) {
+            try {
+                return c.getContentResolver().loadThumbnail(image, new android.util.Size(width, width), null);
+            } catch (IOException | RuntimeException ignored) {
+                // Decode it below
+            }
+        }
+        try {
+            BitmapFactory.Options size = new BitmapFactory.Options();
+            size.inJustDecodeBounds = true;
+            try (InputStream in = c.getContentResolver().openInputStream(image)) {
+                BitmapFactory.decodeStream(in, null, size);
+            }
+            BitmapFactory.Options scaled = new BitmapFactory.Options();
+            scaled.inSampleSize = 1;
+            while (size.outWidth / (scaled.inSampleSize * 2) >= width) scaled.inSampleSize *= 2;
+            try (InputStream in = c.getContentResolver().openInputStream(image)) {
+                return BitmapFactory.decodeStream(in, null, scaled);
+            }
+        } catch (IOException | RuntimeException e) {
+            return null;
+        }
+    }
+
+    /** A picked image as a JPEG of at most SHOT_SIZE on its longest side. */
+    private static void shrink(Context c, Uri image, File out) throws IOException {
+        BitmapFactory.Options size = new BitmapFactory.Options();
+        size.inJustDecodeBounds = true;
+        try (InputStream in = c.getContentResolver().openInputStream(image)) {
+            BitmapFactory.decodeStream(in, null, size);
+        }
+        if (size.outWidth <= 0 || size.outHeight <= 0) throw new IOException("Not an image.");
+        BitmapFactory.Options sampled = new BitmapFactory.Options();
+        sampled.inSampleSize = 1;
+        while (Math.max(size.outWidth, size.outHeight) / (sampled.inSampleSize * 2) >= SHOT_SIZE) sampled.inSampleSize *= 2;
+        Bitmap bitmap;
+        try (InputStream in = c.getContentResolver().openInputStream(image)) {
+            bitmap = BitmapFactory.decodeStream(in, null, sampled);
+        }
+        if (bitmap == null) throw new IOException("Not an image.");
+        float scale = Math.min(1f, (float) SHOT_SIZE / Math.max(bitmap.getWidth(), bitmap.getHeight()));
+        if (scale < 1f) {
+            Bitmap scaled = Bitmap.createScaledBitmap(bitmap, Math.round(bitmap.getWidth() * scale), Math.round(bitmap.getHeight() * scale), true);
+            bitmap.recycle();
+            bitmap = scaled;
+        }
+        try (OutputStream o = new java.io.FileOutputStream(out)) {
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 85, o);
+        } finally {
+            bitmap.recycle();
+        }
+    }
+
+    private static void sendFile(String relay, JSONObject filed, String name, File save) throws IOException, org.json.JSONException {
+        String query = "?issue=" + filed.getInt("number") + "&key=" + filed.getString("upload") + "&name=" + name;
         HttpURLConnection connection = (HttpURLConnection) new URL(relay.replaceAll("/+$", "") + "/save" + query).openConnection();
         try {
             connection.setConnectTimeout(15000);
@@ -257,8 +388,9 @@ final class Reports {
         ActivityManager.MemoryInfo memory = new ActivityManager.MemoryInfo();
         c.getSystemService(ActivityManager.class).getMemoryInfo(memory);
         String soc = Build.VERSION.SDK_INT >= 31 ? ", " + Build.SOC_MANUFACTURER + " " + Build.SOC_MODEL : "";
-        return String.format(Locale.ROOT, "OpenGothic %s, %s on %s %s%s, Android %s, %.1f GB RAM",
-                Updates.installedVersion(c), game.title, Build.MANUFACTURER, Build.MODEL, soc, Build.VERSION.RELEASE, memory.totalMem / 1e9);
+        return String.format(Locale.ROOT, "OpenGothic %s, %s on %s %s%s, Android %s, %.1f GB RAM, install %s",
+                Updates.installedVersion(c), game.title, Build.MANUFACTURER, Build.MODEL, soc, Build.VERSION.RELEASE, memory.totalMem / 1e9,
+                Updates.installId(c));
     }
 
     /** The date tells whether a crash log belongs to this problem or an older one. */

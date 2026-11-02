@@ -39,7 +39,7 @@
     <string name="og_suggestion_body">Eine Idee an den Entwickler senden? Gesendet werden nur dein Text, die Launcher-Version und das Telefonmodell, dazu ein Spielstand, wenn du einen auswählst.</string>
     <string name="og_suggestion_hint">Was würdest du gern sehen?</string>
     <string name="og_suggestion_send">Senden</string>
-    <string name="og_report_body">Einen Bericht an den Entwickler senden? Er enthält das Spielprotokoll und Angaben zu diesem Telefon, aber keine Kontodaten. Ein Spielstand wird nur gesendet, wenn du einen auswählst.</string>
+    <string name="og_report_body">Einen Bericht an den Entwickler senden? Er enthält das Spielprotokoll und Angaben zu diesem Telefon, aber keine Kontodaten. Ein Spielstand, Screenshots oder Videos werden nur gesendet, wenn du sie auswählst.</string>
     <string name="og_report_hint">Was ist passiert? (optional)</string>
     <string name="og_report_send">Bericht senden</string>
     <string name="og_report_sent">Bericht gesendet. Danke!</string>
@@ -49,6 +49,14 @@
     <string name="og_report_save">%1$s, %2$s MB</string>
     <string name="og_report_save_pick">Spielstand auswählen</string>
     <string name="og_report_save_failed">Der Bericht wurde gesendet, der Spielstand aber nicht. %1$s</string>
+    <string name="og_report_shots_none">Screenshots oder Videos anhängen? (optional)</string>
+    <string name="og_report_shots_why">Bis zu 3, Videos bis 60 MB. Zum Beispiel wie es aussieht und wie es aussehen sollte.</string>
+    <string name="og_report_shots">Angehängt: %1$d von 3</string>
+    <string name="og_report_shots_failed">Der Bericht wurde gesendet, die Screenshots oder Videos aber nicht. %1$s</string>
+    <string name="og_report_video_too_large">Dieses Video ist größer als 60 MB. Bitte kürze es oder nimm einen kürzeren Clip auf.</string>
+    <string name="og_notice_title">Vom Entwickler</string>
+    <string name="og_blocked_title">Auf diesem Telefon nicht verfügbar</string>
+    <string name="og_blocked_body">Gothic Launcher kann auf diesem Telefon keine Spiele starten.</string>
     <string name="og_unsupported_title">Dieses Telefon wird leider nicht unterstützt</string>
     <string name="og_try_anyway">Trotzdem versuchen</string>
     <string name="og_no_vulkan">Die Spiele brauchen Vulkan-1.1-Grafik, die dieses Telefon nicht hat.</string>
