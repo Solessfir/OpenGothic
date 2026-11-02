@@ -17,17 +17,17 @@ Controller bindings and movement options use a separate [Gamepad.ini](CONTROLLER
 
 ## Graphics and FPS
 
-Options > Video settings offers resolution in 5% steps, a 30 FPS / 60 FPS / Unlocked limit, half-resolution fog/SSAO, shadow resolution, brightness, contrast and gamma. Changes apply immediately. UI and text always use full resolution. Existing resolution and frame-rate choices are preserved when updating.
+Options > Video settings offers resolution in 5% steps, a 30 FPS / 60 FPS / Unlocked limit, SSAO on or off, shadow resolution, brightness, contrast and gamma. Changes apply immediately. UI and text always use full resolution. Existing resolution and frame-rate choices are preserved when updating.
 
 | File section / key | Android default | Options |
 | --- | --- | --- |
 | `[ENGINE] renderScale` | `100` | Scene resolution percentage, `50` to `100` |
+| `[ENGINE] zCloudShadowScale` | `0` | `1`: screen-space ambient occlusion (SSAO) |
 | `[ENGINE] ssaoHalfResolution` | `1` | `0`: full-resolution ambient occlusion |
-| `[ENGINE] fogHalfResolution` | `1` | `0`: original fog-lighting quality |
 | `[ENGINE] shadowMapResolution` | `1024` | `512` reduces cost; `1536` or `2048` increases shadow detail and cost |
 | `[ENGINE] zMaxFPS` | `60` | `30` reduces power/heat; `0` uncaps gameplay |
 | `[ENGINE] frameRateLimit` | `-1` | Menu selection: `30`, `60` or `0` (Unlocked); `-1` uses the legacy INI limits |
-| `[VIDEO] displayMode` | `auto` | Lowercase `sdr` forces SDR; `hdr` requests HDR with SDR fallback |
+| `[VIDEO] displayMode` | `sdr` | `auto` uses HDR where supported; `hdr` requests HDR with SDR fallback |
 | `[GAME] showFps` | `0` | `1` shows the text-only FPS counter; also toggle it by holding Back/menu and selecting FPS |
 
 Lower render quality can improve performance, but a cap cannot guarantee sustained FPS.
