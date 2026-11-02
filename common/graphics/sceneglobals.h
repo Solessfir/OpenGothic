@@ -135,7 +135,7 @@ class SceneGlobals final {
       Tempest::Vec4                    wind = {}; // direction, phase, previous phase
       float                           waterWaves = 0; // wave_max_amplitude of the water at waterLevel
       float                           mipBias  = 0; // texture LOD bias while an upscaler reconstructs a higher resolution
-      float                           padding1 = 0, padding2 = 0;
+      float                           shadowDebug = 0, padding2 = 0;
       Tempest::Matrix4x4              viewProjectPrev; // previous frame, without jitter
       Tempest::Vec2                   jitter;          // sub-pixel offset of this frame, in NDC
       Tempest::Vec2                   padding3;
@@ -150,6 +150,8 @@ class SceneGlobals final {
     bool                              taaJitter    = false;
     uint32_t                          taaPhases    = 8; // length of the jitter sequence
     void                              setMipBias(float bias) { uboGlobalCpu.mipBias = bias; }
+    void                              setShadowDebug(bool on) { uboGlobalCpu.shadowDebug = on ? 1.f : 0.f; }
+    bool                              shadowDebug() const { return uboGlobalCpu.shadowDebug>0; }
     uint64_t                          windPeriod = 6000;
 
     RtScene                           rtScene;
