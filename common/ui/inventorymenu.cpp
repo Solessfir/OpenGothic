@@ -554,8 +554,19 @@ bool InventoryMenu::touchBegin(Point pos) {
 
 void InventoryMenu::touchHold() {
   touchHeld = true;
-  if(player==nullptr || state==State::Closed || !activePage().is(&player->inventory()))
+  if(player==nullptr || state==State::Closed)
     return;
+  if(!activePage().is(&player->inventory())) {
+    // The gamepad's take-stack button: the whole stack from a chest, a body or a trader
+    if(state==State::Chest || state==State::Trade || state==State::Ransack) {
+      lootMode = LootMode::Stack;
+      onTakeStuff();
+      lootMode = LootMode::Normal;
+      Feedback::play(Feedback::Effect::Confirm);
+      update();
+      }
+    return;
+    }
   auto item = activePage().get(activePageSel().sel);
   if(!item.isValid() || !QuickSlots::togglePinned(*player,*item))
     return;
@@ -1250,6 +1261,11 @@ void InventoryMenu::drawWheel(Painter& p,DrawPass pass) {
                        int(float(dot.x)+std::sin(a)*r),int(float(dot.y)-std::cos(a)*r),0.f,0.f,
                        int(float(dot.x)+std::sin(b)*r),int(float(dot.y)-std::cos(b)*r),0.f,0.f);
         }
+      }
+    if(pass==DrawPass::Front && item && item->handle().munition>0) {
+      // Arrows or bolts left for a bow or crossbow, in the corner of its icon
+      string_frm count(player->itemCount(size_t(item->handle().munition)));
+      font.drawTextShadow(p,at.x-cell/2,at.y+cell/2,cell,line,count.c_str(),AlignRight);
       }
     if(pass==DrawPass::Front && (utilityMenu || pageButton)) {
       const auto fpsLabel=Gothic::settingsGetI("GAME","showFps")!=0 ? "FPS: On" : "FPS: Off";
