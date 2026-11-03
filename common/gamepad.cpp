@@ -544,7 +544,10 @@ void MainWindow::tickGamepad() {
                                      controllerBindings.automaticWalk(raw.x,raw.y,true,true),options.movementTurnSpeed);
       else {
         const auto ground=controllerBindings.touchMovementAxis(raw.x,raw.y);
-        player.setTurnMovement(ground.first,ground.second,controllerBindings.automaticWalk(0.f,raw.y,false,true),options.touchTurnSpeed);
+        // The game's mouse speed slider also scales how fast the stick turns the hero, as it does for touch look.
+        // Even at the bottom of the slider the hero can still turn.
+        const float turnSpeed=options.touchTurnSpeed*std::max(0.2f,Gothic::settingsGetF("GAME","mouseSensitivity"))/0.5f;
+        player.setTurnMovement(ground.first,ground.second,controllerBindings.automaticWalk(0.f,raw.y,false,true),turnSpeed);
         }
       }
     else {
