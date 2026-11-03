@@ -778,7 +778,7 @@ void TouchInput::updateMovement(const Point& pos) {
   }
 
 int TouchInput::movementRadius() const {
-  return std::max(80,std::min(w(),h())/6);
+  return std::max(80,std::min(w(),h())/4);
   }
 
 void TouchInput::setDirection(Command value, bool pressed) {
