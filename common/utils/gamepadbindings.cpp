@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <bit>
 #include <cmath>
+#include <numbers>
 #include <sstream>
 #include <unordered_map>
 
@@ -159,6 +160,8 @@ TouchMovementDeadZone=0.15
 MovementExponent=1.5
 MovementTurnSpeed=180
 TouchTurnSpeed=180
+TouchTurnExponent=1.3
+TouchSteerSnap=22
 WalkThreshold=0.60
 TouchWalkThreshold=0.35
 WalkHysteresis=0.04
@@ -306,6 +309,8 @@ std::vector<std::string> GamepadBindings::load(std::istream& input) {
   options.movementExponent=number("Axes","MovementExponent",options.movementExponent,1,4);
   options.movementTurnSpeed=number("Axes","MovementTurnSpeed",options.movementTurnSpeed,45,720);
   options.touchTurnSpeed=number("Axes","TouchTurnSpeed",options.touchTurnSpeed,45,720);
+  options.touchTurnExponent=number("Axes","TouchTurnExponent",options.touchTurnExponent,1,4);
+  options.touchSteerSnap=number("Axes","TouchSteerSnap",options.touchSteerSnap,0,45);
   options.walkThreshold=number("Axes","WalkThreshold",options.walkThreshold,0.1f,1);
   options.touchWalkThreshold=number("Axes","TouchWalkThreshold",options.touchWalkThreshold,0.1f,1);
   options.walkHysteresis=number("Axes","WalkHysteresis",options.walkHysteresis,0,0.2f);
@@ -334,7 +339,7 @@ std::vector<std::string> GamepadBindings::load(std::istream& input) {
   for(auto& [sec,v]:values) {
     std::string_view allowed;
     if(sec=="Controller") allowed="|Enabled|ExplorationModifier|HoldMs|RepeatDelayMs|RepeatMs|CameraAssist|";
-    if(sec=="Axes") allowed="|MovementStick|CameraStick|StickDeadZone|MovementDeadZone|TouchMovementDeadZone|MovementExponent|MovementTurnSpeed|TouchTurnSpeed|WalkThreshold|TouchWalkThreshold|WalkHysteresis|TriggerPressThreshold|TriggerReleaseThreshold|";
+    if(sec=="Axes") allowed="|MovementStick|CameraStick|StickDeadZone|MovementDeadZone|TouchMovementDeadZone|MovementExponent|MovementTurnSpeed|TouchTurnSpeed|TouchTurnExponent|TouchSteerSnap|WalkThreshold|TouchWalkThreshold|WalkHysteresis|TriggerPressThreshold|TriggerReleaseThreshold|";
     if(sec=="TargetLock") allowed="|SwitchThreshold|SwitchResetThreshold|SwitchCooldownMs|CameraSmoothingSeconds|";
     if(sec=="Combat") allowed="|MeleeAssist|MeleeAssistMaxAngle|MeleeAssistMaxDistance|MeleeFocusRangeScale|";
     if(!allowed.empty()) for(auto& [key,value]:v) {
@@ -424,7 +429,14 @@ std::pair<float,float> GamepadBindings::movementAxis(float x,float y,bool touch)
   }
 
 std::pair<float,float> GamepadBindings::touchMovementAxis(float x,float y) const {
-  return turnMovementAxis(x,y,true);
+  auto ret=turnMovementAxis(x,y,true);
+  // The turn rate follows the drag angle, not the sideways distance: a thumb running forward wobbles sideways,
+  // so near straight up or down it does not steer, and from there it rises evenly to full turning near sideways
+  const float dz=options.touchMovementDeadZone, r=std::min(std::hypot(x,y),1.f);
+  const float angle=std::atan2(std::abs(x),std::abs(y))*180.f/std::numbers::pi_v<float>;
+  const float steer=std::clamp((angle-options.touchSteerSnap)/(90.f-2.f*options.touchSteerSnap),0.f,1.f);
+  ret.first=std::abs(x)<=dz ? 0.f : std::copysign(std::pow(steer,options.touchTurnExponent)*(r-dz)/(1.f-dz),x);
+  return ret;
   }
 
 std::pair<float,float> GamepadBindings::turnMovementAxis(float x,float y,bool touch) const {
