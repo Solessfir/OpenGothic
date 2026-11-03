@@ -1,5 +1,7 @@
 #include "../../common/utils/gamepadbindings.h"
+#include <cmath>
 #include <iostream>
+#include <numbers>
 #include <sstream>
 #include <stdexcept>
 
@@ -156,6 +158,18 @@ int main() {
     check(b.turnMovementAxis(0.f,0.f)==std::pair(0.f,0.f),"Releasing the stick stops turning and movement");
     check(b.touchMovementAxis(1.f,0.f)==std::pair(1.f,0.f),"Touch keeps its horizontal turn-in-place direction");
     check(b.touchMovementAxis(0.8660254f,0.5f).second>0.f,"The gamepad steering shift does not change touch diagonals");
+    check(b.touchMovementAxis(0.3f,-1.f)==std::pair(0.f,-1.f),"Sideways wobble while running forward does not steer");
+    check(b.touchMovementAxis(0.6f,-1.f).first>0.f,"A deliberate diagonal still steers");
+    {
+      // The turn rate rises evenly with the drag angle, without a jump past the snap angle
+      float previous=0.f;
+      for(int degrees=0;degrees<=90;++degrees) {
+        const float a=float(degrees)*std::numbers::pi_v<float>/180.f;
+        const float turn=b.touchMovementAxis(std::sin(a),-std::cos(a)).first;
+        check(turn>=previous-1e-4f && turn-previous<0.05f,"Touch steering grows smoothly with the drag angle");
+        previous=turn;
+        }
+    }
     check(!b.automaticWalk(0.f,-0.65f,false),"Gamepad runs by 65 percent physical stick travel");
     for(float value:{0.63f,0.59f,0.62f,0.57f})
       check(!b.automaticWalk(0.f,-value,false),"Running does not chatter around the walk threshold");
