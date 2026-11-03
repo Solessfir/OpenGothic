@@ -1,3 +1,7 @@
+0.6.21
+- Touch movement is steadier: a bigger stick, no turning while you run straight ahead, and turning that grows evenly the further you drag to the side
+- The mouse speed setting also changes how fast the touch stick turns the hero
+
 0.6.20
 - Drag the inventory, a chest or a trader with your finger to scroll through items that do not fit on the screen
 - Gothic 1: water splashing off a washing digger no longer shows as solid squares
