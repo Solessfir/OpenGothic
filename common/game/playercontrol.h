@@ -1,6 +1,7 @@
 #pragma once
 
 #include "utils/bufferedshot.h"
+#include "utils/stuckwatch.h"
 
 #include "world/focus.h"
 #include "utils/keycodec.h"
@@ -180,6 +181,7 @@ class PlayerControl final {
     bool           controllerBlockPending=false;
     AttackTap      controllerEmptyAttack;
     BufferedShot   controllerBowShot;
+    StuckWatch     stuckWatch;
     size_t         controllerBowWeapon=size_t(-1);
     bool           controllerWalkApplied=false;
     bool           controllerSwimming=false;
@@ -222,6 +224,7 @@ class PlayerControl final {
 
     void           clrDraw();
     void           implMove(uint64_t dt);
+    void           logStuckHero(Npc& pl);
     void           implSwim(Npc& pl, uint64_t dt, float magnitude, float yaw, float aimPitch, bool faceIdle = false, bool backward = false);
     void           implMoveMobsi(Npc& pl, uint64_t dt);
     void           processPickLock(Npc& pl, Interactive& inter, KeyCodec::Action key);
