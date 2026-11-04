@@ -983,7 +983,15 @@ GthFont &Resources::implLoadFont(std::string_view name, FontType type, const flo
     return *f;
     }
 
-  auto ptr   = std::make_unique<GthFont>(*entry->open_read(),tex,color);
+  std::unique_ptr<GthFont> ptr;
+  try {
+    ptr = std::make_unique<GthFont>(*entry->open_read(),tex,color);
+    }
+  catch(const std::exception& e) {
+    // A damaged font file in the player's game data must not stop the game; the log names it for reports
+    Log::e("failed to load font: ", fnt, " (", e.what(), ")");
+    ptr = std::make_unique<GthFont>();
+    }
   GthFont* f = ptr.get();
   f->setScale(scale);
   gothicFnt[key] = std::move(ptr);
