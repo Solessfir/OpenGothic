@@ -17,6 +17,7 @@
     <string name="og_update_to">Aktualizuj do %1$s</string>
     <string name="og_update_downloading">Pobieranie aktualizacji · %1$d%%</string>
     <string name="og_update_title">Gothic Launcher %1$s</string>
+    <string name="og_report_update_body">Gothic Launcher %1$s jest już dostępny i może to naprawiać. Zaktualizuj, spróbuj ponownie, a jeśli problem nadal występuje, wyślij raport z nowej wersji.</string>
     <string name="og_whats_new">Co nowego</string>
     <string name="og_update_notes">Dostępna jest nowa wersja.</string>
     <string name="og_updates_title">Automatyczne aktualizacje</string>
