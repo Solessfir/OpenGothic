@@ -1,3 +1,6 @@
+0.6.22
+- Fixed the game closing right after loading on phones with a PowerVR BXM graphics chip, such as the Motorola moto g56
+
 0.6.21
 - Touch movement is steadier: a bigger stick, no turning while you run straight ahead, and turning that grows evenly the further you drag to the side
 - The mouse speed setting also changes how fast the touch stick turns the hero
