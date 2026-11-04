@@ -16,7 +16,7 @@ Downloads continue in the background with a notification and can be paused. Only
 Without a Steam account, **Import a ZIP** takes a ZIP of the game folder as it is on Windows, or a `game-data.zip` from the setup scripts (see below); the launcher keeps only what the engine reads and detects which game it holds.
 The library art comes from Steam's image servers and is kept for offline use. Steam needs Android 8; ZIP import works on Android 7.
 
-The launcher updates itself: when it starts, and every six hours while it stays open, it checks the fork's GitHub releases, shows **Update to x.y** in its header when a newer one exists, and opens Android's installer for it. Android asks once to allow installing apps from the launcher.
+The launcher updates itself: when it starts, and every six hours while it stays open, it checks the fork's GitHub releases, shows **Update to x.y** in its header when a newer one exists, and opens Android's installer for it. Android asks once to allow installing apps from the launcher. Problem reports need the current version: an outdated launcher offers the update instead, since the problem may already be fixed. Suggestions can be sent from any version.
 
 To publish an update, raise `OPENGOTHIC_LAUNCHER_VERSION` in `android/CMakeLists.txt`, build the APK on the same computer as before, and attach it to a release tagged `launcher-<version>` under the name `GothicLauncher-arm64.apk`:
 
