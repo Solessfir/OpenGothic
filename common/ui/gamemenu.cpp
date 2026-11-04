@@ -119,6 +119,13 @@ struct GameMenu::SavNameDialog : Dialog {
   bool         accepted = false;
   };
 
+// The journal text size setting: 1 to 2 times the interface scale, for all text of the journal
+static constexpr float JournalLabelScale = 1.3f;
+
+static float journalScale() {
+  return 1.f+std::clamp(Gothic::settingsGetF("GAME","journalScale"),0.f,1.f);
+  }
+
 GameMenu::GameMenu(MenuRoot &owner, KeyCodec& keyCodec, zenkit::DaedalusVm& vm, std::string_view menuSection, KeyCodec::Action kClose)
   :owner(owner), keyCodec(keyCodec), vm(&vm), kClose(kClose) {
 #if defined(__MOBILE_PLATFORM__)
@@ -142,6 +149,9 @@ GameMenu::GameMenu(MenuRoot &owner, KeyCodec& keyCodec, zenkit::DaedalusVm& vm, 
   back = Resources::loadTexture(menu->back_pic);
 
   initItems();
+  for(auto& i:hItems)
+    if(i.handle!=nullptr && i.handle->type==zenkit::MenuItemType::LISTBOX)
+      journalMenu = true;
   float infoX = 1000.0f/scriptDiv;
   float infoY = 7500.0f/scriptDiv;
 
@@ -498,6 +508,8 @@ void GameMenu::initExtraOptions() {
      "Size of the spoken lines, up to twice as large.", "GAME", "MENUITEM_GAME_SUB_TITLES"},
     {"ANDROID_DIALOGUE_SIZE", "Dialogue text size", "dialogueScale", "",
      "Size of the dialogue choices, up to twice as large.", "GAME", "MENUITEM_GAME_SUB_TITLES"},
+    {"ANDROID_JOURNAL_SIZE", "Journal text size", "journalScale", "",
+     "Size of the journal text, quest names and entries up to twice as large.", "GAME", "MENUITEM_GAME_SUB_TITLES"},
 #if defined(__ANDROID__)
     {"ANDROID_TOUCH_LABELS", "Touch labels", "touchLabels", "Off|On",
      "Names and hints next to the touch buttons."},
@@ -843,6 +855,11 @@ void GameMenu::drawItem(Painter& p, Item& hItem) {
   int  tw  = szX;
   int  th  = szY;
 
+  if(journalMenu && &hItem!=journalContent && item->type==zenkit::MenuItemType::TEXT) {
+    // The category, day and time labels sit in frames drawn for the normal font: they grow less, to stay inside
+    fnt.setScale(Gothic::interfaceScale(this)*std::min(journalScale(),JournalLabelScale));
+    }
+
   AlignFlag txtAlign=NoAlign;
   if(flags & zenkit::MenuItemFlag::CENTERED) {
     txtAlign = AlignHCenter | AlignVCenter;
@@ -950,7 +967,7 @@ void GameMenu::drawQuestList(Painter& p, Item& it, int x, int y, int w, int h,
   int32_t listBegin = it.scroll;
   int32_t listEnd   = listLen;
 
-  const float scale = Gothic::interfaceScale(this);
+  const float scale = Gothic::interfaceScale(this)*journalScale();
   for(size_t i=0; i<log.questCount(); i++) {
     auto& quest = log.quest(log.questCount()-i-1);
     if(!isCompatible(quest,st))
@@ -1305,7 +1322,7 @@ int32_t GameMenu::questAt(const Item& list, Point pos) {
     return -1;
 
   const auto  st    = toStatus(item.user_string[0]);
-  const float scale = Gothic::interfaceScale(this);
+  const float scale = Gothic::interfaceScale(this)*journalScale();
   auto&       fnt   = Resources::font(item.fontname,Resources::FontType::Normal,scale);
   int32_t     id    = -1;
   int         top   = y;
@@ -1523,7 +1540,9 @@ bool GameMenu::selectionIncludes(const Item& item) {
   }
 
 const GthFont& GameMenu::getTextFont(const GameMenu::Item &it) {
-  const float scale = Gothic::interfaceScale(this);
+  float scale = Gothic::interfaceScale(this);
+  if(journalMenu)
+    scale *= journalScale();
   GthFont ret;
   if(!isEnabled(it.handle))
     return Resources::font(it.handle->fontname, Resources::FontType::Disabled, scale);
