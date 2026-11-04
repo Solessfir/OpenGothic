@@ -73,9 +73,10 @@ The world keeps running; other touch controls are suspended until the wheel clos
 | Two fingers anywhere: left / right | Health / mana potion |
 | Three-finger tap anywhere | Quicksave |
 | Four-finger tap anywhere | Quickload immediately, without confirmation |
+| Five-finger tap anywhere | Open the console (Marvin mode only) |
 
 Put fingers down within about 350 ms before lifting any. Swipe together in one clear direction.
-For three/four-finger taps, keep them nearly still and lift all within 800 ms.
+For three/four/five-finger taps, keep them nearly still and lift all within 800 ms.
 Shortcuts require [useQuickSaveKeys/usePotionKeys](CONFIGURATION.md#shortcuts-audio-and-other-preferences);
 sneak requires the learned skill.
 
@@ -94,6 +95,14 @@ Release the movement finger before resuming gameplay.
 Save-name entry opens the Android keyboard; press **Done** to accept.
 In save/load menus, select a slot and use a three-finger tap to request deletion.
 Use/Attack confirms permanent deletion; Back cancels. There is no undo.
+
+## Marvin mode and console
+
+As on PC, Marvin mode is turned on by typing `marvin` in a menu. A three-finger tap in any menu other than save/load opens the Android keyboard for it:
+
+1. Open the character screen and tap with three fingers.
+2. Type `marvin` and press Enter; "MARVIN-MODE" appears. Typing `42` turns it off again.
+3. In the game, tap with five fingers to open the console with the keyboard. Enter runs a command; tap below the console to close it.
 
 ## Swimming
 
