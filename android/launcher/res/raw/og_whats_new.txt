@@ -1,3 +1,9 @@
+0.6.23
+- Marvin mode on touch: on the character screen tap with three fingers, type marvin and press Enter. With Marvin mode on, a five-finger tap opens the console with the keyboard; tap below it to close it
+- Problem reports from an outdated launcher offer the update first, since the problem may already be fixed. Suggestions can be sent from any version
+- Fixed the game closing at start when a font file of the game is damaged
+- Problem reports note where the hero seems stuck, to help fix holes in the world
+
 0.6.22
 - Fixed the game closing right after loading on phones with a PowerVR BXM graphics chip, such as the Motorola moto g56
 
