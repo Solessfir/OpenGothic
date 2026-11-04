@@ -21,8 +21,10 @@ int main() {
   try {
     MultiFingerTap tap;
     using Action=MultiFingerTap::Action;
-    check(MultiFingerTap::action(3,true)==Action::DeleteSave,"Three fingers in a save menu only request deletion");
-    check(MultiFingerTap::action(4,true)==Action::None,"Four fingers in a save menu never quickload");
+    check(MultiFingerTap::action(3,true)==Action::MenuTap,"Three fingers in a menu only request the menu action");
+    check(MultiFingerTap::action(4,true)==Action::None,"Four fingers in a menu never quickload");
+    check(MultiFingerTap::action(5,false)==Action::Console,"Five fingers in gameplay request the console");
+    check(MultiFingerTap::action(5,true)==Action::None,"Five fingers in a menu do nothing");
     check(MultiFingerTap::action(3,false)==Action::QuickSave,"Gameplay retains three-finger quicksave");
     check(MultiFingerTap::action(4,false)==Action::QuickLoad,"Gameplay retains four-finger quickload");
     check(MultiFingerTap::action(0,true)==Action::None,"Canceled taps cannot request deletion");
@@ -32,7 +34,9 @@ int main() {
     fingers(tap,4);
     check(release(tap,4)==4,"Four fingers quickload without first quicksaving");
     fingers(tap,5);
-    check(release(tap,5)==0,"Five fingers cannot fall back to save or load");
+    check(release(tap,5)==5,"Five fingers report themselves, never a save or load");
+    fingers(tap,6);
+    check(release(tap,6)==0,"Six fingers do nothing");
     fingers(tap,2);
     check(release(tap,2)==0,"Two fingers remain available for swipe gestures");
     fingers(tap,3);

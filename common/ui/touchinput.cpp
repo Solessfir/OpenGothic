@@ -182,7 +182,7 @@ void TouchInput::mouseDownEvent(Tempest::MouseEvent& e) {
 
   const bool onBlock=button>=0 && Buttons[button]==Command::Block;
   multiTap.down(e.mouseID,float(e.x),float(e.y),touch.pressedAt,
-                (saveDeleteEnabled || (gesturesEnabled && !uiActive)) && wheelPointer<0);
+                (saveDeleteEnabled || menuKeyboardEnabled || (gesturesEnabled && !uiActive)) && wheelPointer<0);
   if(tapCaptured || multiTap.ready()) {
     captureTap(e.mouseID,touch);
     return;
@@ -310,10 +310,11 @@ void TouchInput::mouseUpEvent(Tempest::MouseEvent& e) {
     if(multiTap.empty()) {
       tapCaptured=false;
       // Decide only after every finger is lifted: four fingers must never save first.
-      switch(MultiFingerTap::action(tap,saveDeleteEnabled)) {
-        case MultiFingerTap::Action::QuickSave:  command(Command::QuickSave,true); break;
-        case MultiFingerTap::Action::QuickLoad:  command(Command::QuickLoad,true); break;
-        case MultiFingerTap::Action::DeleteSave: command(Command::DeleteSave,true); break;
+      switch(MultiFingerTap::action(tap,saveDeleteEnabled || menuKeyboardEnabled)) {
+        case MultiFingerTap::Action::QuickSave: command(Command::QuickSave,true); break;
+        case MultiFingerTap::Action::QuickLoad: command(Command::QuickLoad,true); break;
+        case MultiFingerTap::Action::MenuTap:   command(saveDeleteEnabled ? Command::DeleteSave : Command::Keyboard,true); break;
+        case MultiFingerTap::Action::Console:   command(Command::Console,true); break;
         case MultiFingerTap::Action::None: break;
         }
       }
@@ -416,6 +417,13 @@ void TouchInput::setSaveDeleteEnabled(bool enabled) {
   // Never reinterpret a tap that started in another menu or in gameplay.
   reset();
   saveDeleteEnabled=enabled;
+  update();
+  }
+
+void TouchInput::setMenuKeyboardEnabled(bool enabled) {
+  if(menuKeyboardEnabled==enabled) return;
+  reset();
+  menuKeyboardEnabled=enabled;
   update();
   }
 
