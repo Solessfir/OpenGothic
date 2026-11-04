@@ -805,18 +805,20 @@ public final class LauncherActivity extends AppCompatActivity {
         new AlertDialog.Builder(this)
                 .setTitle(getString(R.string.og_update_title, release.version))
                 .setMessage(release.notes.isEmpty() ? getString(R.string.og_update_notes) : release.notes)
-                .setPositiveButton(R.string.og_update, (dialog, which) -> {
-                    // Declined on the first start: Android's page once more, then Update again
-                    if (!mayInstallUpdates()) {
-                        Toast.makeText(this, R.string.og_update_allow, Toast.LENGTH_LONG).show();
-                        openInstallPermission();
-                        return;
-                    }
-                    Updates.download(this, release);
-                    render();
-                })
+                .setPositiveButton(R.string.og_update, (dialog, which) -> startUpdate(release))
                 .setNegativeButton(R.string.og_cancel, null)
                 .show();
+    }
+
+    private void startUpdate(Updates.Release release) {
+        // Declined on the first start: Android's page once more, then Update again
+        if (!mayInstallUpdates()) {
+            Toast.makeText(this, R.string.og_update_allow, Toast.LENGTH_LONG).show();
+            openInstallPermission();
+            return;
+        }
+        Updates.download(this, release);
+        render();
     }
 
     private void showMore(View anchor) {
@@ -1046,6 +1048,11 @@ public final class LauncherActivity extends AppCompatActivity {
                 .setMessage(R.string.og_report_body)
                 .setPositiveButton(R.string.og_report_send, (d, which) -> {
                     boolean suggestion = kind.getCheckedRadioButtonId() == idea.getId();
+                    Updates.Release newer = suggestion ? null : Updates.available(this);
+                    if (newer != null) {
+                        if (!Updates.downloading) startUpdate(newer);
+                        return;
+                    }
                     sendReport(game, problem, note.getText().toString().trim(), suggestion, attached[0], new java.util.ArrayList<>(shots));
                 })
                 .setNegativeButton(problem != null ? R.string.og_not_now : R.string.og_cancel, null)
@@ -1063,12 +1070,19 @@ public final class LauncherActivity extends AppCompatActivity {
         });
         dialog.show();
         // A suggestion needs its text; a problem report is useful from the logs alone.
+        // An outdated launcher updates instead of reporting a problem, which is often fixed already; suggestions go from any version.
         final Runnable update = () -> {
             boolean suggestion = kind.getCheckedRadioButtonId() == idea.getId();
-            dialog.setMessage(getString(suggestion ? R.string.og_suggestion_body : R.string.og_report_body));
+            Updates.Release newer = suggestion ? null : Updates.available(this);
+            dialog.setMessage(newer != null ? getString(R.string.og_report_update_body, newer.version)
+                    : getString(suggestion ? R.string.og_suggestion_body : R.string.og_report_body));
             note.setHint(suggestion ? R.string.og_suggestion_hint : R.string.og_report_hint);
+            final int fields = newer != null ? View.GONE : View.VISIBLE;
+            note.setVisibility(fields);
+            save.setVisibility(fields);
+            shotsBox.setVisibility(fields);
             Button send = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
-            send.setText(suggestion ? R.string.og_suggestion_send : R.string.og_report_send);
+            send.setText(newer != null ? R.string.og_update : suggestion ? R.string.og_suggestion_send : R.string.og_report_send);
             send.setEnabled(!suggestion || note.getText().toString().trim().length() > 0);
             // The dialog theme does not dim a disabled button by itself
             send.setAlpha(send.isEnabled() ? 1f : 0.4f);
@@ -1079,6 +1093,7 @@ public final class LauncherActivity extends AppCompatActivity {
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
             @Override public void afterTextChanged(Editable s) { update.run(); }
         });
+        update.run();
     }
 
     /** The system's photo picker, for up to Reports.MAX_SHOTS screenshots or videos. */
