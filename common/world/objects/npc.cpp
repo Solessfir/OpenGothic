@@ -4421,6 +4421,35 @@ bool Npc::tryTranslate(const Vec3& to, DynamicWorld::CollisionTest& out) {
   return false;
   }
 
+bool Npc::isWalledIn(float dist) {
+  // No direction lets the hero walk dist away, step by step along the floor: the body is blocked,
+  // or the ground rises in a step too high to walk up. The body shape covers only the upper half,
+  // so a rock lip below the hips needs the ground check.
+  constexpr float stepLen = 50, stepUp = 50;
+  const auto pos0 = physic.position();
+  auto& dyn = *owner.physic();
+  DynamicWorld::CollisionTest info;
+  for(int i=0; i<12; ++i) {
+    const float a   = float(i)*float(M_PI)/6.f;
+    const Vec3  dir = Vec3(std::cos(a),0,std::sin(a));
+    bool open = true;
+    Vec3 at   = pos0;
+    for(float d=stepLen; d<=dist && open; d+=stepLen) {
+      auto next = pos0+dir*d;
+      // From just above the step, so a ceiling or an overhang is not taken for the ground
+      const auto ray = dyn.ray(Vec3(next.x,at.y+150,next.z),Vec3(next.x,at.y-1000,next.z));
+      // No ground at all means the probe is inside the rock
+      open   = ray.hasCol && ray.v.y<=at.y+stepUp;
+      next.y = ray.v.y;
+      open   = open && physic.testMove(next,at,info);
+      at     = next;
+      }
+    if(open)
+      return false;
+    }
+  return true;
+  }
+
 Npc::JumpStatus Npc::tryJump() {
   float len = MoveAlgo::climbMove;
   float rot = rotationRad();

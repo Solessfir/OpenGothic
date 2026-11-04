@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <iterator>
 #include <Tempest/Application>
+#include <Tempest/Log>
 
 #include "world/objects/npc.h"
 #include "world/objects/item.h"
@@ -1015,6 +1016,15 @@ bool PlayerControl::tickMove(uint64_t dt) {
     else controllerFinishTime-=dt;
     }
   implMove(dt);
+  {
+  const auto p        = pl->position();
+  const bool grounded = !pl->isInAir() && !pl->isFalling() && !pl->isSlide() && !pl->isSwim() && !pl->isDive() &&
+                        !pl->isDown() && pl->interactive()==nullptr;
+  const bool trying   = wantsToMoveForward() || wantsToMoveBackward() || wantsToStrafeLeft() || wantsToStrafeRight() ||
+                        ctrl[Action::Jump];
+  if(stuckWatch.tick({p.x,p.y,p.z},grounded,trying,dt))
+    logStuckHero(*pl);
+  }
   if(controllerBlockPending) {
     // One parry attempt per button press, never a held auto-parry or a delayed attack interrupt.
     actrl[ActBack]=false;
@@ -1042,6 +1052,15 @@ bool PlayerControl::tickMove(uint64_t dt) {
 
   rotMouseY = 0;
   return true;
+  }
+
+void PlayerControl::logStuckHero(Npc& pl) {
+  // Some holes in the levels may be too narrow to get out of; the log of player reports shows where
+  const auto at = stuckWatch.stuckAt();
+  if(pl.isWalledIn(400))
+    Tempest::Log::i("Stuck: hero walled in at ",at.x," ",at.y," ",at.z);
+  else
+    Tempest::Log::i("Stuck check: hero at ",at.x," ",at.y," ",at.z," can walk away");
   }
 
 void PlayerControl::implMove(uint64_t dt) {
