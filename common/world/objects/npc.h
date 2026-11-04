@@ -327,6 +327,7 @@ class Npc final {
                            DynamicWorld::CollisionTest& out);
 
     JumpStatus tryJump();
+    bool       isWalledIn(float dist);
     bool      hasCollision() const { return physic.hasCollision(); }
 
     void      startDive();
