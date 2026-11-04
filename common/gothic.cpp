@@ -235,6 +235,7 @@ Gothic::Gothic(GameModDescriptor desc) {
   defaults->set("GAME", "subTitles",           1);
   defaults->set("GAME", "subtitleScale",       0.f);
   defaults->set("GAME", "dialogueScale",       0.f);
+  defaults->set("GAME", "journalScale",        0.f);
   defaults->set("GAME", "showFps",             0);
   defaults->set("GAME", "subTitlesPlayer",     1);
 

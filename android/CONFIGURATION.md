@@ -103,6 +103,7 @@ Other supported preferences include:
 - `[GAME] useGothic1Controls`: `0` modern combat (Android default), `1` classic combat. Both settings work in Gothic 1 and Gothic II on Android.
 - `[GAME] skipEmptyLoot`: `1` skips empty bodies; `0` restores interaction with them. Empty chests remain accessible (all platforms).
 - `[GAME] subTitles`, `subTitlesPlayer`: dialogue subtitles.
+- `[GAME] subtitleScale`, `dialogueScale`, `journalScale`: size of the spoken lines, the dialogue choices and the journal text (its labels grow a little less, to stay inside their frames), from `0` (normal) to `1` (twice as large); sliders in the game settings.
 - `[SOUND] soundEnabled`, `musicEnabled`, `soundVolume`, `musicVolume`: enable flags and volumes (0–1).
 - `[VIDEO] zVidBrightness`, `zVidContrast`, `zVidGamma`: image adjustments.
 - Extended graphics menu: Wind controls object swaying; Cloud Shadows controls SSAO; Radial Fog controls fog quality and sunshafts; Reflections controls screen-space reflections. Inactive water waves, water fading and Ambient FX options are hidden.
