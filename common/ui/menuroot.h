@@ -27,6 +27,7 @@ class MenuRoot : public Tempest::Widget {
     bool canRequestDeleteSave() const;
     bool overwriteSelectedSave();
     void renameSelectedSave();
+    void showCheatKeyboard();
     void directionalInput(bool right, bool repeat=false, bool touchNavigation=true);
     bool canAdjustValue();
     void adjustValue(int steps);
@@ -53,6 +54,7 @@ class MenuRoot : public Tempest::Widget {
 
   private:
     void initSettings();
+    void hideCheatKeyboard();
     void navigateBack();
     void updateCursor();
 
@@ -65,6 +67,7 @@ class MenuRoot : public Tempest::Widget {
 
     Tempest::Event::KeyType                cheatCode[6] = {};
     bool                                   showVersionHint = false;
+    bool                                   cheatKeyboard   = false;
 #if !defined(__MOBILE_PLATFORM__)
     Tempest::Point                         mouseStart;
     bool                                   mousePressed = false;
