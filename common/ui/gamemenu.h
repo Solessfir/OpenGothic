@@ -96,6 +96,7 @@ class GameMenu : public Tempest::Widget {
     Item*                                 journalContent = nullptr;
     uint32_t                              journalCategory = 0;
     bool                                  journalContentWasVisible = false;
+    bool                                  journalMenu = false; // has the quest lists, so its text follows the journal size
     std::string                           deleteName;
     std::string                           deleteHint;
     std::string                           deleteError;
