@@ -475,8 +475,11 @@ void MainWindow::tickGamepad() {
   mobileUi.setLockPicking(inventory.isOpen()==InventoryMenu::State::LockPicking);
   mobileUi.setInventoryNavigation(controllerContext()==Context::Inventory &&
                                   Gothic::inst().checkLoading()==Gothic::LoadState::Idle);
-  mobileUi.setSaveDeleteEnabled(rootMenu.canRequestDeleteSave() && !video.isActive() && !chapter.isActive() &&
-                               !document.isActive() && !dialogs.isActive() && !inventory.isActive() && !console.isActive());
+  const bool menuTaps = rootMenu.isActive() && !video.isActive() && !chapter.isActive() && !document.isActive() &&
+                        !dialogs.isActive() && !inventory.isActive() && !console.isActive();
+  mobileUi.setSaveDeleteEnabled(menuTaps && rootMenu.canRequestDeleteSave());
+  // Three fingers in any other menu bring up the keyboard, so the MARVIN cheat can be typed as on PC
+  mobileUi.setMenuKeyboardEnabled(menuTaps && !rootMenu.canRequestDeleteSave());
   mobileUi.tick();
   mobileUi.setDebugOverlay(!connected && Gothic::settingsGetI("DEBUG","touchControls")!=0);
 #endif

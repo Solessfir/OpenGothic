@@ -33,6 +33,8 @@ class TouchInput : public Tempest::Widget {
       QuickSave,
       QuickLoad,
       DeleteSave,
+      Keyboard,
+      Console,
       HealthPotion,
       ManaPotion,
       };
@@ -59,6 +61,7 @@ class TouchInput : public Tempest::Widget {
     ItemHandler     onItemTouch;
     void            setGesturesEnabled(bool enabled);
     void            setSaveDeleteEnabled(bool enabled);
+    void            setMenuKeyboardEnabled(bool enabled);
     void            setAnalogMovement(bool enabled);
     void            setSwimming(bool enabled) { swimming = enabled; }
     void            setClassicAction(bool held);
@@ -162,6 +165,7 @@ class TouchInput : public Tempest::Widget {
     MultiFingerTap  multiTap;
     bool            tapCaptured = false;
     bool            saveDeleteEnabled = false;
+    bool            menuKeyboardEnabled = false;
     bool            touchEnabled = true;
     bool            analogMovement = false;
     bool            swimming = false;

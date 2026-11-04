@@ -1,6 +1,7 @@
 #include "menuroot.h"
 
 #include <Tempest/Log>
+#include <Tempest/SystemApi>
 
 #include "ui/gamemenu.h"
 #include "utils/feedback.h"
@@ -118,12 +119,25 @@ void MenuRoot::popMenu() {
   }
 
 void MenuRoot::closeAll() {
+  hideCheatKeyboard();
   menuStack.clear();
   if(Gothic::inst().isInGame() || Gothic::inst().checkLoading()!=Gothic::LoadState::Idle) {
     current=nullptr;
     removeAllWidgets();
     updateCursor();
     }
+  }
+
+void MenuRoot::showCheatKeyboard() {
+  cheatKeyboard = true;
+  SystemApi::showSoftInput("");
+  }
+
+void MenuRoot::hideCheatKeyboard() {
+  if(!cheatKeyboard)
+    return;
+  cheatKeyboard = false;
+  SystemApi::hideSoftInput();
   }
 
 void MenuRoot::refreshPointer() {
@@ -134,6 +148,8 @@ void MenuRoot::refreshPointer() {
   }
 
 void MenuRoot::updateCursor() {
+  // The cheat keyboard belongs to the menu it was opened in
+  hideCheatKeyboard();
 #if !defined(__MOBILE_PLATFORM__)
   setCursorShape(current!=nullptr && mouseEnabled ? CursorShape::Custom : CursorShape::Hidden);
 #endif
@@ -327,7 +343,15 @@ void MenuRoot::keyDownEvent(KeyEvent &e) {
   size_t sz = std::extent_v<decltype(cheatCode)>;
   for(size_t i=1; i<sz; ++i)
     cheatCode[i-1] = cheatCode[i];
-  cheatCode[sz-1] = e.key;
+  auto key = e.key;
+  // The phone keyboard sends characters without key codes
+  if(key==Event::K_NoKey && 'a'<=e.code && e.code<='z')
+    key = Event::KeyType(Event::K_A+(e.code-'a'));
+  else if(key==Event::K_NoKey && 'A'<=e.code && e.code<='Z')
+    key = Event::KeyType(Event::K_A+(e.code-'A'));
+  else if(key==Event::K_NoKey && '0'<=e.code && e.code<='9')
+    key = Event::KeyType(Event::K_0+(e.code-'0'));
+  cheatCode[sz-1] = key;
   if(cheatCode[0]==Event::K_M &&
      cheatCode[1]==Event::K_A &&
      cheatCode[2]==Event::K_R &&
@@ -336,14 +360,19 @@ void MenuRoot::keyDownEvent(KeyEvent &e) {
      cheatCode[5]==Event::K_N) {
     Gothic::inst().setMarvinEnabled(true);
     auto& fnt = Resources::font(scale);
-    Gothic::inst().onPrintScreen("MARVIN-MODE",2,4, 1,fnt);
+    Gothic::inst().onPrintScreen("MARVIN-MODE",-1,4, 1,fnt);
     }
 
   if(cheatCode[sz-2]==Event::K_4 &&
      cheatCode[sz-1]==Event::K_2) {
     Gothic::inst().setMarvinEnabled(false);
     auto& fnt = Resources::font(scale);
-    Gothic::inst().onPrintScreen("WHAT WAS THE QUESTION?",2,4, 1,fnt);
+    Gothic::inst().onPrintScreen("WHAT WAS THE QUESTION?",-1,4, 1,fnt);
+    }
+
+  if(cheatKeyboard && e.key==Event::K_Return) {
+    hideCheatKeyboard();
+    return;
     }
 
   if(current!=nullptr) {
