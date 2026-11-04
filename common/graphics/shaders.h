@@ -29,6 +29,7 @@ class Shaders {
       bool     doRtScene         = false;
       bool     doRayQuery        = false;
       bool     doMeshShading     = false;
+      bool     doTesselation     = false;
       bool     doVirtualShadow   = false;
       bool     doSoftwareShadow  = false;
       GiMethod doGi              = GiMethod::None;
