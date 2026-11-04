@@ -692,6 +692,14 @@ void MainWindow::onTouchCommand(TouchInput::Command command, bool pressed) {
       rootMenu.requestDeleteSave("Accept (bottom-right): delete    Back (top-right): cancel");
     return;
     }
+  if(command==TouchInput::Command::Keyboard) {
+    if(pressed && rootMenu.isActive()) rootMenu.showCheatKeyboard();
+    return;
+    }
+  if(command==TouchInput::Command::Console) {
+    if(pressed && !uiActive && !console.isActive()) onMarvinKey<Event::K_F2>();
+    return;
+    }
   if(command==TouchInput::Command::QuickSave || command==TouchInput::Command::QuickLoad) {
     auto& gothic=Gothic::inst();
     const auto camera=gothic.camera();
@@ -818,6 +826,8 @@ void MainWindow::onTouchCommand(TouchInput::Command command, bool pressed) {
     case TouchInput::Command::QuickSave:
     case TouchInput::Command::QuickLoad:
     case TouchInput::Command::DeleteSave:
+    case TouchInput::Command::Keyboard:
+    case TouchInput::Command::Console:
     case TouchInput::Command::HealthPotion:
     case TouchInput::Command::ManaPotion:
     case TouchInput::Command::Block:
