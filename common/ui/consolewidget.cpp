@@ -3,6 +3,7 @@
 #include <Tempest/Painter>
 #include <Tempest/UiOverlay>
 #include <Tempest/Application>
+#include <Tempest/SystemApi>
 
 #include "mainwindow.h"
 #include "utils/gthfont.h"
@@ -25,6 +26,12 @@ struct ConsoleWidget::Overlay : public Tempest::UiOverlay {
 
   void mouseMoveEvent(MouseEvent& e) override {
     e.accept();
+    }
+
+  void mouseUpEvent(MouseEvent& e) override {
+    // A tap below the console closes it, as the touch screen has no F2
+    if(!owner.rect().contains(e.pos()))
+      owner.close();
     }
 
   void mouseWheelEvent(MouseEvent& e) override {
@@ -89,6 +96,7 @@ void ConsoleWidget::close() {
 
   ov->takeWidget(this);
   delete ov;
+  SystemApi::hideSoftInput();
   }
 
 int ConsoleWidget::exec() {
@@ -103,6 +111,7 @@ int ConsoleWidget::exec() {
 
   updateSizeHint();
   setVisible(true);
+  SystemApi::showSoftInput("");
   while(overlay && Application::isRunning()) {
     Application::processEvents();
     }
@@ -218,6 +227,8 @@ void ConsoleWidget::keyDownEvent(KeyEvent& e) {
       cursPos = 0;
       currCmd = "";
       histPos = size_t(-1);
+      // The phone keyboard replays its whole text on every edit, so it must start over with the new line
+      SystemApi::showSoftInput("");
       }
     return;
     }
