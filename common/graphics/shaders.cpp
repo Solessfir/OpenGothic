@@ -31,6 +31,18 @@ static bool hasBindless() {
   return false;
   }
 
+static bool hasTesselation() {
+  const auto& p = Resources::device().properties();
+#if defined(__ANDROID__)
+  // PowerVR BXM-8-256 fails to build the tessellated water pipeline (VK_ERROR_UNKNOWN); water draws untessellated
+  if(std::string_view(p.name).find("PowerVR")!=std::string_view::npos) {
+    Log::i("Disabling tessellation for ",p.name);
+    return false;
+    }
+#endif
+  return p.tesselationShader;
+  }
+
 // Vulkan drivers compile a shader when its pipeline is created or first drawn.
 // When a driver crashes there, the last of these lines in logcat names the shader.
 static GothicShader shaderSource(std::string_view name) {
@@ -87,6 +99,7 @@ void Shaders::setupOptions() {
   opts.doRtScene        = gpu.raytracing.rayQuery && CommandLine::inst().isRayQuery();
   opts.doRayQuery       = opts.doRtScene && opts.doBindless;
   opts.doMeshShading    = gpu.meshlets.meshShader && CommandLine::inst().isMeshShading();
+  opts.doTesselation    = hasTesselation();
   opts.doSoftwareShadow = Shaders::isRtsmSupported() && CommandLine::inst().isSoftwareShadow();
   opts.doVirtualShadow  = Shaders::isVsmSupported()  && CommandLine::inst().isVirtualShadow();
   opts.doGi             = opts.doRayQuery ? CommandLine::inst().isRtGi() : GiMethod::None;
@@ -747,7 +760,7 @@ const RenderPipeline* Shaders::materialPipeline(const Material& mat, DrawCommand
   const char* shaderSuffix = flatVaryings ? "_flat_slot" : (bl ? "_bindless" : "_slot");
   const char* pfxSuffix = flatVaryings ? "_flat" : "";
 
-  if(mat.isTesselated() && device.properties().tesselationShader && t==DrawCommands::Landscape && !flatVaryings) {
+  if(mat.isTesselated() && opts.doTesselation && t==DrawCommands::Landscape && !flatVaryings) {
     auto shVs = shaderSource(string_frm("main_", vsTok, typeVs, shaderSuffix, ".vert.sprv"));
     auto shTc = shaderSource(string_frm("main_", vsTok, typeVs, shaderSuffix, ".tesc.sprv"));
     auto shTe = shaderSource(string_frm("main_", vsTok, typeVs, shaderSuffix, ".tese.sprv"));
