@@ -370,11 +370,24 @@ final class Reports {
         StringBuilder log = new StringBuilder();
         Process logcat = new ProcessBuilder("logcat", "-d", "-v", "threadtime").redirectErrorStream(true).start();
         try (BufferedReader in = new BufferedReader(new InputStreamReader(logcat.getInputStream(), StandardCharsets.UTF_8))) {
-            String line;
+            // A crashing thread can repeat the same line thousands of times and push the crash itself out of the issue,
+            // so a run of repeats becomes one line and a count
+            String line, previous = null;
+            int repeats = 0;
             while ((line = in.readLine()) != null) {
-                String[] field = line.trim().split("\\s+", 4);
-                if (field.length < 3 || !field[2].equals(self)) log.append(line).append('\n');
+                String[] field = line.trim().split("\\s+", 5);
+                if (field.length >= 3 && field[2].equals(self)) continue;
+                String message = field.length == 5 ? field[2] + " " + field[3] + " " + field[4] : line;
+                if (message.equals(previous)) {
+                    ++repeats;
+                    continue;
+                }
+                if (repeats > 0) log.append("    (repeated ").append(repeats).append(" more times)\n");
+                repeats = 0;
+                previous = message;
+                log.append(line).append('\n');
             }
+            if (repeats > 0) log.append("    (repeated ").append(repeats).append(" more times)\n");
         } finally {
             logcat.destroy();
         }
