@@ -18,6 +18,7 @@
     <string name="og_update_to">Update to %1$s</string>
     <string name="og_update_downloading">Downloading update · %1$d%%</string>
     <string name="og_update_title">Gothic Launcher %1$s</string>
+    <string name="og_report_update_body">Gothic Launcher %1$s is out and may already fix this. Update, try again, and if the problem is still there, send the report from the new version.</string>
     <string name="og_whats_new">What\'s new</string>
     <string name="og_update_notes">A new version is available.</string>
     <string name="og_updates_title">Automatic updates</string>
