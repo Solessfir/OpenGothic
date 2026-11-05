@@ -1,3 +1,6 @@
+0.6.25
+- Fixed the game closing when a controller button is pressed while naming a save
+
 0.6.24
 - Journal text size slider in the game settings: quest names and entries up to twice as large, the journal labels a little larger
 - Crash reports keep the crash details even when the crash floods the phone's log
