@@ -1017,6 +1017,16 @@ void GameMenu::resizeEvent(SizeEvent &) {
   }
 
 bool GameMenu::closeNestedView() {
+  if(ctrlInput!=nullptr) {
+    // Back cancels the open input dialog; popping this menu under it would leave the dialog with a deleted menu
+    if(nameInput!=nullptr) {
+      KeyEvent e(Event::K_ESCAPE,Event::M_NoModifier,Event::KeyUp);
+      nameInput->keyUpEvent(e);
+      }
+    if(keyInput!=nullptr)
+      keyInput->close();
+    return true;
+    }
   if(pendingDelete!=nullptr) {
     pendingDelete=nullptr;
     }
@@ -1123,6 +1133,14 @@ void GameMenu::adjustValue(int steps) {
   }
 
 void GameMenu::onKeyboard(KeyCodec::Action key) {
+  if(ctrlInput!=nullptr) {
+    // Controller and touch input reach the menu behind an open input dialog; confirm is the only key it takes
+    if(key==KeyCodec::ActionGeneric && nameInput!=nullptr) {
+      KeyEvent e(Event::K_Return,Event::M_NoModifier,Event::KeyUp);
+      nameInput->keyUpEvent(e);
+      }
+    return;
+    }
   if(journalList!=nullptr) {
     journalInput(key);
     return;
@@ -1635,7 +1653,9 @@ void GameMenu::execSingle(Item &it, int slideDx, KeyCodec::Action hint) {
         dlg.text = "";
       dlg.beginTextInput();
       dlg.resize(owner.size());
+      nameInput = &dlg;
       dlg.exec();
+      nameInput = nullptr;
       ctrlInput = nullptr;
       if(!dlg.accepted)
         return;
@@ -1649,7 +1669,9 @@ void GameMenu::execSingle(Item &it, int slideDx, KeyCodec::Action hint) {
     else {
       KeyEditDialog dlg;
       dlg.resize(owner.size());
+      keyInput = &dlg;
       dlg.exec();
+      keyInput = nullptr;
       ctrlInput = nullptr;
 
       if(dlg.key==Event::K_ESCAPE && dlg.mkey==Event::ButtonNone)
