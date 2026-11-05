@@ -1,3 +1,7 @@
+0.6.24
+- Journal text size slider in the game settings: quest names and entries up to twice as large, the journal labels a little larger
+- Crash reports keep the crash details even when the crash floods the phone's log
+
 0.6.23
 - Marvin mode on touch: on the character screen tap with three fingers, type marvin and press Enter. With Marvin mode on, a five-finger tap opens the console with the keyboard; tap below it to close it
 - Problem reports from an outdated launcher offer the update first, since the problem may already be fixed. Suggestions can be sent from any version
