@@ -89,6 +89,8 @@ class GameMenu : public Tempest::Widget {
 
     Item                                  hItems[zenkit::IMenu::item_count];
     Item*                                 ctrlInput = nullptr;
+    SavNameDialog*                        nameInput = nullptr;
+    KeyEditDialog*                        keyInput = nullptr;
     Item*                                 pendingDelete = nullptr;
     Item*                                 quickLoadItem = nullptr;
     std::vector<size_t>                    quickLoadSlots;
