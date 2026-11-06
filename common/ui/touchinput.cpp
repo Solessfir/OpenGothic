@@ -38,6 +38,18 @@ void TouchInput::setLockPicking(bool enabled) {
   update();
   }
 
+void TouchInput::setTransformed(bool enabled) {
+  if(transformed==enabled) return;
+  transformed=enabled;
+  update();
+  }
+
+void TouchInput::setTransformSpell(bool enabled) {
+  if(transformSpell==enabled) return;
+  transformSpell=enabled;
+  update();
+  }
+
 void TouchInput::setDebugLeftInset(int inset) {
   if(debugLeftInset==inset)
     return;
@@ -564,10 +576,11 @@ bool TouchInput::blockVisible() const {
   }
 
 void TouchInput::drawControls(Painter& p) {
-  enum Image : uint8_t { Attack, Use, Block, Jump, Draw, Sheathe, Menu, Inventory, Pressed, PressedSquare };
+  enum Image : uint8_t { Attack, Use, Block, Jump, Draw, Sheathe, Menu, Inventory, Pressed, PressedSquare, Transform, TurnBack };
   if(textures.empty()) {
     for(auto name:{"touch_attack.png","touch_use.png","touch_block.png","touch_jump.png","touch_draw.png","touch_sheathe.png",
-                   "touch_menu.png","touch_inventory.png","touch_pressed.png","touch_pressed_square.png"})
+                   "touch_menu.png","touch_inventory.png","touch_pressed.png","touch_pressed_square.png",
+                   "touch_transform.png","touch_turnback.png"})
       textures.push_back(Resources::loadTexturePm(TouchAsset::pixmap(name)));
     }
   // Nothing over game menus, videos and loading screens; dialogue and documents keep Back and Accept
@@ -631,6 +644,12 @@ void TouchInput::drawControls(Painter& p) {
         below(b.center,b.radius,"Jump","");
         break;
       case Command::Weapon:
+        // An armed animal form turns back with this button instead of sheathing
+        if(armed && transformed) {
+          image(TurnBack,b.center,d/0.97f);
+          below(b.center,b.radius,"Turn back","Hold: Equipment");
+          break;
+          }
         image(armed ? Sheathe : Draw,b.center,d/0.97f);
         below(b.center,b.radius,armed ? "Sheathe" : "Draw","Hold: Equipment");
         break;
@@ -639,6 +658,11 @@ void TouchInput::drawControls(Painter& p) {
         below(b.center,b.radius,"Block","");
         break;
       default:
+        if(armed && !uiActive && transformSpell) {
+          image(Transform,b.center,d/0.97f);
+          below(b.center,b.radius,"Transform","");
+          break;
+          }
         image(armed && !uiActive ? Attack : Use,b.center,d/0.97f);
         below(b.center,b.radius,uiActive ? "Accept" : (armed ? (classicCombat ? "Action" : "Attack") : "Use"),"");
         break;
