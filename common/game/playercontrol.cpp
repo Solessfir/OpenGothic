@@ -1547,14 +1547,18 @@ void PlayerControl::implMoveMobsi(Npc& pl, uint64_t /*dt*/) {
   // animation handled in MOBSI
   auto inter = pl.interactive();
 
-  // The touch and gamepad sticks move through the analog axis, not the Back key: any clear push gets up
-  const bool stick = std::max(std::abs(gamepadLX), std::abs(gamepadLY))>0.5f;
-  if((ctrl[KeyCodec::Back] || wantsToMoveBackward() || stick) && !inter->isLadder()) {
+  // The touch and gamepad sticks move through the analog axis, not the Back key: any clear push gets up.
+  // While picking a lock, sideways pushes turn the pick, so only a clear pull back gets up.
+  const bool picking = inter->needToLockpick(pl) && !inter->isCracked();
+  const bool stick   = picking ? (gamepadLY>0.5f && gamepadLY>std::abs(gamepadLX))
+                               : std::max(std::abs(gamepadLX), std::abs(gamepadLY))>0.5f;
+  const bool back    = picking ? movement.forwardBackward.value()<0.f : wantsToMoveBackward();
+  if((ctrl[KeyCodec::Back] || back || stick) && !inter->isLadder()) {
     pl.setInteraction(nullptr);
     return;
     }
 
-  if(inter->needToLockpick(pl) && !inter->isCracked()) {
+  if(picking) {
     return;
     }
 
