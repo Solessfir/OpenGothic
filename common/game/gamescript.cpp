@@ -952,6 +952,11 @@ bool GameScript::isTeleportSpell(int32_t splId) const {
   return spellFxInstanceNames->get_string(uint16_t(splId))=="Teleport";
   }
 
+bool GameScript::isTransformSpell(int32_t splId) const {
+  // Gothic 1 and 2 both name every animal transformation "Transform"
+  return spellFxInstanceNames->get_string(uint16_t(splId))=="Transform";
+  }
+
 std::vector<GameScript::DlgChoice> GameScript::dialogChoices(std::shared_ptr<zenkit::INpc> player,
                                                              std::shared_ptr<zenkit::INpc> hnpc,
                                                              const std::vector<uint32_t>& except,
