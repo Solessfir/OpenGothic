@@ -1,3 +1,8 @@
+0.6.26
+- Picking a lock on touch no longer makes the hero stand up after every turn of the pick
+- No mana bar while picking a lock
+- After a transformation spell, the touch button shown as Turn back (Draw/Sheathe on controllers) turns the hero back into a human
+
 0.6.25
 - Fixed the game closing when a controller button is pressed while naming a save
 
