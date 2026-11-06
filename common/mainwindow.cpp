@@ -301,7 +301,8 @@ void MainWindow::paintEvent(PaintEvent& event) {
           float mp  = float(pl->attribute(ATR_MANA))     /float(pl->attribute(ATR_MANAMAX));
 
           bool showHealthBar = opt.showHealthBar;
-          bool showManaBar   = (opt.showManaBar==2) || (opt.showManaBar==1 && (pl->weaponState()==WeaponState::Mage || inventory.isActive()));
+          bool showManaBar   = (opt.showManaBar==2) || (opt.showManaBar==1 && (pl->weaponState()==WeaponState::Mage ||
+                                                                       (inventory.isActive() && inventory.isOpen()!=InventoryMenu::State::LockPicking)));
           bool showSwimBar   = (opt.showSwimBar==2) || (opt.showSwimBar==1 && pl->isDive());
 
           bool centered = false;
