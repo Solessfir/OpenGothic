@@ -27,6 +27,8 @@ const Entry entries[] = {
   {"Jump",            "Springen",          "Skok",                   "Прыжок"},
   {"Sheathe",         "Wegstecken",        "Schowaj",                "Убрать"},
   {"Draw",            "Ziehen",            "Dobądź",                 "Достать"},
+  {"Turn back",       "Zurückverwandeln",  "Powrót do postaci",      "Превратиться обратно"},
+  {"Transform",       "Verwandeln",        "Przemiana",              "Превращение"},
   {"Hold: Equipment", "Halten: Ausrüstung","Przytrzymaj: ekwipunek", "Удерж.: снаряжение"},
   {"Block",           "Blocken",           "Blok",                   "Блок"},
   {"Accept",          "Annehmen",          "Akceptuj",               "Принять"},
