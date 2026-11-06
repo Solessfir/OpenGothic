@@ -473,6 +473,9 @@ void MainWindow::tickGamepad() {
   mobileUi.setMenuOpen(rootMenu.isActive() || video.isActive() || chapter.isActive() || console.isActive() ||
                        Gothic::inst().checkLoading()!=Gothic::LoadState::Idle);
   mobileUi.setLockPicking(inventory.isOpen()==InventoryMenu::State::LockPicking);
+  mobileUi.setTransformed(touchPlayer!=nullptr && touchPlayer->isTransformed());
+  const Item* touchSpell = touchWeapon==WeaponState::Mage ? touchPlayer->inventory().activeWeapon() : nullptr;
+  mobileUi.setTransformSpell(touchSpell!=nullptr && touchPlayer->world().script().isTransformSpell(touchSpell->spellId()));
   mobileUi.setInventoryNavigation(controllerContext()==Context::Inventory &&
                                   Gothic::inst().checkLoading()==Gothic::LoadState::Idle);
   const bool menuTaps = rootMenu.isActive() && !video.isActive() && !chapter.isActive() && !document.isActive() &&
