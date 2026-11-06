@@ -109,6 +109,10 @@ void PlayerControl::onKeyPressed(KeyCodec::Action a, Tempest::KeyEvent::KeyType 
       }
 
     if(a==Action::Weapon) {
+      // Touch and controllers have no Enter key, so their draw button turns an animal form back.
+      // A sheathed animal (after swimming) draws first, so it can always still fight.
+      if(pl->isTransformed() && ws!=WeaponState::NoWeapon)
+        ctrl[Action::K_ENTER] = true; else
       if(ws!=WeaponState::NoWeapon) //Currently a weapon is active
         wctrl[WeaponClose] = true;
       else
