@@ -186,7 +186,7 @@
 
     <string name="og_controls">Controls</string>
     <string name="og_controls_move_title">Moving and looking</string>
-    <string name="og_controls_move">Put a thumb anywhere on the left half and drag to walk or run. Drag anywhere else on the right side to look around.</string>
+    <string name="og_controls_move">Put a thumb anywhere on the left half and drag to walk or run. Drag anywhere else on the right side to look around. In water the hero swims where you look. Look steeply down while swimming to dive.</string>
     <string name="og_controls_buttons_title">Buttons</string>
     <string name="og_controls_buttons">Tap a button to use it. Hold Menu for system settings, Inventory for stats and the journal, and Draw to pick a weapon, spell or item. Keep the finger down, drag toward a choice and let go. With a weapon drawn, press Attack and quickly drag in any direction to lock onto a target, and do it again to unlock.</string>
     <string name="og_controls_gestures_title">Hidden gestures</string>
