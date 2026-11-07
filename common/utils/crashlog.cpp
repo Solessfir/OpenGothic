@@ -15,6 +15,7 @@
 #include <dlfcn.h>  // dladdr
 #include <unwind.h> // _Unwind_Backtrace
 #include <typeinfo>
+#include <exception>
 #endif
 
 #if defined(__cpp_lib_stacktrace)
@@ -76,7 +77,10 @@ extern "C" {
 [[noreturn]] void __real___cxa_throw(void* obj, std::type_info* type, void (*dest)(void*));
 
 [[noreturn]] void __wrap___cxa_throw(void* obj, std::type_info* type, void (*dest)(void*)) {
-  collectBacktrace(throwSite);
+  // A throw from a destructor during unwinding (like a GPU wait after the device was lost) must not
+  // replace the site of the exception that started it.
+  if(std::uncaught_exceptions()==0)
+    collectBacktrace(throwSite);
   __real___cxa_throw(obj, type, dest);
   }
 }
