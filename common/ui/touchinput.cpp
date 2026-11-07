@@ -188,10 +188,6 @@ void TouchInput::mouseDownEvent(Tempest::MouseEvent& e) {
   touch.pressedAt = Application::tickCount();
 
   int button = buttonAt(e.pos());
-  // Jump does nothing in the water, so a touch there turns the camera instead.
-  if(swimming && !uiActive && button>=0 && Buttons[button]==Command::Jump)
-    button = -1;
-
   const bool onBlock=button>=0 && Buttons[button]==Command::Block;
   multiTap.down(e.mouseID,float(e.x),float(e.y),touch.pressedAt,
                 (saveDeleteEnabled || menuKeyboardEnabled || (gesturesEnabled && !uiActive)) && wheelPointer<0);
@@ -544,6 +540,9 @@ bool TouchInput::buttonShown(size_t index) const {
   // The inventory needs no buttons: cells are tapped directly and a tap on free space closes it
   if(uiActive)
     return !inventoryNavigation && (c==Command::Back || c==Command::Accept);
+  // Jump and Draw do nothing in the water, so their space turns the camera instead
+  if(swimming && (c==Command::Jump || c==Command::Weapon))
+    return false;
   return c!=Command::Block || blockVisible();
   }
 
@@ -640,7 +639,7 @@ void TouchInput::drawControls(Painter& p) {
         left(b.center,b.radius,"Inventory","Hold: Character");
         break;
       case Command::Jump:
-        image(Jump,b.center,d/0.97f,swimming ? 0.4f : 1.f);
+        image(Jump,b.center,d/0.97f);
         below(b.center,b.radius,"Jump","");
         break;
       case Command::Weapon:

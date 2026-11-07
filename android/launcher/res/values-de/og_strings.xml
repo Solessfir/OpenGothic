@@ -184,7 +184,7 @@
 
     <string name="og_controls">Steuerung</string>
     <string name="og_controls_move_title">Bewegen und Umsehen</string>
-    <string name="og_controls_move">Lege einen Daumen irgendwo auf die linke Hälfte und ziehe, um zu gehen oder zu laufen. Ziehe auf der rechten Seite außerhalb der Tasten, um dich umzusehen.</string>
+    <string name="og_controls_move">Lege einen Daumen irgendwo auf die linke Hälfte und ziehe, um zu gehen oder zu laufen. Ziehe auf der rechten Seite außerhalb der Tasten, um dich umzusehen. Im Wasser schwimmt der Held dorthin, wohin du schaust. Schaue beim Schwimmen steil nach unten, um zu tauchen.</string>
     <string name="og_controls_buttons_title">Tasten</string>
     <string name="og_controls_buttons">Tippe auf eine Taste, um sie zu benutzen. Halte Menu für die Systemeinstellungen, Inventory für Werte und Tagebuch und Draw, um eine Waffe, einen Zauber oder einen Gegenstand zu wählen. Lass den Finger liegen, ziehe zur Auswahl und lass los. Mit gezogener Waffe drücke Attack und ziehe schnell in eine beliebige Richtung, um ein Ziel zu fixieren; wiederhole es zum Lösen.</string>
     <string name="og_controls_gestures_title">Versteckte Gesten</string>
