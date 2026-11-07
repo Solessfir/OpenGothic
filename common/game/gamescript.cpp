@@ -957,6 +957,10 @@ bool GameScript::isTransformSpell(int32_t splId) const {
   return spellFxInstanceNames->get_string(uint16_t(splId))=="Transform";
   }
 
+bool GameScript::isTelekinesisSpell(int32_t splId) const {
+  return spellFxInstanceNames->get_string(uint16_t(splId))=="Telekinesis";
+  }
+
 std::vector<GameScript::DlgChoice> GameScript::dialogChoices(std::shared_ptr<zenkit::INpc> player,
                                                              std::shared_ptr<zenkit::INpc> hnpc,
                                                              const std::vector<uint32_t>& except,
