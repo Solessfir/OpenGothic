@@ -1668,6 +1668,8 @@ void MainWindow::saveGame(std::string_view slot, std::string_view name) {
   if(auto w = Gothic::inst().world(); w!=nullptr && w->currentCs()!=nullptr)
     return;
 
+  player.dropTelekinesisItem();
+
   SaveLoadProfile::Timer time("save/main-thread-preparation");
   SaveLoadProfile::begin("save/request-to-ready");
   auto tex  = renderer.screenshoot(cmdId, Size(int(swapchain.w()),int(swapchain.h())));
