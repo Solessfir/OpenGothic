@@ -4,11 +4,15 @@
 #include <future>
 #include <cassert>
 #include <zenkit/World.hh>
+#include <zenkit/vobs/Misc.hh>
 
+#include "graphics/mesh/skeleton.h"
 #include "graphics/mesh/submesh/packedmesh.h"
 #include "graphics/worldview.h"
 #include "physics/dynamicworld.h"
 #include "physics/physicmesh.h"
+#include "project/projectmgr.h"
+#include "utils/fileext.h"
 #include "utils/workers.h"
 #include "resources.h"
 
@@ -41,6 +45,7 @@ void WorldEdit::Vob::clearView() {
     i->clearView();
   phys  = PhysicMesh();
   mesh  = MeshObjects::Mesh();
+  mdl   = MdlVisual();
   light = LightGroup::Light();
   }
 
@@ -58,42 +63,10 @@ void WorldEdit::Vob::initView(WorldEdit& owner) {
 
   if(!vob.show_visual) {
     mesh = MeshObjects::Mesh();
+    mdl   = MdlVisual();
     }
   if(!vob.cd_dynamic) {
     phys  = PhysicMesh();
-    }
-
-  //FIXME: copypaste from ObjVisual
-  if(vob.type==zenkit::VirtualObjectType::zCVob) {
-    const auto& visName = vob.visual_name;
-    if(visName.empty())
-      return;
-    switch (vob.visual->type) {
-     case zenkit::VisualType::MESH:
-     case zenkit::VisualType::MULTI_RESOLUTION_MESH: {
-       auto view = Resources::loadMesh(visName);
-       if(!view)
-         return;
-       // setType(M_Mesh);
-       if(vob.show_visual) {
-         mesh = owner.wview->addStaticView(view, true);
-         mesh.setWind(vob.anim_mode,vob.anim_strength);
-         mesh.setObjMatrix(pos);
-         }
-       if(vob.cd_dynamic) {
-         phys = PhysicMesh(*view, *owner.physics, false);
-         phys.setObjMatrix(pos);
-         phys.setPayloadPtr(orig.get());
-         }
-       }
-      case zenkit::VisualType::DECAL:
-      case zenkit::VisualType::PARTICLE_EFFECT:
-      case zenkit::VisualType::AI_CAMERA:
-      case zenkit::VisualType::MODEL:
-      case zenkit::VisualType::MORPH_MESH:
-      case zenkit::VisualType::UNKNOWN:
-        break;
-      }
     }
 
   if(vob.type==zenkit::VirtualObjectType::zCVobLight) {
@@ -109,6 +82,88 @@ void WorldEdit::Vob::initView(WorldEdit& owner) {
     if(true || vob.show_visual) {
       light = owner.wview->addLight(reinterpret_cast<const zenkit::VLight&>(vob), 0);
       }
+    return;
+    }
+
+  auto visualMesh = [](const zenkit::VirtualObject& vob) -> std::tuple<std::string_view,bool,zenkit::VisualType> {
+    if(vob.type==zenkit::VirtualObjectType::zCVob && vob.visual!=nullptr) {
+      return {vob.visual->name, vob.show_visual, vob.visual->type};
+      }
+    if((zenkit::VirtualObjectType::oCMOB<=vob.type && vob.type<=zenkit::VirtualObjectType::oCMobDoor) && vob.visual!=nullptr) {
+      return {vob.visual->name, vob.show_visual, vob.visual->type};
+      }
+    if((zenkit::VirtualObjectType::zCTrigger<=vob.type && vob.type<=zenkit::VirtualObjectType::zCMover) && vob.visual!=nullptr) {
+      return {vob.visual->name, vob.show_visual, vob.visual->type};
+      }
+    if(vob.type==zenkit::VirtualObjectType::oCItem) {
+      auto& itm  = reinterpret_cast<const zenkit::VItem&>(vob);
+      auto  pitm = ProjectMgr::inst().findCItem(itm.instance);
+      auto  iitm = pitm.get<zenkit::IItem>();
+      if(iitm!=nullptr)
+        return {iitm->visual, true, zenkit::VisualType::MESH};
+      return {"", true, zenkit::VisualType::UNKNOWN};
+      }
+    return {"", true, zenkit::VisualType::UNKNOWN};
+    };
+
+  const auto [visName, visShow, visType] = visualMesh(vob);
+  if(visName.empty() || visType==zenkit::VisualType::UNKNOWN)
+    return;
+
+  //FIXME: copypaste from ObjVisual
+  switch (visType) {
+   case zenkit::VisualType::MESH:
+   case zenkit::VisualType::MULTI_RESOLUTION_MESH: {
+     auto view = Resources::loadMesh(visName);
+     if(!view)
+       return;
+     // setType(M_Mesh);
+     if(visShow) {
+       mesh = owner.wview->addStaticView(view, true);
+       mesh.setWind(vob.anim_mode,vob.anim_strength);
+       mesh.setObjMatrix(pos);
+       }
+     if(vob.cd_dynamic) {
+       phys = PhysicMesh(*view, *owner.physics, false);
+       phys.setObjMatrix(pos);
+       phys.setPayloadPtr(orig.get());
+       }
+     break;
+     }
+    case zenkit::VisualType::MODEL:
+    case zenkit::VisualType::MORPH_MESH:{
+      // *.MDS; *.ASC; *.MMS
+      auto visualMdl = std::string(visName);
+      FileExt::exchangeExt(visualMdl,"ASC","MDL");
+
+      auto view = Resources::loadMesh(visualMdl);
+      if(!view)
+        return;
+      // setType(M_Mdl);
+      // mdl.proto = view;
+      mdl.setYTranslationEnable(false);
+      mdl.setVisual(view->skeleton.get());
+
+      if(visShow) {
+        if(view->skeleton==nullptr || view->skeleton->animation()==nullptr)
+          mdl.setVisualBody(*owner.wview, owner.wview->addStaticView(view,true)); else
+          mdl.setVisualBody(*owner.wview, owner.wview->addView(view));
+        mdl.setObjMatrix(pos);
+        }
+
+      if(vob.cd_dynamic) {
+        phys = PhysicMesh(*view, *owner.physics, false);
+        phys.setSkeleton(view->skeleton.get());
+        phys.setObjMatrix(pos);
+        phys.setPayloadPtr(orig.get());
+        }
+      break;
+      }
+    case zenkit::VisualType::DECAL:
+    case zenkit::VisualType::PARTICLE_EFFECT:
+    case zenkit::VisualType::AI_CAMERA:
+    case zenkit::VisualType::UNKNOWN:
+      break;
     }
   }
 
@@ -121,6 +176,7 @@ void WorldEdit::Vob::setPosition(const Tempest::Vec3& v) {
                                 vob.rotation.columns[0].z, vob.rotation.columns[1].z, vob.rotation.columns[2].z, vob.position.z,
                                 0, 0, 0, 1);
   phys.setObjMatrix(pos);
+  mdl .setObjMatrix(pos);
   mesh.setObjMatrix(pos);
   light.setPosition(v);
   }
@@ -134,13 +190,15 @@ void WorldEdit::Vob::setRotation(const zenkit::Mat3& rot) {
                                 vob.rotation.columns[0].z, vob.rotation.columns[1].z, vob.rotation.columns[2].z, vob.position.z,
                                 0, 0, 0, 1);
   phys.setObjMatrix(pos);
+  mdl .setObjMatrix(pos);
   mesh.setObjMatrix(pos);
   }
 
 void WorldEdit::Vob::setVisual(WorldEdit& owner, std::string_view vis) {
-  orig->visual_name  = vis;
+  orig->visual_name  = vis; //legacy
   orig->show_visual  = true;
   orig->visual       = std::make_shared<zenkit::VisualMesh>();
+  orig->visual->name = vis;
   orig->visual->type = zenkit::VisualType::MESH;
   clearView();
   initView(owner);
@@ -197,6 +255,20 @@ void WorldEdit::load(Vob& out, std::vector<std::shared_ptr<zenkit::VirtualObject
     out.child[i]->orig = child[i];
     out.child[i]->orig->children.clear();
     }
+  }
+
+bool WorldEdit::isValidVob(const Vob* v) const {
+  return isValidVob(rootVob, v);
+  }
+
+bool WorldEdit::isValidVob(const Vob& node, const Vob* v) const {
+  if(&node==v)
+    return true;
+  for(size_t i=0; i<node.child.size(); ++i) {
+    if(isValidVob(*node.child[i], v))
+      return true;
+    }
+  return false;
   }
 
 

@@ -31,7 +31,7 @@ struct EditorArea::EditorWrapper : public Tempest::Widget {
     setLayout(Horizontal);
 
     //item.projectSettings(); // fetch settings
-    item.get(); //preload
+    item.get<WorldEdit>(); //preload
     edit->preload(item);
 
     for(size_t i=0; i<ToolWindow::T_Count; ++i)
@@ -41,7 +41,10 @@ struct EditorArea::EditorWrapper : public Tempest::Widget {
   void paintEvent(Tempest::PaintEvent &e) override {
     if(widgetsCount()==0) {
       Painter p(e);
-      p.drawText(Rect(0,0,w(),h()), "Loading...", Tempest::AlignHCenter|Tempest::AlignVCenter);
+      std::string_view text = "Loading...";
+      if(item.isError())
+        text = "Loading error :(";
+      p.drawText(Rect(0,0,w(),h()), text, Tempest::AlignHCenter|Tempest::AlignVCenter);
       /*
       Painter p(e);
       const uint64_t period = 3000;
@@ -60,6 +63,8 @@ struct EditorArea::EditorWrapper : public Tempest::Widget {
     if(loaded)
       return true;
     if(item.isPending())
+      return false;
+    if(item.isError())
       return false;
     /*
     if(item.projectSettings()==nullptr)
@@ -395,6 +400,8 @@ void EditorArea::load(const ProjectItem& itm) {
     case ProjectItem::T_File:
     case ProjectItem::T_StaticMesh:
     case ProjectItem::T_Texture:
+    case ProjectItem::T_ScriptItem:
+    case ProjectItem::T_LightPreset:
       break;
     case ProjectItem::T_World:
       implLoad<WorldEditor>(itm);
