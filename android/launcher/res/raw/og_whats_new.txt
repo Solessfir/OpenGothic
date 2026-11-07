@@ -1,3 +1,8 @@
+0.6.27
+- Telekinesis in Gothic 1 now pulls the targeted item to the hero, who picks it up
+- Jump and Draw buttons are hidden while swimming; the controls guide explains how to dive
+- Better crash reports for crashes after a GPU failure
+
 0.6.26
 - Picking a lock on touch no longer makes the hero stand up after every turn of the pick
 - No mana bar while picking a lock
