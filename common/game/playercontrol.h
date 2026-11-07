@@ -52,6 +52,7 @@ class PlayerControl final {
     void  changeZoom(int delta);
     void  tickFocus();
     void  clearFocus();
+    void  dropTelekinesisItem();
 
     bool  interact(Interactive& it);
     bool  interact(Npc&         other);
@@ -169,6 +170,7 @@ class PlayerControl final {
     bool           cacheFocus=false;
     bool           pickupHeld=false;
     Focus          currentFocus;
+    Item*          telekinesisItem = nullptr;
     float          rotMouse=0;
     float          rotMouseY=0;
     float          gamepadLX=0;
@@ -225,6 +227,8 @@ class PlayerControl final {
     void           clrDraw();
     void           implMove(uint64_t dt);
     void           logStuckHero(Npc& pl);
+    void           tickTelekinesis(Npc& pl, World& w, uint64_t dt);
+    Item*          telekinesisTarget(World& w) const;
     void           implSwim(Npc& pl, uint64_t dt, float magnitude, float yaw, float aimPitch, bool faceIdle = false, bool backward = false);
     void           implMoveMobsi(Npc& pl, uint64_t dt);
     void           processPickLock(Npc& pl, Interactive& inter, KeyCodec::Action key);
