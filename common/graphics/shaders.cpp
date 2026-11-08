@@ -166,14 +166,22 @@ void Shaders::compileShaders() noexcept {
 
   fogViewLut3d       = computeShader("fog_view_lut.comp.sprv");
   fogViewLutSep      = computeShader("fog_view_lut_sep.comp.sprv");
-  fogOcclusion       = computeShader("fog3d.comp.sprv");
 
   skyExposure        = computeShader("sky_exposure.comp.sprv");
   skyHoleCheck       = computeShader("sky_hole_check.comp.sprv");
   sky                = postEffect("sky");
   skySep             = postEffect("sky_sep");
   fog                = fogShader ("fog");
-  fog3dHQ            = fogShader ("fog3d_hq");
+  try {
+    fogOcclusion     = computeShader("fog3d.comp.sprv");
+    fog3dHQ          = fogShader ("fog3d_hq");
+    }
+  catch(const std::system_error& e) {
+    // The Maleoon 935 driver fails to convert the volumetric fog shaders; the simpler fog is used instead
+    Log::e("Volumetric fog is unavailable: ", e.what());
+    fogOcclusion     = ComputePipeline();
+    fog3dHQ          = RenderPipeline();
+    }
   try {
     sunShaftsTrace   = computeShader("sun_shafts.comp.sprv");
     sunShafts        = fogShader ("sun_shafts");
