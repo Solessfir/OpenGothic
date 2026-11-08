@@ -958,7 +958,9 @@ bool GameScript::isTransformSpell(int32_t splId) const {
   }
 
 bool GameScript::isTelekinesisSpell(int32_t splId) const {
-  return spellFxInstanceNames->get_string(uint16_t(splId))=="Telekinesis";
+  // The original G1 engine moves the item for this hardcoded spell id; the script only invests mana
+  const int32_t SPL_TELEKINESIS = 10;
+  return owner.version().game==1 && splId==SPL_TELEKINESIS;
   }
 
 std::vector<GameScript::DlgChoice> GameScript::dialogChoices(std::shared_ptr<zenkit::INpc> player,
