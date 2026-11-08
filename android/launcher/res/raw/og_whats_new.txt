@@ -1,3 +1,6 @@
+0.6.28
+- Fixed a crash when returning to the game on some phones
+
 0.6.27
 - Telekinesis in Gothic 1 now pulls the targeted item to the hero, who picks it up
 - Jump and Draw buttons are hidden while swimming; the controls guide explains how to dive
