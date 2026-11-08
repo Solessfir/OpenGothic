@@ -556,7 +556,7 @@ void Renderer::resetSkyFog() {
 
   {
     auto q = Quality::VolumetricLQ;
-    if(!settings.zFogRadial) {
+    if(!settings.zFogRadial || shaders.fog3dHQ.isEmpty()) {
       q = Quality::VolumetricLQ;
       } else {
       q = Quality::VolumetricHQ;
