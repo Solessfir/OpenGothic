@@ -1991,7 +1991,7 @@ void MainWindow::render(){
     {
     CpuTrace trace("OpenGothic::record");
     auto enc = cmd.startEncoding(device,captureGpu);
-    renderer.draw(swapchain[swapchain.currentImage()],enc,cmdId,uiMesh[cmdId],numMesh[cmdId],inventory,video,
+    renderer.draw(swapchain.acquire(),enc,cmdId,uiMesh[cmdId],numMesh[cmdId],inventory,video,
                   swapchain.hdrMaxLuminance());
     }
     {

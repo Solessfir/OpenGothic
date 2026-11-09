@@ -48,7 +48,7 @@ void EditorWindow::render() {
       dispatchPaintEvent(uiLayer,texAtlass);
       uiMesh[cmdId].update(device,uiLayer);
 
-      enc.setFramebuffer({{swapchain[swapchain.currentImage()],Vec4(0),Tempest::Preserve}});
+      enc.setFramebuffer({{swapchain.acquire(),Vec4(0),Tempest::Preserve}});
       enc.setViewport(0,0,w(),h());
       uiMesh[cmdId].draw(enc);
     }
