@@ -195,6 +195,7 @@ class MainWindow : public Tempest::Window {
     std::bitset<1100>         dmaKeysDown;
     Tempest::Point            dMouse;
     bool                      uiPointer=false;
+    bool                      mouseResync=false;
     uint64_t                  mouseLookIdle=0;
     float                     cursorScale=0;
     bool                      focusPaused=false;
