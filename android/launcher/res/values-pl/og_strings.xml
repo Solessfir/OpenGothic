@@ -193,4 +193,11 @@
     <string name="og_controls_inventory">Dotknij przedmiotu, aby go zaznaczyć, i dotknij go ponownie, aby go użyć, założyć lub wziąć. Przytrzymaj miksturę, jedzenie lub dokument, aby dodać go do koła Draw, i przytrzymaj ponownie, aby go usunąć. Dotknij pustego miejsca, aby zamknąć ekwipunek.</string>
     <string name="og_controls_screens_title">Dialogi, filmy i menu</string>
     <string name="og_controls_screens">Dotknij odpowiedzi, aby ją wybrać, albo dowolnego innego miejsca, aby pominąć kwestię, film lub ekran rozdziału. Dotykaj pozycji menu bezpośrednio, a dotknięcie poza menu je zamyka. Przyciski ukryjesz w ustawieniach gry, opcja Touch UI.</string>
+    <string name="og_voices">Dubbing</string>
+    <string name="og_voice_in_use">używane</string>
+    <string name="og_voice_downloaded">pobrane</string>
+    <string name="og_voice_not_downloaded">nie pobrane</string>
+    <string name="og_voice_use">Użyj</string>
+    <string name="og_voice_remove">Usuń</string>
+    <string name="og_voice_download_body">Steam sprawdzi %1$s i pobierze ten dubbing, około 4,5 GB. Do końca pobierania nie można grać.</string>
 </resources>
