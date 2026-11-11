@@ -65,6 +65,7 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -842,6 +843,10 @@ public final class LauncherActivity extends AppCompatActivity {
         addMenuRow(list, popup, R.drawable.og_ic_heart, R.string.og_donate, R.color.og_accent, R.color.og_text,
                 () -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://ko-fi.com/solessfir"))));
         if (Library.installed(root, game())) {
+            if ("Archolos".equals(game().folder) && !voiceChoices().isEmpty()) {
+                addMenuDivider(list);
+                addMenuRow(list, popup, R.drawable.og_ic_voice, R.string.og_voices, R.color.og_muted, R.color.og_text, this::showVoices);
+            }
             addMenuDivider(list);
             addMenuRow(list, popup, R.drawable.og_ic_delete, R.string.og_uninstall, R.color.og_error, R.color.og_error, this::confirmUninstall);
         }
@@ -1324,6 +1329,87 @@ public final class LauncherActivity extends AppCompatActivity {
         if (ret.isEmpty()) ret = byLanguage.optString("en");
         if (ret.isEmpty() && byLanguage.keys().hasNext()) ret = byLanguage.optString(byLanguage.keys().next());
         return ret;
+    }
+
+    /** Archolos has Polish and Russian voice-overs for every language: which one plays, and downloading or removing them. */
+    private void showVoices() {
+        final Library.Game game = game();
+        File root = Library.root(this);
+        if (root == null) return;
+        final File dir = new File(root, game.folder);
+        final Map<String, Boolean> have = GameFiles.voices(dir);
+        final String[] languages = voiceChoices().toArray(new String[0]);
+        String[] rows = new String[languages.length];
+        for (int i = 0; i < languages.length; i++) {
+            Boolean on = have.get(GameFiles.voiceCode(languages[i]));
+            int state = on == null ? R.string.og_voice_not_downloaded : on ? R.string.og_voice_in_use : R.string.og_voice_downloaded;
+            rows[i] = Library.languageName(languages[i]) + " · " + getString(state);
+        }
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.og_voices)
+                .setItems(rows, (d, which) -> voiceActions(game, dir, languages[which], have.get(GameFiles.voiceCode(languages[which]))))
+                .setNegativeButton(R.string.og_cancel, null)
+                .show();
+    }
+
+    /**
+     * The voice-overs of Archolos to choose from: the DLC the account owns and what is on the phone already.
+     * Empty when there is nothing to choose, such as a single voice-over that came with the language.
+     */
+    private List<String> voiceChoices() {
+        List<String> ret = new ArrayList<>();
+        File root = Library.root(this);
+        if (root == null) return ret;
+        Map<String, Boolean> have = GameFiles.voices(new File(root, game().folder));
+        Set<Integer> owned = store.owned();
+        for (String language : new String[] {"polish", "russian"}) {
+            boolean dlc = owned != null && owned.contains(SteamSession.voicePack(language));
+            if (dlc || have.containsKey(GameFiles.voiceCode(language))) ret.add(language);
+        }
+        if (ret.size() == 1 && have.size() == 1 && (owned == null || !owned.contains(SteamSession.voicePack(ret.get(0))))) ret.clear();
+        return ret;
+    }
+
+    private void voiceActions(final Library.Game game, final File dir, final String language, Boolean on) {
+        final String code = GameFiles.voiceCode(language);
+        AlertDialog.Builder dialog = new AlertDialog.Builder(this)
+                .setTitle(Library.languageName(language))
+                .setNegativeButton(R.string.og_cancel, null);
+        if (on == null) {
+            // Like a repair: Steam checks the game and adds only the voices, and the game is unavailable until then
+            dialog.setMessage(getString(R.string.og_voice_download_body, game.title))
+                    .setPositiveButton(R.string.og_download, (d, which) -> {
+                        if (!steamAvailable() || store.account() == null) {
+                            signIn();
+                            return;
+                        }
+                        prefs.edit().putString("voices_" + game.appId, language).apply();
+                        repair(game);
+                    });
+        } else {
+            if (!on) dialog.setPositiveButton(R.string.og_voice_use, (d, which) -> new Thread(() -> {
+                try {
+                    GameFiles.selectVoice(dir, code);
+                    prefs.edit().putString("voices_" + game.appId, language).apply();
+                } catch (IOException e) {
+                    handler.post(() -> message(e.getMessage()));
+                }
+            }, "voices").start());
+            dialog.setNeutralButton(R.string.og_voice_remove, (d, which) -> new Thread(() -> {
+                try {
+                    GameFiles.removeVoice(dir, code);
+                    // The other voice-over plays instead of none
+                    if (on) for (String other : GameFiles.voices(dir).keySet()) {
+                        GameFiles.selectVoice(dir, other);
+                        break;
+                    }
+                    if (language.equals(prefs.getString("voices_" + game.appId, ""))) prefs.edit().remove("voices_" + game.appId).apply();
+                } catch (IOException e) {
+                    handler.post(() -> message(e.getMessage()));
+                }
+            }, "voices").start());
+        }
+        dialog.show();
     }
 
     private void confirmUninstall() {

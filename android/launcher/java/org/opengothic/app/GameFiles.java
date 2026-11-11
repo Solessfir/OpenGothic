@@ -5,10 +5,15 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /** Game installations on the phone: what OpenGothic reads, which game a folder holds, removal. */
 final class GameFiles {
@@ -76,6 +81,58 @@ final class GameFiles {
                 ret.add(f.getName());
             }
         }
+    }
+
+    /** Archolos keeps a voice-over in KM_Speech1..6XX.mod and KM_SoundXX.mod, XX its language; the engine skips a file renamed to .off. */
+    private static final Pattern VOICE = Pattern.compile("km_(speech\\d|sound)(pl|ru)\\.mod(\\.off)?");
+
+    /** The voice-overs of Archolos on the phone by language code ("pl", "ru"), true for the ones the engine loads. */
+    static Map<String, Boolean> voices(File game) {
+        Map<String, Boolean> ret = new TreeMap<>();
+        for (File f : voiceFiles(game)) {
+            Matcher m = VOICE.matcher(f.getName().toLowerCase(Locale.ROOT));
+            if (!m.matches()) continue;
+            boolean on = m.group(3) == null;
+            Boolean before = ret.get(m.group(2));
+            ret.put(m.group(2), on || (before != null && before));
+        }
+        return ret;
+    }
+
+    /** The code in the file names of the voice-over in a Steam language. */
+    static String voiceCode(String language) {
+        return "russian".equals(language) ? "ru" : "pl";
+    }
+
+    /** Turns on the files of one voice-over and turns off the others. */
+    static void selectVoice(File game, String code) throws IOException {
+        for (File f : voiceFiles(game)) {
+            Matcher m = VOICE.matcher(f.getName().toLowerCase(Locale.ROOT));
+            if (!m.matches()) continue;
+            boolean want = m.group(2).equals(code);
+            boolean on = m.group(3) == null;
+            if (want == on) continue;
+            String name = f.getName();
+            File to = new File(f.getParentFile(), on ? name + ".off" : name.substring(0, name.length() - 4));
+            // A repair can bring a turned off file back, the newer copy wins
+            if (to.exists()) delete(to);
+            if (!f.renameTo(to)) throw new IOException("Cannot rename " + f);
+        }
+    }
+
+    static void removeVoice(File game, String code) throws IOException {
+        for (File f : voiceFiles(game)) {
+            Matcher m = VOICE.matcher(f.getName().toLowerCase(Locale.ROOT));
+            if (m.matches() && m.group(2).equals(code)) delete(f);
+        }
+    }
+
+    private static List<File> voiceFiles(File game) {
+        List<File> ret = new ArrayList<>();
+        File data = child(game, "Data");
+        File[] list = data == null ? null : data.listFiles();
+        if (list != null) Collections.addAll(ret, list);
+        return ret;
     }
 
     /** Removes everything a Windows installation has that the engine never reads. */
