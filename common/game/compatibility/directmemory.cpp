@@ -2287,6 +2287,10 @@ void DirectMemory::setupHookEngine() {
       }
     if(isHookAnswered(uint32_t(address)))
       return;
+    if(isHookReplaced(key)) {
+      Log::d("covered without the hook [HookEngineI] (", reinterpret_cast<void*>(uint64_t(address)), " -> ", name, ")");
+      return;
+      }
     if(hooksUnanswered.size()<1000)
       hooksUnanswered.emplace_back(uint32_t(address),name);
     Log::d("not implemented call [HookEngineI] (", reinterpret_cast<void*>(uint64_t(address)),
