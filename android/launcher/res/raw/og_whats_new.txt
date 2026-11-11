@@ -1,3 +1,10 @@
+0.7.0
+- The Chronicles of Myrtana: Archolos can now be played: its Ikarus and LeGo scripts run, including crafting, lock picking and typed dialog answers. Please report anything that breaks
+- Archolos: choose the voice-over (Polish or Russian) under ⋯ › Voice-over. Hearing Russian voices with Polish text? Pick Polish there
+- Archolos downloads include only one voice-over, about 4.5 GB smaller
+- Phones whose graphics driver cannot do volumetric fog now get simple fog instead of failing
+- Saves made with this version cannot be loaded by older versions
+
 0.6.28
 - Fixed a crash when returning to the game on some phones
 
