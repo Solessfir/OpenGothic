@@ -1287,7 +1287,41 @@ GameMenu::Item* GameMenu::itemAt(Point pos, int& index) {
   // Drawn text wins on shared rows such as Back and "More keys"; the script box still makes short entries easy to hit.
   if(auto hit = itemAt(pos,index,true))
     return hit;
+  // Before the script boxes: a mod's box can be much taller than its line and cover the lines below it
+  if(auto hit = lineNear(pos,index))
+    return hit;
   return itemAt(pos,index,false);
+  }
+
+/// The gaps between the lines of a menu belong to the nearest line, otherwise the old highlight stays beside the pointer
+GameMenu::Item* GameMenu::lineNear(Point pos, int& index) {
+  Item* ret  = nullptr;
+  int   best = 0;
+  for(uint32_t i=0; i<zenkit::IMenu::item_count; ++i) {
+    auto& it = hItems[i];
+    if(!it.visible || isHidden(it.handle) || !isSelectable(it.handle) || !isEnabled(it.handle))
+      continue;
+    if(it.handle->type!=zenkit::MenuItemType::TEXT || (it.handle->flags & zenkit::MenuItemFlag::MULTILINE))
+      continue;
+    const auto& fnt  = getTextFont(it);
+    auto        rect = itemRect(it);
+    getText(it,textBuf);
+    const int tw = fnt.textSize(std::string_view(textBuf.data())).w;
+    if(tw>0 && tw<rect.w) {
+      if(it.handle->flags & zenkit::MenuItemFlag::CENTERED)
+        rect.x += (rect.w-tw)/2;
+      rect.w = tw;
+      }
+    const int dist = std::abs(pos.y-(rect.y+fnt.pixelSize()/2));
+    if(pos.x<rect.x || pos.x>=rect.x+rect.w || dist>fnt.pixelSize()*3/2)
+      continue;
+    if(ret==nullptr || dist<best) {
+      ret   = &it;
+      best  = dist;
+      index = int(i);
+      }
+    }
+  return ret;
   }
 
 GameMenu::Item* GameMenu::itemAt(Point pos, int& index, bool textOnly) {
