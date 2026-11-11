@@ -193,4 +193,11 @@
     <string name="og_controls_inventory">Коснитесь предмета, чтобы выбрать его, и ещё раз, чтобы использовать, надеть или взять. Удерживайте зелье, еду или документ, чтобы добавить его в колесо «Draw», и ещё раз, чтобы убрать. Коснитесь свободного места, чтобы закрыть инвентарь.</string>
     <string name="og_controls_screens_title">Диалоги, видео и меню</string>
     <string name="og_controls_screens">Коснитесь ответа, чтобы выбрать его, или любого другого места, чтобы пропустить реплику, видео или экран главы. Касайтесь пунктов меню напрямую, а касание вне меню закрывает его. Скрыть кнопки можно в настройках игры, пункт Touch UI.</string>
+    <string name="og_voices">Озвучка</string>
+    <string name="og_voice_in_use">используется</string>
+    <string name="og_voice_downloaded">загружена</string>
+    <string name="og_voice_not_downloaded">не загружена</string>
+    <string name="og_voice_use">Включить</string>
+    <string name="og_voice_remove">Удалить</string>
+    <string name="og_voice_download_body">Steam проверит %1$s и загрузит эту озвучку, около 4,5 ГБ. Пока загрузка не закончится, играть нельзя.</string>
 </resources>
