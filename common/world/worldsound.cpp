@@ -5,6 +5,7 @@
 #include "camera.h"
 #include "game/definitions/musicdefinitions.h"
 #include "game/gamesession.h"
+#include "game/serialize.h"
 #include "world/triggers/abstracttrigger.h"
 #include "world/objects/npc.h"
 #include "world/objects/sound.h"
@@ -15,6 +16,8 @@
 #include "gamemusic.h"
 #include "gothic.h"
 #include "resources.h"
+
+#include <cctype>
 
 const float WorldSound::maxDist   = 7000; // 70 meters
 const float WorldSound::talkRange = 2000;
@@ -41,12 +44,24 @@ struct WorldSound::WSound final {
 struct WorldSound::Zone final {
   Tempest::Vec3 bbox[2]={};
   std::string   name;
+  int32_t       priority = 0;
+  bool          enabled = true;
+  bool          ellipsoid = false;
   bool          checkPos(const Tempest::Vec3& v) const { return checkPos(v.x, v.y, v.z); }
   bool          checkPos(float x, float y, float z) const {
-    return
+    const bool inside =
         bbox[0].x <= x && x<bbox[1].x &&
         bbox[0].y <= y && y<bbox[1].y &&
         bbox[0].z <= z && z<bbox[1].z;
+    if(!inside || !ellipsoid)
+      return inside;
+    const auto half = (bbox[1]-bbox[0])*0.5f;
+    if(half.x<=0.f || half.y<=0.f || half.z<=0.f)
+      return false;
+    const auto offset = Tempest::Vec3(x,y,z)-(bbox[1]+bbox[0])*0.5f;
+    return offset.x*offset.x/(half.x*half.x) +
+           offset.y*offset.y/(half.y*half.y) +
+           offset.z*offset.z/(half.z*half.z) <= 1.f;
     }
   };
 
@@ -74,6 +89,7 @@ void WorldSound::setDefaultZone(const zenkit::VZoneMusic &vob) {
   def->bbox[0] = {vob.bbox.min.x, vob.bbox.min.y, vob.bbox.min.z};
   def->bbox[1] = {vob.bbox.max.x, vob.bbox.max.y, vob.bbox.max.z};
   def->name    = vob.vob_name;
+  def->enabled = vob.enabled && vob.s_local_enabled;
   }
 
 void WorldSound::addZone(const zenkit::VZoneMusic &vob) {
@@ -81,8 +97,84 @@ void WorldSound::addZone(const zenkit::VZoneMusic &vob) {
   z.bbox[0] = {vob.bbox.min.x, vob.bbox.min.y, vob.bbox.min.z};
   z.bbox[1] = {vob.bbox.max.x, vob.bbox.max.y, vob.bbox.max.z};
   z.name    = vob.vob_name;
+  z.priority = vob.priority;
+  z.enabled = vob.enabled && vob.s_local_enabled;
+  z.ellipsoid = vob.ellipsoid;
 
   zones.emplace_back(std::move(z));
+  }
+
+size_t WorldSound::setZoneEnabled(std::string_view name, bool enabled) {
+  auto matches = [name](std::string_view candidate) {
+    if(candidate.size()!=name.size())
+      return false;
+    for(size_t i=0; i<name.size(); ++i)
+      if(std::toupper(uint8_t(candidate[i]))!=std::toupper(uint8_t(name[i])))
+        return false;
+    return true;
+    };
+  size_t count = 0;
+  auto apply = [&](Zone& zone) {
+    if(!matches(zone.name))
+      return;
+    if(zone.enabled!=enabled)
+      nextSoundUpdate = 0;
+    zone.enabled = enabled;
+    ++count;
+    };
+  for(auto& zone:zones)
+    apply(zone);
+  if(def!=nullptr)
+    apply(*def);
+  return count;
+  }
+
+void WorldSound::save(Serialize& fout) const {
+  fout.setEntry("worlds/",owner.name(),"/music-zones");
+  fout.write(uint32_t(zones.size()+(def!=nullptr ? 1 : 0)));
+  for(auto& zone:zones)
+    fout.write(zone.name,uint8_t(zone.enabled));
+  if(def!=nullptr)
+    fout.write(def->name,uint8_t(def->enabled));
+
+  fout.setEntry("worlds/",owner.name(),"/sound-zones");
+  fout.write(uint32_t(worldEff.size()));
+  for(auto& sound:worldEff) {
+    const uint64_t remaining = sound.restartTimeout>owner.tickCount() ? sound.restartTimeout-owner.tickCount() : 0;
+    fout.write(sound.vobName,uint8_t(sound.active),remaining);
+    }
+  }
+
+void WorldSound::load(Serialize& fin) {
+  // Optional entry keeps older saves valid; ZEN defaults apply when absent.
+  if(fin.setEntry("worlds/",owner.name(),"/music-zones")) {
+    uint32_t count = 0;
+    fin.read(count);
+    for(uint32_t i=0; i<count; ++i) {
+      std::string name;
+      uint8_t enabled = 0;
+      fin.read(name,enabled);
+      setZoneEnabled(name,enabled!=0);
+      }
+    }
+  if(fin.setEntry("worlds/",owner.name(),"/sound-zones")) {
+    uint32_t count = 0;
+    fin.read(count);
+    for(uint32_t i=0; i<count; ++i) {
+      std::string name;
+      uint8_t active = 0;
+      uint64_t remaining = 0;
+      fin.read(name,active,remaining);
+      // ZEN order disambiguates duplicate names; do not apply an old slot to
+      // an unrelated sound after a changed world file.
+      if(i>=worldEff.size() || worldEff[i].vobName!=name)
+        continue;
+      worldEff[i].active = active!=0;
+      const auto now = owner.tickCount();
+      worldEff[i].restartTimeout = now+std::min(remaining,UINT64_MAX-now);
+      }
+    }
+  nextSoundUpdate = 0;
   }
 
 void WorldSound::addSound(const zenkit::VSound &vob) {
@@ -212,11 +304,50 @@ void WorldSound::tick(Npc& player) {
   tickSoundZone(player);
   }
 
+void WorldSound::stopAllSounds() {
+  std::lock_guard<std::mutex> guard(sync);
+  auto stop = [](Effect& sound) {
+    // NPCs, vobs and effects may still own a Sound sharing this slot. Clearing
+    // only the world's vectors would leave those sounds playing (or looping).
+    sound.active = false;
+    sound.loop   = false;
+    sound.eff    = Tempest::SoundEffect();
+    };
+  for(auto& sound:effect)
+    stop(*sound);
+  for(auto& sound:effect3d)
+    stop(*sound);
+  for(auto& sound:freeSlot)
+    stop(*sound.second);
+  for(auto& sound:worldEff) {
+    if(sound.current.val!=nullptr)
+      stop(*sound.current.val);
+    sound.current = Sound();
+    }
+  effect.clear();
+  effect3d.clear();
+  freeSlot.clear();
+  }
+
 bool WorldSound::execTriggerEvent(const TriggerEvent& e) {
+  if(e.type!=TriggerEvent::T_Trigger && e.type!=TriggerEvent::T_Untrigger)
+    return false;
+  std::lock_guard<std::mutex> guard(sync);
   bool emitted=false;
   for(auto& i:worldEff)
     if(i.vobName==e.target) {
-      i.active = true;
+      i.active = e.type==TriggerEvent::T_Trigger;
+      i.restartTimeout = 0;
+      if(!i.active) {
+        // The effect vector shares the slot. Releasing just current would
+        // leave the source playing until its natural end (or forever in a loop).
+        if(i.current.val!=nullptr) {
+          i.current.val->active = false;
+          i.current.val->loop = false;
+          i.current.val->eff = Tempest::SoundEffect();
+          }
+        i.current = Sound();
+        }
       emitted = true;
       }
   return emitted;
@@ -227,16 +358,17 @@ void WorldSound::tickSoundZone(Npc& player) {
     return;
   nextSoundUpdate = owner.tickCount()+5*1000;
 
-  Zone* zone = def.get();
-  if(currentZone!=nullptr && currentZone->checkPos(plPos)){
+  Zone* zone = nullptr;
+  if(currentZone!=nullptr && currentZone!=def.get() && currentZone->enabled && currentZone->checkPos(plPos)) {
     zone = currentZone;
-    } else {
-    for(auto& z:zones) {
-      if(z.checkPos(plPos)) {
-        zone = &z;
-        }
-      }
     }
+  // Re-evaluate overlapping zones even while still inside the previous one.
+  // Preserve the current zone only for ties, avoiding boundary oscillation.
+  for(auto& z:zones)
+    if(z.enabled && z.checkPos(plPos) && (zone==nullptr || z.priority>zone->priority))
+      zone = &z;
+  if(zone==nullptr && def!=nullptr && def->enabled)
+    zone = def.get();
 
   gtime time  = owner.time().timeInDay();
   bool  isDay = (gtime(4,0)<=time && time<=gtime(21,0));
@@ -252,13 +384,19 @@ void WorldSound::tickSoundZone(Npc& player) {
     }
   GameMusic::Tags tags = GameMusic::mkTags(isDay ? GameMusic::Day : GameMusic::Ngt,mode);
 
-  if(currentZone==zone && currentTags==tags)
+  if(zoneInitialized && currentZone==zone && currentTags==tags)
     return;
 
   if(currentZone!=zone && zone!=nullptr)
     owner.script().dmaZoneMusic(zone->name); // mods of Ikarus and LeGo: the player has entered a place
   currentZone = zone;
   currentTags = tags;
+  zoneInitialized = true;
+  if(zone==nullptr) {
+    // Silence only the zone track; explicit CoM track overrides still play.
+    GameMusic::inst().clearZoneMusic();
+    return;
+    }
 
   Zone*           zTry[]    = {zone, def.get()};
   GameMusic::Tags dayTry[]  = {isDay ? GameMusic::Day : GameMusic::Ngt, GameMusic::Day};
@@ -268,7 +406,7 @@ void WorldSound::tickSoundZone(Npc& player) {
   for(auto zone:zTry)
     for(auto day:dayTry)
       for(auto mode:modeTry) {
-        if(zone==nullptr)
+        if(zone==nullptr || !zone->enabled)
           continue;
         const size_t sep = zone->name.find('_');
         const char*  tag = zone->name.c_str();

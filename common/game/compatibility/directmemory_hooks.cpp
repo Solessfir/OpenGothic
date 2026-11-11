@@ -21,6 +21,9 @@ bool DirectMemory::isHookAnswered(uint32_t address) {
     HookAdr::ChangeLevelBegin,
     HookAdr::ChangeLevelEnd,
     HookAdr::WriteSavegame,
+    HookAdr::SaveGameWorld,
+    HookAdr::SaveWorldName,
+    HookAdr::LoadingTexture,
     HookAdr::ReadSavegame,
     HookAdr::InventoryInsert,
     HookAdr::ChangeAttribute,
@@ -30,20 +33,29 @@ bool DirectMemory::isHookAnswered(uint32_t address) {
     HookAdr::OnDamage,
     HookAdr::OnDamageScript,
     HookAdr::SpellSetup,
+    HookAdr::SpellTargetValid,
     HookAdr::MobCanOpen,
     HookAdr::EvDropVob,
     HookAdr::InventoryOpen,
+    HookAdr::ItemInfoDraw,
     HookAdr::SellItem,
     HookAdr::HideFocusParty,
+    HookAdr::NextEnemy,
     HookAdr::FinishingMove,
     HookAdr::PickLockLength,
     HookAdr::MovingCutscene,
+    HookAdr::CutsceneMenu,
+    HookAdr::CutsceneStatus,
+    HookAdr::DialogMessage,
     HookAdr::CsCameraTrigger,
     HookAdr::CsCameraUntrigger,
     HookAdr::BarUpdateResolution,
+    HookAdr::SpriteRender,
+    HookAdr::GameRender,
     HookAdr::StatusScreenShow,
     HookAdr::StatusScreenClose,
     HookAdr::EquipItem,
+    HookAdr::EquipBestWeapons,
     HookAdr::UnequipItem,
     HookAdr::DropUnconscious,
     };
@@ -70,6 +82,20 @@ bool DirectMemory::inFinalBoards() {
 
 bool DirectMemory::hidesPartyFocus() const {
   return hasHook(HookAdr::HideFocusParty);
+  }
+
+bool DirectMemory::cutsceneMenuBlocked() {
+  HookRegs regs;
+  regs.eax = (inCamera() || inFinalBoards()) ? 1 : 0;
+  fireHook(HookAdr::CutsceneMenu,regs);
+  return regs.eax!=0;
+  }
+
+bool DirectMemory::cutsceneStatusHidden() {
+  HookRegs regs;
+  regs.eax = (inCamera() || inFinalBoards()) ? 1 : 0;
+  fireHook(HookAdr::CutsceneStatus,regs);
+  return regs.eax!=0;
   }
 
 bool DirectMemory::hasHook(uint32_t address) const {

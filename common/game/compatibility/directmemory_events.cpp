@@ -4,8 +4,11 @@
 
 #include <algorithm>
 #include <cstring>
+#include <cmath>
+#include <limits>
 
 #include "hookaddresses.h"
+#include "graphics/effect.h"
 #include "logbudget.h"
 #include "world/focus.h"
 #include "world/objects/interactive.h"
@@ -111,6 +114,11 @@ void DirectMemory::eventDamageBegin(Npc& victim, Npc& attacker, bool isSpell, in
     if(off>=0)
       mem32.writeInt(d.desc+ptr32_t(off),v);
     };
+  auto putFloat = [&](const char* name, float v) {
+    int32_t bits = 0;
+    std::memcpy(&bits,&v,sizeof(bits));
+    put(name,bits);
+    };
 
   d.desc = mem32.alloc(std::max<uint32_t>(cls->class_size(),160)+16,"oSDamageDescriptor");
   if(d.desc==0)
@@ -120,9 +128,22 @@ void DirectMemory::eventDamageBegin(Npc& victim, Npc& attacker, bool isSpell, in
   put("DWFIELDSVALID",0xFFFF);
   put("PVOBATTACKER", int32_t(ptrOf(attacker)));
   put("PNPCATTACKER", int32_t(ptrOf(attacker)));
+  put("PVOBHIT", int32_t(ptrOf(victim)));
   if(weapon!=nullptr && !isSpell)
     put("PITEMWEAPON",int32_t(ptrOf(const_cast<Item&>(*weapon))));
   put("NSPELLID",isSpell ? spellId : 0);
+  put("NSPELLCAT",isSpell ? gameScript.spellDesc(spellId).spell_type : 0);
+  put("NSPELLLEVEL",isSpell ? 1 : 0);
+  put("ENUMODEDAMAGE",isSpell ? gameScript.spellDesc(spellId).damage_type : DamageCalculator::damageTypeMask(attacker));
+  putFloat("FDAMAGEMULTIPLIER",1.f);
+  float total = 0.f;
+  const int32_t damageOff = field("ARYDAMAGE");
+  for(size_t i=0; i<zenkit::DamageType::NUM; ++i) {
+    total += float(d.damage[i]);
+    if(damageOff>=0)
+      mem32.writeInt(d.desc+ptr32_t(damageOff)+ptr32_t(i)*4,d.damage[i]);
+    }
+  putFloat("FDAMAGETOTAL",total);
   // oETypeWeapon: 1 fist, 2 melee, 4 range, 8 magic
   put("ENUMODEWEAPON",isSpell ? 8 : (ranged ? 4 : (weapon!=nullptr ? 2 : 1)));
   put("BDAMAGEDONTKILL",d.dontKill ? 1 : 0);
@@ -135,6 +156,9 @@ void DirectMemory::eventDamageBegin(Npc& victim, Npc& attacker, bool isSpell, in
   const int32_t off = field("BDAMAGEDONTKILL");
   if(off>=0)
     d.dontKill = mem32.readInt(d.desc+ptr32_t(off))!=0;
+  if(damageOff>=0)
+    for(size_t i=0; i<zenkit::DamageType::NUM; ++i)
+      d.damage[i] = mem32.readInt(d.desc+ptr32_t(damageOff)+ptr32_t(i)*4);
   }
 
 void DirectMemory::eventDamageEnd(Npc& victim, GameScript::DmaDamage& d) {
@@ -146,12 +170,11 @@ void DirectMemory::eventDamageEnd(Npc& victim, GameScript::DmaDamage& d) {
   r.args = {int32_t(d.desc)};
   fireHook(HookAdr::OnDamageScript,r);
 
-  // what the scripts have added to the total damage
-  if(auto* s = vm.find_symbol_by_name("OSDAMAGEDESCRIPTOR.FDAMAGETOTAL")) {
-    const float f = bitsToFloat(mem32.readInt(d.desc+s->offset_as_member()));
-    if(f>=1.f)
-      d.extra = int(f);
-    }
+  // CoM updates both the incoming total and ARYDAMAGE for its mage ring.
+  // ARYDAMAGE is applied before protection by DamageCalculator; adding the
+  // input total again here would bypass armor and double the base damage.
+  if(auto* s = vm.find_symbol_by_name("OSDAMAGEDESCRIPTOR.BDAMAGEDONTKILL"))
+    d.dontKill = mem32.readInt(d.desc+s->offset_as_member())!=0;
   mem32.free(d.desc);
   d.desc = 0;
   }
@@ -172,7 +195,6 @@ auto DirectMemory::mobPointer(Interactive& mob) -> ptr32_t {
   if(mobs[i]!=nullptr)
     mobIndex.erase(mobs[i]);
   mobs[i]    = &mob;
-  mobPick[i] = 0;
   mobIndex[&mob] = i;
   return mobBase + i*uint32_t(sizeof(Compatibility::MobSlot));
   }
@@ -204,13 +226,13 @@ void DirectMemory::memoryCallback(Compatibility::MobSlot& m, uint32_t index, std
     };
 
   // oCMobLockable: bit 0 is the lock, bit 1 opens by itself, the rest is the number of the character of the lock that is done
-  const bool locked = !mob->pickLockCode().empty() && !mob->isCracked();
+  const bool locked = mob->isLocked();
 
   if(ord==std::memory_order::release) {
     const int32_t bf = get(offset("BITFIELD"));
     const bool    nowLocked = (bf&1)!=0;
-    mobPick[index] = uint32_t(bf)>>2;
-    if(nowLocked!=locked && !mob->pickLockCode().empty()) {
+    mob->setPickLockProgress(uint32_t(bf)>>2);
+    if(nowLocked!=locked && (mob->isContainer() || mob->isDoor())) {
       mob->setAsCracked(!nowLocked);
       if(!nowLocked)
         lockOpenedByScript = true;
@@ -221,7 +243,7 @@ void DirectMemory::memoryCallback(Compatibility::MobSlot& m, uint32_t index, std
   // the table of virtual functions says what it is: a chest, a door or another mob
   const int32_t vtbl = mob->isContainer() ? 8637284 : (mob->isDoor() ? 8638548 : 8639884);
   put(0,vtbl);
-  put(offset("BITFIELD"),(locked ? 1 : 0) | int32_t(mobPick[index]<<2));
+  put(offset("BITFIELD"),(locked ? 1 : 0) | int32_t(mob->pickLockProgress()<<2));
 
   auto text = [&](const char* name, std::string_view v) {
     const int32_t off = offset(name);
@@ -318,6 +340,15 @@ void DirectMemory::eventSpellFocus(Npc& caster, int spellId) {
   mem32.free(spell);
   }
 
+bool DirectMemory::eventSpellTarget(Interactive& mob, TargetType type) {
+  if(type!=TARGET_TYPE_MOB || !hasHook(HookAdr::SpellTargetValid))
+    return false;
+  HookRegs regs;
+  regs.ecx = uint32_t(type);
+  regs.args.push_back(int32_t(mobPointer(mob)));
+  return fireHook(HookAdr::SpellTargetValid,regs) && regs.ecx==1;
+  }
+
 /// The player tries to open a chest or a door that is locked: the mods can open it (the talent of picking locks of CoM)
 void DirectMemory::eventMobCanOpen(Interactive& mob) {
   if(!hasHook(HookAdr::MobCanOpen))
@@ -329,8 +360,49 @@ void DirectMemory::eventMobCanOpen(Interactive& mob) {
 
 /// A key is down or up: MEM_KeyPressed and MEM_KeyState of Ikarus read it
 void DirectMemory::eventKeyState(int key, bool down) {
-  if(key>0 && size_t(key)<sizeof(keyEvents))
+  if(key>0 && size_t(key)<sizeof(keyEvents)) {
+    if(down && keyEvents[key]==0)
+      keyToggles[key] = 1;
+    if(!down)
+      keyToggles[key] = 0;
     keyEvents[key] = down ? 1 : 0;
+    }
+  }
+
+void DirectMemory::eventDialogMessage(std::string& name, uint32_t& color, bool& bottom, bool playerLine) {
+  if(!hasHook(HookAdr::DialogMessage))
+    return;
+  const auto storage = mem32.alloc(uint32_t(sizeof(zString)+4),"dialog message hook arguments");
+  if(storage==0)
+    return;
+  const auto colorPtr = storage+uint32_t(sizeof(zString));
+  auto* text = mem32.deref<zString>(storage);
+  if(text==nullptr || !memAssignString(*text,name)) {
+    mem32.free(storage);
+    return;
+    }
+  mem32.writeInt(colorPtr,int32_t(color));
+  auto cleanup = [&]() {
+    if(auto* value = mem32.deref<const zString>(storage))
+      mem32.free(value->ptr);
+    mem32.free(storage);
+    };
+  HookRegs regs;
+  regs.ecx = memGame.ARRAY_VIEW[playerLine ? 1 : 5];
+  const auto originalView = regs.ecx;
+  regs.args = {int32_t(storage),0,0,int32_t(colorPtr)};
+  try {
+    fireHook(HookAdr::DialogMessage,regs);
+    if(auto* value = mem32.deref<const zString>(storage))
+      memFromString(name,*value);
+    color = uint32_t(mem32.readInt(colorPtr));
+    bottom = regs.ecx!=originalView && regs.ecx==memGame.ARRAY_VIEW[1];
+    }
+  catch(...) {
+    cleanup();
+    throw;
+    }
+  cleanup();
   }
 
 /// The status screen of the player is shown or closed: the hooks of CoM write the texts of its items (UPDATE_MENU_ITEM)
@@ -402,6 +474,73 @@ bool DirectMemory::takeInventoryClose() {
   return ret;
   }
 
+void DirectMemory::eventItemInfo(const Item& item) {
+  if(!hasHook(HookAdr::ItemInfoDraw))
+    return;
+  const auto pointer = handles.pointerTo(item.handlePtr());
+  if(pointer==0)
+    return;
+
+  withRecipeTemporary(uint32_t(std::max(item.handle().hp,0)),"OCITEMCONTAINER__DRAWITEMINFO_HOOK",[&]() {
+    HookRegs regs;
+    regs.args.push_back(int32_t(pointer));
+    fireHook(HookAdr::ItemInfoDraw,regs);
+    });
+  }
+
+// Both the recipe tooltip and CRAFTINGVIEW_SHOW create a temporary C_RECIPE.
+// Its strings are copied out before returning; preserve any outer invocation
+// and free the temporary rather than leaking one on each selection change.
+void DirectMemory::withRecipeTemporary(uint32_t instance, std::string_view prefix, const std::function<void()>& call) {
+  auto* temporary = vm.find_symbol_by_name(std::string(prefix)+".PTR");
+  auto* recipeRef = vm.find_symbol_by_name(std::string(prefix)+".REC");
+  auto* recipe = instance>0 ? vm.find_symbol_by_index(instance) : nullptr;
+  auto* cls = recipe;
+  for(size_t guard=0; cls!=nullptr && cls->type()!=zenkit::DaedalusDataType::CLASS; ++guard) {
+    if(guard>=vm.symbols().size() || (cls->type()!=zenkit::DaedalusDataType::INSTANCE &&
+                                    cls->type()!=zenkit::DaedalusDataType::PROTOTYPE)) {
+      cls = nullptr;
+      break;
+      }
+    cls = vm.find_symbol_by_index(cls->parent());
+    }
+  if(cls==nullptr || cls->name()!="C_RECIPE" || recipe==nullptr ||
+     recipe->type()!=zenkit::DaedalusDataType::INSTANCE || temporary==nullptr || recipeRef==nullptr) {
+    call();
+    return;
+    }
+  const auto previousPointer = temporary->get_int();
+  const auto previousInstance = recipe->get_instance();
+  const auto previousRef = recipeRef->get_instance();
+  temporary->set_int(0);
+  auto cleanup = [&]() {
+    const auto allocation = ptr32_t(temporary->get_int());
+    temporary->set_int(previousPointer);
+    recipeRef->set_instance(previousRef);
+    recipe->set_instance(previousInstance);
+    if(allocation==0)
+      return;
+    for(auto* member:vm.find_class_members(*cls)) {
+      if(member->type()!=zenkit::DaedalusDataType::STRING)
+        continue;
+      for(uint32_t i=0; i<member->count(); ++i) {
+        const auto address = allocation+uint32_t(member->offset_as_member())+i*uint32_t(sizeof(zString));
+        if(auto* str = mem32.deref<zString>(address); str!=nullptr && str->ptr!=0)
+          mem32.free(str->ptr);
+        }
+      }
+    mem32.free(allocation);
+    };
+  try {
+    call();
+    }
+  catch(...) {
+    cleanup();
+    throw;
+    }
+  cleanup();
+  }
+
 /// The player sells an item (oCViewDialogTrade::OnTransferLeft). ITEMIMPORTANTFLAG_CHECKSELLINGITEMS of CoM, read from
 /// its code in the DAT (tools/ikarus/disasm.py): an item with ITEM_IMPORTANT is not sold, the hero shows T_CANNOTTAKE.
 /// True means that the sale is cancelled.
@@ -457,8 +596,169 @@ size_t DirectMemory::eventPickLockLength(Interactive& mob, size_t length) {
   }
 
 /// A spell starts to be cast: no lock is opened yet
-void DirectMemory::eventSpellBegin() {
+void DirectMemory::eventSpellBegin(Npc& caster) {
+  finishTelekinesis();
   lockOpenedByScript = false;
+  if(vm.find_symbol_by_name("OCNPC.MAG_BOOK")==nullptr)
+    return;
+  // CoM's SPELL_CAST_SLOWDOWN reads mag_book+24 before calling SetOwner.
+  // Keep a real, owned 32-bit book facade per live caster, rather than aliasing
+  // a script field or returning an unmapped pointer. It is rebuilt after load.
+  for(auto it=magicBooks.begin(); it!=magicBooks.end();) {
+    auto owner = it->second.lock();
+    if(owner!=nullptr && owner->user_ptr!=nullptr) {
+      ++it;
+      continue;
+      }
+    if(owner!=nullptr)
+      owner->compat_magic_book = 0;
+    mem32.free(it->first);
+    it = magicBooks.erase(it);
+    }
+  auto ref = caster.handlePtr();
+  auto book = ptr32_t(ref->compat_magic_book);
+  auto it = magicBooks.find(book);
+  if(it==magicBooks.end() || it->second.lock()!=ref) {
+    book = mem32.alloc(64,"oCMag_Book owner/world for CoM spells");
+    ref->compat_magic_book = int32_t(book);
+    if(book!=0)
+      magicBooks[book] = ref;
+    }
+  }
+
+void DirectMemory::finishTelekinesis() {
+  auto ref = telekinesisItem.lock();
+  if(ref!=nullptr && ref->user_ptr!=nullptr) {
+    auto* item = reinterpret_cast<Item*>(ref->user_ptr);
+    if(gameScript.world().validateFocus(Focus(*item)).item==item)
+      item->setPhysicsEnable(gameScript.world());
+    }
+  telekinesisItem.reset();
+  telekinesisCaster.reset();
+  if(auto* stage = vm.find_symbol_by_name("STAGE"); stage!=nullptr && stage->type()==zenkit::DaedalusDataType::INT)
+    stage->set_int(0);
+  }
+
+void DirectMemory::tickTelekinesis() {
+  auto item = telekinesisItem.lock();
+  if(item==nullptr)
+    return;
+  auto caster = telekinesisCaster.lock();
+  if(item->user_ptr==nullptr || caster==nullptr || caster->user_ptr==nullptr ||
+     !reinterpret_cast<Npc*>(caster->user_ptr)->isCasting())
+    finishTelekinesis();
+  }
+
+void DirectMemory::setupTelekinesisFunctions() {
+  auto* logic = vm.find_symbol_by_name("SPELL_LOGIC_TELEKINESIS");
+  if(logic==nullptr || vm.find_symbol_by_name("OCITEM_TELEKINESIS")==nullptr)
+    return;
+  auto integer = [this](std::string_view name) {
+    auto* s = vm.find_symbol_by_name(name);
+    return s!=nullptr && s->type()==zenkit::DaedalusDataType::INT ? s->get_int() : 0;
+    };
+  auto set = [this](std::string_view name, int32_t value) {
+    if(auto* s = vm.find_symbol_by_name(name); s!=nullptr && s->type()==zenkit::DaedalusDataType::INT)
+      s->set_int(value);
+    };
+  auto bits = [](float value) {
+    int32_t result = 0;
+    std::memcpy(&result,&value,sizeof(result));
+    return result;
+    };
+  auto move = [this,integer]() {
+    auto ref = telekinesisItem.lock();
+    if(ref==nullptr || ref->user_ptr==nullptr)
+      return;
+    auto* item = reinterpret_cast<Item*>(ref->user_ptr);
+    const Vec3 delta(bitsToFloat(integer("STEP_X")),bitsToFloat(integer("STEP_Z")),bitsToFloat(integer("STEP_Y")));
+    const auto to = item->position()+delta;
+    if(!std::isfinite(to.x) || !std::isfinite(to.y) || !std::isfinite(to.z)) {
+      finishTelekinesis();
+      return;
+      }
+    item->setPosition(to.x,to.y,to.z);
+    };
+  vm.override_function("NEW_TELEKINESIS",move);
+  vm.override_function("SPELL_LOGIC_TELEKINESIS",[this,integer,set,bits,move](int invested) -> int {
+    auto casterRef = std::dynamic_pointer_cast<zenkit::INpc>(vm.global_self()->get_instance());
+    auto* caster = casterRef==nullptr ? nullptr : reinterpret_cast<Npc*>(casterRef->user_ptr);
+    if(caster==nullptr)
+      return SPL_DONTINVEST;
+    int stage = integer("STAGE");
+    const int cost = std::max(integer("STEP_TELEKINESIS"),1);
+    auto ref = telekinesisItem.lock();
+    if(stage==0 || ref==nullptr) {
+      auto selected = handles.instanceAt(ptr32_t(casterRef->compat_focus_vob));
+      ref = std::dynamic_pointer_cast<zenkit::IItem>(selected);
+      auto* item = ref==nullptr ? nullptr : reinterpret_cast<Item*>(ref->user_ptr);
+      if(item==nullptr || gameScript.world().validateFocus(Focus(*item)).item!=item)
+        return SPL_DONTINVEST;
+      const auto delta = caster->position()-item->position();
+      const float distance = delta.length();
+      if(!std::isfinite(distance) || distance<180.f || distance>10000.f)
+        return SPL_DONTINVEST;
+      const int steps = std::max(int(distance)/10,1);
+      set("NUMB_OF_STEPS",steps);
+      set("STEP_X",bits(delta.x/float(steps)));
+      set("STEP_Z",bits(delta.y/float(steps)));
+      set("STEP_Y",bits(delta.z/float(steps)));
+      vm.find_symbol_by_name("OCITEM_TELEKINESIS")->set_instance(ref);
+      stage = 0;
+      set("STAGE",0);
+      }
+    auto* item = ref==nullptr ? nullptr : reinterpret_cast<Item*>(ref->user_ptr);
+    if(item==nullptr || caster->attribute(ATR_MANA)<cost) {
+      finishTelekinesis();
+      return SPL_DONTINVEST;
+      }
+    if(invested<=cost)
+      return SPL_STATUS_CANINVEST_NO_MANADEC;
+    if((stage-1)%10==0)
+      casterRef->attribute[ATR_MANA] = std::max(casterRef->attribute[ATR_MANA]-cost,0);
+    if((caster->position()-item->position()).length()<150.f)
+      return SPL_SENDCAST;
+    if(stage==0) {
+      telekinesisItem = ref;
+      telekinesisCaster = casterRef;
+      item->setPhysicsDisable();
+      auto at = item->position();
+      if(const auto* bounds = item->bBox()) {
+        float minY = std::numeric_limits<float>::max(), maxY = std::numeric_limits<float>::lowest();
+        for(unsigned i=0; i<8; ++i) {
+          Vec3 point(bounds[(i&1)!=0].x,bounds[(i&2)!=0].y,bounds[(i&4)!=0].z);
+          item->transform().project(point);
+          minY = std::min(minY,point.y);
+          maxY = std::max(maxY,point.y);
+          }
+        if(std::isfinite(minY) && std::isfinite(maxY))
+          at.y += maxY-minY;
+        }
+      item->setPosition(at.x,at.y,at.z);
+      if(const auto* fx = Gothic::inst().loadVisualFx("spellFX_ItemAusbuddeln")) {
+        Effect effect(*fx,gameScript.world(),at);
+        effect.setActive(true);
+        gameScript.world().runEffect(std::move(effect));
+        }
+      }
+    move();
+    set("STAGE",stage<INT32_MAX ? stage+1 : stage);
+    return SPL_NEXTLEVEL;
+    });
+  if(auto* cast = vm.find_symbol_by_name("SPELL_CAST_TELEKINESIS"); cast!=nullptr && cast->count()==0)
+    vm.override_function("SPELL_CAST_TELEKINESIS",[this]() {
+      finishTelekinesis();
+      auto ref = std::dynamic_pointer_cast<zenkit::INpc>(vm.global_self()->get_instance());
+      if(ref!=nullptr && ref->aivar[20]<INT32_MAX)
+        ++ref->aivar[20];
+      });
+  vm.override_function("SPELL_TELEKINESIS_FOCUS_REMOVER",[this]() -> int {
+    finishTelekinesis();
+    auto hero = std::dynamic_pointer_cast<zenkit::INpc>(vm.global_hero()->get_instance());
+    if(hero!=nullptr)
+      hero->compat_focus_vob = 0;
+    return 0;
+    });
   }
 
 /// The scroll of the lock picking spell of CoM (SPL_PICKLOCK) is spent only when the spell has opened the lock: the
@@ -498,6 +798,34 @@ bool DirectMemory::eventDropUnconscious(Npc& npc) {
   return keep;
   }
 
+/// CoM replaces auto-equip with _FIXEQUIPBESTWEAPONS, which reads the NPC from ESI.
+bool DirectMemory::eventEquipBestWeapons(Npc& npc) {
+  if(!hasHook(HookAdr::EquipBestWeapons))
+    return false;
+  HookRegs regs;
+  regs.esi = ptrOf(npc);
+  if(regs.esi==0)
+    return false;
+  return fireHook(HookAdr::EquipBestWeapons,regs);
+  }
+
+bool DirectMemory::eventEnemyCandidate(Npc& npc, Npc& candidate) {
+  if(!hasHook(HookAdr::NextEnemy))
+    return true;
+  // Recheck cached targets as well: a quest may have just changed their
+  // attitude or added them to the party since the previous perception tick.
+  if(!npc.isEnemy(candidate))
+    return false;
+  HookRegs regs;
+  regs.ebp = ptrOf(npc);
+  regs.edi = ptrOf(candidate);
+  if(regs.ebp==0 || regs.edi==0)
+    return false;
+  // DAT: party/party -> ECX=1; otherwise NPC_CanSeeNpc decides 0/1.
+  // The original instruction following the replaced block skips nonzero ECX.
+  return fireHook(HookAdr::NextEnemy,regs) && regs.ecx==0;
+  }
+
 /// A character equips or unequips a bow or a crossbow (oCNpc::EquipItem, oCNpc::UnequipItem). The hooks _EVT_QUIVER_EQUIP and
 /// _EVT_QUIVER_UNEQUIP of CoM (read from the DAT) hang the quiver on the back of the character or take it down.
 void DirectMemory::eventEquipItem(Npc& npc, Item& item, bool equip) {
@@ -531,6 +859,28 @@ void DirectMemory::setupQuiverFunctions() {
     return equalsNoCase(slot,"ZS_BOW") || equalsNoCase(slot,"ZS_CROSSBOW");
     };
 
+  safe("TELEPORTHEROTOPOS", [this](int x, int y, int z) {
+    auto* hero = gameScript.world().player();
+    const Vec3 pos(bitsToFloat(x),bitsToFloat(y),bitsToFloat(z));
+    if(hero==nullptr || !std::isfinite(pos.x) || !std::isfinite(pos.y) || !std::isfinite(pos.z))
+      return;
+    hero->clearGoTo();
+    hero->setPosition(pos);
+    });
+
+  safe("BUFF_DIVE10_TICK", [this](int buff) {
+    // Retain LeGo's handle -> saved target ID lookup. Only the two native
+    // oCNpc float members written by the original callback need an adapter.
+    auto* getNpc = vm.find_symbol_by_name("BUFF_GETNPC");
+    if(getNpc==nullptr || getNpc->type()!=zenkit::DaedalusDataType::FUNCTION)
+      return;
+    const int ptr = vm.call_function<int>("BUFF_GETNPC",buff);
+    auto ref = handles.instanceAt(ptr32_t(ptr));
+    auto* npc = dynamic_cast<zenkit::INpc*>(ref.get());
+    if(npc!=nullptr && npc->user_ptr!=nullptr)
+      reinterpret_cast<Npc*>(npc->user_ptr)->setDiveBreath(30000,31000);
+    });
+
   // AI_TeleportAlways of LeGo: the command that the queue calls writes the matrix of the vob of the character through zCVob, which the
   // layer does not have as a class of the scripts (illegal access of unbound member ZCVOB.TRAFOOBJTOWORLD). The character is put at the
   // point, the same way as TeleportNpcToWP does it.
@@ -556,12 +906,22 @@ void DirectMemory::setupQuiverFunctions() {
   // of the character from the members of oCNpc that the VM does not have. The visual stays, the armor is put on.
   safe("NPC_CHANGEARMOR", [npcOf](std::shared_ptr<zenkit::INpc> slf, int armor){
     auto* npc = npcOf(slf);
-    if(npc==nullptr || armor<=0)
-      return;
-    if(npc->itemCount(uint32_t(armor))==0)
-      npc->addItem(uint32_t(armor),1);
-    npc->useItem(uint32_t(armor),Item::NSLOT,true);
-    Log::d("Npc_ChangeArmor: ",npc->displayName());
+    if(npc!=nullptr) {
+      if(armor>0) {
+        if(npc->itemCount(uint32_t(armor))==0)
+          npc->addItem(uint32_t(armor),1);
+        npc->equipItem(uint32_t(armor));
+        }
+      else if(armor<0) {
+        if(auto* equipped = npc->currentArmor())
+          npc->unequipItem(equipped->clsId());
+        }
+      Log::d("Npc_ChangeArmor: ",npc->displayName());
+      }
+    // The original CoM body records the new armor even for NO_ARMOR (-1).
+    // Refresh/reinsert scripts rely on this, beyond the visible model change.
+    if(slf!=nullptr)
+      slf->aivar[48] = armor;
     });
 
   safe("MEM_GETANYWP", [](){
@@ -589,13 +949,30 @@ void DirectMemory::setupQuiverFunctions() {
     npc->setDecor(std::move(mesh),slot);
     return 1;
     });
-  safe("OCNPC_REMOVEFROMSLOT", [this,npcOf,quiverSlot](std::shared_ptr<zenkit::INpc> npcRef, std::string_view slot, int /*retVal*/, int /*slotId*/) -> int {
-    // OCNPC__DROPUNCONSCIOUS_HOOK takes the weapons from the hands only for the scenes where the hero has to keep them
-    if(inDropUnconscious && (equalsNoCase(slot,"ZS_RIGHTHAND") || equalsNoCase(slot,"ZS_LEFTHAND")))
-      keepHandWeapons = true;
+  safe("OCNPC_REMOVEFROMSLOT", [this,npcOf,quiverSlot](std::shared_ptr<zenkit::INpc> npcRef, std::string_view slot, int /*drop*/, int /*stopEffect*/) -> int {
     auto* npc = npcOf(npcRef);
-    if(npc!=nullptr && quiverSlot(slot))
+    if(npc==nullptr)
+      return 0;
+    if(quiverSlot(slot)) {
       npc->clearDecor(slot);
+      return 0;
+      }
+    const bool left = equalsNoCase(slot,"ZS_LEFTHAND");
+    const bool right = equalsNoCase(slot,"ZS_RIGHTHAND");
+    if(inDropUnconscious && (right || left)) {
+      // CoM immediately re-equips the returned weapon in protected fights.
+      // Keep its inventory object alive rather than spawning a loose copy.
+      keepHandWeapons = true;
+      if(auto* item = npc->itemInSlot(slot))
+        return int(handles.pointerTo(item->handlePtr()));
+      }
+    if(left && npc->isUsingTorch()) {
+      const auto result = handles.pointerTo(npc->torchItem());
+      // TORCH_UNEQUIP creates the unlit inventory torch itself. Removing the
+      // burning visual must not spawn another torch or grant an extra item.
+      npc->setTorch(false);
+      return int(result);
+      }
     return 0;
     });
 
@@ -604,13 +981,19 @@ void DirectMemory::setupQuiverFunctions() {
   // ENABLESAVEGAME and ENABLELOADSAVEGAME of CoM switch the items of the menu of the original engine: the scenes do not let the
   // player save (the camera of a cutscene, the final boards)
   safe("ENABLESAVEGAME",     [this](int enable){ saveOff = enable==0; });
-  safe("ENABLELOADSAVEGAME", [this](int enable){ saveOff = enable==0; });
-  safe("ENABLELOADGAME",     [](int){ });
+  safe("ENABLELOADSAVEGAME", [this](int enable){ saveOff = loadOff = enable==0; });
+  safe("ENABLELOADGAME",     [this](int enable){ loadOff = enable==0; });
 
   // DIACAM_DISABLE and DIACAM_ENABLE of CoM write a return into the first instruction of zCAICamera::StartDialogCam: the scenes
   // with their own cameras (zCCSCamera) have no camera of the dialog that fights with them
   safe("DIACAM_DISABLE", [this](){ dialogCameraOff = true;  });
   safe("DIACAM_ENABLE",  [this](){ dialogCameraOff = false; });
+  safe("DIACAM_UPDATE", [this]() {
+    // _TRIA_Uncam requests this before sending the camera's untrigger. The
+    // main window applies it once the cutscene has actually released control.
+    if(!dialogCameraOff && Gothic::inst().isInDialog())
+      Gothic::inst().onDialogCameraReset();
+    });
 
   // CHANGEVOBCOLLISION(name, staticVob, collStat, collDyn, showVisual) writes the bits of zCVob.bitfield0 of the vobs of the
   // name: the scripts of CoM hide and show the decorations of the quests and switch their collision
@@ -678,6 +1061,11 @@ auto DirectMemory::triaRedirect(Npc* npc) -> Npc* {
   return triaCurrent;
   }
 
+bool DirectMemory::trialogFinishPending() const {
+  auto* running = vm.find_symbol_by_name("TRIA_RUNNING");
+  return triaFinishing && running!=nullptr && running->get_int()!=0;
+  }
+
 void DirectMemory::setupTrialogFunctions() {
   auto safe = [&](std::string_view name, auto hook) {
     auto f = vm.find_symbol_by_name(name);
@@ -730,12 +1118,66 @@ void DirectMemory::setupTrialogFunctions() {
       Gothic::inst().onDialogGuest(*next);
     });
 
-  safe("_TRIA_FINISH", [this]() {
+  safe("TRIA_FINISH", [this,intVar,npcAt]() {
+    auto* original = vm.find_symbol_by_name("TRIA_FINISH");
+    auto* hero = gameScript.world().player();
+    const bool running = intVar("TRIA_RUNNING")!=0;
+    std::vector<Npc*> participants;
+    auto add = [&](Npc* npc) {
+      if(npc!=nullptr && npc!=hero && std::find(participants.begin(),participants.end(),npc)==participants.end())
+        participants.push_back(npc);
+      };
+    add(triaOriginal);
+    add(triaCurrent);
+    add(npcAt(ptr32_t(intVar("TRIA_SELF"))));
+    if(auto* pointers = vm.find_symbol_by_name("TRIA_NPCPTR")) {
+      const auto count = std::clamp(intVar("TRIA_CPTR"),0,int(pointers->count()));
+      for(int i=0; i<count; ++i)
+        add(npcAt(ptr32_t(pointers->get_int(uint16_t(i)))));
+      }
+
+    // Run the original no-argument bytecode, deliberately bypassing this
+    // override: it keeps LeGo's validation, TRIA_Wait and camera untrigger,
+    // and queues _TRIA_Finish on the hero.
+    vm.unsafe_call(original);
+    if(!running || hero==nullptr)
+      return;
+    triaFinishing = true;
+
+    // Logical speakers have separate queues here; LeGo swaps their original
+    // engine object in place. Commands queued after TRIA_Finish (notably
+    // Q102_ChangeRoutine and AI_StopProcessInfos) must wait for the hero's
+    // queued cleanup, rather than ending ZS_TALK with TRIA_RUNNING still 1.
+    for(auto* npc:participants)
+      npc->aiWaitTillEnd(*hero);
+    if(logBudget("tria-finish-sync"))
+      Log::d("TRIA_Finish: queued completion before post-dialog commands for ",participants.size()," participants");
+    });
+
+  safe("_TRIA_FINISH", [this,intVar,npcAt]() {
+    if(auto* hero = gameScript.world().player())
+      hero->aiPush(AiQueue::aiStopLookAt());
+    // CoM's embedded _TRIA_Finish restores invited NPCs' AIV_INVINCIBLE.
+    // The last table entry is the original SELF, which was not initialized as
+    // a guest and must retain its own flag.
+    if(auto* pointers = vm.find_symbol_by_name("TRIA_NPCPTR")) {
+      auto* invincible = vm.find_symbol_by_name("AIV_INVINCIBLE");
+      const int flag = invincible==nullptr ? -1 : invincible->get_int();
+      const auto count = std::clamp(intVar("TRIA_CPTR")-1,0,int(pointers->count()));
+      for(int i=0; i<count; ++i) {
+        if(auto* npc = npcAt(ptr32_t(pointers->get_int(uint16_t(i))))) {
+          npc->aiPush(AiQueue::aiStopLookAt());
+          if(flag>=0 && size_t(flag)<std::size(npc->handle().aivar))
+            npc->handle().aivar[flag] = 0;
+          }
+        }
+      }
     if(auto* s = vm.find_symbol_by_name("TRIA_RUNNING"))
       s->set_int(0);
     if(auto* s = vm.find_symbol_by_name("TRIA_CPTR"))
       s->set_int(0);
     triaCurrent  = nullptr;
     triaOriginal = nullptr;
+    triaFinishing = false;
     });
   }

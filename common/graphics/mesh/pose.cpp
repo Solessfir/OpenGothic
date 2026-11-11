@@ -10,11 +10,68 @@
 #include "animmath.h"
 
 #include <cmath>
+#include <algorithm>
+#include <stdexcept>
 
 using namespace Tempest;
 
 Pose::Pose() {
   lay.reserve(4);
+  }
+
+uint64_t Pose::modelTime(uint64_t worldTime) const {
+  auto it = std::upper_bound(modelClock.begin(),modelClock.end(),worldTime,
+                            [](uint64_t time, const ClockSegment& s) { return time<s.world; });
+  if(it==modelClock.begin())
+    return worldTime;
+  const auto& s = *--it;
+  const double time = double(s.model)+double(worldTime-s.world)*double(s.scale);
+  if(time>=double(UINT64_MAX))
+    return UINT64_MAX;
+  return uint64_t(time);
+  }
+
+uint64_t Pose::worldDuration(uint64_t duration) const {
+  if(modelClock.empty() || modelClock.back().scale==1.f)
+    return duration;
+  const double time = std::ceil(double(duration)/double(modelClock.back().scale));
+  return time>=double(UINT64_MAX) ? UINT64_MAX : uint64_t(time);
+  }
+
+void Pose::setTimeScale(float scale, uint64_t worldTime) {
+  if(!std::isfinite(scale) || scale<=0.f || scale>1000.f)
+    return;
+  const float previous = modelClock.empty() ? 1.f : modelClock.back().scale;
+  if(previous==scale)
+    return;
+  if(!modelClock.empty() && worldTime<modelClock.back().world)
+    return;
+  const uint64_t now = modelTime(worldTime);
+  modelClock.push_back({worldTime,now,scale});
+  needToUpdate = true;
+  }
+
+void Pose::saveModelClock(Serialize& fout) const {
+  fout.write(uint32_t(modelClock.size()));
+  for(const auto& s:modelClock)
+    fout.write(s.world,s.model,s.scale);
+  }
+
+void Pose::loadModelClock(Serialize& fin) {
+  modelClock.clear();
+  uint32_t count = 0;
+  fin.read(count);
+  if(count>100000)
+    throw std::runtime_error("Invalid saved model clock size");
+  for(uint32_t i=0; i<count; ++i) {
+    ClockSegment s;
+    fin.read(s.world,s.model,s.scale);
+    if(!std::isfinite(s.scale) || s.scale<=0.f || s.scale>1000.f ||
+       (!modelClock.empty() && s.world<modelClock.back().world))
+      throw std::runtime_error("Invalid saved model clock segment");
+    modelClock.push_back(s);
+    }
+  needToUpdate = true;
   }
 
 uint8_t Pose::calcAniComb(const Vec3& dpos, float rotation) {
@@ -68,6 +125,7 @@ void Pose::save(Serialize &fout) {
   }
 
 void Pose::load(Serialize &fin, const AnimationSolver& solver) {
+  modelClock.clear();
   std::string name;
   uint8_t     sz = uint8_t(lay.size());
 
@@ -160,6 +218,11 @@ void Pose::setSkeleton(const Skeleton* sk) {
 
 bool Pose::startAnim(const AnimationSolver& solver, const Animation::Sequence *sq, uint8_t comb, BodyState bs,
                      StartHint hint, uint64_t tickCount) {
+  return implStartAnim(solver,sq,comb,bs,hint,modelTime(tickCount));
+  }
+
+bool Pose::implStartAnim(const AnimationSolver& solver, const Animation::Sequence *sq, uint8_t comb, BodyState bs,
+                         StartHint hint, uint64_t tickCount) {
   if(sq==nullptr)
     return false;
   // NOTE: zero stands for no-comb, other numbers are comb-index+1
@@ -179,7 +242,7 @@ bool Pose::startAnim(const AnimationSolver& solver, const Animation::Sequence *s
       if(!interrupt && !finished)
         return false;
       if(i.bs==BS_ITEMINTERACT) {
-        stopItemStateAnim(solver,tickCount);
+        implStopItemStateAnim(solver,tickCount);
         return false;
         }
       //WA: Emulate behaviour of vanilla: lurker skips transition animations when entering the water
@@ -282,6 +345,7 @@ void Pose::stopAllAnim() {
   }
 
 void Pose::processLayers(AnimationSolver& solver, uint64_t tickCount) {
+  tickCount = modelTime(tickCount);
   if(hasTransitions==0)
     return;
 
@@ -327,6 +391,7 @@ void Pose::processLayers(AnimationSolver& solver, uint64_t tickCount) {
   }
 
 bool Pose::update(uint64_t tickCount, bool force) {
+  tickCount = modelTime(tickCount);
   if(lay.size()==0) {
     const bool ret = needToUpdate;
     if(needToUpdate || lastUpdate==0)
@@ -576,16 +641,19 @@ bool Pose::hasLayerEvents(const Pose::Layer& l) {
   }
 
 void Pose::processSfx(Npc &npc, uint64_t tickCount) {
+  tickCount = modelTime(tickCount);
   for(auto& i:lay)
     i.seq->processSfx(lastUpdate,i.sAnim,tickCount,&npc,nullptr);
   }
 
 void Pose::processSfx(Interactive& mob, uint64_t tickCount) {
+  tickCount = modelTime(tickCount);
   for(auto& i:lay)
     i.seq->processSfx(lastUpdate,i.sAnim,tickCount,nullptr,&mob);
   }
 
 void Pose::processPfx(MdlVisual& visual, World& world, uint64_t tickCount) {
+  tickCount = modelTime(tickCount);
   for(auto& i:lay)
     i.seq->processPfx(lastUpdate,i.sAnim,tickCount,visual,world);
   }
@@ -596,8 +664,9 @@ bool Pose::processEvents(uint64_t &barrier, uint64_t now, Animation::EvCount &ev
     return false;
     }
 
+  const uint64_t modelBarrier = modelTime(barrier), modelNow = modelTime(now);
   for(auto& i:lay)
-    i.seq->processEvents(barrier,i.sAnim,now,ev);
+    i.seq->processEvents(modelBarrier,i.sAnim,modelNow,ev);
   barrier=now;
   return hasEvents>0;
   }
@@ -612,6 +681,10 @@ void Pose::setObjectMatrix(const Tempest::Matrix4x4& obj, bool sync) {
   }
 
 Tempest::Vec3 Pose::animMoveSpeed(uint64_t tickCount, uint64_t dt) const {
+  const uint64_t end = modelTime(tickCount);
+  const uint64_t begin = modelTime(tickCount>=dt ? tickCount-dt : 0);
+  tickCount = end;
+  dt = end-begin;
   for(size_t i=lay.size(); i>0; ) {
     --i;
     auto& lx = lay[i];
@@ -623,6 +696,7 @@ Tempest::Vec3 Pose::animMoveSpeed(uint64_t tickCount, uint64_t dt) const {
   }
 
 bool Pose::isDefParWindow(uint64_t tickCount) const {
+  tickCount = modelTime(tickCount);
   for(auto& i:lay)
     if(i.seq->isDefParWindow(tickCount-i.sAnim))
       return true;
@@ -630,6 +704,7 @@ bool Pose::isDefParWindow(uint64_t tickCount) const {
   }
 
 bool Pose::isDefWindow(uint64_t tickCount) const {
+  tickCount = modelTime(tickCount);
   for(auto& i:lay)
     if(i.seq->isDefWindow(tickCount-i.sAnim))
       return true;
@@ -637,6 +712,7 @@ bool Pose::isDefWindow(uint64_t tickCount) const {
   }
 
 bool Pose::isDefence(uint64_t tickCount) const {
+  tickCount = modelTime(tickCount);
   for(auto& i:lay) {
     if(i.bs==BS_PARADE && i.seq->isDefWindow(tickCount-i.sAnim))
       return true;
@@ -645,6 +721,7 @@ bool Pose::isDefence(uint64_t tickCount) const {
   }
 
 bool Pose::isJumpBack(uint64_t tickCount) const {
+  tickCount = modelTime(tickCount);
   for(auto& i:lay) {
     if(i.bs==BS_PARADE && i.seq->data->defWindow.empty())
       return true;
@@ -687,6 +764,7 @@ bool Pose::isStanding() const {
   }
 
 bool Pose::isPrehit(uint64_t now) const {
+  now = modelTime(now);
   for(auto& i:lay)
     if(i.seq->isPrehit(i.sAnim,now))
       return true;
@@ -729,7 +807,7 @@ uint64_t Pose::animationTotalTime() const {
   uint64_t ret=0;
   for(auto& i:lay)
     ret = std::max(ret,uint64_t(i.seq->totalTime()));
-  return ret;
+  return worldDuration(ret);
   }
 
 uint64_t Pose::atkTotalTime() const {
@@ -737,11 +815,12 @@ uint64_t Pose::atkTotalTime() const {
   uint64_t ret=0;
   for(auto& i:lay)
     ret = std::max(ret,uint64_t(i.seq->atkTotalTime(comboLen)));
-  return ret;
+  return worldDuration(ret);
   }
 
 const Animation::Sequence* Pose::continueCombo(const AnimationSolver &solver, const Animation::Sequence *sq,
                                                BodyState bs, uint64_t tickCount) {
+  tickCount = modelTime(tickCount);
   if(sq==nullptr)
     return nullptr;
 
@@ -762,7 +841,7 @@ const Animation::Sequence* Pose::continueCombo(const AnimationSolver &solver, co
   size_t   id    = combo.len()*2;
 
   if(0==d.defWindow.size() || 0==d.defHitEnd.size()) {
-    if(!startAnim(solver,sq,prev->comb,bs,Pose::NoHint,tickCount))
+    if(!implStartAnim(solver,sq,prev->comb,bs,Pose::NoHint,tickCount))
       return nullptr;
     combo = ComboState();
     return sq;
@@ -770,7 +849,7 @@ const Animation::Sequence* Pose::continueCombo(const AnimationSolver &solver, co
 
   if(sq->data->defHitEnd.size()==0) {
     // hit -> block
-    startAnim(solver,sq,prev->comb,bs,Pose::Force,tickCount);
+    implStartAnim(solver,sq,prev->comb,bs,Pose::Force,tickCount);
     combo = ComboState();
     return sq;
     }
@@ -790,7 +869,7 @@ const Animation::Sequence* Pose::continueCombo(const AnimationSolver &solver, co
     return nullptr;
 
   if(prev->seq->name!=sq->name) {
-    startAnim(solver,sq,prev->comb,bs,Pose::Force,tickCount);
+    implStartAnim(solver,sq,prev->comb,bs,Pose::Force,tickCount);
     combo = ComboState();
     return sq;
     }
@@ -894,6 +973,10 @@ const Animation::Sequence* Pose::setAnimItem(const AnimationSolver &solver, Npc 
   }
 
 bool Pose::stopItemStateAnim(const AnimationSolver& solver, uint64_t tickCount) {
+  return implStopItemStateAnim(solver,modelTime(tickCount));
+  }
+
+bool Pose::implStopItemStateAnim(const AnimationSolver& solver, uint64_t tickCount) {
   itemUseDestSt = -1;
   for(size_t k=0; k<lay.size(); ) {
     auto& i = lay[k];

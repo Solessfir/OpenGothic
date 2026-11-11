@@ -208,10 +208,13 @@ GameSession::~GameSession() {
 
 void GameSession::save(Serialize &fout, std::string_view name, const Pixmap& screen) {
   SaveLoadProfile::Timer time("save/session-total");
+  // LeGo's archive callback and CoM's torch check may update script globals.
+  // Run them before taking either the world or the Daedalus snapshot.
+  vm->dmaBeforeSave();
   SaveGameHeader hdr;
   hdr.version   = Serialize::Version::Current;
   hdr.name      = name;
-  hdr.world     = wrld->name();
+  hdr.world     = vm->dmaSaveWorldName(wrld->name());
   {
   time_t now = std::time(nullptr);
   tm*    tp  = std::localtime(&now);
@@ -389,8 +392,9 @@ void GameSession::tick(uint64_t dt) {
 
     if(Resources::hasFile(w)) {
       string_frm name("LOADING_",wname,".TGA"); // format load-screen name, like "LOADING_OLDWORLD.TGA"
+      const std::string banner = Gothic::loadingBannerName(vm.get(),name);
 
-      Gothic::inst().startLoad(name,[this](std::unique_ptr<GameSession>&& game){
+      Gothic::inst().startLoad(banner,[this](std::unique_ptr<GameSession>&& game){
         auto ret = implChangeWorld(std::move(game),chWorld.zen,chWorld.wp);
         chWorld.zen.clear();
         return ret;

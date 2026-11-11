@@ -86,6 +86,7 @@ class VisualObjects final {
     void drawHiZ        (Tempest::Encoder<Tempest::CommandBuffer>& cmd);
 
     bool updateRtScene(RtScene& out);
+    bool replaceTexture(const Tempest::Texture2d& source, const Tempest::Texture2d& replacement);
 
     void dbgClusters(Tempest::Painter& p, Tempest::Vec2 wsz);
 

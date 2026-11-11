@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 #include "game/constants.h"
 
@@ -24,6 +25,8 @@ class CommandLine {
       DirectX12
       };
     auto                graphicsApi() const -> GraphicBackend;
+    std::string         commandLine() const;
+    std::string         parameterValue(std::string_view name) const;
     std::u16string_view rootPath() const;
     std::u16string      scriptPath() const;
     std::u16string      scriptPath(ScriptLang lang) const;
@@ -68,6 +71,7 @@ class CommandLine {
     std::u16string      gscript;
     std::u16string      gcutscene;
     std::string         saveDef;
+    std::vector<std::string> arguments;
     bool                devmode      = false;
     bool                noMenu       = false;
     bool                hasCamera    = false;
