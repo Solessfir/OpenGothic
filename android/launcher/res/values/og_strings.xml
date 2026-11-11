@@ -195,4 +195,11 @@
     <string name="og_controls_inventory">Tap an item to select it and tap it again to use, equip or take it. Hold a potion, food or a document to add it to the Draw wheel, and hold it again to remove it. Tap free space to close the inventory.</string>
     <string name="og_controls_screens_title">Dialogue, videos and menus</string>
     <string name="og_controls_screens">Tap an answer to pick it, or anywhere else to skip a line, a video or a chapter screen. Tap menu items directly, and tap outside a menu to close it. Hide the buttons in Options › Game Settings › Touch UI.</string>
+    <string name="og_voices">Voice-over</string>
+    <string name="og_voice_in_use">in use</string>
+    <string name="og_voice_downloaded">downloaded</string>
+    <string name="og_voice_not_downloaded">not downloaded</string>
+    <string name="og_voice_use">Use</string>
+    <string name="og_voice_remove">Remove</string>
+    <string name="og_voice_download_body">Steam checks %1$s and adds this voice-over, about 4.5 GB. The game cannot be played until the download finishes.</string>
 </resources>

@@ -193,4 +193,11 @@
     <string name="og_controls_inventory">Tippe auf einen Gegenstand, um ihn auszuwählen, und erneut, um ihn zu benutzen, anzulegen oder zu nehmen. Halte einen Trank, Essen oder ein Dokument, um es zum Draw-Rad hinzuzufügen, und halte es erneut, um es zu entfernen. Tippe auf eine freie Stelle, um das Inventar zu schließen.</string>
     <string name="og_controls_screens_title">Dialoge, Videos und Menüs</string>
     <string name="og_controls_screens">Tippe auf eine Antwort, um sie zu wählen, oder irgendwo anders, um einen Satz, ein Video oder einen Kapitelbildschirm zu überspringen. Tippe direkt auf Menüeinträge; ein Tippen außerhalb eines Menüs schließt es. Die Tasten blendest du in den Spieleinstellungen unter Touch UI aus.</string>
+    <string name="og_voices">Sprachausgabe</string>
+    <string name="og_voice_in_use">aktiv</string>
+    <string name="og_voice_downloaded">heruntergeladen</string>
+    <string name="og_voice_not_downloaded">nicht heruntergeladen</string>
+    <string name="og_voice_use">Verwenden</string>
+    <string name="og_voice_remove">Entfernen</string>
+    <string name="og_voice_download_body">Steam prüft %1$s und lädt diese Sprachausgabe herunter, etwa 4,5 GB. Bis zum Ende des Downloads ist das Spiel nicht spielbar.</string>
 </resources>

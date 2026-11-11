@@ -159,7 +159,8 @@ public final class DownloadService extends Service {
                 update(s);
                 steam.claimFree(game.appId);
             }
-            steam.download(game.appId, staging, s.language, new SteamSession.Progress() {
+            final String voices = getSharedPreferences("launcher", MODE_PRIVATE).getString("voices_" + game.appId, "");
+            steam.download(game.appId, staging, s.language, voices, new SteamSession.Progress() {
                 @Override
                 public void status(String text) {
                     s.status = text;
@@ -184,6 +185,7 @@ public final class DownloadService extends Service {
             if (Library.installed(root, game)) throw new SteamSession.Failure(game.title + " is already installed.", false);
             if (target.exists()) GameFiles.delete(target);
             if (!staging.renameTo(target)) throw new SteamSession.Failure(App.text(R.string.og_err_move_game), false);
+            if (!voices.isEmpty()) GameFiles.selectVoice(target, GameFiles.voiceCode(voices));
             s.done = true;
         } catch (SteamSession.Failure e) {
             if (e.signIn) new SteamStore(this).clear();
