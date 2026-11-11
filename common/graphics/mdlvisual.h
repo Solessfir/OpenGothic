@@ -66,6 +66,9 @@ class MdlVisual final {
     void                           startEffect (World& owner, Effect&& pfx, int32_t slot, bool noSlot);
     void                           stopEffect  (const VisualFx& vfx);
     void                           stopEffect  (int32_t slot);
+    bool                           isSpellActive(int32_t spell, uint64_t now) const;
+    uint64_t                       spellRemainingTime(int32_t spell, uint64_t now) const;
+    void                           restoreLightSpell(World& world, Npc& npc, int32_t spell, uint64_t remaining);
     void                           setNpcEffect(World& owner, Npc& npc, std::string_view s, zenkit::NpcFlag flags);
     void                           setFatness  (float f);
     void                           emitBlockEffect(Npc& dst, Npc& src);
@@ -75,10 +78,12 @@ class MdlVisual final {
 
     void                           setTorch(bool t, World& owner);
     bool                           isUsingTorch() const;
+    const std::shared_ptr<zenkit::IItem>& torchItem() const { return torch.item; }
 
     const Pose&                    pose() const { return *skInst; }
     float                          runSpeed() const;
     void                           setPoseInterval(uint64_t ms) { poseInterval = ms; }
+    Pose&                          pose() { return *skInst; }
     bool                           updateAnimation(Npc* npc, Interactive* mobsi, World& world, uint64_t dt, bool force);
     void                           processLayers  (World& world);
     bool                           processEvents(World& world, uint64_t &barrier, Animation::EvCount &ev);
@@ -92,6 +97,7 @@ class MdlVisual final {
 
     bool                           hasAnim(AnimationSolver::Anim a, WeaponState st, WalkBit wlk) const;
     bool                           hasAnim(std::string_view scheme) const;
+    const Animation::Sequence*     findAnim(std::string_view name) const;
 
     const Animation::Sequence*     startAnimAndGet(std::string_view name, uint64_t tickCount, bool forceAnim = false);
     const Animation::Sequence*     startAnimAndGet(Npc& npc, std::string_view      name, uint8_t comb, BodyState bs);
@@ -140,6 +146,7 @@ class MdlVisual final {
 
     struct TorchSlot {
       std::unique_ptr<ObjVisual> view;
+      std::shared_ptr<zenkit::IItem> item;
       size_t                     boneId=size_t(-1);
       };
 

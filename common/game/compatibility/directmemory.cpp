@@ -20,6 +20,7 @@
 #include "world/triggers/movetrigger.h"
 #include "world/world.h"
 #include "gothic.h"
+#include "commandline.h"
 
 using namespace Tempest;
 using namespace Compatibility;
@@ -94,7 +95,7 @@ const std::string& DirectMemory::memory_instance::get_string(const zenkit::Daeda
   ptr32_t addr = address + ptr32_t(sym.offset_as_member()) + ptr32_t(index)*memberStride(sym);
 
   if(auto zs = owner.mem32.deref<const zString>(addr)) {
-    static std::string ret;
+    auto& ret = owner.transientStrings[addr];
     owner.memFromString(ret, *zs);
     return ret;
     }
@@ -165,7 +166,7 @@ DirectMemory::DirectMemory(GameScript& owner, zenkit::DaedalusVm& vm) : gameScri
   //vm.override_function("MEMINT_ReplaceLoggingFunctions", [](){ });
   vm.override_function("MEM_InitStatArrs",               [](){ });
   vm.override_function("MEM_InitRepeat",                 [](){ });
-  vm.override_function("MEM_GetCommandLine",             [](){ return std::string(""); });
+  vm.override_function("MEM_GetCommandLine", [](){ return CommandLine::inst().commandLine(); });
 
   auto safeOverrideFunction = [&](std::string_view name, auto hook) {
     auto f = vm.find_symbol_by_name(name);
@@ -174,9 +175,8 @@ DirectMemory::DirectMemory(GameScript& owner, zenkit::DaedalusVm& vm) : gameScri
     vm.override_function(name, hook);
     };
 
-  safeOverrideFunction("_RENDER_INIT", []() {
-    // unclear how exactly it should behave - need to find testing sample
-    Log::e("not implemented call [_RENDER_INIT]");
+  safeOverrideFunction("_RENDER_INIT", [this]() {
+    initItemRenderer();
     });
   safeOverrideFunction("PRINT_FIXPS", [](){
     // function patches asm code of zCView::PrintTimed* to fix text coloring - we can ignore it
@@ -189,12 +189,15 @@ DirectMemory::DirectMemory(GameScript& owner, zenkit::DaedalusVm& vm) : gameScri
       Log::d("TeleportNpcToWP: invalid waypoint: ", wpName);
       return;
       }
-    auto npcRef = this->vm.find_symbol_by_index(uint32_t(npcId))->get_instance();
-    if(npcRef==nullptr || npcRef->user_ptr==nullptr) {
+    auto* symbol = this->vm.find_symbol_by_index(uint32_t(npcId));
+    auto npcRef = symbol!=nullptr && symbol->type()==zenkit::DaedalusDataType::INSTANCE
+                  ? symbol->get_instance() : nullptr;
+    auto* npcData = dynamic_cast<zenkit::INpc*>(npcRef.get());
+    if(npcData==nullptr || npcData->user_ptr==nullptr) {
       Log::d("TeleportNpcToWP: ",wpName,": the character #",npcId," is not in the world");
       return;
       }
-    auto& npc = *reinterpret_cast<Npc*>(npcRef->user_ptr);
+    auto& npc = *reinterpret_cast<Npc*>(npcData->user_ptr);
     Log::d("TeleportNpcToWP: ",npc.displayName()," -> ",wpName);
     // the same place as the character that is inserted at the way point: on the ground under it. Way points hang about 50 above the floor,
     // a character that is put at the point itself stands on the furniture whose top is higher (Martha of Silbach on the counter)
@@ -219,8 +222,8 @@ DirectMemory::DirectMemory(GameScript& owner, zenkit::DaedalusVm& vm) : gameScri
     vm.override_function(name, hook);
     };
   dummyfy("WRITENOP",    [](int,int){}); // hook-related mess
-  dummyfy("MEM_SETKEYS", [](std::string_view,int,int){});
   setupQuiverFunctions();
+  setupTelekinesisFunctions();
   setupTrialogFunctions();
   }
 
@@ -235,6 +238,13 @@ bool DirectMemory::isRequired(zenkit::DaedalusScript& vm) {
   }
 
 void DirectMemory::tick(uint64_t dt) {
+  // LeGo FrameFunctions must see this frame's timer, not the previous frame.
+  tickTimers(dt);
+  tickTelekinesis();
+  if(auto* pl = gameScript.world().player()) {
+    auto* mob = pl->interactive();
+    pl->handle().compat_interact_mob = mob==nullptr ? 0 : int32_t(mobPointer(*mob));
+    }
   //TODO: propper hook-engine
   if(auto* sym = vm.find_symbol_by_name("_FF_Hook")) {
     vm.call_function(sym);
@@ -258,13 +268,9 @@ void DirectMemory::tick(uint64_t dt) {
     refreshNpcList();
     }
 
-  // oCNpc.interactmob of the player: the mob that he uses
-  if(auto* pl = gameScript.world().player()) {
-    auto* mob = pl->interactive();
-    pl->handle().compat_interact_mob = mob==nullptr ? 0 : int32_t(mobPointer(*mob));
-    }
-
-  tickTimers(dt);
+  // Apply world-clock writes performed by those callbacks immediately, without
+  // advancing TOTALTIME or replacing FRAMETIME a second time.
+  syncWorldTimer();
   tickInfos();
   tickUi(dt);
   tickQuivers();
@@ -308,6 +314,10 @@ void DirectMemory::tickTimers(uint64_t dt) {
   zTimer.MINFRAMETIME       = 1;
   zTimer.FORCEDMAXFRAMETIME = 1000;
 
+  syncWorldTimer();
+  }
+
+void DirectMemory::syncWorldTimer() {
   auto* wt = mem32.deref<oCWorldTimer>(worldTimer);
   if(wt==nullptr)
     return;
@@ -335,7 +345,7 @@ void DirectMemory::tickTimers(uint64_t dt) {
 
   const int64_t now = session.time().toInt();
   const float   ticks = float(double(now%DayMilis)/MilisPerTick);
-  wt->WORLDTIME  = bits(ticks);
+  wt->WORLDTIME  = floatBitsToInt(ticks);
   wt->DAY        = int32_t(now/DayMilis);
   worldTimerBits = wt->WORLDTIME;
   worldTimerDay  = wt->DAY;
@@ -677,7 +687,6 @@ void DirectMemory::setupEngineMemory() {
     });
   mobBase = mem32.alloc(MobSlots*uint32_t(sizeof(Compatibility::MobSlot)),Mem32::Type::mobHandle,"oCMobLockable");
   mobs.resize(MobSlots,nullptr);
-  mobPick.resize(MobSlots,0);
 
   // Built-in data without assumed address
   oGame_Pointer = mem32.pin(&memGame, sizeof(memGame), "oGame");
@@ -713,8 +722,25 @@ void DirectMemory::setupEngineMemory() {
     v->PSIZEX = 800;  v->PSIZEY = 600;
     v->VSIZEX = 8192; v->VSIZEY = 8192;
     }
+  // Distinct dialog views are compared by CoM's DialogMessageCXY hook.
+  // They remain native-owned UI surfaces, with valid 32-bit identities.
+  for(size_t i=1; i<std::size(memGame.ARRAY_VIEW); ++i) {
+    memGame.ARRAY_VIEW[i] = mem32.alloc(sizeof(zCView),"dialog view identity");
+    if(auto* view = mem32.deref<zCView>(memGame.ARRAY_VIEW[i])) {
+      view->PSIZEX = 800; view->PSIZEY = 600;
+      view->VSIZEX = 8192; view->VSIZEY = 8192;
+      }
+    }
 
   mem32.deref<oCViewStatusBar>(memGame.HPBAR)   ->RANGE_BAR = mem32.alloc(sizeof(zCView));
+  // BAR_GetInterfaceScaling derives its scale from this native bar's width.
+  // Zero collapsed CoM's crafting background and item preview entirely.
+  if(auto* bar = mem32.deref<oCViewStatusBar>(memGame.HPBAR)) {
+    bar->VSIZEX = 180*8192/800;
+    bar->VSIZEY = 20*8192/600;
+    bar->PSIZEX = 180;
+    bar->PSIZEY = 20;
+    }
   mem32.deref<oCViewStatusBar>(memGame.HPBAR)   ->VALUE_BAR = mem32.alloc(sizeof(zCView));
   mem32.deref<oCViewStatusBar>(memGame.FOCUSBAR)->RANGE_BAR = mem32.alloc(sizeof(zCView));
   mem32.deref<oCViewStatusBar>(memGame.FOCUSBAR)->VALUE_BAR = mem32.alloc(sizeof(zCView));
@@ -1274,13 +1300,22 @@ void DirectMemory::memoryCallback(zCPar_Symbol& s, uint32_t index, std::memory_o
   // Log::d("Ikarus: accessing symbol (\"", sym.name(), "\")");
   }
 
-void DirectMemory::memAssignString(zString& str, std::string_view cstr) {
-  str.ptr = mem32.realloc(str.ptr, uint32_t(cstr.size()+1));
-  str.len = int32_t(cstr.size());
-
-  auto* chr  = reinterpret_cast<char*>(mem32.derefv(str.ptr, uint32_t(str.len)));
+bool DirectMemory::memAssignString(zString& str, std::string_view cstr) {
+  if(cstr.size()>=size_t(INT32_MAX))
+    return false;
+  const auto next = mem32.realloc(str.ptr,uint32_t(cstr.size()+1));
+  if(next==0) {
+    Log::e("Ikarus: cannot allocate string buffer");
+    return false;
+    }
+  auto* chr = reinterpret_cast<char*>(mem32.derefv(next,uint32_t(cstr.size()+1)));
+  if(chr==nullptr)
+    return false;
   std::memcpy(chr, cstr.data(), cstr.length());
-  chr[str.len] = '\0';
+  chr[cstr.size()] = '\0';
+  str.ptr = next;
+  str.len = int32_t(cstr.size());
+  return true;
   }
 
 void DirectMemory::memFromString(std::string& dst, const zString& str) {
@@ -1313,11 +1348,11 @@ void DirectMemory::memSendToSpy(int cat, std::string_view msg) {
 void DirectMemory::memReplaceFunc(zenkit::DaedalusFunction dest, zenkit::DaedalusFunction func) {
   auto* sf  = func.value;
   auto* sd  = dest.value;
+  if(sd==nullptr || sf==nullptr || sd==sf)
+    return;
   if(sd->name()=="MEM_SENDTOSPY")
     return;
   if(sd->name()=="MEM_PRINTSTACKTRACE")
-    return;
-  if(sd==nullptr || sf==nullptr || sd==sf)
     return;
 
   // Ikarus puts a jump to the other function at the beginning of the first one: every call of dest goes to func.
@@ -1388,7 +1423,69 @@ void DirectMemory::setupMemoryFunctions() {
   vm.override_function("MEM_ReadInt",          [this](int address){ return mem_readint(address);                  });
   vm.override_function("MEM_WriteInt",         [this](int address, int val){ mem_writeint(address, val);          });
   vm.override_function("MEM_CopyBytes",        [this](int src, int dst, int size){ mem_copybytes(src, dst, size); });
+  vm.override_function("MEM_ReadByte",[this](int address) -> int32_t {
+    return int32_t(mem32.readByte(ptr32_t(address)));
+    });
+  vm.override_function("MEM_WriteByte",[this](int address, int value) {
+    mem32.writeByte(ptr32_t(address),uint8_t(value));
+    if(!ownedStrings.empty())
+      syncOwnedStrings(ptr32_t(address),1);
+    });
+  vm.override_function("MEM_CompareBytes",[this](int first, int second, int count) -> int32_t {
+    if(count<0)
+      return 0;
+    if(count==0)
+      return 1;
+    const auto a = ptr32_t(first), b = ptr32_t(second);
+    if(a==0 || b==0 || uint64_t(a)+uint32_t(count)>uint64_t(UINT32_MAX)+1 ||
+       uint64_t(b)+uint32_t(count)>uint64_t(UINT32_MAX)+1)
+      return 0;
+    uint8_t copy[256];
+    uint32_t offset = 0;
+    while(offset<uint32_t(count)) {
+      auto [left,leftSize] = mem32.deref(a+offset);
+      if(left==nullptr || leftSize==0)
+        return 0;
+      auto size = std::min({uint32_t(count)-offset,leftSize,uint32_t(sizeof(copy))});
+      // A second read can run callbacks; retain the first bytes, not a pointer
+      // into a region that a callback may change. Adjacent regions are legal.
+      std::memcpy(copy,left,size);
+      auto [right,rightSize] = mem32.deref(b+offset);
+      if(right==nullptr || rightSize==0)
+        return 0;
+      size = std::min(size,rightSize);
+      if(std::memcmp(copy,right,size)!=0)
+        return 0;
+      offset += size;
+      }
+    return 1;
+    });
   vm.override_function("MEM_ReadString",       [this](int sym){ return mem_readstring(sym);           });
+  vm.override_function("MEM_WriteString", [this](int location, std::string_view text) {
+    const auto address = ptr32_t(location);
+    if(const auto id = varSymbolAt(address); id>=0) {
+      auto* sym = vm.find_symbol_by_index(uint32_t(id));
+      const auto first = varAddress(uint32_t(id));
+      const auto offset = address-first;
+      if(sym!=nullptr && sym->type()==zenkit::DaedalusDataType::STRING && offset%sizeof(zString)==0 &&
+         offset/sizeof(zString)<sym->count()) {
+        sym->set_string(text,uint16_t(offset/sizeof(zString)));
+        return;
+        }
+      }
+    const auto* current = mem32.deref<zString>(address);
+    if(current==nullptr)
+      return;
+    zString value = *current;
+    if(!memAssignString(value,text))
+      return;
+    // A string can be a member of a mirrored structure, so notify its writer.
+    for(uint32_t offset=0; offset<sizeof(value); offset+=4) {
+      int32_t word = 0;
+      std::memcpy(&word,reinterpret_cast<const uint8_t*>(&value)+offset,4);
+      mem32.writeInt(address+offset,word);
+      }
+    });
   vm.override_function("MEM_ReadStatArr",      [this](zenkit::DaedalusVm& vm){ return mem_readstatarr(vm); });
   vm.override_function("MEM_WriteStatArr",     [this](zenkit::DaedalusVm& vm){ return mem_writestatarr(vm); });
 
@@ -1513,7 +1610,7 @@ int DirectMemory::mem_insttoptr(int index) {
 
   // Log::d("MEM_InstToPtr: not a memory instance");
   // HACK: ScriptVar doesn't really have any backing of data
-  const ptr32_t ptr = varAddress(inst->symbol_index());
+  const ptr32_t ptr = inst!=nullptr ? varAddress(inst->symbol_index()) : 0;
   return int32_t(ptr);
   }
 
@@ -1568,6 +1665,8 @@ void DirectMemory::mem_writeint(int address, int val) {
   }
 
 void DirectMemory::mem_copybytes(int src, int dst, int size) {
+  if(size<=0)
+    return;
   mem32.copyBytes(ptr32_t(src),ptr32_t(dst),ptr32_t(size));
   if(!ownedStrings.empty() && size>0)
     syncOwnedStrings(ptr32_t(dst),uint32_t(size));
@@ -1630,6 +1729,62 @@ int DirectMemory::mem_realloc(int address, int oldsz, int size) {
 
 
 void DirectMemory::setupDirectFunctions() {
+  // A func parameter contains a symbol ID, possibly another func variable.
+  // Resolve it without the parser's self-modifying MEM_GetFuncID trampoline.
+  auto resolve = [this](uint32_t id) -> zenkit::DaedalusSymbol* {
+    for(size_t depth=0; depth<vm.symbols().size(); ++depth) {
+      auto* symbol = vm.find_symbol_by_index(id);
+      if(symbol==nullptr || symbol->type()!=zenkit::DaedalusDataType::FUNCTION || symbol->is_member())
+        return nullptr;
+      if(symbol->is_const())
+        return symbol;
+      const auto next = uint32_t(symbol->get_int());
+      if(next==id)
+        return nullptr;
+      id = next;
+      }
+    return nullptr;
+    };
+  vm.override_function("MEM_GetFuncID",[resolve](zenkit::DaedalusVm& vm) -> zenkit::DaedalusNakedCall {
+    auto* function = resolve(uint32_t(vm.pop_int()));
+    vm.push_int(function!=nullptr ? int32_t(function->index()) : -1);
+    return {};
+    });
+  vm.override_function("MEM_Call",[this,resolve](zenkit::DaedalusVm& vm) -> zenkit::DaedalusNakedCall {
+    auto* function = resolve(uint32_t(vm.pop_int()));
+    if(function!=nullptr)
+      directCall(vm,*function);
+    else
+      Log::e("MEM_Call: invalid function reference");
+    return {};
+    });
+  vm.override_function("MEM_CallByString",[this](zenkit::DaedalusVm& vm) -> zenkit::DaedalusNakedCall {
+    const std::string name(vm.pop_string());
+    auto* function = vm.find_symbol_by_name(name);
+    if(function!=nullptr && function->type()==zenkit::DaedalusDataType::FUNCTION && function->is_const())
+      directCall(vm,*function);
+    else if(logBudget("callbystring"))
+      Log::e("MEM_CallByString: not a callable function: ",name);
+    return {};
+    });
+  // These are deliberately naked: the original void wrappers leave values
+  // below the next dynamic call. Ordinary function cleanup discards them.
+  vm.override_function("MEM_PushIntParam",[](zenkit::DaedalusVm& vm) -> zenkit::DaedalusNakedCall {
+    const int32_t value = vm.pop_int();
+    vm.push_int(value);
+    return {};
+    });
+  vm.override_function("MEM_PushStringParam",[](zenkit::DaedalusVm& vm) -> zenkit::DaedalusNakedCall {
+    const std::string value(vm.pop_string());
+    vm.push_string(value);
+    return {};
+    });
+  vm.override_function("MEM_PushInstParam",[](zenkit::DaedalusVm& vm) -> zenkit::DaedalusNakedCall {
+    const auto id = uint32_t(vm.pop_int());
+    auto* symbol = vm.find_symbol_by_index(id);
+    vm.push_instance(symbol!=nullptr && symbol->type()==zenkit::DaedalusDataType::INSTANCE ? symbol->get_instance() : nullptr);
+    return {};
+    });
   vm.override_function("MEM_GetFuncIdByOffset", [this](int off) { return mem_getfuncidbyoffset(off); });
   vm.override_function("MEM_AssignInst",        [this](int index, int ptr) { mem_assigninst(index, ptr); });
 
@@ -1657,6 +1812,11 @@ void DirectMemory::setupDirectFunctions() {
       res->set_int(0);
       }
     return ret;
+    });
+  vm.override_function("CALL_RetValAszStringPtr",[this]() -> std::string {
+    auto* res = vm.find_symbol_by_name("CALLINT_RESULT");
+    return res!=nullptr && res->type()==zenkit::DaedalusDataType::INT && res->get_int()!=0
+         ? mem_readstring(res->get_int()) : std::string();
     });
 
   vm.override_function("memint_popstring",      [this](zenkit::DaedalusVm& vm) { return memint_popstring(vm);     });
@@ -1694,9 +1854,9 @@ void DirectMemory::directCall(zenkit::DaedalusVm& vm, zenkit::DaedalusSymbol& fu
     return;
     }
 
-  //vm.call_function(sym);
-  //zenkit::StackGuard guard {&vm, func.rtype()};
-  vm.unsafe_call(&func);
+  // MEM_CallByID/Ptr must honour externals and C++ replacements as well as
+  // bytecode, including LeGo frame functions and MEM_ReplaceFunc destinations.
+  vm.invoke_function(&func);
   }
 
 zenkit::DaedalusNakedCall DirectMemory::mem_callbyid(zenkit::DaedalusVm& vm) {
@@ -1849,9 +2009,14 @@ void DirectMemory::setupStringsFunctions() {
       return "";
 
     auto text = mem32.deref<StringBuilder>(ptr32_t(_SB_CURRENT->get_int()));
-    if(text->cln<=0 || text->ptr==0)
+    if(text==nullptr || text->cln<=0 || text->ptr==0)
       return "";
     auto cstr = reinterpret_cast<const char*>(mem32.deref(text->ptr, uint32_t(text->cln)));
+    if(cstr==nullptr) {
+      if(logBudget("stringbuilder-buffer"))
+        Log::e("LeGo StringBuilder: invalid text buffer");
+      return "";
+      }
     return std::string(cstr, size_t(text->cln));
     });
 
@@ -1873,7 +2038,7 @@ void DirectMemory::setupStringsFunctions() {
       return;
       }
     size_t strsz = 0;
-    while(chr[strsz] && strsz<size)
+    while(strsz<size && chr[strsz])
       ++strsz;
     sx->set_string(std::string(chr, strsz),el);
     });
@@ -1908,18 +2073,19 @@ void DirectMemory::setupWinapiFunctions() {
   const ptr32_t GETUSERNAMEA = 8080162;
   cpu.register_stdcall(GETUSERNAMEA, [this](ptr32_t lpBuffer, ptr32_t pcbBuffer){
     std::string_view uname = "OpenGothic";
-
-    const uint32_t max = pcbBuffer ? uint32_t(mem32.readInt(pcbBuffer)) : 0;
+    if(pcbBuffer==0)
+      return 0;
+    const uint32_t max = uint32_t(mem32.readInt(pcbBuffer));
+    const uint32_t required = uint32_t(uname.size()+1);
+    mem32.writeInt(pcbBuffer,int32_t(required));
     if(auto ptr = reinterpret_cast<char*>(mem32.derefv(lpBuffer, max))) {
-      if(max>=uname.size()) {
-        std::strncpy(reinterpret_cast<char*>(ptr), "OpenGothic", max);
+      if(max>=required) {
+        std::memcpy(ptr,uname.data(),uname.size());
         ptr[uname.size()] = '\0';
         return 1;
         }
       }
-    // buffer is too small
-    mem32.writeInt(pcbBuffer, int32_t(uname.size()+1));
-    return -1;
+    return 0;
     });
 
   const ptr32_t GETLOCALTIME = 8079184;
@@ -1954,6 +2120,22 @@ void DirectMemory::setupWinapiFunctions() {
   }
 
 void DirectMemory::setupUtilityFunctions() {
+  const ptr32_t ZCOPTION__PARMVALUE = 0x465380;
+  cpu.register_thiscall(ZCOPTION__PARMVALUE,[this](ptr32_t, ptr32_t output, std::string name) -> ptr32_t {
+    auto* result = mem32.deref<zString>(output);
+    if(result==nullptr)
+      return 0;
+    zString value{};
+    if(!memAssignString(value,CommandLine::inst().parameterValue(name)))
+      return 0;
+    *result = value;
+    return output;
+    });
+  if(vm.find_symbol_by_name("GetParmValue")!=nullptr)
+    vm.override_function("GetParmValue",[](std::string_view name) {
+      return CommandLine::inst().parameterValue(name);
+      });
+
   static auto generateCrcTable = []() {
     std::array<uint32_t, 256> table;
     uint32_t polynomial = 0xEDB88320;
@@ -1977,6 +2159,8 @@ void DirectMemory::setupUtilityFunctions() {
       return 0;
 
     const auto  ptr   = reinterpret_cast<const uint8_t*>(mem32.deref(buf,uint32_t(bufLen)));
+    if(ptr==nullptr)
+      return 0;
     static auto table = generateCrcTable();
 
     uint32_t initial = 0;
@@ -1989,17 +2173,39 @@ void DirectMemory::setupUtilityFunctions() {
 
   const ptr32_t QSORT_G2 = 8195951;
   // (the C function qsort: cdecl, the arguments are all on the stack; registered as thiscall the first one was read from ECX)
-  cpu.register_cdecl(QSORT_G2, [this](ptr32_t base, int numElt, int eltSize, ptr32_t /*pCmp*/) {
-    // Ikarus calls it for MEM_ArraySort (the numbers, ascending) and for the table of the functions: the comparator of the engine is the
-    // comparison of two ints
-    if(numElt<2 || eltSize!=4) {
-      if(eltSize!=4)
-        Log::e("LeGo: QSORT_G2 of elements of ",eltSize," bytes is not implemented");
+  cpu.register_cdecl(QSORT_G2, [this](ptr32_t base, int numElt, int eltSize, ptr32_t comparator) {
+    if(numElt<2)
+      return;
+    // MEMINT_BuildFuncStartsArray sorts eight-byte (offset, symbol) records,
+    // whereas MEM_ArraySort sorts four-byte pointers. Gothic's 0x553ca0
+    // comparator compares the FIRST unsigned word, not signed int32 values.
+    if(eltSize<4 || (comparator!=0 && comparator!=0x553ca0u)) {
+      if(logBudget("qsort-comparator"))
+        Log::e("Ikarus: QSORT_G2 comparator/record size is unsupported: ",comparator,"/",eltSize);
       return;
       }
-    auto* p = reinterpret_cast<int32_t*>(mem32.derefv(base,uint32_t(numElt)*4u));
-    if(p!=nullptr)
-      std::sort(p,p+numElt);
+    const uint64_t byteCount = uint64_t(numElt)*uint32_t(eltSize);
+    if(byteCount>UINT32_MAX) {
+      Log::e("LeGo: QSORT_G2 array size overflows 32-bit memory");
+      return;
+      }
+    auto* data = reinterpret_cast<uint8_t*>(mem32.derefv(base,uint32_t(byteCount)));
+    if(data==nullptr)
+      return;
+    const size_t stride = size_t(eltSize);
+    std::vector<uint32_t> order(size_t(numElt),0);
+    for(size_t i=0; i<order.size(); ++i)
+      order[i] = uint32_t(i);
+    auto key = [&](uint32_t index) {
+      uint32_t value = 0;
+      std::memcpy(&value,data+size_t(index)*stride,sizeof(value));
+      return value;
+      };
+    std::sort(order.begin(),order.end(),[&](uint32_t a, uint32_t b) { return key(a)<key(b); });
+    std::vector<uint8_t> sorted(size_t(byteCount),0);
+    for(size_t i=0; i<order.size(); ++i)
+      std::memcpy(sorted.data()+i*stride,data+size_t(order[i])*stride,stride);
+    std::memcpy(data,sorted.data(),sorted.size());
     });
 
   const ptr32_t ZERROR__SETTARGET = 4513616;
@@ -2069,7 +2275,10 @@ void DirectMemory::setupHookEngine() {
     auto sym  = function.value;
     auto name = sym==nullptr ? "" : sym->name().c_str();
     // the frame and the events of the animations are answered by tick and eventPlayAni
-    if(std::strcmp(name,"_FF_Hook")==0 || std::strcmp(name,"_AI_FUNCTION_EVENT")==0)
+    std::string key(name);
+    for(auto& c:key)
+      c = char(std::toupper(static_cast<unsigned char>(c)));
+    if(key=="_FF_HOOK" || key=="_AI_FUNCTION_EVENT")
       return;
     if(sym!=nullptr) {
       auto& list = hooks[uint32_t(address)];
@@ -2121,12 +2330,23 @@ void DirectMemory::setupzCParserFunctions() {
   cpu.register_thiscall(ZCPARSER__CREATEINSTANCE, [this](ptr32_t, int32_t instId, ptr32_t ptr){
     auto *sym = vm.find_symbol_by_index(uint32_t(instId));
     auto *cls = sym;
-    if(sym != nullptr && sym->type() == zenkit::DaedalusDataType::INSTANCE) {
-      cls = vm.find_symbol_by_index(sym->parent());
+    if(sym==nullptr || (sym->type()!=zenkit::DaedalusDataType::INSTANCE &&
+                       sym->type()!=zenkit::DaedalusDataType::PROTOTYPE)) {
+      Log::e("LeGo::createInstance invalid initializer (",instId,")");
+      return 0;
+      }
+    for(size_t depth=0; cls!=nullptr && cls->type()!=zenkit::DaedalusDataType::CLASS; ++depth) {
+      if(depth>=vm.symbols().size() ||
+         (cls->type()!=zenkit::DaedalusDataType::INSTANCE && cls->type()!=zenkit::DaedalusDataType::PROTOTYPE)) {
+        cls = nullptr;
+        break;
+        }
+      cls = vm.find_symbol_by_index(cls->parent());
       }
 
-    if(sym==nullptr || cls == nullptr) {
-      Log::e("LeGo::createInstance invalid symbold id (", instId, ")");
+    if(cls==nullptr || cls->type()!=zenkit::DaedalusDataType::CLASS || ptr==0 ||
+       mem32.derefv(ptr,uint32_t(cls->class_size()))==nullptr) {
+      Log::e("LeGo::createInstance invalid class or memory (", instId, ")");
       return 0;
       }
 
@@ -2139,7 +2359,15 @@ void DirectMemory::setupzCParserFunctions() {
       self->set_instance(inst);
 
     vm.unsafe_set_gi(inst);
-    vm.unsafe_call(sym);
+    try {
+      vm.unsafe_call(sym);
+      }
+    catch(...) {
+      vm.unsafe_set_gi(prevGi);
+      if(self!=nullptr)
+        self->set_instance(prevSelf);
+      throw;
+      }
 
     vm.unsafe_set_gi(prevGi);
     if(self!=nullptr)
@@ -2147,10 +2375,13 @@ void DirectMemory::setupzCParserFunctions() {
 
     static std::unordered_map<std::string,int> traced;
     if(traced.size()<40 && ++traced[cls->name()]<=2) {
-      const int32_t* w = mem32.deref<const int32_t>(ptr);
+      int32_t w[3] = {};
+      const auto [data,size] = mem32.deref(ptr);
+      if(data!=nullptr)
+        std::memcpy(w,data,std::min(size_t(size),sizeof(w)));
       Log::i("DMA: zCParser::CreateInstance ", sym->name(), " (class ", cls->name(), ", ", cls->class_size(),
              " bytes) at ", reinterpret_cast<void*>(uint64_t(ptr)), ": ",
-             w==nullptr ? 0 : w[0], " ", w==nullptr ? 0 : w[1], " ", w==nullptr ? 0 : w[2]);
+             w[0], " ", w[1], " ", w[2]);
       }
 
     sym->set_instance(inst);
@@ -2195,26 +2426,85 @@ void DirectMemory::setupNpcFunctions() {
     return (n!=nullptr && n->user_ptr!=nullptr) ? reinterpret_cast<Npc*>(n->user_ptr) : nullptr;
     };
 
+  // CoM's _FIXEQUIPBESTWEAPONS calls this synchronously for ITEM_KAT_NF
+  // and ITEM_KAT_FF. Use the inventory's normal condition and slot handling.
+  const ptr32_t OCNPC__EQUIPBESTWEAPON = 7663408; // 0x74ef30
+  cpu.register_thiscall(OCNPC__EQUIPBESTWEAPON,[npcAt](ptr32_t self, int32_t category) {
+    if(auto* npc = npcAt(self))
+      npc->equipBestWeapon(ItmFlags(uint32_t(category)));
+    });
+  if(vm.find_symbol_by_name("NpcEquipBestWeaponByType")!=nullptr) {
+    vm.override_function("NpcEquipBestWeaponByType",[](std::shared_ptr<zenkit::INpc> ref, int32_t category) {
+      if(ref!=nullptr && ref->user_ptr!=nullptr)
+        reinterpret_cast<Npc*>(ref->user_ptr)->equipBestWeapon(ItmFlags(uint32_t(category)));
+      });
+    }
+
+  // oCNpc::Equip(oCItem*) and UnequipItem(oCItem*). The mod uses Equip
+  // directly for its torch. Resolve the item in this NPC's inventory rather
+  // than treating an arbitrary item pointer as if it belonged to the NPC.
+  const ptr32_t OCNPC__EQUIP       = 7576720;
+  const ptr32_t OCNPC__UNEQUIPITEM = 7546560;
+  cpu.register_thiscall(OCNPC__EQUIP,[this,npcAt](ptr32_t self, ptr32_t object) {
+    auto* npc = npcAt(self);
+    auto inst = handles.instanceAt(object);
+    auto* ref = dynamic_cast<zenkit::IItem*>(inst.get());
+    if(npc==nullptr || ref==nullptr || ref->user_ptr==nullptr)
+      return;
+    const auto cls = reinterpret_cast<Item*>(ref->user_ptr)->clsId();
+    npc->equipItem(cls);
+    });
+  cpu.register_thiscall(OCNPC__UNEQUIPITEM,[this,npcAt](ptr32_t self, ptr32_t object) {
+    auto* npc = npcAt(self);
+    auto inst = handles.instanceAt(object);
+    auto* ref = dynamic_cast<zenkit::IItem*>(inst.get());
+    if(npc==nullptr || ref==nullptr)
+      return;
+    if(npc->isUsingTorch() && npc->torchItem().get()==ref) {
+      npc->setTorch(false);
+      return;
+      }
+    if(ref->user_ptr==nullptr)
+      return;
+    const auto cls = reinterpret_cast<Item*>(ref->user_ptr)->clsId();
+    auto* owned = npc->getItem(cls);
+    if(owned==nullptr)
+      return;
+    if((uint32_t(owned->itemFlag()) & ITM_TORCH)!=0)
+      npc->setTorch(false);
+    else
+      npc->unequipItem(cls);
+    });
+
   // oCNpc::GetSlotItem: the item that a character holds in a slot of the model (the hands, the shield)
   const ptr32_t OCNPC__GETSLOTITEM = 7544720;
   cpu.register_thiscall(OCNPC__GETSLOTITEM, [this,npcAt](ptr32_t pHero, std::string slot) -> ptr32_t {
     Npc* npc = npcAt(pHero);
     if(npc==nullptr)
       return 0;
-    for(auto& c:slot)
+    std::string name(slot);
+    for(auto& c:name)
       c = char(std::toupper(static_cast<unsigned char>(c)));
-    Item* it = nullptr;
-    if(slot=="ZS_RIGHTHAND" || slot=="ZS_LEFTHAND")
-      it = npc->activeWeapon(); else
-    if(slot=="ZS_SHIELD")
-      it = npc->currentShield(); else
-    if(slot=="ZS_BOW" || slot=="ZS_CROSSBOW")
-      it = npc->currentRangedWeapon(); else
-    if(slot=="ZS_LONGSWORD" || slot=="ZS_SWORD")
-      it = npc->currentMeleeWeapon();
+    if(name=="ZS_LEFTHAND" && npc->isUsingTorch())
+      return handles.pointerTo(npc->torchItem());
+    Item* it = npc->itemInSlot(slot);
     if(it==nullptr)
       return 0;
     return handles.pointerTo(it->handlePtr());
+    });
+
+  // WEAPON_STATCHECK drops a readied weapon immediately, without an item-drop
+  // animation. Resolve the actual hand/bone so the second hand cannot drop it twice.
+  const ptr32_t OCNPC__DROPFROMSLOT = 7644560; // 0x74a590
+  cpu.register_thiscall(OCNPC__DROPFROMSLOT,[npcAt](ptr32_t self, std::string slot) {
+    if(auto* npc = npcAt(self))
+      npc->dropFromSlot(slot);
+    });
+
+  const ptr32_t OCNPC__ISSPELLACTIVE = 7590720; // 0x73d340
+  cpu.register_thiscall(OCNPC__ISSPELLACTIVE,[npcAt](ptr32_t self, int32_t spell) -> int32_t {
+    auto* npc = npcAt(self);
+    return npc!=nullptr && npc->isSpellActive(spell) ? 1 : 0;
     });
 
   // oCNpc::EquipWeapon: the character takes the weapon in the hand (the item is put in his inventory first)
@@ -2229,7 +2519,7 @@ void DirectMemory::setupNpcFunctions() {
     const size_t cls = item->clsId();
     if(npc->itemCount(cls)==0)
       npc->addItem(cls,1);
-    npc->useItem(cls,Item::NSLOT,true);
+    npc->equipItem(cls);
     });
   }
 
@@ -2466,8 +2756,11 @@ void DirectMemory::setupInstanceAliases() {
   reg("OCNPC.DAMAGETYPE",      &N::damage_type);
   reg("OCNPC.GUILD",           &N::guild);
   reg("OCNPC.LEVEL",           &N::level);
-  // the flags of the character (movlock, drunk, ...): the five ints of the missions are not used by the game
-  reg("OCNPC.BITFIELD",        &N::mission);
+  // Engine bits have their own storage. The texture-number bits are filled
+  // from Npc::setVisualBody; script C_NPC.MISSION must remain independent.
+  reg("OCNPC.BITFIELD",        &N::compat_bitfield);
+  reg("OCNPC.BODY_VISUALNAME", &N::compat_body_visual);
+  reg("OCNPC.HEAD_VISUALNAME", &N::compat_head_visual);
   reg("OCNPC.FIGHTTACTIC",     &N::fight_tactic);
   reg("OCNPC.FMODE",           &N::weapon);
   reg("OCNPC.VOICE",           &N::voice);
@@ -2475,6 +2768,7 @@ void DirectMemory::setupInstanceAliases() {
   // the character uses. They have their own place, VOICEPITCH and SPAWNDELAY of the scripts are left alone.
   reg("OCNPC.FOCUS_VOB",       &N::compat_focus_vob);
   reg("OCNPC.INTERACTMOB",     &N::compat_interact_mob);
+  reg("OCNPC.MAG_BOOK",        &N::compat_magic_book);
   reg("OCNPC.MASS",            &N::body_mass);
   reg("OCNPC.DAILY_ROUTINE",   &N::daily_routine);
   reg("OCNPC.STARTAISTATE",    &N::start_aistate);

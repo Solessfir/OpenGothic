@@ -87,7 +87,7 @@ class Item : public Vob {
 
     const zenkit::IItem&                   handle() const { return *hitem; }
     zenkit::IItem&                         handle() { return *hitem; }
-    const std::shared_ptr<zenkit::IItem>&  handlePtr()    { return hitem; }
+    const std::shared_ptr<zenkit::IItem>&  handlePtr() const { return hitem; }
     size_t                                 clsId() const;
 
   protected:

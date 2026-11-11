@@ -16,6 +16,7 @@
 #include "utils/workers.h"
 #include "utils/dbgpainter.h"
 #include "camera.h"
+#include "utils/fileext.h"
 #include "gothic.h"
 
 #include <Tempest/Painter>
@@ -125,6 +126,23 @@ void WorldObjects::load(Serialize &fin) {
   for(auto& i:routines)
     i.load(fin);
 
+  // Optional, independently versioned entry: older saves have no objects
+  // inserted by Wld_InsertObject. Keep these out of the ZEN vob ID table.
+  scriptObjects.clear();
+  if(fin.setEntry("worlds/",fin.worldName(),"/scriptObjects")) {
+    uint32_t version = 0;
+    fin.read(version);
+    if(version==1) {
+      fin.read(sz);
+      for(uint32_t i=0; i<sz; ++i) {
+        std::string visual;
+        Tempest::Matrix4x4 transform;
+        fin.read(visual,transform);
+        addScriptObject(visual,transform);
+        }
+      }
+    }
+
   for(auto& i:interactiveObj)
     i->postValidate();
   for(auto& i:npcArr)
@@ -158,6 +176,11 @@ void WorldObjects::save(Serialize &fout) {
   fout.write(uint32_t(routines.size()));
   for(auto& i:routines)
     i.save(fout);
+
+  fout.setEntry("worlds/",fout.worldName(),"/scriptObjects");
+  fout.write(uint32_t(1),uint32_t(scriptObjects.size()));
+  for(auto& i:scriptObjects)
+    fout.write(i.visual,i.object->transform());
   }
 
 void WorldObjects::tick(uint64_t dt, uint64_t dtPlayer) {
@@ -756,6 +779,38 @@ void WorldObjects::addRoot(const std::shared_ptr<zenkit::VirtualObject>& vob, bo
   rootVobs.emplace_back(std::move(p));
   }
 
+Vob* WorldObjects::addScriptObject(std::string_view visual, const Tempest::Matrix4x4& transform) {
+  auto type = zenkit::VisualType::UNKNOWN;
+  if(FileExt::hasExt(visual,"3DS") || FileExt::hasExt(visual,"MRM"))
+    type = zenkit::VisualType::MULTI_RESOLUTION_MESH;
+  else if(FileExt::hasExt(visual,"MDS") || FileExt::hasExt(visual,"MDL") || FileExt::hasExt(visual,"ASC"))
+    type = zenkit::VisualType::MODEL;
+  else if(FileExt::hasExt(visual,"MMS"))
+    type = zenkit::VisualType::MORPH_MESH;
+  else if(FileExt::hasExt(visual,"PFX"))
+    type = zenkit::VisualType::PARTICLE_EFFECT;
+  if(type==zenkit::VisualType::UNKNOWN) {
+    Tempest::Log::e("Wld_InsertObject: unsupported visual: ",visual);
+    return nullptr;
+    }
+
+  zenkit::VirtualObject data;
+  data.type = zenkit::VirtualObjectType::zCVob;
+  data.show_visual = true;
+  data.visual = std::make_shared<zenkit::VisualMesh>();
+  data.visual->name = visual;
+  data.visual->type = type;
+  data.position = {transform.at(3,0),transform.at(3,1),transform.at(3,2)};
+  for(size_t c=0; c<3; ++c)
+    data.rotation.columns[c] = {transform.at(int(c),0),transform.at(int(c),1),transform.at(int(c),2)};
+  auto object = Vob::load(nullptr,owner,data,Vob::None);
+  if(object==nullptr)
+    return nullptr;
+  auto* result = object.get();
+  scriptObjects.push_back({std::string(visual),std::move(object)});
+  return result;
+  }
+
 void WorldObjects::invalidateVobIndex() {
   items.invalidate();
   interactiveObj.invalidate();
@@ -790,7 +845,7 @@ Interactive* WorldObjects::findInteractive(const Npc &pl, Interactive* def, cons
     return def;
   if(owner.view()==nullptr)
     return nullptr;
-  if(!bool(opt.collectType&TARGET_TYPE_ALL))
+  if(!bool(opt.collectType&(TARGET_TYPE_ALL|TARGET_TYPE_MOB)))
     return nullptr;
 
   Interactive* ret  = nullptr;
@@ -1102,10 +1157,14 @@ static bool checkParty(Npc& n, const Npc& pl, World& w) {
   }
 
 template<class T>
-static bool checkTargetType(T&, TargetType) { return true; }
+static bool checkTargetType(T&, TargetType, World&) { return true; }
 
-static bool checkTargetType(Npc& n, TargetType t) {
+static bool checkTargetType(Npc& n, TargetType t, World&) {
   return n.isTargetableBySpell(t);
+  }
+
+static bool checkTargetType(Interactive& mob, TargetType t, World& world) {
+  return bool(t&TARGET_TYPE_ALL) || world.script().dmaSpellTarget(mob,t);
   }
 
 template<class T>
@@ -1164,7 +1223,7 @@ bool WorldObjects::testObj(T &src, const Npc &pl, const WorldObjects::SearchOpt 
     return false;
   if(!checkParty(npc,pl,owner))
     return false;
-  if(!checkTargetType(npc,opt.collectType))
+  if(!checkTargetType(npc,opt.collectType,owner))
     return false;
 
   float l = pl.qDistTo(npc);

@@ -11,12 +11,18 @@
 class World;
 class VisualFx;
 class GlobalFx;
+class Npc;
+class Serialize;
+namespace zenkit { struct INpc; }
 
 class GlobalEffects {
   public:
     GlobalEffects(World& owner);
 
     void     tick(uint64_t dt);
+    void     save(Serialize& fout) const;
+    void     load(Serialize& fin);
+    float    modelTimeScale(const Npc& npc) const;
     GlobalFx startEffect(std::string_view what, uint64_t len, const std::string* argv, size_t argc);
     void     stopEffect (const VisualFx& vfx);
 
@@ -40,7 +46,8 @@ class GlobalEffects {
       uint64_t mul = 0;
       uint64_t div = 0;
       uint64_t timeWrldRem = 0;
-      // TODO: player time scaler
+      float modelScale = 1.f;
+      std::weak_ptr<zenkit::INpc> origin;
       };
 
     struct ScreenBlend:Effect {

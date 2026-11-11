@@ -3,6 +3,8 @@
 #include <Tempest/Log>
 #include <unordered_set>
 #include <cstring>
+#include <cmath>
+#include <limits>
 
 #include "directmemory.h"
 
@@ -13,7 +15,28 @@ Cpu32::Cpu32(DirectMemory& owner, Mem32& mem32):owner(owner), mem32(mem32){
   stack.reserve(1024);
   }
 
+void Cpu32::register_float_to_int(ptr32_t address) {
+  register_stdcall_inner(address,[](Cpu32& cpu) {
+    // MSVC's _ftol consumes ST0, not an integer argument on the stack.
+    const double value = std::trunc(double(cpu.st0));
+    // The installed engine uses FISTP qword and returns EDX:EAX, including
+    // the x87 integer-indefinite value on NaN/overflow.
+    const int64_t result = std::isfinite(value) && value>=-0x1p63 && value<0x1p63
+                           ? int64_t(value) : std::numeric_limits<int64_t>::min();
+    cpu.eax = uint32_t(uint64_t(result));
+    cpu.edx = uint32_t(uint64_t(result)>>32);
+    cpu.st0 = 0;
+    });
+  }
+
 void Cpu32::exec(const ptr32_t basePc, const uint8_t* ins, size_t len) {
+  // A failed thunk must not pass its pending arguments to the next CALL.
+  stack.clear();
+  if(ins==nullptr || len==0) {
+    eax = 0;
+    st0 = 0;
+    return;
+    }
   std::vector<uint8_t> dbg{ins, ins+len};
 
   ptr32_t pc = 0;
@@ -27,6 +50,9 @@ void Cpu32::exec(const ptr32_t basePc, const uint8_t* ins, size_t len) {
     else {
       auto op = readUInt32(ins, pc, len);
       Log::e("ASMINT: unknown instruction: ", int32_t(op));
+      eax = 0;
+      st0 = 0;
+      stack.clear();
       return;
       }
     }
@@ -114,6 +140,9 @@ bool Cpu32::exec1Byte(const ptr32_t basePc, ptr32_t& pc, const uint8_t* ins, siz
     case ASMINT_OP_popa:
     case ASMINT_OP_movALToMem:
       Log::e("ASMINT: unimplemented instruction: ", int32_t(op));
+      eax = 0;
+      st0 = 0;
+      pc = ptr32_t(len);
       return true;
     }
   return false;
@@ -184,6 +213,9 @@ bool Cpu32::exec2Byte(const ptr32_t basePc, ptr32_t& pc, const uint8_t* ins, siz
     case ASMINT_OP_movEDItoEAX:
     case ASMINT_OP_addImToEAX:
       Log::e("ASMINT: unimplemented instruction: ", int32_t(op));
+      eax = 0;
+      st0 = 0;
+      pc = ptr32_t(len);
       return true;
     }
   return false;
@@ -197,6 +229,9 @@ bool Cpu32::exec3Byte(const ptr32_t basePc, ptr32_t& pc, const uint8_t* ins, siz
   switch(op) {
     case ASMINT_OP_setzMem:
       Log::e("ASMINT: unimplemented instruction: ", int32_t(op));
+      eax = 0;
+      st0 = 0;
+      pc = ptr32_t(len);
       return true;
     }
   return false;
@@ -242,6 +277,9 @@ void Cpu32::callFunction(ptr32_t func) {
   if(func==0x1) {
     //TODO: better representation of *.dll in memory
     Log::d("ASMINT_OP_call: won't invoke function obtained by GetProcAddress ");
+    eax = 0;
+    st0 = 0;
+    stack.clear();
     return;
     }
 
@@ -250,6 +288,12 @@ void Cpu32::callFunction(ptr32_t func) {
     fn->second(*this);
     return;
     }
+
+  // An unresolved call has no successful return value. Do this before the
+  // log-once check too: repeated calls used to inherit a previous EAX/ST0.
+  eax = 0;
+  st0 = 0;
+  stack.clear();
 
   static std::unordered_set<ptr32_t> once;
   if(!once.insert(func).second)

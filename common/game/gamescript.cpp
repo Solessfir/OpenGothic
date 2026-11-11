@@ -129,6 +129,19 @@ void GameScript::dmaSave(Serialize& fout) {
     dma->eventSaveGame(fout);
   }
 
+void GameScript::dmaBeforeSave() {
+  if(dma!=nullptr)
+    dma->eventBeforeSaveGame();
+  }
+
+auto GameScript::dmaSaveWorldName(std::string_view fallback) -> std::string {
+  return dma==nullptr ? std::string(fallback) : dma->saveWorldName(fallback);
+  }
+
+auto GameScript::dmaLoadingTexture() -> std::string {
+  return dma==nullptr ? std::string() : dma->loadingTexture();
+  }
+
 void GameScript::dmaLoad(Serialize& fin) {
   if(dma!=nullptr)
     dma->eventLoadGame(fin);
@@ -168,6 +181,20 @@ void GameScript::dmaInventoryOpen(Npc& npc) {
     dma->eventInventoryOpen(npc);
   }
 
+void GameScript::dmaItemInfo(const Item& item) {
+  if(dma!=nullptr)
+    dma->eventItemInfo(item);
+  }
+
+void GameScript::dmaDialogChoice(const DlgChoice* choice, bool subChoice, int selection) {
+  if(dma!=nullptr) {
+    ScopeVar self(*vm.global_self(),vm.global_self()->get_instance());
+    ScopeVar other(*vm.global_other(),vm.global_other()->get_instance());
+    ScopeVar item(*vm.global_item(),vm.global_item()->get_instance());
+    dma->eventDialogChoice(choice,subChoice,selection);
+    }
+  }
+
 bool GameScript::dmaTakeInventoryClose() {
   return dma!=nullptr && dma->takeInventoryClose();
   }
@@ -180,9 +207,9 @@ bool GameScript::dmaHidesPartyFocus() const {
   return dma!=nullptr && dma->hidesPartyFocus();
   }
 
-void GameScript::dmaSpellBegin() {
+void GameScript::dmaSpellBegin(Npc& caster) {
   if(dma!=nullptr)
-    dma->eventSpellBegin();
+    dma->eventSpellBegin(caster);
   }
 
 bool GameScript::dmaSpellKeepsItem(int spellId) {
@@ -198,6 +225,29 @@ const std::vector<std::string>& GameScript::inventoryCategoryNames() {
         invCategoryNames.push_back(sym->get_string(uint16_t(i)));
     }
   return invCategoryNames;
+  }
+
+uint32_t GameScript::inventoryCategoryMask(int index) const {
+  auto* groups = vm.find_symbol_by_name("INV_CAT_GROUPS");
+  if(groups==nullptr || groups->type()!=zenkit::DaedalusDataType::INT || index<0 || uint32_t(index)>=groups->count())
+    return 0;
+  return uint32_t(groups->get_int(uint16_t(index)));
+  }
+
+int GameScript::inventoryScriptCategory() const {
+  auto* category = vm.find_symbol_by_name("CATINV_ACTIVECATEGORY");
+  return category!=nullptr && category->type()==zenkit::DaedalusDataType::INT ? category->get_int() : -1;
+  }
+
+void GameScript::setInventoryScriptCategory(int index) {
+  auto* category = vm.find_symbol_by_name("CATINV_ACTIVECATEGORY");
+  auto* groups = vm.find_symbol_by_name("INV_CAT_GROUPS");
+  if(category==nullptr || groups==nullptr || groups->count()==0 ||
+     category->type()!=zenkit::DaedalusDataType::INT || groups->type()!=zenkit::DaedalusDataType::INT)
+    return;
+  auto* g1 = vm.find_symbol_by_name("CATINV_G1MODE");
+  const int first = g1!=nullptr && g1->get_int()!=0 ? std::min(1,int(groups->count())-1) : 0;
+  category->set_int(std::clamp(index,first,int(groups->count())-1));
   }
 
 size_t GameScript::dmaPickLockLength(Interactive& mob, size_t length) {
@@ -220,12 +270,37 @@ bool GameScript::dmaInCamera() const {
   return dma!=nullptr && dma->inCamera();
   }
 
+bool GameScript::dmaCutsceneMenuBlocked() const {
+  return dma!=nullptr && dma->cutsceneMenuBlocked();
+  }
+
+bool GameScript::dmaCutsceneStatusHidden() const {
+  return dma!=nullptr && dma->cutsceneStatusHidden();
+  }
+
+void GameScript::dmaDialogMessage(std::string& name, uint32_t& color, bool& bottom, bool playerLine) {
+  if(dma!=nullptr)
+    dma->eventDialogMessage(name,color,bottom,playerLine);
+  }
+
 bool GameScript::dmaSaveDisabled() const {
   return dma!=nullptr && dma->saveDisabled();
   }
 
+bool GameScript::dmaLoadDisabled() const {
+  return dma!=nullptr && dma->loadDisabled();
+  }
+
 bool GameScript::dmaDialogCameraOff() const {
   return dma!=nullptr && dma->dialogCameraDisabled();
+  }
+
+bool GameScript::dmaTrialogFinishPending() const {
+  return dma!=nullptr && dma->trialogFinishPending();
+  }
+
+bool GameScript::dmaUnderwaterPickup() const {
+  return dma!=nullptr && dma->underwaterPickup();
   }
 
 bool GameScript::dmaDropUnconscious(Npc& npc) {
@@ -235,6 +310,14 @@ bool GameScript::dmaDropUnconscious(Npc& npc) {
 void GameScript::dmaEquipItem(Npc& npc, Item& item, bool equip) {
   if(dma!=nullptr)
     dma->eventEquipItem(npc,item,equip);
+  }
+
+bool GameScript::dmaEquipBestWeapons(Npc& npc) {
+  return dma!=nullptr && dma->eventEquipBestWeapons(npc);
+  }
+
+bool GameScript::dmaEnemyCandidate(Npc& npc, Npc& candidate) {
+  return dma==nullptr || dma->eventEnemyCandidate(npc,candidate);
   }
 
 bool GameScript::dmaDropVob(Npc& npc, Item& item) {
@@ -265,6 +348,10 @@ void GameScript::dmaSpellFocus(Npc& caster, int spellId) {
     dma->eventSpellFocus(caster,spellId);
   }
 
+bool GameScript::dmaSpellTarget(Interactive& mob, TargetType type) {
+  return dma!=nullptr && dma->eventSpellTarget(mob,type);
+  }
+
 /// The focus of the magic: the mods of Ikarus change it while the game runs (the lock picking spell of CoM)
 const zenkit::IFocus& GameScript::focusMage() const {
   if(dma!=nullptr)
@@ -272,14 +359,16 @@ const zenkit::IFocus& GameScript::focusMage() const {
   return cFocusMage;
   }
 
-void GameScript::dmaOverlay(std::vector<DmaOverlayItem>& out) {
+void GameScript::dmaOverlay(std::vector<DmaOverlayItem>& out, int width, int height) {
   if(dma!=nullptr)
-    dma->collectOverlay(out);
+    dma->collectOverlay(out,width,height);
   }
 
-auto GameScript::dmaDamageBegin(Npc& victim, Npc& attacker, bool isSpell, int spellId, bool ranged, bool dontKill) -> DmaDamage {
+auto GameScript::dmaDamageBegin(Npc& victim, Npc& attacker, bool isSpell, int spellId, bool ranged, bool dontKill,
+                               const DamageCalculator::Damage& damage) -> DmaDamage {
   DmaDamage ret;
   ret.dontKill = dontKill;
+  ret.damage = damage;
   if(dma!=nullptr)
     dma->eventDamageBegin(victim,attacker,isSpell,spellId,ranged,ret);
   return ret;
@@ -310,6 +399,7 @@ void GameScript::initCommon() {
   bindExternal("wld_insertnpc",                  &GameScript::wld_insertnpc);
   bindExternal("wld_removenpc",                  &GameScript::wld_removenpc);
   bindExternal("wld_insertitem",                 &GameScript::wld_insertitem);
+  bindExternal("wld_insertobject",               &GameScript::wld_insertobject);
   bindExternal("wld_removeitem",                 &GameScript::wld_removeitem);
   bindExternal("wld_settime",                    &GameScript::wld_settime);
   bindExternal("wld_getday",                     &GameScript::wld_getday);
@@ -1242,6 +1332,7 @@ std::vector<GameScript::DlgChoice> GameScript::updateDialog(const GameScript::Dl
     ch.scriptFn = uint32_t(sub.function);
     ch.handle   = dlg.handle;
     ch.isTrade  = false;
+    ch.isSubChoice = true;
     // only where the scripts have the variable of the answer (the original Gothic 1 and 2 do not)
     if(!ch.title.empty() && ch.title[0]=='?' && dma!=nullptr && vm.find_symbol_by_name("INFOMANAGERANSWER")!=nullptr) {
       // Chronicles of Myrtana: "?Name" is an answer that is typed (INFOMANAGERANSWER of its scripts)
@@ -1475,17 +1566,25 @@ void GameScript::invokeSpell(Npc &npc, Npc* target, Item &it) {
   if(fn==nullptr)
     return;
 
-  // FIXME: actually set the spell level!
-  int32_t  splLevel = 0;
+  const int32_t splLevel = npc.activeSpellLevel();
   ScopeVar self (*vm.global_self(),  npc.handlePtr());
   ScopeVar other(*vm.global_other(), target != nullptr ? target->handlePtr() : nullptr);
   try {
+    if(fn->has_return() || fn->count()>1) {
+      Log::d("unsupported spell-script signature: ",name);
+      return;
+      }
     if(fn->count()==1) {
       // this is a leveled spell
-      vm.call_function<void>(fn, splLevel);
-      } else {
-      vm.call_function<void>(fn);
+      const auto params = vm.find_parameters_for_function(fn);
+      if(params.size()!=1 || params[0].type()!=zenkit::DaedalusDataType::INT) {
+        Log::d("unsupported spell-level parameter: ",name);
+        return;
+        }
+      vm.push_int(splLevel);
       }
+    // Native spell adapters (CoM Telekinesis) must be honored here too.
+    vm.invoke_function(fn);
     }
   catch(...) {
     Log::d("unable to call spell-script: \"",name,"\'");
@@ -1764,6 +1863,12 @@ Attitude GameScript::personAttitude(const Npc &p0, const Npc &p1) const {
 
   Attitude att=ATT_NULL;
   const Npc& npc = p0.isPlayer() ? p1 : p0;
+  // CoM uses temporary hostility/friendliness for quest fights and restores
+  // it afterwards. The saved temporary value must take precedence over the
+  // permanent relationship, just as oCNpc::GetAttitude does.
+  att = npc.tempAttitude();
+  if(att!=ATT_NULL)
+    return att;
   att = npc.attitude();
   if(att!=ATT_NULL)
     return att;
@@ -1799,7 +1904,14 @@ void GameScript::onWldItemRemoved(const Item& itm) {
   }
 
 void GameScript::onWldInstanceRemoved(const zenkit::DaedalusInstance* obj) {
-  vm.find_symbol_by_instance(*obj)->set_instance(nullptr);
+  if(obj==nullptr)
+    return;
+  auto* symbol = vm.find_symbol_by_instance(*obj);
+  // Several loose items may share one script instance. Removing an older
+  // object must not clear the symbol already rebound to a newer one (CoM's
+  // scripted pickups/spawns); transient instances need no symbol update.
+  if(symbol!=nullptr && symbol->get_instance().get()==obj)
+    symbol->set_instance(nullptr);
   }
 
 void GameScript::makeCurrent(Item* w) {
@@ -1853,7 +1965,7 @@ uint32_t GameScript::rand(uint32_t max) {
   }
 
 Npc* GameScript::findNpc(zenkit::DaedalusSymbol* s) {
-  if(s->is_instance_of<zenkit::INpc>()) {
+  if(s!=nullptr && s->is_instance_of<zenkit::INpc>()) {
     auto cNpc = reinterpret_cast<zenkit::INpc*>(s->get_instance().get());
     return findNpc(cNpc);
     }
@@ -1863,14 +1975,12 @@ Npc* GameScript::findNpc(zenkit::DaedalusSymbol* s) {
 Npc* GameScript::findNpc(zenkit::INpc *handle) {
   if(handle==nullptr)
     return nullptr;
-  assert(handle->user_ptr); // engine bug, if null
   return reinterpret_cast<Npc*>(handle->user_ptr);
   }
 
 Npc* GameScript::findNpc(const std::shared_ptr<zenkit::INpc>& handle) {
   if(handle==nullptr)
     return nullptr;
-  assert(handle->user_ptr); // engine bug, if null
   auto* npc = reinterpret_cast<Npc*>(handle->user_ptr);
   if(dma!=nullptr)
     npc = dma->triaRedirect(npc);   // a trialog: the self of the scripts is who speaks
@@ -1880,7 +1990,6 @@ Npc* GameScript::findNpc(const std::shared_ptr<zenkit::INpc>& handle) {
 Npc* GameScript::findNpcRaw(const std::shared_ptr<zenkit::INpc>& handle) {
   if(handle==nullptr)
     return nullptr;
-  assert(handle->user_ptr); // engine bug, if null
   return reinterpret_cast<Npc*>(handle->user_ptr);
   }
 
@@ -1888,7 +1997,6 @@ Npc* GameScript::findNpcById(const std::shared_ptr<zenkit::DaedalusInstance>& ha
   if(handle==nullptr)
     return nullptr;
   if(auto npc = dynamic_cast<const zenkit::INpc*>(handle.get())) {
-    assert(npc->user_ptr); // engine bug, if null
     return reinterpret_cast<Npc*>(npc->user_ptr);
     }
   return findNpcById(handle->symbol_index());
@@ -2292,7 +2400,12 @@ void GameScript::mdl_setvisualbody(std::shared_ptr<zenkit::INpc> npcRef, std::st
   if(armor>0) {
     if(npc->itemCount(uint32_t(armor))==0)
       npc->addItem(uint32_t(armor),1);
-    npc->useItem(uint32_t(armor),Item::NSLOT,true);
+    npc->equipItem(uint32_t(armor));
+    }
+  else if(armor<0) {
+    // NO_ARMOR is -1. CoM's NPC_ChangeFace passes 0 to retain the armor.
+    if(auto* equipped = npc->currentArmor())
+      npc->unequipItem(equipped->clsId());
     }
   }
 
@@ -2339,28 +2452,14 @@ void GameScript::mdl_startfaceani(std::shared_ptr<zenkit::INpc> npcRef, std::str
     findNpc(npcRef.get())->startFaceAnim(ani,intensity,uint64_t(time*1000.f));
   }
 
-void GameScript::mdl_applyrandomani(std::shared_ptr<zenkit::INpc> npcRef, std::string_view s1, std::string_view s0) {
-  (void)npcRef;
-  (void)s1;
-  (void)s0;
-
-  static bool first=true;
-  if(first){
-    Log::e("not implemented call [mdl_applyrandomani]");
-    first=false;
-    }
+void GameScript::mdl_applyrandomani(std::shared_ptr<zenkit::INpc> npcRef, std::string_view baseAni, std::string_view randomAni) {
+  if(auto npc = findNpc(npcRef))
+    npc->setRandomAni(baseAni,randomAni);
   }
 
-void GameScript::mdl_applyrandomanifreq(std::shared_ptr<zenkit::INpc> npcRef, std::string_view s1, float f0) {
-  (void)f0;
-  (void)s1;
-  (void)npcRef;
-
-  static bool first=true;
-  if(first){
-    Log::e("not implemented call [mdl_applyrandomanifreq]");
-    first=false;
-    }
+void GameScript::mdl_applyrandomanifreq(std::shared_ptr<zenkit::INpc> npcRef, std::string_view baseAni, float seconds) {
+  if(auto npc = findNpc(npcRef))
+    npc->setRandomAniFreq(baseAni,seconds);
   }
 
 void GameScript::mdl_applyrandomfaceani(std::shared_ptr<zenkit::INpc> npcRef, std::string_view name, float timeMin, float timeMinVar, float timeMax, float timeMaxVar, float probMin) {
@@ -2398,6 +2497,10 @@ void GameScript::wld_insertitem(int itemInstance, std::string_view spawnpoint) {
     return;
 
   world().addItem(size_t(itemInstance),spawnpoint);
+  }
+
+void GameScript::wld_insertobject(std::string_view visual, std::string_view spawnpoint) {
+  world().addObject(visual,spawnpoint);
   }
 
 void GameScript::npc_settofightmode(std::shared_ptr<zenkit::INpc> npcRef, int weaponSymbol) {
@@ -3079,8 +3182,7 @@ int GameScript::npc_getattitude(std::shared_ptr<zenkit::INpc> aRef, std::shared_
   auto b = findNpc(bRef);
 
   if(a!=nullptr && b!=nullptr){
-    auto att=personAttitude(*a,*b);
-    return att; //TODO: temp attitudes
+    return personAttitude(*a,*b);
     }
   return ATT_NEUTRAL;
   }
@@ -3089,9 +3191,13 @@ int GameScript::npc_getpermattitude(std::shared_ptr<zenkit::INpc> aRef, std::sha
   auto a = findNpc(aRef);
   auto b = findNpc(bRef);
 
-  if(a!=nullptr && b!=nullptr){
-    auto att=personAttitude(*a,*b);
-    return att;
+  if(a!=nullptr && b!=nullptr) {
+    if(a->isPlayer() || b->isPlayer()) {
+      const Npc& npc = a->isPlayer() ? *b : *a;
+      if(npc.attitude()!=ATT_NULL)
+        return npc.attitude();
+      }
+    return guildAttitude(*a,*b);
     }
   return ATT_NEUTRAL;
   }

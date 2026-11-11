@@ -18,6 +18,7 @@
 #include "game/constants.h"
 #include "game/aistate.h"
 #include "game/questlog.h"
+#include "game/damagecalculator.h"
 
 class GameSession;
 class World;
@@ -56,6 +57,7 @@ class GameScript final {
       int32_t          sort     = 0;
       uint32_t         scriptFn = 0;
       bool             isTrade  = false;
+      bool             isSubChoice = false;
       bool             isInput  = false;   // the title started with "?": the player types an answer (CoM: the name of the dog)
       zenkit::IInfo*   handle   = nullptr;
       };
@@ -93,6 +95,10 @@ class GameScript final {
     bool         hasDma() const { return dma!=nullptr; }
     void         dmaChangeLevel(bool begin);
     void         dmaSave(Serialize& fout);
+    void         dmaBeforeSave();
+    auto         dmaSaveWorldName(std::string_view fallback) -> std::string;
+    /// The picture of the next loading screen that the scripts choose (CoM: LOA_01..26), empty if they do not
+    auto         dmaLoadingTexture() -> std::string;
     void         dmaLoad(Serialize& fin);
     void         dmaItemTaken(Npc& owner, Item& item);
     int          dmaChangeAttribute(Npc& npc, int attribute, int change);
@@ -105,10 +111,18 @@ class GameScript final {
     bool         dmaDropVob(Npc& npc, Item& item);
     bool         dmaSellItem(Npc& npc, Item& item);
     void         dmaEquipItem(Npc& npc, Item& item, bool equip);
+    bool         dmaEquipBestWeapons(Npc& npc);
+    bool         dmaEnemyCandidate(Npc& npc, Npc& candidate);
     bool         dmaDropUnconscious(Npc& npc);
     bool         dmaDialogCameraOff() const;
+    bool         dmaTrialogFinishPending() const;
+    bool         dmaUnderwaterPickup() const;
     bool         dmaSaveDisabled() const;
+    bool         dmaLoadDisabled() const;
     bool         dmaInCamera() const;
+    bool         dmaCutsceneMenuBlocked() const;
+    bool         dmaCutsceneStatusHidden() const;
+    void         dmaDialogMessage(std::string& name, uint32_t& color, bool& bottom, bool playerLine);
     std::string  dmaLastCallOther() const;
     void         logMoveToTop(std::string_view topic);
     bool         dmaFinishingMove(Npc& npc, Npc& target);
@@ -116,36 +130,47 @@ class GameScript final {
     /// The names of the categories of the inventory in the scripts of CoM (TXT_INV_CAT: all, weapons, armor, magic, ...),
     /// empty for the games that do not have the categories
     const std::vector<std::string>& inventoryCategoryNames();
+    uint32_t     inventoryCategoryMask(int index) const;
+    int          inventoryScriptCategory() const;
+    void         setInventoryScriptCategory(int index);
     /// oCInfo.told of the engine (SetDialogueToldProperty of CoM): the dialog has been told, false lets it be told again
     bool         isInfoTold (size_t infoInstance);
     void         setInfoTold(size_t infoInstance, bool told);
-    void         dmaSpellBegin();
+    void         dmaSpellBegin(Npc& caster);
     bool         dmaSpellKeepsItem(int spellId);
     /// The mods of Ikarus and LeGo (CoM) keep the party members out of the focus of a player with a weapon
     bool         dmaHidesPartyFocus() const;
     bool         dmaInFinalBoards() const;
     void         dmaInventoryOpen(Npc& npc);
+    void         dmaItemInfo(const Item& item);
+    void         dmaDialogChoice(const DlgChoice* choice, bool subChoice, int selection);
     bool         dmaTakeInventoryClose();
     void         dmaCsCamera(bool trigger);
     auto         dmaTakeMenuTexts() -> std::vector<std::pair<std::string,std::string>>;
     void         dmaMobCanOpen(Interactive& mob);
     void         dmaSpellFocus(Npc& caster, int spellId);
+    bool         dmaSpellTarget(Interactive& mob, TargetType type);
     struct DmaDamage final {
       uint32_t desc     = 0;     // oSDamageDescriptor in the memory of the layer
       bool     dontKill = false;
-      int      extra    = 0;     // the damage that the hook has added
+      DamageCalculator::Damage damage;
       };
     /// A view or a text of LeGo, the positions are in the virtual coordinates of Gothic (0..8192)
     struct DmaOverlayItem final {
-      enum Kind : uint8_t { Image, Text };
+      enum Kind : uint8_t { Image, Text, Triangle, Model };
       Kind        kind  = Text;
       float       x = 0, y = 0, w = 0, h = 0;
       std::string name;                 // the texture or the text
       std::string font;
       uint32_t    color = 0xFFFFFFFFu;  // ARGB
+      struct Vertex { float x=0, y=0, u=0, v=0; } vertices[3];
+      int         blend = 2;           // Gothic: 1 opaque, 2 alpha, 3 additive
+      int         priority = 0;
+      std::shared_ptr<zenkit::IItem> model;
       };
-    void         dmaOverlay(std::vector<DmaOverlayItem>& out);
-    auto         dmaDamageBegin(Npc& victim, Npc& attacker, bool isSpell, int spellId, bool ranged, bool dontKill) -> DmaDamage;
+    void         dmaOverlay(std::vector<DmaOverlayItem>& out, int width, int height);
+    auto         dmaDamageBegin(Npc& victim, Npc& attacker, bool isSpell, int spellId, bool ranged, bool dontKill,
+                                const DamageCalculator::Damage& damage) -> DmaDamage;
     void         dmaDamageEnd(Npc& victim, DmaDamage& d);
     auto         questLog() const -> const QuestLog&;
 
@@ -325,6 +350,7 @@ class GameScript final {
     auto hlp_getnpc          (int instanceSymbol) -> std::shared_ptr<zenkit::INpc>;
 
     void wld_insertitem      (int itemInstance, std::string_view spawnpoint);
+    void wld_insertobject    (std::string_view visual, std::string_view spawnpoint);
     int  wld_removeitem      (std::shared_ptr<zenkit::IItem> itemRef);
     void mob_createitems     (std::string_view tag, int itemInstance, int amount);
     void wld_insertnpc       (int npcInstance, std::string_view spawnpoint);

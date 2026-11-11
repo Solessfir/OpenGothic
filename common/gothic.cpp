@@ -559,6 +559,10 @@ void Gothic::emitGlobalSoundWav(std::string_view wav) {
   sndStorage.push_back(std::move(s));
   }
 
+void Gothic::stopGlobalSounds() {
+  sndStorage.clear();
+  }
+
  const std::vector<ItmFlags>& Gothic::invCatOrder() {
   return instance->inventoryOrder;
   }
@@ -716,6 +720,19 @@ void Gothic::finishSave(bool wait) {
     Log::e("Unable to write save: ", error.what());
     onPrint("Save failed. Existing saves were not changed.");
     }
+  }
+
+std::string Gothic::loadingBannerName(GameScript* script, std::string_view fallback) {
+  std::string alt = script==nullptr ? std::string() : script->dmaLoadingTexture();
+  for(auto& c:alt)
+    c = char(std::toupper(static_cast<unsigned char>(c)));
+  if(alt.size()>4 && alt.compare(alt.size()-4,4,".TGA")==0) {
+    // the pictures of the mods are compiled textures
+    const std::string tex = alt.substr(0,alt.size()-4)+"-C.TEX";
+    if(Resources::hasFile(tex) || Resources::hasFile(alt))
+      return alt;
+    }
+  return std::string(fallback);
   }
 
 void Gothic::startLoad(std::string_view banner,

@@ -230,7 +230,7 @@ std::unique_ptr<Vob> Vob::load(Vob* parent, World& world, const zenkit::VirtualO
       break;
     case zenkit::VirtualObjectType::zCZoneVobFarPlane:
     case zenkit::VirtualObjectType::zCZoneVobFarPlaneDefault:
-      // wont do: no distance culling in any plans
+      // Per-zone far-plane blending is not implemented yet.
       break;
     case zenkit::VirtualObjectType::zCVobLensFlare:
     case zenkit::VirtualObjectType::zCVobScreenFX:

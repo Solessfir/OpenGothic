@@ -128,6 +128,8 @@ class MainWindow : public Tempest::Window {
     void setupUi();
     bool sceneLocksUi() const;
     uint64_t sceneLockTime = 0;   // how long the scene of a mod has held the player
+    void     requestDialogCamera();
+    bool     dialogCameraReset = false;
     void showDocument(const DocumentMenu::Show& doc);
 
     void render() override;
@@ -190,7 +192,7 @@ class MainWindow : public Tempest::Window {
     RuntimeMode               runtimeMode = R_Normal;
 
     Tempest::Widget*          uiKeyUp=nullptr;
-    std::bitset<256>          dmaKeysDown;
+    std::bitset<1100>         dmaKeysDown;
     Tempest::Point            dMouse;
     bool                      uiPointer=false;
     uint64_t                  mouseLookIdle=0;
