@@ -3,7 +3,6 @@
 #include "utils/savesnapshot.h"
 #include "game/serialize.h"
 #include <Tempest/File>
-#include "game/dialogtest.h"
 
 #include <Tempest/Log>
 #include <Tempest/TextCodec>
@@ -1317,16 +1316,12 @@ void Gothic::introducechapter(std::string_view title, std::string_view subtitle,
 
 bool Gothic::playvideo(std::string_view name) {
   Log::i("PlayVideo: ",name);
-  if(DialogTest::active || DialogTest::guardExit)
-    return true;
   onVideo(name);
   return true;
   }
 
 bool Gothic::playvideoex(std::string_view name, bool, bool) {
   Log::i("PlayVideoEx: ",name);
-  if(DialogTest::active || DialogTest::guardExit)
-    return true;
   onVideo(name);
   return true;
   }
