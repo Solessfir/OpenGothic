@@ -78,8 +78,11 @@ void DirectMemory::eventDialogChoice(const GameScript::DlgChoice* choice, bool s
   auto* hide = vm.find_symbol_by_name("CRAFTINGVIEW_HIDE");
   auto* isOpen = vm.find_symbol_by_name("CRAFTINGVIEW_ISOPEN");
   auto* last = vm.find_symbol_by_name("CRAFTINGVIEWLASTCHOICE");
-  if(show==nullptr || hide==nullptr || isOpen==nullptr || last==nullptr)
+  if(show==nullptr || hide==nullptr || isOpen==nullptr || last==nullptr) {
+    if(logBudget("crafting-symbols",1))
+      Log::e("CoM crafting: the scripts lack CRAFTINGVIEW_SHOW/HIDE/ISOPEN or CRAFTINGVIEWLASTCHOICE, no recipe panel");
     return;
+    }
 
   try {
     if(choice==nullptr || choice->handle==nullptr) {
@@ -145,12 +148,18 @@ void DirectMemory::eventDialogChoice(const GameScript::DlgChoice* choice, bool s
         mode = 2;
         }
       }
+    // One line per changed selection, so a report shows which choice led to which recipe
     if(recipe>0 && amount>=0) {
+      if(logBudget("crafting-show",60))
+        Log::i("CoM crafting: '",choice->title,"' (nr ",choice->handle->nr,") -> recipe ",recipe," mode ",mode," amount ",amount);
       withRecipeTemporary(uint32_t(recipe),"CRAFTINGVIEW_SHOW",[&]() {
         vm.call_function(show,recipe,mode,amount);
         });
-      } else if(isOpen->get_int()!=0) {
-      vm.call_function(hide);
+      } else {
+      if(recipe>0 && logBudget("crafting-amount",20))
+        Log::i("CoM crafting: '",choice->title,"' -> recipe ",recipe," without an amount, panel hidden");
+      if(isOpen->get_int()!=0)
+        vm.call_function(hide);
       }
     craftingChoice = key;
     last->set_int(selection);

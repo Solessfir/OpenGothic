@@ -3898,6 +3898,8 @@ Item* Npc::takeItem(Item& item, bool animate) {
     if(waterPickup) {
       // CoM's diving hook uses this animation instead of the ground pickup.
       sq = playAnimByName("T_WATERTAKEITEM",BS_DIVE);
+      if(sq==nullptr)
+        Log::e("Npc: no T_WATERTAKEITEM animation, nothing is picked up under water");
       } else {
       const auto dpos = item.midPosition()-centerPosition();
       sq = setAnimAngGet(Npc::Anim::ItmGet,Pose::calcAniCombVert(dpos));

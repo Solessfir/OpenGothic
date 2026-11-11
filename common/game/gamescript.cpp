@@ -223,6 +223,8 @@ const std::vector<std::string>& GameScript::inventoryCategoryNames() {
     if(sym!=nullptr && sym->type()==zenkit::DaedalusDataType::STRING)
       for(uint32_t i=0; i<sym->count(); ++i)
         invCategoryNames.push_back(sym->get_string(uint16_t(i)));
+    if(sym!=nullptr)
+      Log::i("Inventory categories of the mod: ",invCategoryNames.size());
     }
   return invCategoryNames;
   }
