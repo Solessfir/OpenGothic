@@ -49,10 +49,6 @@ class DialogMenu : public Tempest::Widget {
 
     /// A choice of the dialog asks for a text (CoM): the keys are characters, the screen keyboard is needed
     bool wantsText() const { return prompt.active; }
-#ifdef OPENGOTHIC_TOUCH_UI
-    /// The player tapped the box of the text after he hid the keyboard
-    bool takeKeyboardRequest();
-#endif
 
   protected:
     void paintEvent (Tempest::PaintEvent& e) override;
@@ -180,7 +176,6 @@ class DialogMenu : public Tempest::Widget {
       bool                  active = false;
       std::string           text;
       GameScript::DlgChoice choice;
-      bool                  keyboardRequest = false;
       };
     Prompt                              prompt;
   };

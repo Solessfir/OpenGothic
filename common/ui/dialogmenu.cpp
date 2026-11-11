@@ -5,6 +5,7 @@
 #include <Tempest/Painter>
 #include <Tempest/Log>
 #include <Tempest/Application>
+#include <Tempest/SystemApi>
 #include <algorithm>
 #include <cassert>
 
@@ -730,6 +731,11 @@ void DialogMenu::mouseMoveEvent(MouseEvent& event) {
   }
 
 bool DialogMenu::tapChoice(Point pos) {
+  // The player hid the keyboard while a text is asked for: a tap brings it back
+  if(prompt.active && state!=State::Idle) {
+    SystemApi::showSoftInput("");
+    return true;
+    }
   if(state==State::Idle || trade.isOpen()!=InventoryMenu::State::Closed || !isChoiceMenuActive())
     return false;
   const size_t id = choiceAt(pos);
@@ -834,21 +840,14 @@ void DialogMenu::keyRepeatEvent(KeyEvent& event) {
   event.ignore();
   }
 
-#ifdef OPENGOTHIC_TOUCH_UI
-bool DialogMenu::takeKeyboardRequest() {
-  const bool ret = prompt.active && prompt.keyboardRequest;
-  prompt.keyboardRequest = false;
-  return ret;
-  }
-#endif
-
 /// A choice that is an answer to type (CoM names the dog and the wine this way): the text goes to the scripts
 void DialogMenu::openPrompt(const GameScript::DlgChoice& e) {
   prompt.active          = true;
   prompt.text.clear();
   prompt.choice          = e;
-  prompt.keyboardRequest = false;
   Log::d("DialogMenu: text prompt '",e.title,"' is open");
+  // Phones have no keys without the keyboard of the screen
+  SystemApi::showSoftInput("");
   update();
   }
 
@@ -912,6 +911,7 @@ void DialogMenu::promptKey(KeyEvent& e) {
 
 void DialogMenu::promptDone(bool ok) {
   prompt.active = false;
+  SystemApi::hideSoftInput();
   update();
   if(!ok || pl==nullptr)
     return;
@@ -928,7 +928,7 @@ void DialogMenu::paintPrompt(Painter& p) {
   const int   dh    = int(120*scale);
   const int   padd  = int(16*scale);
   const int   x     = (w()-dw)/2;
-#ifdef OPENGOTHIC_TOUCH_UI
+#if defined(__MOBILE_PLATFORM__)
   const int   y     = int(float(h())*0.12f);   // the keyboard of the screen is on the bottom
 #else
   const int   y     = h()-dh-int(40*scale);
