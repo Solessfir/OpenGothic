@@ -618,7 +618,7 @@ void DialogMenu::paintChoice(PaintEvent &e) {
   int  dh = padd*2;
   for(size_t i=0;i<choice.size();++i){
     auto fnt = Resources::dialogFont(scale);
-    Size choiceTextSize = fnt.textSize(dw-padd, choice[i].title);
+    Size choiceTextSize = fnt.textSize(dw-padd, choiceTitle(i));
     dh += choiceTextSize.h;
     }
 
@@ -650,10 +650,20 @@ void DialogMenu::paintChoice(PaintEvent &e) {
       fnt = Resources::font(Resources::FontType::Hi, scale); else
       fnt = Resources::dialogFont(scale);
 
-    Size choiceTextSize = fnt.textSize(dw-padd, choice[i].title);
-    fnt.drawText(p,x+padd,y+padd+textHeightOffset,dw-padd,0,choice[i].title,AlignLeft);
+    const std::string title = choiceTitle(i);
+    Size choiceTextSize = fnt.textSize(dw-padd, title);
+    fnt.drawText(p,x+padd,y+padd+textHeightOffset,dw-padd,0,title,AlignLeft);
     textHeightOffset += choiceTextSize.h;
     }
+  }
+
+/// The keys 1-9 pick a choice on the keyboard, so the choices show their numbers there
+std::string DialogMenu::choiceTitle(size_t i) const {
+#if !defined(__MOBILE_PLATFORM__)
+  if(i<9 && MouseUtil::isPointerEnabled())
+    return std::to_string(i+1)+". "+choice[i].title;
+#endif
+  return choice[i].title;
   }
 
 bool DialogMenu::isChoiceMenuActive() const {
@@ -738,8 +748,8 @@ size_t DialogMenu::choiceAt(Point pos) const {
   const auto  fnt   = Resources::dialogFont(scale);
 
   int dh = padd*2;
-  for(auto& c:choice)
-    dh += fnt.textSize(dw-padd, c.title).h;
+  for(size_t i=0; i<choice.size(); ++i)
+    dh += fnt.textSize(dw-padd, choiceTitle(i)).h;
 
   const int x = (w()-dw)/2;
   if(pos.x<x || pos.x>=x+dw)
@@ -748,7 +758,7 @@ size_t DialogMenu::choiceAt(Point pos) const {
   // Text is drawn from its baseline, one font height below the line top.
   int top = h()-dh-int(20*scale)+padd*2-fnt.pixelSize();
   for(size_t i=0; i<choice.size(); ++i) {
-    const int lineH = fnt.textSize(dw-padd, choice[i].title).h;
+    const int lineH = fnt.textSize(dw-padd, choiceTitle(i)).h;
     if(pos.y>=top && pos.y<top+lineH)
       return i;
     top += lineH;
@@ -786,6 +796,14 @@ void DialogMenu::keyDownEvent(KeyEvent &e) {
 
   if(e.key==Event::K_Return){
     onSelect();
+    return;
+    }
+  if(e.key>=Event::K_1 && e.key<=Event::K_9) {
+    const size_t id = size_t(e.key-Event::K_1);
+    if(isChoiceMenuActive() && id<choice.size()) {
+      dlgSel = id;
+      onSelect();
+      }
     return;
     }
   if(e.key==Event::K_W || e.key==Event::K_S || e.key==Event::K_Up || e.key==Event::K_Down || e.key==Event::K_ESCAPE){
