@@ -62,6 +62,22 @@ bool DirectMemory::isHookAnswered(uint32_t address) {
   return answered.find(address)!=answered.end();
   }
 
+/// Hooks that OpenGothic never fires, because it does what they do itself or has nothing they change:
+/// CoM's crafting view and typed answers (DialogMenu), pickup under water (Npc::takeItem), party members out of focus (MainWindow),
+/// inventory categories (InventoryMenu); telemetry, the console, Union's settings and save version, transparency of the inventory
+bool DirectMemory::isHookReplaced(std::string_view name) {
+  static const std::string_view prefixes[] = {
+    "CRAFTINGVIEW_UPDATE", "OCINFORMATIONMANAGER__UPDATE_HOOK", "ZCVIEWDIALOGCHOICE__HANDLEEVENT_HOOK",
+    "OCAIHUMAN__PC_DIVING_HOOK", "HIDEFOCUSFORPARTYMEMBERS_", "CATINV_",
+    "TELEMETRY_", "_CC_HOOK", "ZERROR_SETTARGET_HOOK", "HANDLERESULTSTRING_MARVINMODE_", "APPLYSOMESETTINGS",
+    "PATCHSAVEGAMEVERSION_HOOK", "INVTRANSPARENCYHACK_HOOK",
+    };
+  for(auto p:prefixes)
+    if(name.starts_with(p))
+      return true;
+  return false;
+  }
+
 /// The final boards (the end of the game) of CoM: the player does not move while they run. The scripts replace the check
 /// of the global cutscene in oCAIHuman::Moving with ISINCAMERA || ISINFINALBOARDS; the camera cutscenes are locked by
 /// OpenGothic itself, only the boards need this.

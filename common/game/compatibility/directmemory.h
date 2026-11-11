@@ -377,6 +377,7 @@ class DirectMemory {
     // the places of the engine that the libraries have hooked: address -> indices of the functions of the scripts
     std::unordered_map<uint32_t,std::vector<uint32_t>> hooks;
     static bool isHookAnswered(uint32_t address);
+    static bool isHookReplaced(std::string_view name);
     auto        ptrOf(Npc& npc) -> ptr32_t;
     auto        ptrOf(Item& item) -> ptr32_t;
 
