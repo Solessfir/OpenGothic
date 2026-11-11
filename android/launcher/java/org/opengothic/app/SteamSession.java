@@ -368,7 +368,7 @@ final class SteamSession implements Closeable {
         long shared = 0;
         Map<String, Long> own = new LinkedHashMap<>();
         for (Depot d : depots(appId)) {
-            if (!downloads(d)) continue;
+            if (d.fromApp || d.optional || !downloads(d)) continue;
             if (d.language.isEmpty()) {
                 shared += d.size;
             } else {
@@ -381,7 +381,28 @@ final class SteamSession implements Closeable {
         // Without a depot of its own, English is the shared files (Gothic has depots only for its other languages)
         else if (!own.containsKey("english")) ret.put("english", shared);
         for (Map.Entry<String, Long> e : own.entrySet()) ret.put(e.getKey(), shared + e.getValue());
+        Long polishVoices = null;
+        for (Depot d : depots(appId)) if (d.id == POLISH_VOICES) polishVoices = d.size;
+        if (polishVoices != null) {
+            for (Map.Entry<String, Long> e : ret.entrySet()) if (!hasOwnVoices(e.getKey())) e.setValue(e.getValue() + polishVoices);
+        }
         return ret;
+    }
+
+    /**
+     * Archolos has optional Polish and Russian voice packs, and either one replaces the voices of every language.
+     * Its Polish and Russian depots already carry their own voices; the other languages get the original Polish ones.
+     */
+    private static final int POLISH_VOICES = 1495950;
+
+    private static boolean hasOwnVoices(String language) {
+        return "polish".equals(language) || "russian".equals(language);
+    }
+
+    /** Whether a depot belongs to the chosen language, as DepotDownloader would pick it, without the voice packs that do not fit. */
+    private static boolean wanted(Depot d, String language) {
+        if (d.optional) return d.id == POLISH_VOICES && !hasOwnVoices(language);
+        return d.language.isEmpty() || d.language.equals(language.isEmpty() ? "english" : language);
     }
 
     /** DLC only downloads when the account owns it or the app is free to download, as DepotDownloader decides. */
@@ -396,13 +417,19 @@ final class SteamSession implements Closeable {
         final boolean dlc;
         /** The whole app downloads without a license, Archolos for example. */
         final boolean free;
+        /** DLC the player turns on in Steam, such as Archolos's voice packs. */
+        final boolean optional;
+        /** Files of another app, such as Gothic II's for Archolos or redistributables. */
+        final boolean fromApp;
 
-        Depot(int id, String language, long size, boolean dlc, boolean free) {
+        Depot(int id, String language, long size, boolean dlc, boolean free, boolean optional, boolean fromApp) {
             this.id = id;
             this.language = language;
             this.size = size;
             this.dlc = dlc;
             this.free = free;
+            this.optional = optional;
+            this.fromApp = fromApp;
         }
     }
 
@@ -413,16 +440,15 @@ final class SteamSession implements Closeable {
         if (info == null) return ret;
         boolean free = info.getKeyValues().get("common").get("FreeToDownload").asBoolean(false);
         for (KeyValue depot : info.getKeyValues().get("depots").getChildren()) {
-            if (!depot.getName().matches("[0-9]+")) continue;
+            if (!depot.getName().matches("[0-9]+") || depot.getChildren().isEmpty()) continue;
             KeyValue config = depot.get("config");
             String os = config.get("oslist").getValue();
             String language = config.get("language").getValue();
             if (os != null && !os.isEmpty() && !os.contains("windows")) continue;
             if ("1".equals(config.get("lowviolence").getValue())) continue;
-            // Redistributables from other apps never reach the phone
-            if (depot.get("depotfromapp").getValue() != null) continue;
             ret.add(new Depot(Integer.parseInt(depot.getName()), language == null ? "" : language,
-                    depot.get("manifests").get("public").get("size").asLong(0), depot.get("dlcappid").getValue() != null, free));
+                    depot.get("manifests").get("public").get("size").asLong(0), depot.get("dlcappid").getValue() != null, free,
+                    config.get("optionaldlc").getValue() != null, depot.get("depotfromapp").getValue() != null));
         }
         return ret;
     }
@@ -455,9 +481,14 @@ final class SteamSession implements Closeable {
         // The total holds the depots that will download up front; a depot the app info did not list joins once Steam sends it.
         final Map<Integer, Long> depotSizes = new HashMap<>();
         final Set<Integer> counted = new HashSet<>();
+        final List<Integer> picked = new ArrayList<>();
         for (Depot d : depots(appId)) {
+            if (!wanted(d, language)) continue;
+            picked.add(d.id);
+            // Another app's files count once they arrive, as before
+            if (d.fromApp) continue;
             depotSizes.put(d.id, d.size);
-            if (downloads(d) && (d.language.isEmpty() || d.language.equals(language))) counted.add(d.id);
+            if (downloads(d)) counted.add(d.id);
         }
         final Map<Integer, Long> arrived = new HashMap<>();
         final Set<Integer> listed = new HashSet<>();
@@ -542,10 +573,11 @@ final class SteamSession implements Closeable {
         downloader = d;
         try {
             d.addListener(listener);
-            // Windows files for every architecture in the chosen language; depots without a language come along
+            // Windows files for every architecture in the chosen language; depots without a language come along.
+            // The list is explicit so voice packs that do not fit the language stay out.
             d.add(new AppItem(appId, false, dir.getAbsolutePath(), null, null, false, "windows", true, null,
                     false, language.isEmpty() ? null : language, false,
-                    Collections.<Integer>emptyList(), Collections.<Long>emptyList(), resume, false));
+                    picked, Collections.<Long>emptyList(), resume, false));
             d.finishAdding();
             while (!done.isDone() && running) {
                 try {
