@@ -11,6 +11,7 @@
 #include <Tempest/Log>
 #include <algorithm>
 #include <cmath>
+#include "gothic.h"
 
 using namespace Tempest;
 
@@ -286,6 +287,10 @@ bool WorldView::updateRtScene() {
   if(!visuals.updateRtScene(sGlobal.rtScene))
     return false;
   return true;
+  }
+
+bool WorldView::replaceTexture(const Texture2d& source, const Texture2d& replacement) {
+  return visuals.replaceTexture(source,replacement);
   }
 
 void WorldView::postFrameupdate() {

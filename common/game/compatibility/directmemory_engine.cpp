@@ -2,6 +2,9 @@
 
 #include <Tempest/Log>
 
+#include <algorithm>
+#include <array>
+#include <charconv>
 #include <cmath>
 #include <cstring>
 
@@ -10,6 +13,11 @@
 #include "world/objects/item.h"
 #include "world/objects/npc.h"
 #include "world/world.h"
+#include "world/worldsound.h"
+#include "gothic.h"
+#include "gamemusic.h"
+#include "graphics/worldview.h"
+#include "resources.h"
 
 using namespace Tempest;
 using namespace Compatibility;
@@ -21,6 +29,7 @@ static constexpr uint32_t OCNPC__GETMODEL            = 7571232;
 static constexpr uint32_t ZCMODEL__STARTANIMATION    = 5746544;
 static constexpr uint32_t ZCMODEL__ISANIMATIONACTIVE  = 5727888;
 static constexpr uint32_t OCINFOMANAGER__GETINFORMATION = 7350544;
+static constexpr uint32_t ZCSNDSYS_MSS__REMOVEALLACTIVESOUNDS = 5167008;
 
 /// The matrix of the vob (zCVob.trafoObjToWorld) is at 60 in the memory of a character and of an item
 static constexpr size_t   TRAFO = 60;
@@ -51,6 +60,8 @@ void DirectMemory::syncHandleObject(uint8_t* raw, zenkit::DaedalusInstance& inst
   if(write) {
     // a script has moved it
     const Tempest::Vec3 to(m[3],m[7],m[11]);
+    if(!std::isfinite(to.x) || !std::isfinite(to.y) || !std::isfinite(to.z))
+      return;
     if(std::abs(to.x-pos.x)>0.01f || std::abs(to.y-pos.y)>0.01f || std::abs(to.z-pos.z)>0.01f) {
       if(npc!=nullptr)
         npc->setPosition(to);
@@ -101,12 +112,78 @@ static constexpr uint32_t ZCINPUT__ISBINDEDTOGGLED  = 5031024;
 static constexpr uint32_t ZCINPUT__BINDKEYS         = 5045760;
 
 void DirectMemory::setupEngineCalls() {
+  // zCAICamera::StartDialogCam(int), as requested by DIACAM_UPDATE in CoM.
+  // OpenGothic owns the camera object; do not dereference Gothic's AI pointer.
+  cpu.register_thiscall(4923632,[this](ptr32_t, int) {
+    if(!dialogCameraOff && Gothic::inst().isInDialog())
+      Gothic::inst().onDialogCameraReset();
+    });
+  // STOPALLSOUNDS / STOPALLACTIVESOUNDS in CoM's cutscenes. Music has a
+  // separate engine interface and keeps playing, as in Gothic's sound system.
+  cpu.register_thiscall(ZCSNDSYS_MSS__REMOVEALLACTIVESOUNDS,[this](ptr32_t) {
+    gameScript.world().sound()->stopAllSounds();
+    Gothic::inst().stopGlobalSounds();
+    Gothic::inst().onStopAllSounds();
+    });
   // the floats of Ikarus (float.d) are ints, the VM does not take a float for an int
   auto safeOverride = [this](std::string_view name, auto fn) {
     auto* f = vm.find_symbol_by_name(name);
     if(f!=nullptr && f->type()==zenkit::DaedalusDataType::FUNCTION)
       vm.override_function(name,fn);
     };
+  safeOverride("ENABLEMUSICZONE",[this](std::string_view name, int enabled) {
+    if(gameScript.world().sound()->setZoneEnabled(name,enabled!=0)==0 && logBudget("music-zone-enable"))
+      Log::e("EnableMusicZone: no such zone: ",name);
+    });
+  if(vm.find_symbol_by_name("CATINV_ACTIVECATEGORY")!=nullptr &&
+     vm.find_symbol_by_name("INV_CAT_GROUPS")!=nullptr) {
+    safeOverride("CATINV_SETCATEGORY",[this](int index) -> int {
+      const auto before = gameScript.inventoryScriptCategory();
+      gameScript.setInventoryScriptCategory(index);
+      // InventoryMenu reads this state and rebuilds its filtered iterators.
+      // The original CATINV_UPDATEALL rebuilds Gothic's linked lists, which
+      // are not the inventory backing OpenGothic's menu.
+      return before!=gameScript.inventoryScriptCategory() ? 1 : 0;
+      });
+    }
+  // CoM reloads one zCTexture in place through Ikarus to repaint the player's
+  // house. Adapt that operation to renderer materials, using the script's own
+  // filenames and saved choice. No fake zCTexture pointer is needed here.
+  if(vm.find_symbol_by_name("HOUSE_CRAFT_WALL_CHANGETEXTURE")!=nullptr &&
+     vm.find_symbol_by_name("APPLYHOUSEWALLTEXTURE.DEFAULTWALLTEXTURE")!=nullptr &&
+     vm.find_symbol_by_name("APPLYHOUSEWALLTEXTURE.WALLTEXTUREPREFIX")!=nullptr) {
+    safeOverride("APPLYHOUSEWALLTEXTURE",[this]() {
+      const auto choice = vm.find_symbol_by_name("HOUSE_CRAFT_WALL_CHANGETEXTURE")->get_int();
+      const auto original = vm.find_symbol_by_name("APPLYHOUSEWALLTEXTURE.DEFAULTWALLTEXTURE")->get_string();
+      const auto prefix = vm.find_symbol_by_name("APPLYHOUSEWALLTEXTURE.WALLTEXTUREPREFIX")->get_string();
+      std::string selected(original);
+      if(choice>0)
+        selected = std::string(prefix) + (choice<10 ? "0" : "") + std::to_string(choice) + ".TGA";
+      auto* view = gameScript.world().view();
+      if(view==nullptr)
+        return;
+      const auto* source = Resources::loadTexture(original);
+      const auto* target = Resources::loadTexture(selected);
+      if(source==nullptr || target==nullptr) {
+        Log::e("CoM house walls: missing texture ",source==nullptr ? std::string(original) : selected);
+        return;
+        }
+      if(view->replaceTexture(*source,*target))
+        Log::i("CoM house walls: ",original," -> ",selected);
+      if(auto* name = vm.find_symbol_by_name("APPLYHOUSEWALLTEXTURE.TEXNAME"))
+        name->set_string(selected);
+      });
+    }
+  safeOverride("MUSIC_OVERRIDETRACK",[this](int track) {
+    if(auto* value = vm.find_symbol_by_name("MUSIC_CURRENTOVERRIDE"))
+      value->set_int(track);
+    GameMusic::inst().overrideTrack(uint32_t(track));
+    });
+  safeOverride("MUSIC_DISABLEOVERRIDE",[this]() {
+    if(auto* value = vm.find_symbol_by_name("MUSIC_CURRENTOVERRIDE"))
+      value->set_int(0);
+    GameMusic::inst().clearTrackOverride();
+    });
   safeOverride("CASTFROMINTF",[](int v) -> float {
     float f = 0;
     std::memcpy(&f,&v,sizeof(f));
@@ -160,20 +237,91 @@ void DirectMemory::setupEngineCalls() {
       dropCancelled = true;
     });
 
-  // zCInput: there is an object, the keys are not bound by the scripts here
+  // zCInput: script bindings share the native UI's current KEYS options.
   const ptr32_t input = mem32.alloc(256,"zCInput");
   mem32.alloc(ZCINPUT_ZINPUT,4,"zinput*");
   mem32.writeInt(ZCINPUT_ZINPUT,int32_t(input));
-  cpu.register_thiscall(ZCINPUT_WIN32__CLEARKEYBUFFER,[](ptr32_t) {
+  auto bindings = [](std::string_view option) {
+    std::array<int32_t,2> result = {};
+    const auto value = Gothic::settingsGetS("KEYS",option);
+    for(size_t i=0; i<result.size(); ++i) {
+      if(value.size()<(i+1)*4)
+        break;
+      uint32_t packed = 0;
+      const auto* begin = value.data()+i*4;
+      const auto parsed = std::from_chars(begin,begin+4,packed,16);
+      if(parsed.ec!=std::errc() || parsed.ptr!=begin+4)
+        continue;
+      int32_t code = int32_t(((packed&255)<<8) | ((packed>>8)&255));
+      // OpenGothic's key editor stores its digit shortcuts as 120..129.
+      // Ikarus must see the corresponding DirectInput digit scans 2..11.
+      if(code>=120 && code<=129)
+        code = code-120+2;
+      result[i] = code;
+      }
+    return result;
+    };
+  safeOverride("MEM_GetKey",[bindings](std::string_view option) -> int32_t {
+    return bindings(option)[0];
     });
-  cpu.register_thiscall(ZCINPUT_WIN32__GETSTATE,[](ptr32_t, int) -> int32_t {
+  safeOverride("MEM_GetSecondaryKey",[bindings](std::string_view option) -> int32_t {
+    return bindings(option)[1];
+    });
+  safeOverride("MEM_SetKeys",[this](std::string_view option, int primary, int secondary) {
+    if(option.empty())
+      return;
+    // Ikarus stores two uint16 DirectInput codes, little endian, as hex.
+    // INIT_TORCHKEY relies on this to install its defaults in a fresh INI.
+    constexpr char hex[] = "0123456789ABCDEF";
+    std::string value(8,'0');
+    const std::array<uint16_t,2> codes = {uint16_t(primary),uint16_t(secondary)};
+    for(size_t i=0; i<codes.size(); ++i) {
+      const auto code = codes[i];
+      value[i*4+0] = hex[(code>>4)&15];
+      value[i*4+1] = hex[code&15];
+      value[i*4+2] = hex[(code>>12)&15];
+      value[i*4+3] = hex[(code>>8)&15];
+      }
+    Gothic::settingsSetS("KEYS",option,value);
+    std::fill(std::begin(keyToggles),std::end(keyToggles),uint8_t(0));
+    });
+  auto weaponAction = [this](int action) {
+    const auto* symbol = vm.find_symbol_by_name("ZOPT_GAMEKEY_WEAPON");
+    return action==(symbol!=nullptr ? symbol->get_int() : 8);
+    };
+  cpu.register_thiscall(ZCINPUT_WIN32__CLEARKEYBUFFER,[this](ptr32_t) {
+    std::fill(std::begin(keyEvents),std::end(keyEvents),uint8_t(0));
+    std::fill(std::begin(keyToggles),std::end(keyToggles),uint8_t(0));
+    });
+  cpu.register_thiscall(ZCINPUT_WIN32__GETSTATE,[this,bindings,weaponAction](ptr32_t, int action) -> float {
+    // The CoM DAT calls this only for ZOPT_GAMEKEY_WEAPON (8).
+    if(!weaponAction(action)) {
+      if(logBudget("input-state-action"))
+        Log::e("Ikarus input: unsupported logical action ",action);
+      return 0.f;
+      }
+    for(const auto code:bindings("keyWeapon"))
+      if(code>0 && size_t(code)<sizeof(keyEvents) && keyEvents[code]!=0)
+        return 1.f;
+    return 0.f;
+    });
+  cpu.register_thiscall(ZCINPUT__ISBINDEDTOGGLED,[this,bindings,weaponAction](ptr32_t, int action, int key) -> int32_t {
+    if(!weaponAction(action) || key<=0 || size_t(key)>=sizeof(keyToggles))
+      return 0;
+    for(const auto code:bindings("keyWeapon")) {
+      if(code!=key || keyToggles[key]==0)
+        continue;
+      keyToggles[key] = 0;
+      return 1;
+      }
     return 0;
     });
-  cpu.register_thiscall(ZCINPUT__ISBINDEDTOGGLED,[](ptr32_t, int, int) -> int32_t {
-    return 0;
+  cpu.register_thiscall(ZCINPUT__BINDKEYS,[this](ptr32_t, int) {
+    // Bindings are read from the same current KEYS options as the native UI;
+    // rebinding discards old toggles without maintaining a second key map.
+    std::fill(std::begin(keyToggles),std::end(keyToggles),uint8_t(0));
     });
-  cpu.register_thiscall(ZCINPUT__BINDKEYS,[](ptr32_t, int) {
-    });
+  cpu.register_float_to_int(0x7D0F48); // __ftol, used after GetState in CoM
 
   // oCGame::TriggerChangeLevel(level, point): the screen has faded and the mod goes to another world
   cpu.register_thiscall(OCGAME__TRIGGERCHANGELEVEL,[this](ptr32_t, std::string level, std::string point) {
@@ -181,17 +329,44 @@ void DirectMemory::setupEngineCalls() {
     gameScript.world().triggerChangeWorld(level,point);
     });
 
+  // oCNpc::DoTakeVob(zCVob*), used by CoM's underwater pickup hook. The
+  // callback queues T_WATERTAKEITEM separately, so move the real loose item
+  // without starting a second ground/pickup animation. Other vob types are
+  // outside this callback's item-only contract.
+  cpu.register_thiscall(7621056,[this](ptr32_t self, ptr32_t object) -> int32_t {
+    auto* npc = npcOf(handles.instanceAt(self));
+    auto ref = handles.instanceAt(object);
+    auto* item = ref!=nullptr && dynamic_cast<zenkit::IItem*>(ref.get())!=nullptr
+                 ? reinterpret_cast<Item*>(ref->user_ptr) : nullptr;
+    return npc!=nullptr && item!=nullptr && npc->takeItem(*item,false)!=nullptr ? 1 : 0;
+    });
+
+  // oCMag_Book::SetOwner(zCVob*), the owner/world setup that CoM's Slowdown
+  // checks before its ordinary spell script. Offsets 0x18 and 0x1c are also
+  // confirmed by the original engine's instructions at 0x475a50.
+  cpu.register_thiscall(4676176,[this](ptr32_t self, ptr32_t owner) {
+    auto it = magicBooks.find(self);
+    auto ref = it!=magicBooks.end() ? it->second.lock() : nullptr;
+    if(ref==nullptr || ref->user_ptr==nullptr || handles.instanceAt(owner)!=ref)
+      return;
+    mem32.writeInt(self+0x18,int32_t(memGame._ZCSESSION_WORLD));
+    mem32.writeInt(self+0x1c,int32_t(owner));
+    mem32.writeInt(self+0x20,int32_t(owner)); // GetModel uses the NPC handle here.
+    });
+
   // zCVob::SetPositionWorld(vec3*)
   cpu.register_thiscall(ZCVOB__SETPOSITIONWORLD,[this](ptr32_t self, ptr32_t pvec) {
     auto* npc = npcOf(handles.instanceAt(self));
-    auto* vec = mem32.deref<const float>(pvec);
+    float v[3] = {};
+    const auto* vec = mem32.deref(pvec,uint32_t(sizeof(v)));
     if(npc==nullptr || vec==nullptr) {
       if(logBudget("setposition"))
         Log::e("DMA: zCVob::SetPositionWorld of an object that is not a character");
       return;
       }
-    float v[3] = {};
     std::memcpy(v,vec,sizeof(v));
+    if(!std::isfinite(v[0]) || !std::isfinite(v[1]) || !std::isfinite(v[2]))
+      return;
     npc->setPosition(v[0],v[1],v[2]);
     });
 
@@ -200,10 +375,14 @@ void DirectMemory::setupEngineCalls() {
     return int32_t(self);
     });
 
-  // 0x688A70(this = a character, int on): CoM turns off with FALSE what its scripts call the detection of the chasm
-  // (Q304 every frame for the bodyguards of the trap, Q204 for the hero). The original engine stops a character that walks
-  // to the edge of a cliff; OpenGothic has no such detection, there is nothing to turn off.
-  cpu.register_thiscall(6851184,[](ptr32_t, int32_t) {});
+  // oCNpc::SetWalkStopChasm(int). The installed Gothic2.exe confirms this
+  // sets bit 2 at GetHumanAI()+0xb8; it does not disable world collision.
+  // CoM uses FALSE in Q204 and every frame for Q304's trap bodyguards.
+  const ptr32_t OCNPC__SETWALKSTOPCHASM = 6851184; // 0x688a70
+  cpu.register_thiscall(OCNPC__SETWALKSTOPCHASM,[this](ptr32_t self, int32_t enabled) {
+    if(auto* npc = npcOf(handles.instanceAt(self)))
+      npc->setWalkStopChasm(enabled!=0);
+    });
 
   // oCInfoManager::GetInformation(id): an oCInfo of the memory. SetDialogueToldProperty of CoM writes OCINFO.TOLD, the game takes
   // it over in tickInfos

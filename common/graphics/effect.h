@@ -42,6 +42,7 @@ class Effect final {
     void     setMesh     (const MeshObjects::Mesh* mesh);
     void     setBullet   (Bullet* b, World& owner);
     void     setSpellId  (int32_t splId, World& owner);
+    bool     isActiveSpell(int32_t id) const { return root!=nullptr && spellAssigned && active && splId==id; }
 
     uint64_t effectPrefferedTime() const;
     bool     isAlive() const;
@@ -71,6 +72,7 @@ class Effect final {
 
     Bullet*               bullet = nullptr;
     int32_t               splId  = 0;
+    bool                  spellAssigned = false;
 
     std::string_view      nodeSlot;
     size_t                boneId   = size_t(-1);

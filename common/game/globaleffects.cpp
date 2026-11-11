@@ -1,10 +1,14 @@
 #include "globaleffects.h"
 
 #include <Tempest/Log>
+#include <cmath>
+#include <stdexcept>
 
 #include "world/objects/globalfx.h"
 #include "world/world.h"
 #include "graphics/visualfx.h"
+#include "game/serialize.h"
+#include "world/objects/npc.h"
 
 using namespace Tempest;
 
@@ -23,6 +27,56 @@ void GlobalEffects::tick(uint64_t dt) {
   tick(dt,scrEff);
   tick(dt,morphEff);
   tick(dt,quakeEff);
+  }
+
+float GlobalEffects::modelTimeScale(const Npc& npc) const {
+  float scale = 1.f;
+  const auto now = owner.tickCount();
+  for(const auto& effect:timeEff)
+    if(effect->timeUntil>=now && effect->timeUntil!=0 && effect->origin.lock()==npc.handlePtr())
+      scale = effect->modelScale; // the latest active effect owns the model's scale
+  return scale;
+  }
+
+void GlobalEffects::save(Serialize& fout) const {
+  fout.setEntry("worlds/",fout.worldName(),"/compat-time-effects");
+  uint32_t count = 0;
+  for(const auto& e:timeEff)
+    if(e->timeUntil!=0 && e->timeUntil>=owner.tickCount())
+      ++count;
+  fout.write(uint8_t(1),count);
+  for(const auto& e:timeEff) {
+    if(e->timeUntil==0 || e->timeUntil<owner.tickCount())
+      continue;
+    const auto ref = e->origin.lock();
+    const auto* npc = ref==nullptr ? nullptr : reinterpret_cast<const Npc*>(ref->user_ptr);
+    fout.write(e->mul,e->div,e->timeUntil,e->timeStart,e->timeLen,e->timeWrldRem,e->modelScale,npc);
+    }
+  }
+
+void GlobalEffects::load(Serialize& fin) {
+  timeEff.clear();
+  if(!fin.setEntry("worlds/",fin.worldName(),"/compat-time-effects"))
+    return;
+  uint8_t version = 0;
+  fin.read(version);
+  if(version!=1)
+    return;
+  uint32_t count = 0;
+  fin.read(count);
+  if(count>100000)
+    throw std::runtime_error("Invalid saved time effect count");
+  for(uint32_t i=0; i<count; ++i) {
+    auto e = std::make_shared<SlowTime>();
+    Npc* npc = nullptr;
+    fin.read(e->mul,e->div,e->timeUntil,e->timeStart,e->timeLen,e->timeWrldRem,e->modelScale,npc);
+    if(e->div==0 || e->mul>1000000 || !std::isfinite(e->modelScale) || e->modelScale<=0.f || e->modelScale>1000.f)
+      throw std::runtime_error("Invalid saved time effect");
+    if(npc!=nullptr)
+      e->origin = npc->handlePtr();
+    if(e->timeUntil!=0 && e->timeUntil>=owner.tickCount())
+      timeEff.push_back(std::move(e));
+    }
   }
 
 template<class T>
@@ -113,8 +167,7 @@ void GlobalEffects::scrBlend(Tempest::Painter& p, const Tempest::Rect& rect) {
       } else {
       uint64_t dt = owner.tickCount()-i.timeStart;
       size_t   frame = size_t(i.fps*dt)/1000;
-      if(i.fps>0)
-        frame%=i.fps;
+      frame%=i.frames.size();
       p.setBrush(Tempest::Brush(*i.frames[frame],Tempest::Color(1,1,1,cl.a()),Tempest::Painter::Alpha));
       }
     p.drawRect(rect.x,rect.y,rect.w,rect.h,0,0,p.brush().w(),p.brush().h());
@@ -167,12 +220,19 @@ GlobalFx GlobalEffects::addSlowTime(const std::string* argv, size_t argc) {
       }
     }
   uint64_t v[2] = {};
-  for(int i=0; i<2; ++i)
-    v[i] = uint64_t(val[i]*1000);
-  // todo: separated time-scale
+  for(int i=0; i<2; ++i) {
+    if(!std::isfinite(val[i]) || val[i]<=0.0 || val[i]>1000.0) {
+      Log::e("invalid time.slw scale [",i,"]: ",val[i]);
+      val[i] = 1.0;
+      }
+    v[i] = std::max<uint64_t>(uint64_t(val[i]*1000),1);
+    }
   SlowTime s;
   s.mul = v[0];
   s.div = 1000;
+  s.modelScale = float(val[1]/val[0]);
+  if(!std::isfinite(s.modelScale) || s.modelScale<=0.f || s.modelScale>1000.f)
+    s.modelScale = 1.f;
   timeEff.emplace_back(std::make_shared<SlowTime>(s));
   return GlobalFx(timeEff.back());
   }

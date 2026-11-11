@@ -17,6 +17,7 @@ class World;
 class Npc;
 class Sound;
 class SoundFx;
+class Serialize;
 
 class WorldSound final {
   public:
@@ -26,10 +27,14 @@ class WorldSound final {
     void    setDefaultZone(const zenkit::VZoneMusic& vob);
     void    addZone       (const zenkit::VZoneMusic& vob);
     void    addSound      (const zenkit::VSound&     vob);
+    size_t  setZoneEnabled(std::string_view name, bool enabled);
+    void    save(Serialize& fout) const;
+    void    load(Serialize& fin);
 
     Sound   addDlgSound(std::string_view s, const Tempest::Vec3& pos, float range, uint64_t &timeLen);
 
     void    aiOutput(const Tempest::Vec3& pos, std::string_view outputname);
+    void    stopAllSounds();
 
     void    tick(Npc& player);
     bool    execTriggerEvent(const TriggerEvent& e);
@@ -77,6 +82,7 @@ class WorldSound final {
 
     uint64_t                                nextSoundUpdate=0;
     Zone*                                   currentZone = nullptr;
+    bool                                    zoneInitialized = false;
     GameMusic::Tags                         currentTags = GameMusic::Tags::Std;
 
     Tempest::Vec3                           plPos;

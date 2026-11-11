@@ -114,6 +114,7 @@ class Inventory final {
     bool    hasStateItem() const;
 
     void   putCurrentToSlot(Npc& owner, std::string_view slot);
+    Item*  itemInSlot      (std::string_view slot) const;
     void   putToSlot       (Npc& owner, size_t cls, std::string_view slot);
     bool   clearSlot       (Npc& owner, std::string_view slot, bool remove);
     void   putAmmunition   (Npc& owner, size_t cls, std::string_view slot);
@@ -139,6 +140,7 @@ class Inventory final {
 
     Item*  findByClass(size_t cls);
     void   delItem    (Item* it, size_t count, Npc& owner);
+    void   detachItemSlots(Item* it, Npc& owner);
     void   invalidateCond(Item*& slot,  Npc &owner);
 
     Item*  bestItem       (Npc &owner, ItmFlags f);

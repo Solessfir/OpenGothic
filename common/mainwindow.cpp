@@ -235,6 +235,8 @@ void MainWindow::setupUi() {
 
   Gothic::inst().onDialogPipe  .bind(&dialogs,&DialogMenu::openPipe);
   Gothic::inst().onDialogGuest .bind(&dialogs,&DialogMenu::addGuest);
+  Gothic::inst().onDialogCameraReset.bind(this,&MainWindow::requestDialogCamera);
+  Gothic::inst().onStopAllSounds.bind(&dialogs,&DialogMenu::stopSounds);
   Gothic::inst().onOpenTrade   .bind(&inventory,&InventoryMenu::trade);
   Gothic::inst().isNpcInDialogFn = std::bind(&DialogMenu::isNpcInDialog, &dialogs, std::placeholders::_1);
 
@@ -312,7 +314,7 @@ void MainWindow::paintEvent(PaintEvent& event) {
       if(auto* pl = Gothic::inst().player())
         world->script().dmaFocus(*pl,focus);
       // CoM hides the status of the player in a camera of a cutscene (OCGAME__UPDATEPLAYERSTATUS_REPLACECHECKINGGLOBALCUTSCENE)
-      const bool inCamera = world->script().dmaInCamera();
+      const bool inCamera = world->script().dmaCutsceneStatusHidden();
       if(!inCamera)
         paintFocus(p,focus,vp);
 
@@ -1311,13 +1313,13 @@ void MainWindow::drawDmaOverlay(Tempest::Painter& p) {
     return;
 
   dmaOverlay.clear();
-  world->script().dmaOverlay(dmaOverlay);
+  world->script().dmaOverlay(dmaOverlay,w(),h());
   if(dmaOverlay.empty())
     return;
 
   const float sx    = float(w())/8192.f;
   const float sy    = float(h())/8192.f;
-  const float scale = float(h())/600.f;     // the sizes of the fonts are for the screen of 800x600
+  const float scale = std::min(float(w())/800.f,float(h())/600.f);
 
   auto brushColor = [](uint32_t c) {
     return Color(float((c>>16)&0xFF)/255.f, float((c>>8)&0xFF)/255.f, float(c&0xFF)/255.f, float((c>>24)&0xFF)/255.f);
@@ -1327,7 +1329,19 @@ void MainWindow::drawDmaOverlay(Tempest::Painter& p) {
     const auto color = brushColor(it.color);
     if(color.a()<=0.01f)
       continue;
-    if(it.kind==GameScript::DmaOverlayItem::Image) {
+    if(it.kind==GameScript::DmaOverlayItem::Triangle) {
+      if(const auto* tex = Resources::loadTexture(it.name)) {
+        const auto blend = it.blend==1 ? Painter::NoBlend : it.blend==3 ? Painter::Add : Painter::Alpha;
+        p.setBrush(Brush(*tex,color,blend));
+        const auto& a = it.vertices[0];
+        const auto& b = it.vertices[1];
+        const auto& c = it.vertices[2];
+        const float tw = float(tex->w()), th = float(tex->h());
+        p.drawTriangle(a.x*sx,a.y*sy,a.u*tw,a.v*th,
+                       b.x*sx,b.y*sy,b.u*tw,b.v*th,
+                       c.x*sx,c.y*sy,c.u*tw,c.v*th);
+        }
+      } else if(it.kind==GameScript::DmaOverlayItem::Image) {
       const int x = int(it.x*sx), y = int(it.y*sy), iw = int(it.w*sx), ih = int(it.h*sy);
       if(iw<=0 || ih<=0)
         continue;
@@ -1341,7 +1355,7 @@ void MainWindow::drawDmaOverlay(Tempest::Painter& p) {
         p.drawRect(x,y,iw,ih,0,0,tex->w(),tex->h());
         }
       } else {
-      const auto& fnt = Resources::font(it.font,Resources::FontType::Normal,scale);
+      const auto fnt = Resources::font(it.font,Resources::FontType::Normal,scale).tinted(color);
       fnt.drawText(p,int(it.x*sx),int(it.y*sy)+fnt.pixelSize(),it.name);
       }
     }
@@ -1595,7 +1609,13 @@ void MainWindow::updateAnimation(uint64_t dt) {
 /// The inventory, the menu, the log: a scene of a mod without a dialog does not let the player open them (for at most two minutes,
 /// so that a scene that has hung does not hold him for ever)
 bool MainWindow::sceneLocksUi() const {
+  if(auto* world = Gothic::inst().world(); world!=nullptr && world->script().dmaCutsceneMenuBlocked())
+    return true;
   return sceneLockTime>0 && sceneLockTime<120000;
+  }
+
+void MainWindow::requestDialogCamera() {
+  dialogCameraReset = true;
   }
 
 void MainWindow::tickCamera(uint64_t dt) {
@@ -1611,6 +1631,14 @@ void MainWindow::tickCamera(uint64_t dt) {
     return;
 
   auto&      camera       = *pcamera;
+  if(dialogCameraReset && !camera.isCutscene()) {
+    dialogCameraReset = false;
+    auto* world = Gothic::inst().world();
+    if(dialogs.isActive() && !camera.isFree() && world!=nullptr && !world->script().dmaDialogCameraOff()) {
+      camera.setMode(Camera::Dialog);
+      dialogs.dialogCamera(camera);
+      }
+    }
   const auto ws           = pl!=nullptr ? pl->weaponState() : WeaponState::NoWeapon;
   const bool meleeFocus   = (ws==WeaponState::Fist ||
                              ws==WeaponState::W1H  ||
@@ -1729,13 +1757,15 @@ Camera::Mode MainWindow::solveCameraMode() const {
   }
 
 void MainWindow::startGame(std::string_view slot) {
+  // before the old game is dropped: the scripts of the mod choose the picture
+  const std::string banner = Gothic::loadingBannerName(Gothic::inst().world()!=nullptr ? &Gothic::inst().world()->script() : nullptr,"LOADING.TGA");
   // gothic.emitGlobalSound(gothic.loadSoundFx("NEWGAME"));
 
   if(Gothic::inst().checkLoading()==Gothic::LoadState::Idle){
     setGameImpl(nullptr);
     }
 
-  Gothic::inst().startLoad("LOADING.TGA",[slot=std::string(slot)](std::unique_ptr<GameSession>&& game){
+  Gothic::inst().startLoad(banner,[slot=std::string(slot)](std::unique_ptr<GameSession>&& game){
     game = nullptr; // clear world-memory now
     std::unique_ptr<GameSession> w(new GameSession(slot));
     return w;
@@ -1746,6 +1776,12 @@ void MainWindow::startGame(std::string_view slot) {
   }
 
 void MainWindow::loadGame(std::string_view slot) {
+  // before the old game is dropped: the scripts of the mod choose the picture
+  const std::string banner = Gothic::loadingBannerName(Gothic::inst().world()!=nullptr ? &Gothic::inst().world()->script() : nullptr,"LOADING.TGA");
+  if(auto* w = Gothic::inst().world(); w!=nullptr && w->script().dmaLoadDisabled()) {
+    Log::i("The scripts of the mod do not allow loading now (ENABLELOADGAME)");
+    return;
+    }
   Gothic::inst().finishSave(true);
   SaveLoadProfile::begin("load/request-to-ready");
   SaveLoadProfile::Timer time("load/main-thread-preparation");
@@ -1754,7 +1790,7 @@ void MainWindow::loadGame(std::string_view slot) {
     }
 
   Gothic::inst().setBenchmarkMode(Benchmark::None);
-  Gothic::inst().startLoad("LOADING.TGA",[slot=std::string(slot)](std::unique_ptr<GameSession>&& game){
+  Gothic::inst().startLoad(banner,[slot=std::string(slot)](std::unique_ptr<GameSession>&& game){
     SaveLoadProfile::Timer time("load/worker-total");
     game = nullptr; // clear world-memory now
     Tempest::RFile file(slot);

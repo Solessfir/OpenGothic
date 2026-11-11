@@ -6,6 +6,7 @@
 #include <unordered_map>
 
 #include "material.h"
+#include <unordered_map>
 
 class StaticMesh;
 class AnimMesh;
@@ -18,6 +19,7 @@ class DrawBuckets {
       const StaticMesh* staticMesh = nullptr;
       const AnimMesh*   animMesh   = nullptr;
       Material          mat;
+      const Tempest::Texture2d* sourceTexture = nullptr;
       };
 
     class Id {
@@ -43,6 +45,7 @@ class DrawBuckets {
 
     Id   alloc(const Material& mat, const StaticMesh& mesh);
     Id   alloc(const Material& mat, const AnimMesh&   mesh);
+    bool replaceTexture(const Tempest::Texture2d& source, const Tempest::Texture2d& replacement);
 
     const Bucket& operator[](size_t i) { return bucketsCpu[i]; }
 
@@ -59,6 +62,7 @@ class DrawBuckets {
 
   private:
     void updateBindlessArrays();
+    Material remapTexture(const Material& mat) const;
 
     enum BucketFlg : uint32_t {
       BK_SOLID = 0x1,
@@ -90,6 +94,7 @@ class DrawBuckets {
 
     std::vector<Bucket>      bucketsCpu;
     std::unordered_multimap<const void*,size_t> bucketsByMesh;
+    std::unordered_map<const Tempest::Texture2d*,const Tempest::Texture2d*> textureReplacements;
     Tempest::StorageBuffer   bucketsGpu;
     bool                     bucketsDurtyBit = false;
   };

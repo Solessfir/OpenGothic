@@ -20,6 +20,7 @@ class Cpu32 {
     Cpu32(DirectMemory& owner, Mem32& mem32);
 
     void exec(const ptr32_t basePc, const uint8_t* code, size_t len);
+    void register_float_to_int(ptr32_t address);
 
     template<class R, class...Args>
     void register_stdcall(ptr32_t addr, const std::function<R(Args...)>& callback) {

@@ -11,6 +11,7 @@ class GlobalFx {
     ~GlobalFx();
 
     uint64_t effectPrefferedTime() const;
+    void     setOrigin(Npc* npc);
 
   private:
     GlobalFx(const std::shared_ptr<GlobalEffects::Effect>& h);

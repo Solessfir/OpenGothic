@@ -293,6 +293,7 @@ enum TargetType : int32_t {
   TARGET_TYPE_ORCS    = 8,
   TARGET_TYPE_HUMANS  = 16,
   TARGET_TYPE_UNDEAD  = 32,
+  TARGET_TYPE_MOB     = 128, // CoM: locked doors and containers, via SPELL_PICKLOCK_FOCUS
   };
 
 enum class SensesBit : int32_t {

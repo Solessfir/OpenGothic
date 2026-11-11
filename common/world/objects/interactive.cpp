@@ -142,6 +142,16 @@ void Interactive::load(Serialize &fin) {
   visual.load(fin, *this);
   visual.setObjMatrix(transform());
   visual.syncPhysics();
+  compatPickLockProgress = 0;
+  if(fin.setEntry("worlds/",fin.worldName(),"/mobsi/",vobObjectID,"/compat-lock")) {
+    uint8_t version = 0;
+    fin.read(version);
+    if(version==1) {
+      uint32_t count = 0;
+      fin.read(count);
+      setPickLockProgress(count);
+      }
+    }
   }
 
 void Interactive::save(Serialize &fout) const {
@@ -167,6 +177,10 @@ void Interactive::save(Serialize &fout) const {
 
   fout.setEntry("worlds/",fout.worldName(),"/mobsi/",vobObjectID,"/visual");
   visual.save(fout,*this);
+  if(compatPickLockProgress>0) {
+    fout.setEntry("worlds/",fout.worldName(),"/mobsi/",vobObjectID,"/compat-lock");
+    fout.write(uint8_t(1),compatPickLockProgress);
+    }
   }
 
 void Interactive::postValidate() {
@@ -565,6 +579,11 @@ bool Interactive::needToLockpick(const Npc& pl) const {
   return !(pickLockStr.empty() || isLockCracked);
   }
 
+void Interactive::setPickLockProgress(uint32_t count) {
+  const auto limit = std::min<size_t>(pickLockStr.size(),0x3fffffffu);
+  compatPickLockProgress = uint32_t(std::min<size_t>(count,limit));
+  }
+
 Inventory &Interactive::inventory()  {
   return invent;
   }
@@ -644,8 +663,12 @@ float Interactive::qDistTo(const Npc &npc, const Interactive::Pos &to) const {
   return npc.qDistTo(p);
   }
 
-void Interactive::setVobVisual(bool show, bool) {
-  visual.setShown(show,-1,world,transform());
+void Interactive::setVobVisual(bool show, bool collideDynamic) {
+  showVisual = show;
+  visual.setShown(show,collideDynamic ? 1 : 0,world,transform());
+  // Recreated collision bodies must still identify their owning door/mob.
+  visual.setInteractive(this);
+  visual.syncPhysics();
   }
 
 void Interactive::implAddItem(std::string_view name) {

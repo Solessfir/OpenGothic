@@ -61,6 +61,7 @@ class WorldView {
 
     bool updateLights(const gtime gameTime);
     bool updateRtScene();
+    bool replaceTexture(const Tempest::Texture2d& source, const Tempest::Texture2d& replacement);
 
     void updateFrustrum (const Frustrum fr[]);
     void visibilityPass (Tempest::Encoder<Tempest::CommandBuffer>& cmd, int pass);

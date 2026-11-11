@@ -81,9 +81,12 @@ Item::Item(Item &&it)
     pos(it.pos),equipped(it.equipped),itSlot(it.itSlot),visual(std::move(it.visual)) {
   setLocalTransform(it.localTransform());
   physic = std::move(it.physic);
+  hitem->user_ptr = this;
   }
 
 Item::~Item() {
+  if(hitem!=nullptr && hitem->user_ptr==this)
+    hitem->user_ptr = nullptr;
   }
 
 void Item::drawVobBox(DbgPainter& p) const {

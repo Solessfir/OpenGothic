@@ -58,6 +58,7 @@ void Effect::setupPfx(World& owner) {
     if(key!=nullptr && key->emFXLifeSpan!=0)
       emFXLifeSpan = key->emFXLifeSpan;
     gfx = owner.addGlobalEffect(root->visName_S,emFXLifeSpan,root->userString, zenkit::IEffectBase::user_string_count);
+    gfx.setOrigin(origin);
     return;
     }
 
@@ -141,6 +142,7 @@ void Effect::setOrigin(Npc* npc) {
   if(next!=nullptr)
     next->setOrigin(npc);
   origin = npc;
+  gfx.setOrigin(npc);
   syncAttachesSingle(pos);
   setupCollision(npc->world());
   }
@@ -258,6 +260,7 @@ void Effect::setSpellId(int32_t s, World& owner) {
   if(next!=nullptr)
     next->setSpellId(s,owner);
   splId = s;
+  spellAssigned = true;
   setupCollision(owner);
   }
 

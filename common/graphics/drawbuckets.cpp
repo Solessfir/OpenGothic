@@ -37,15 +37,17 @@ DrawBuckets::DrawBuckets() {
   }
 
 DrawBuckets::Id DrawBuckets::alloc(const Material& mat, const StaticMesh& mesh) {
+  const auto resolved = remapTexture(mat);
   auto range = bucketsByMesh.equal_range(&mesh);
   for(auto i=range.first; i!=range.second; ++i) {
-    if(bucketsCpu[i->second].mat==mat)
+    if(bucketsCpu[i->second].sourceTexture==mat.tex && bucketsCpu[i->second].mat==resolved)
       return Id(this, i->second);
     }
 
   Bucket bx;
   bx.staticMesh = &mesh;
-  bx.mat        = mat;
+  bx.mat        = resolved;
+  bx.sourceTexture = mat.tex;
 
   bucketsDurtyBit = true;
   bucketsByMesh.emplace(&mesh, bucketsCpu.size());
@@ -54,15 +56,17 @@ DrawBuckets::Id DrawBuckets::alloc(const Material& mat, const StaticMesh& mesh) 
   }
 
 DrawBuckets::Id DrawBuckets::alloc(const Material& mat, const AnimMesh& mesh) {
+  const auto resolved = remapTexture(mat);
   auto range = bucketsByMesh.equal_range(&mesh);
   for(auto i=range.first; i!=range.second; ++i) {
-    if(bucketsCpu[i->second].mat==mat)
+    if(bucketsCpu[i->second].sourceTexture==mat.tex && bucketsCpu[i->second].mat==resolved)
       return Id(this, i->second);
     }
 
   Bucket bx;
   bx.animMesh = &mesh;
-  bx.mat      = mat;
+  bx.mat      = resolved;
+  bx.sourceTexture = mat.tex;
 
   bucketsDurtyBit = true;
   bucketsByMesh.emplace(&mesh, bucketsCpu.size());
@@ -72,6 +76,38 @@ DrawBuckets::Id DrawBuckets::alloc(const Material& mat, const AnimMesh& mesh) {
 
 const std::vector<DrawBuckets::Bucket>& DrawBuckets::buckets() {
   return bucketsCpu;
+  }
+
+Material DrawBuckets::remapTexture(const Material& mat) const {
+  auto result = mat;
+  // Runtime replacement of a single texture, as used by CoM's house walls.
+  // Animated materials keep their frame sequence and are not redirected.
+  if(mat.frames.empty()) {
+    auto it = textureReplacements.find(mat.tex);
+    if(it!=textureReplacements.end())
+      result.tex = it->second;
+    }
+  return result;
+  }
+
+bool DrawBuckets::replaceTexture(const Texture2d& source, const Texture2d& replacement) {
+  auto it = textureReplacements.find(&source);
+  const auto* previous = it==textureReplacements.end() ? &source : it->second;
+  if(previous==&replacement)
+    return false;
+  if(&source==&replacement)
+    textureReplacements.erase(&source);
+  else
+    textureReplacements[&source] = &replacement;
+
+  for(auto& b:bucketsCpu) {
+    if(b.sourceTexture==&source && b.mat.frames.empty())
+      b.mat.tex = &replacement;
+    }
+  // Rebuild descriptor arrays as well as the CPU material used by bindfull
+  // rendering; changing the cached Texture2d alone leaves stale GPU bindings.
+  bucketsDurtyBit = true;
+  return true;
   }
 
 void DrawBuckets::updateBindlessArrays() {
