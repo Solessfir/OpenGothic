@@ -17,6 +17,7 @@
 #endif
 
 #include <algorithm>
+#include <cctype>
 
 #include "utils/installdetect.h"
 #include "utils/fileutil.h"
@@ -102,6 +103,9 @@ CommandLine::CommandLine(int argc, const char** argv) {
   instance = this;
   if(argc<1)
     return;
+
+  for(int i=1; i<argc; ++i)
+    arguments.emplace_back(argv[i]);
 
   std::string_view mod;
   for(int i=1;i<argc;++i) {
@@ -328,6 +332,61 @@ const CommandLine& CommandLine::inst() {
 
 CommandLine::GraphicBackend CommandLine::graphicsApi() const {
   return graphics;
+  }
+
+std::string CommandLine::commandLine() const {
+  std::string result;
+  for(const auto& arg:arguments) {
+    if(!result.empty())
+      result += ' ';
+    if(arg.find_first_of(" \t\"")==std::string::npos) {
+      result += arg;
+      continue;
+      }
+    result += '"';
+    size_t slashes = 0;
+    for(char c:arg) {
+      if(c=='\\') {
+        ++slashes;
+        continue;
+        }
+      result.append(c=='"' ? slashes*2+1 : slashes,'\\');
+      result += c;
+      slashes = 0;
+      }
+    result.append(slashes*2,'\\');
+    result += '"';
+    }
+  return result;
+  }
+
+std::string CommandLine::parameterValue(std::string_view name) const {
+  auto trimPrefix = [](std::string_view v) {
+    while(!v.empty() && (v.front()=='-' || v.front()=='/'))
+      v.remove_prefix(1);
+    return v;
+    };
+  name = trimPrefix(name);
+  if(name.empty())
+    return {};
+  for(size_t i=0; i<arguments.size(); ++i) {
+    std::string_view arg = arguments[i];
+    if(arg.empty() || (arg.front()!='-' && arg.front()!='/'))
+      continue;
+    arg = trimPrefix(arg);
+    const auto split = arg.find_first_of(":=");
+    const auto key = arg.substr(0,split);
+    if(key.size()!=name.size() || !std::equal(key.begin(),key.end(),name.begin(),[](char a,char b) {
+        return std::toupper(static_cast<unsigned char>(a))==std::toupper(static_cast<unsigned char>(b));
+        }))
+      continue;
+    if(split!=std::string_view::npos)
+      return std::string(arg.substr(split+1));
+    if(i+1<arguments.size() && !arguments[i+1].empty() && arguments[i+1].front()!='-')
+      return arguments[i+1];
+    return {};
+    }
+  return {};
   }
 
 std::u16string_view CommandLine::rootPath() const {

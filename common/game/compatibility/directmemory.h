@@ -5,6 +5,7 @@
 #include "game/gamescript.h"
 
 #include <map>
+#include <functional>
 #include <unordered_map>
 #include <vector>
 
@@ -47,11 +48,14 @@ class DirectMemory {
     bool        fireHook(uint32_t address, HookRegs& regs);
 
     /// What the scripts have put on the screen (the views and the texts of LeGo), for the drawing, see directmemory_ui.cpp
-    void        collectOverlay(std::vector<GameScript::DmaOverlayItem>& out);
+    void        collectOverlay(std::vector<GameScript::DmaOverlayItem>& out, int width, int height);
 
     // events of the game, see directmemory_events.cpp
     void        eventChangeLevel(bool begin);
     void        eventSaveGame(Serialize& fout);
+    void        eventBeforeSaveGame();
+    auto        saveWorldName(std::string_view fallback) -> std::string;
+    auto        loadingTexture() -> std::string;
     void        eventLoadGame(Serialize& fin);
     void        eventItemTaken(Npc& owner, Item& item);
     int         eventChangeAttribute(Npc& npc, int attribute, int change);
@@ -61,27 +65,38 @@ class DirectMemory {
     void        eventFallDamage(Npc& npc);
     void        eventFocus(Npc& player, const Focus& focus);
     void        eventSpellFocus(Npc& caster, int spellId);
+    bool        eventSpellTarget(Interactive& mob, TargetType type);
     void        syncFocusMage(zenkit::IFocus& focus);
     void        clearMobs();
     void        eventMobCanOpen(Interactive& mob);
     bool        eventDropVob(Npc& npc, Item& item);
     void        eventInventoryOpen(Npc& npc);
+    void        eventItemInfo(const Item& item);
+    void        eventDialogChoice(const GameScript::DlgChoice* choice, bool subChoice, int selection);
     bool        eventSellItem(Npc& npc, Item& item);
     void        eventEquipItem(Npc& npc, Item& item, bool equip);
+    bool        eventEquipBestWeapons(Npc& npc);
+    bool        eventEnemyCandidate(Npc& npc, Npc& candidate);
     bool        eventDropUnconscious(Npc& npc);
     bool        eventFinishingMove(Npc& npc, Npc& target);
     void        noteAiPlayAni(Npc& npc, std::string_view name);
     size_t      eventPickLockLength(Interactive& mob, size_t length);
-    void        eventSpellBegin();
+    void        eventSpellBegin(Npc& caster);
     bool        spellKeepsItem(int spellId);
     bool        hidesPartyFocus() const;
     bool        dialogCameraDisabled() const { return dialogCameraOff; }
     bool        saveDisabled() const { return saveOff; }
+    bool        loadDisabled() const { return loadOff; }
     bool        inCamera();
+    bool        cutsceneMenuBlocked();
+    bool        cutsceneStatusHidden();
+    void        eventDialogMessage(std::string& name, uint32_t& color, bool& bottom, bool playerLine);
     /// who OTHER was in the last command that AI_Function ran (for the developer tests)
     const std::string& lastCallOther() const { return lastCallOtherName; }
     /// Trialoge of LeGo: the commands for the self of the scripts go to the character who speaks now
     auto        triaRedirect(Npc* npc) -> Npc*;
+    bool        trialogFinishPending() const;
+    bool        underwaterPickup() const { return hasHook(0x699C60); }
     bool        inFinalBoards();
     bool        takeInventoryClose();
     void        eventStatusScreen(bool show);
@@ -175,7 +190,7 @@ class DirectMemory {
     auto        instancePointer(zenkit::DaedalusSymbol& sym) -> ptr32_t;
     void        memoryCallback(zCMover& m, uint32_t index, std::memory_order ord);
     void        memoryCallback(Compatibility::MobSlot& m, uint32_t index, std::memory_order ord);
-    void        memAssignString(zString& str, std::string_view cstr);
+    bool        memAssignString(zString& str, std::string_view cstr);
     void        memFromString(std::string& dst, const zString& str);
 
     // stacktrace & logs
@@ -192,13 +207,15 @@ class DirectMemory {
       };
     std::unordered_map<uint32_t,StrVar> strVars;   // by the slot of the variable
     std::vector<uint32_t>               ownedStrings;
+    // Stable values per native zSTRING address: external string_view arguments
+    // must not share one scratch string overwritten by the next member read.
+    std::unordered_map<ptr32_t,std::string> transientStrings;
     void        syncOwnedStrings(ptr32_t address, uint32_t size);
     // chests and doors as oCMobLockable, the focus of the player, the focus of the magic
     static constexpr uint32_t MobSlots = 256;
     ptr32_t                          mobBase   = 0;
     uint32_t                         mobCursor = 0;
     std::vector<Interactive*>        mobs;
-    std::vector<uint32_t>            mobPick;     // the number of the characters of the lock that are done
     std::unordered_map<const Interactive*,uint32_t> mobIndex;
     std::vector<std::pair<std::string,std::string>> menuTexts;   // UPDATE_MENU_ITEM: the item of the menu and its new text
     ptr32_t                          parserBase = 0;        // where zCParser (the parser of the engine) is in the memory
@@ -220,8 +237,16 @@ class DirectMemory {
     bool                             quiversPending = false;
     Npc*                             triaOriginal = nullptr;   // the character of the dialog (the self of the scripts) while a trialog runs
     Npc*                             triaCurrent  = nullptr;   // who speaks now
+    bool                             triaFinishing = false;
+    std::unordered_map<ptr32_t,std::weak_ptr<zenkit::INpc>> magicBooks;
+    std::weak_ptr<zenkit::IItem>       telekinesisItem;
+    std::weak_ptr<zenkit::INpc>        telekinesisCaster;
+    void        setupTelekinesisFunctions();
+    void        finishTelekinesis();
+    void        tickTelekinesis();
     std::string                      lastCallOtherName;
     bool                             saveOff = false;           // ENABLESAVEGAME(FALSE) of CoM: no saving in the scenes
+    bool                             loadOff = false;           // ENABLELOADGAME(FALSE) of CoM's scripted cameras
     bool                             dialogCameraOff = false;   // DIACAM_DISABLE of CoM patched oCAICamera::StartDialogCam
     struct VobState {
       bool show = true;
@@ -235,6 +260,7 @@ class DirectMemory {
     bool                             dropCancelled = false;
     ptr32_t                          focusMagic = 0;
     uint8_t                          keyEvents[1100] = {};   // MEM_KeyPressed reads it (the table of the keys of the engine)
+    uint8_t                          keyToggles[1100] = {};
     int                              lastSpellFocus = -1;
     auto        mobPointer(Interactive& mob) -> ptr32_t;
     void        setupFocusMagic();
@@ -251,6 +277,17 @@ class DirectMemory {
       ptr32_t     object = 0;
       };
     uint32_t    fontHandle(std::string_view font);
+    ptr32_t     textureHandle(std::string_view texture);
+    void        initItemRenderer();
+    void        withRecipeTemporary(uint32_t instance, std::string_view prefix, const std::function<void()>& call);
+    std::string craftingChoice;
+    ptr32_t     renderList = 0, renderWorld = 0;
+    std::unordered_map<uint32_t,std::shared_ptr<Item>> previewItems;
+    std::vector<ptr32_t> renderedViews;
+    int         uiWidth = 800, uiHeight = 600;
+    int         uiBlend = 2;
+    bool        collectingSprites = false;
+    std::vector<GameScript::DmaOverlayItem> spriteOverlay;
     std::vector<FontInfo>                  fonts;        // the handle is the index+1
     std::unordered_map<ptr32_t,uint32_t>   fontByPtr;
     std::unordered_map<std::string,ptr32_t> texObjects;  // the name of a texture -> its object for the scripts
@@ -323,6 +360,7 @@ class DirectMemory {
     void        setupFontFunctions();
     void        tickUi(uint64_t dt);
     void        tickTimers(uint64_t dt);
+    void        syncWorldTimer();
     void        tickInfos();
     //
     void        setupNpcFunctions();
@@ -352,6 +390,7 @@ class DirectMemory {
     std::unordered_map<uint32_t,VirtualHandle>  vhandles;
     uint32_t                                    nextVHandle = 0x1000;
     uint32_t                                    lastError   = 0;
+    bool                                        loadingTextureReady = false;
     ptr32_t                                     saveSlotBlock = 0;
     void        setupFileFunctions();
     void        setupSaveSupport();

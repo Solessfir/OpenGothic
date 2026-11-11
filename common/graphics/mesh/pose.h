@@ -32,6 +32,10 @@ class Pose final {
 
     void               save(Serialize& fout);
     void               load(Serialize& fin, const AnimationSolver &solver);
+    void               setTimeScale(float scale, uint64_t worldTime);
+    bool               hasModelClock() const { return !modelClock.empty(); }
+    void               saveModelClock(Serialize& fout) const;
+    void               loadModelClock(Serialize& fin);
 
     void               setFlags(Flags f);
     BodyState          bodyState() const;
@@ -98,6 +102,18 @@ class Pose final {
     const Tempest::Matrix4x4* transform() const;
 
   private:
+    struct ClockSegment {
+      uint64_t world = 0;
+      uint64_t model = 0;
+      float    scale = 1.f;
+      };
+    uint64_t modelTime(uint64_t worldTime) const;
+    uint64_t worldDuration(uint64_t modelDuration) const;
+    bool implStartAnim(const AnimationSolver& solver, const Animation::Sequence* sq,
+                       uint8_t comb, BodyState bs, StartHint hint, uint64_t modelTime);
+    bool implStopItemStateAnim(const AnimationSolver& solver, uint64_t modelTime);
+    std::vector<ClockSegment> modelClock;
+
     enum SampleStatus : uint8_t {
       S_None  = 0,
       S_Old   = 1,

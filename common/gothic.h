@@ -51,6 +51,7 @@ class Gothic final {
 
     static Gothic& inst();
 
+
     enum class LoadState:int {
       Idle       = 0,
       Loading    = 1,
@@ -118,6 +119,7 @@ class Gothic final {
     void         emitGlobalSound(const Tempest::Sound& sfx, bool voice=false);
 
     void         emitGlobalSoundWav(std::string_view wav);
+    void         stopGlobalSounds();
 
     static auto  invCatOrder()  -> const std::vector<ItmFlags>&;
 
@@ -159,6 +161,8 @@ class Gothic final {
 
     LoadState    checkLoading() const;
     bool         finishLoading();
+    /// The picture of a loading screen: the one that the scripts of the mod choose (CoM) if the game has it, otherwise `fallback`
+    static std::string loadingBannerName(GameScript* script, std::string_view fallback);
     void         startLoad(std::string_view banner, const std::function<std::unique_ptr<GameSession>(std::unique_ptr<GameSession>&&)> f);
     void         startSave(Tempest::Texture2d&& tex, std::string slot, std::string name, Tempest::Pixmap screen);
     bool         isSavePending() const { return savePending; }
@@ -186,6 +190,8 @@ class Gothic final {
 
     Tempest::Signal<void(Npc&,Npc&,AiOuputPipe*&)>                      onDialogPipe;
     Tempest::Signal<void(Npc&)>                                         onDialogGuest;   // a third character speaks in the dialog (Trialoge of LeGo)
+    Tempest::Signal<void()>                                            onDialogCameraReset;
+    Tempest::Signal<void()>                                            onStopAllSounds;
     Tempest::Signal<void(Npc&,Npc&)>                                    onOpenTrade;   // the player and the trader, without a dialog (mods)
     std::function<bool(const Npc*)>                                     isNpcInDialogFn;
 

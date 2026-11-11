@@ -20,7 +20,7 @@ Mem32::Mem32() {
 
 Mem32::~Mem32() {
   for(auto& rgn:region) {
-    if(rgn.status==S_Allocated && rgn.real!=nullptr) {
+    if((rgn.status==S_Allocated || rgn.status==S_Callback) && rgn.real!=nullptr) {
       std::free(rgn.real);
       rgn.real = nullptr;
       }
@@ -118,6 +118,11 @@ void Mem32::free(ptr32_t address) {
   for(size_t i=0; i<region.size(); ++i) {
     if(region[i].address!=address)
       continue;
+    if(region[i].status==S_Pin || region[i].status==S_Unused) {
+      if(Compatibility::logBudget("mem32:free-pinned"))
+        Log::e("mem_free: address is not an owned allocation: ",address);
+      return;
+      }
     std::free(region[i].real);
     region[i].real   = nullptr;
     region[i].status = S_Unused;
@@ -304,13 +309,15 @@ void Mem32::copyBytes(ptr32_t psrc, ptr32_t pdst, uint32_t size) {
     }
   memSyncRead(src.type, src, ptr32_t(src.address+sOff), uint32_t(sz));
   memSyncRead(dst.type, dst, ptr32_t(dst.address+dOff), uint32_t(sz));
-  std::memcpy(reinterpret_cast<uint8_t*>(dst.real)+dOff,
+  std::memmove(reinterpret_cast<uint8_t*>(dst.real)+dOff,
               reinterpret_cast<uint8_t*>(src.real)+sOff,
               sz);
   memSyncWrite(dst.type, dst, ptr32_t(dst.address+dOff), uint32_t(sz));
   }
 
 Mem32::Region* Mem32::implAlloc(uint32_t size) {
+  if(size==0 || uint64_t(size)+memAlign-1>UINT32_MAX)
+    return nullptr;
   size = ((size+memAlign-1)/memAlign)*memAlign;
 
   for(size_t i=0; i<region.size(); ++i) {
@@ -333,6 +340,20 @@ Mem32::Region* Mem32::implAlloc(uint32_t size) {
   }
 
 Mem32::ptr32_t Mem32::realloc(ptr32_t address, uint32_t size) {
+  if(size==0) {
+    free(address);
+    return 0;
+    }
+  if(uint64_t(size)+memAlign-1>UINT32_MAX)
+    return 0;
+  if(address!=0) {
+    const auto* original = implTranslate(address);
+    if(original==nullptr || original->address!=address || original->status==S_Pin) {
+      if(Compatibility::logBudget("mem32:realloc-pinned"))
+        Log::e("realloc: address is not an owned allocation: ",address);
+      return 0;
+      }
+    }
   size = ((size+memAlign-1)/memAlign)*memAlign;
   if(implRealloc(address,size))
     return address;
@@ -351,11 +372,13 @@ Mem32::ptr32_t Mem32::realloc(ptr32_t address, uint32_t size) {
     }
 
   auto ret = next->address;
-  next->status = S_Allocated;
-
   if(src!=nullptr) {
+    auto* resized = std::realloc(src->real,next->size);
+    if(resized==nullptr)
+      return 0;
     next->type    = src->type;
-    next->real    = std::realloc(src->real, next->size);
+    next->status  = src->status;
+    next->real    = resized;
     next->comment = src->comment;
     if(size>src->size)
       std::memset(reinterpret_cast<uint8_t*>(next->real)+src->size, 0, size-src->size);
@@ -365,17 +388,22 @@ Mem32::ptr32_t Mem32::realloc(ptr32_t address, uint32_t size) {
     compactage();
     } else {
     next->real    = std::calloc(next->size, 1);
+    if(next->real==nullptr)
+      return 0;
+    next->status = S_Allocated;
     }
 
   return ret;
   }
 
 Mem32::Region* Mem32::implAllocAt(ptr32_t address, uint32_t size) {
+  if(size==0 || uint64_t(address)+size>uint64_t(UINT32_MAX)+1)
+    return nullptr;
   for(size_t i=0; i<region.size(); ++i) {
     auto& rgn = region[i];
 
     if(address!=0) {
-      if(!(rgn.address<=address && address+size<=rgn.address+rgn.size))
+      if(!(rgn.address<=address && uint64_t(address)+size<=uint64_t(rgn.address)+rgn.size))
         continue;
       } else {
       if(rgn.size<size)
@@ -501,10 +529,12 @@ void Mem32::memSyncRead(Type type, const Region& rgn, ptr32_t address, uint32_t 
   }
 
 void Mem32::memSyncRead(Callback& cb, const Region& rgn, ptr32_t address, uint32_t size) {
+  if(cb.elementSize==0 || !cb.read)
+    return;
   address -= rgn.address;
 
   const uint32_t begin = address/cb.elementSize;
-  const uint32_t end   = (address+size+cb.elementSize-1)/cb.elementSize;
+  const uint32_t end   = uint32_t(std::min((uint64_t(address)+size+cb.elementSize-1)/cb.elementSize,uint64_t(rgn.size/cb.elementSize)));
 
   auto ptr = reinterpret_cast<uint8_t*>(rgn.real);
   for(size_t i=begin; i<end; ++i) {
@@ -526,6 +556,8 @@ void Mem32::memSyncWrite(Type type, const Region& rgn, ptr32_t address, uint32_t
   }
 
 void Mem32::memSyncWrite(Callback& cb, const Region& rgn, ptr32_t address, uint32_t size) {
+  if(cb.elementSize==0)
+    return;
   if(!cb.write) {
     Log::e("memSyncWrite: there is no writer of the memory: ", reinterpret_cast<void*>(uint64_t(address)),
            " (region ",reinterpret_cast<void*>(uint64_t(rgn.address))," size ",rgn.size,")");
@@ -534,7 +566,7 @@ void Mem32::memSyncWrite(Callback& cb, const Region& rgn, ptr32_t address, uint3
 
   address -= rgn.address;
   const uint32_t begin = address/cb.elementSize;
-  const uint32_t end   = (address+size+cb.elementSize-1)/cb.elementSize;
+  const uint32_t end   = uint32_t(std::min((uint64_t(address)+size+cb.elementSize-1)/cb.elementSize,uint64_t(rgn.size/cb.elementSize)));
 
   auto ptr = reinterpret_cast<uint8_t*>(rgn.real);
   for(size_t i=begin; i<end; ++i) {

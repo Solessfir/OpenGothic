@@ -55,6 +55,8 @@ auto InstanceHandles::pointerTo(const std::shared_ptr<zenkit::DaedalusInstance>&
     return 0;
 
   const uint32_t i = takeSlot();
+  if(i>=entries.size())
+    return 0;
   if(entries[i].inst!=nullptr)
     index.erase(entries[i].inst.get());
   else
@@ -66,8 +68,7 @@ auto InstanceHandles::pointerTo(const std::shared_ptr<zenkit::DaedalusInstance>&
   }
 
 /// A free slot, else a slot of an object that nobody else keeps (it is gone from the world), the oldest first, so that an
-/// old pointer stays the pointer of its object as long as possible. Only when every slot is taken by a living object,
-/// the oldest one is given away.
+/// old pointer stays the pointer of its object as long as possible. Never replace a living object with an unrelated one.
 auto InstanceHandles::takeSlot() -> uint32_t {
   for(uint32_t n=0; n<SlotCount; ++n) {
     const uint32_t i = (cursor+n) % SlotCount;
@@ -77,11 +78,9 @@ auto InstanceHandles::takeSlot() -> uint32_t {
       }
     }
 
-  const uint32_t i = cursor;
-  cursor = (cursor+1) % SlotCount;
   if(Compatibility::logBudget("instancehandles:full"))
-    Tempest::Log::e("InstanceHandles: all ",SlotCount," slots belong to living objects, the pointer of the oldest one is reused");
-  return i;
+    Tempest::Log::e("InstanceHandles: all ",SlotCount," slots belong to living objects; cannot allocate another handle");
+  return uint32_t(-1);
   }
 
 bool InstanceHandles::contains(ptr32_t address) const {

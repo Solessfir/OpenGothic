@@ -83,6 +83,12 @@ void DialogMenu::tick(uint64_t dt) {
   if(prompt.active)
     update();   // the cursor of the text blinks
 
+  if(pl!=nullptr) {
+    const auto* entry = isChoiceMenuActive() && !prompt.active && dlgSel<choice.size() ? &choice[dlgSel] : nullptr;
+    const bool subChoice = entry!=nullptr && entry->isSubChoice;
+    pl->world().script().dmaDialogChoice(entry,subChoice,int(dlgSel));
+    }
+
   if(state==State::PreStart) {
     except.clear();
     dlgTrade=false;
@@ -108,14 +114,6 @@ void DialogMenu::tick(uint64_t dt) {
   if(cursorShape()!=cursor)
     setCursorShape(cursor);
 #endif
-  for(size_t i=0; i<lingering.size();) {
-    if(lingering[i].time<=dt) {
-      lingering.erase(lingering.begin()+ptrdiff_t(i));
-      } else {
-      lingering[i].time -= dt;
-      ++i;
-      }
-    }
 
   if(isChoiceMenuActive()) {
     if(choiceAnimTime+dt>ANIM_TIME)
@@ -132,7 +130,7 @@ void DialogMenu::tick(uint64_t dt) {
     if(dlgTrade && !haveToWaitOutput()) {
       startTrade();
       }
-    else if(choice.size()==0 && state!=State::Idle && !haveToWaitOutput()) {
+    else if(choice.size()==0 && state!=State::Idle && !haveToWaitOutput() && !haveToWaitQueues()) {
       close();
       }
     } else {
@@ -167,25 +165,26 @@ void DialogMenu::drawTextMultiline(Painter &p, int x, int y, int w, int h, std::
   processTextMultiline(&p,x,y,w,h,txt,isPl);
   }
 
-Size DialogMenu::processTextMultiline(Painter* p, int x, int y, int w, int h, std::string_view txt, bool isPl) {
+Size DialogMenu::processTextMultiline(Painter* p, int x, int y, int w, int h, std::string_view txt, bool /*isPl*/) {
   const float scale = Gothic::interfaceScale(this)*subtitleScale();
   const int   pdd   = int(10*scale);
 
   auto fnt = Resources::font(scale);
   Size ret = {0,0};
-  if(!isPl && other!=nullptr) {
+  if(!subtitleName.empty()) {
     y += fnt.pixelSize();
     // in a trialog the name is the name of the one who speaks
-    auto txt  = (speaker!=nullptr && speaker!=pl) ? speaker->displayName() : other->displayName();
-    auto sz   = fnt.textSize(w,txt.data());
+    auto sz   = fnt.textSize(w,subtitleName);
     if(p!=nullptr)
-      fnt.drawText(*p,x+(w-sz.w)/2,y,txt.data());
+      fnt.drawText(*p,x+(w-sz.w)/2,y,subtitleName);
     h     -= int(sz.h);
     ret.w  = std::max(ret.w,sz.w);
     ret.h += sz.h;
     }
 
-  fnt = Resources::font(isPl ? Resources::FontType::Normal : Resources::FontType::Yellow, scale);
+  const auto c = subtitleColor;
+  fnt = Resources::font(scale).tinted(Color(float((c>>16)&255)/255.f,float((c>>8)&255)/255.f,
+                                          float(c&255)/255.f,float(c>>24)/255.f));
 
   y     += fnt.pixelSize();
   ret.h += fnt.pixelSize();
@@ -317,7 +316,7 @@ bool DialogMenu::aiPrintScr(Npc& npc, int time, std::string_view msg, int x, int
   }
 
 bool DialogMenu::aiClose() {
-  if(current.time>0){
+  if(current.time>0 || (pl!=nullptr && pl->world().script().dmaTrialogFinishPending())) {
     return false;
     }
 
@@ -411,7 +410,7 @@ void DialogMenu::onDoneText() {
   if(choice.size()==0){
     if(depth>0) {
       onStart(*pl,*other);
-      } else {
+      } else if(!haveToWaitQueues()) {
       close();
       }
     }
@@ -420,6 +419,9 @@ void DialogMenu::onDoneText() {
 void DialogMenu::close() {
   auto prevPl  = pl;
   auto prevNpc = other;
+
+  if(pl!=nullptr)
+    pl->world().script().dmaDialogChoice(nullptr,false,-1);
 
   if(pl!=nullptr) {
     // the guests of a trialog go back to the speech that is not a dialog
@@ -469,6 +471,10 @@ bool DialogMenu::haveToWaitOutput() const {
 
 /// the limit is for a queue that never ends, so that the dialog is never stuck
 bool DialogMenu::haveToWaitQueues() const {
+  // _TRIA_Finish is queued on the hero. Closing an empty choice list before
+  // it executes ends ZS_TALK early, even when the NPC queues are synchronized.
+  if(pl!=nullptr && pl->world().script().dmaTrialogFinishPending())
+    return true;
   if(queueWaitTime==0 || queueWaitTime>QUEUE_WAIT_MAX)
     return false;
   return true;
@@ -482,6 +488,11 @@ void DialogMenu::startTrade() {
   if(pl!=nullptr && other!=nullptr)
     trade.trade(*pl,*other);
   dlgTrade=false;
+  }
+
+void DialogMenu::stopSounds() {
+  // RemoveAllActiveSounds stops voices too, without advancing the phrase or AI.
+  currentSnd = SoundEffect();
   }
 
 void DialogMenu::skipPhrase() {
@@ -498,17 +509,9 @@ void DialogMenu::skipPhrase() {
     if(speaker!=nullptr)
       speaker->setAiOutputBarrier(0,false);
     stopGestures(nullptr);
-    if(pl!=nullptr && pl->world().script().dmaInCamera()) {
-      // oCNpc::StopRunningOU of CoM (OCNPC__STOPRUNNINGOU_REPLACEKILLOUSOUND): in a camera of a cutscene the line is skipped, the
-      // sound is not killed, the scripts time the cuts of the camera to the voices
-      Lingering l;
-      l.time = current.time;
-      l.snd  = std::move(currentSnd);
-      lingering.push_back(std::move(l));
-      currentSnd = SoundEffect();
-      } else {
-      currentSnd = SoundEffect();
-      }
+    // Skipping dismisses the voice as well as the subtitle, including trialogs
+    // with a scripted camera. Retaining it here overlapped consecutive speakers.
+    currentSnd = SoundEffect();
     current.time = 1;
     }
   }
@@ -519,6 +522,7 @@ void DialogMenu::onEntry(const GameScript::DlgChoice &e) {
     return;
     }
   if(pl && other) {
+    pl->world().script().dmaDialogChoice(nullptr,false,-1);
     selected = e;
     depth    = 1;
     dlgTrade = e.isTrade;
@@ -541,6 +545,14 @@ void DialogMenu::paintEvent(Tempest::PaintEvent &e) {
   const int      dy = std::max(20,margins().top);
 
   if(current.time>0 && trade.isOpen()==InventoryMenu::State::Closed && haveToShowSubtitles(curentIsPl)) {
+    subtitleName.clear();
+    if(!curentIsPl && other!=nullptr)
+      subtitleName = (speaker!=nullptr && speaker!=pl) ? speaker->displayName() : other->displayName();
+    subtitleColor = curentIsPl ? 0xFFFFFFFFu : 0xFFFFFF1Au;
+    bool bottom = false;
+    if(auto* world = Gothic::inst().world())
+      world->script().dmaDialogMessage(subtitleName,subtitleColor,bottom,curentIsPl);
+    const int subtitleY = bottom ? std::max(dy,h()-dh-std::max(20,margins().bottom)) : dy;
     if(ambient!=nullptr) {
       int dlgW = dw;
       int dlgH = dh;
@@ -557,12 +569,12 @@ void DialogMenu::paintEvent(Tempest::PaintEvent &e) {
         }
 
       p.setBrush(*ambient);
-      p.drawRect(dx+(dw-dlgW)/2, dy+(dh-dlgH)/2, dlgW, dlgH,
+      p.drawRect(dx+(dw-dlgW)/2, subtitleY+(dh-dlgH)/2, dlgW, dlgH,
                  0,0,ambient->w(),ambient->h());
       }
 
     if(current.time>da && current.time<current.msgTime+da)
-      drawTextMultiline(p,dx,dy,dw,dh,current.txt,curentIsPl);
+      drawTextMultiline(p,dx,subtitleY,dw,dh,current.txt,curentIsPl);
     }
 
   if(prompt.active)
@@ -651,7 +663,7 @@ bool DialogMenu::isChoiceMenuActive() const {
 void DialogMenu::onSelect() {
   if(prompt.active)
     return;
-  if(current.time>0 || haveToWaitOutput()){
+  if(!isChoiceMenuActive()) {
     return;
     }
 

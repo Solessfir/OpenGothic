@@ -4,6 +4,7 @@
 
 #include <Tempest/SoundDevice>
 #include <Tempest/SoundEffect>
+#include <optional>
 
 class GameMusic final {
   public:
@@ -32,14 +33,19 @@ class GameMusic final {
     bool      isEnabled() const;
     void      setMusic(Music m);
     void      setMusic(const zenkit::IMusicTheme &theme, Tags t);
+    void      clearZoneMusic();
     void      stopMusic();
+    void      overrideTrack(uint32_t instance);
+    void      clearTrackOverride();
 
   private:
     struct MusicProvider;
     struct OpenGothicMusicProvider;
     struct GothicKitMusicProvider;
+    struct RecordedMusic;
 
     void      setupSettings();
+    void      playCurrent();
 
     static GameMusic* instance;
 
@@ -52,4 +58,11 @@ class GameMusic final {
     Tempest::SoundDevice device;
     Tempest::SoundEffect sound;
     MusicProvider*       impl = nullptr;
+    bool                 enabled = true;
+    bool                 zoneMusicActive = true;
+    Tempest::SoundEffect recordedSound, outgoingSound;
+    RecordedMusic*       recordedImpl = nullptr;
+    std::string          recordedFile;
+    int32_t              recordedFadeOut = 0;
+    std::optional<zenkit::IMusicTheme> overrideTheme;
   };

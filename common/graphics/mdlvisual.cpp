@@ -415,6 +415,38 @@ void MdlVisual::stopEffect(int32_t slot) {
     }
   }
 
+bool MdlVisual::isSpellActive(int32_t spell, uint64_t now) const {
+  // Only committed spell effects count. A readied rune or an unrelated effect
+  // with a default spell id must not satisfy CoM's Q501 light-spell condition.
+  for(auto& i:effects)
+    if(i.timeUntil>=now && i.view.isActiveSpell(spell))
+      return true;
+  return false;
+  }
+
+uint64_t MdlVisual::spellRemainingTime(int32_t spell, uint64_t now) const {
+  uint64_t remaining = 0;
+  for(const auto& effect:effects)
+    if(effect.timeUntil>now && effect.view.isActiveSpell(spell))
+      remaining = std::max(remaining,effect.timeUntil-now);
+  return remaining;
+  }
+
+void MdlVisual::restoreLightSpell(World& world, Npc& npc, int32_t spell, uint64_t remaining) {
+  const auto* vfx = world.script().spellVfx(spell);
+  if(vfx==nullptr || skeleton==nullptr || remaining==0)
+    return;
+  Effect effect(*vfx,world,npc,SpellFxKey::Cast);
+  effect.setOrigin(&npc);
+  effect.setTarget(&npc);
+  effect.setSpellId(spell,world);
+  effect.setActive(true);
+  startEffect(world,std::move(effect),0,true);
+  // Restore the remaining lifetime, without recasting, consuming mana/items,
+  // or restarting the light's full duration at every load.
+  effects.back().timeUntil = world.tickCount()+std::min(remaining,UINT64_MAX-world.tickCount());
+  }
+
 void MdlVisual::setNpcEffect(World& owner, Npc& npc, std::string_view s, zenkit::NpcFlag flags) {
   if(hnpcVisualName!=s) {
     hnpcVisualName = s;
@@ -517,6 +549,7 @@ void MdlVisual::updateWeaponSkeleton(const Item* weapon, const Item* range) {
 void MdlVisual::setTorch(bool t, World& owner) {
   if(!t) {
     torch.view.reset();
+    torch.item.reset();
     return;
     }
   size_t torchId = owner.script().findSymbolIndex("ItLsTorchburning");
@@ -525,6 +558,7 @@ void MdlVisual::setTorch(bool t, World& owner) {
 
   auto hitem = std::make_shared<zenkit::IItem>();
   owner.script().initializeInstanceItem(hitem, torchId);
+  torch.item = hitem;
   torch.view.reset(new ObjVisual());
   torch.view->setVisual(*hitem,owner,false);
   torch.boneId = (skeleton==nullptr ? size_t(-1) : skeleton->findNode("ZS_LEFTHAND"));
@@ -661,6 +695,10 @@ bool MdlVisual::isStanding() const {
 
 bool MdlVisual::hasAnim(std::string_view scheme) const {
   return solver.solveFrm(scheme)!=nullptr;
+  }
+
+const Animation::Sequence* MdlVisual::findAnim(std::string_view name) const {
+  return solver.solveFrm(name);
   }
 
 bool MdlVisual::hasAnim(AnimationSolver::Anim a, WeaponState st, WalkBit wlk) const {
