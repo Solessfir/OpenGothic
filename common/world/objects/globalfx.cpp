@@ -1,4 +1,5 @@
 #include "globalfx.h"
+#include "npc.h"
 
 GlobalFx::GlobalFx() {
   }
@@ -20,6 +21,15 @@ GlobalFx& GlobalFx::operator =(GlobalFx&& other) {
 GlobalFx::~GlobalFx() {
   if(h!=nullptr)
     h->stop();
+  }
+
+void GlobalFx::setOrigin(Npc* npc) {
+  auto effect = std::dynamic_pointer_cast<GlobalEffects::SlowTime>(h);
+  if(effect==nullptr)
+    return;
+  if(npc!=nullptr)
+    effect->origin = npc->handlePtr(); else
+    effect->origin.reset();
   }
 
 uint64_t GlobalFx::effectPrefferedTime() const {

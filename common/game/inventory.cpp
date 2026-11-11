@@ -1,6 +1,7 @@
 #include "inventory.h"
 
 #include <Tempest/Log>
+#include <cctype>
 
 #include "world/objects/item.h"
 #include "world/objects/npc.h"
@@ -11,6 +12,15 @@
 #include "gothic.h"
 
 using namespace Tempest;
+
+static bool sameSlot(std::string_view a, std::string_view b) {
+  if(a.size()!=b.size())
+    return false;
+  for(size_t i=0; i<a.size(); ++i)
+    if(std::toupper(static_cast<unsigned char>(a[i]))!=std::toupper(static_cast<unsigned char>(b[i])))
+      return false;
+  return true;
+  }
 
 const Item& Inventory::Iterator::operator*() const {
   return *owner->items[at];
@@ -296,14 +306,7 @@ void Inventory::delItem(Item *it, size_t count, Npc& owner) {
   // unequip, if have to
   unequip(it,owner);
 
-  // clear slots
-  for(size_t i=0;i<mdlSlots.size();)
-    if(mdlSlots[i].item==it) {
-      mdlSlots[i] = std::move(mdlSlots.back());
-      mdlSlots.pop_back();
-      } else {
-      ++i;
-      }
+  detachItemSlots(it,owner);
   sorted=false;
 
   for(size_t i=0;i<items.size();++i)
@@ -333,6 +336,8 @@ void Inventory::transfer(Inventory &to, Inventory &from, Npc* fromNpc, size_t it
           }
         from.unequip(&it,*fromNpc);
         }
+      if(fromNpc!=nullptr)
+        from.detachItemSlots(&it,*fromNpc);
       to.addItem(std::move(from.items[i]));
       from.items.erase(from.items.begin()+int(i));
       } else {
@@ -688,6 +693,39 @@ bool Inventory::hasStateItem() const {
   return stateSlot.item!=nullptr || stateItem!=0;
   }
 
+Item* Inventory::itemInSlot(std::string_view slot) const {
+  if(slot.empty())
+    return nullptr;
+  for(auto& i:mdlSlots)
+    if(sameSlot(i.slot,slot))
+      return i.item;
+  if(sameSlot(stateSlot.slot,slot) && stateSlot.item!=nullptr)
+    return stateSlot.item;
+  if(sameSlot(ammotSlot.slot,slot))
+    return ammotSlot.item;
+  return nullptr;
+  }
+
+void Inventory::detachItemSlots(Item* it, Npc& owner) {
+  for(size_t i=0; i<mdlSlots.size();) {
+    if(mdlSlots[i].item!=it) {
+      ++i;
+      continue;
+      }
+    owner.clearSlotItem(mdlSlots[i].slot);
+    mdlSlots[i] = std::move(mdlSlots.back());
+    mdlSlots.pop_back();
+    }
+  if(stateSlot.item==it)
+    implPutState(owner,0,"");
+  if(ammotSlot.item==it)
+    putAmmunition(owner,0,"");
+  if(curItem==int32_t(it->clsId()))
+    curItem = 0;
+  if(stateItem==int32_t(it->clsId()))
+    stateItem = 0;
+  }
+
 void Inventory::putCurrentToSlot(Npc& owner, std::string_view slot) {
   if(curItem>0) {
     putToSlot(owner,size_t(curItem),slot);
@@ -725,8 +763,8 @@ bool Inventory::clearSlot(Npc& owner, std::string_view slot, bool remove) {
   uint32_t count = 0;
   const bool all = slot.empty();
   for(size_t i=0;i<mdlSlots.size();)
-    if(all || mdlSlots[i].slot==slot) {
-      owner.clearSlotItem(slot);
+    if(all || sameSlot(mdlSlots[i].slot,slot)) {
+      owner.clearSlotItem(mdlSlots[i].slot);
       auto last = mdlSlots[i].item;
       mdlSlots[i] = mdlSlots.back();
       mdlSlots.pop_back();
@@ -736,7 +774,7 @@ bool Inventory::clearSlot(Npc& owner, std::string_view slot, bool remove) {
       } else {
       ++i;
       }
-  if(all || stateSlot.slot==slot) {
+  if(all || sameSlot(stateSlot.slot,slot)) {
     if(stateSlot.item!=nullptr)
       ++count;
     implPutState(owner,0,stateSlot.slot);
@@ -943,6 +981,10 @@ void Inventory::invalidateCond(Item *&slot, Npc &owner) {
 
 void Inventory::autoEquipWeapons(Npc &owner) {
   if(owner.isMonster())
+    return;
+  // CoM replaces the native auto-equip path with _FIXEQUIPBESTWEAPONS.
+  // Its callback performs the two category-specific equips via CALL__thiscall.
+  if(owner.world().script().dmaEquipBestWeapons(owner))
     return;
   equipBestMeleeWeapon(owner);
   equipBestRangedWeapon(owner);

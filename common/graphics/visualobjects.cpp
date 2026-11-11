@@ -579,6 +579,15 @@ bool VisualObjects::updateRtScene(RtScene& out) {
   return true;
   }
 
+bool VisualObjects::replaceTexture(const Texture2d& source, const Texture2d& replacement) {
+  if(!bucketsMem.replaceTexture(source,replacement))
+    return false;
+  // Ray queries have a separate texture descriptor array from rasterization.
+  Material mat;
+  notifyTlas(mat,RtScene::Landscape);
+  return true;
+  }
+
 void VisualObjects::dbgClusters(Tempest::Painter& p, Vec2 wsz) {
   auto cam = Gothic::inst().camera();
   if(cam==nullptr)
