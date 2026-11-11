@@ -23,7 +23,6 @@
 class GameSession;
 class World;
 class DirectMemory;
-class DialogTest;
 class Npc;
 class Item;
 class Interactive;
@@ -276,10 +275,6 @@ class GameScript final {
 
     void      eventPlayAni(Npc& npc, std::string_view ani);
 
-    /// The developer tool of the dialogs (DialogTest)
-    auto&     infoList() const { return dialogsInfo; }
-    bool      npcKnowsInfo(Npc& npc, size_t infoInstance) const;
-    DialogTest& dialogTest();
 
   private:
     void playerHotPotionG1(Npc& pl, bool mana);
@@ -582,7 +577,6 @@ class GameScript final {
     NpcProcessPolicy                                            aiProcessPolicy = NpcProcessPolicy::AiNormal;
 
     std::unique_ptr<DirectMemory>                               dma;
-    std::unique_ptr<DialogTest>                                 dlgTest;
 
     std::unique_ptr<SpellDefinitions>                           spells;
     std::unique_ptr<SvmDefinitions>                             svm;
