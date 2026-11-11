@@ -551,7 +551,10 @@ void MainWindow::processMouse(MouseEvent& event, bool enable) {
   auto center = Point(w()/2,h()/2);
   // Widget focus stays set in the background, only an active window may take the pointer
   if(enable && event.pos()!=center && isActive()) {
-    dMouse += (event.pos()-center);
+    // The pointer is wherever the UI left it: the first move only brings it back to the center
+    if(!mouseResync)
+      dMouse += (event.pos()-center);
+    mouseResync = false;
     setCursorPosition(center);
     }
   }
@@ -561,11 +564,11 @@ void MainWindow::tickMouse(uint64_t dt) {
     uiPointer = true;
     }
   else if(uiPointer) {
-    // The UI pointer moves freely, so mouse look restarts from the window center instead of where it was left.
-    uiPointer = false;
-    dMouse    = Point();
-    if(isActive())
-      setCursorPosition(Point(w()/2,h()/2));
+    // The pointer stays where the UI left it, a dialog that closes and opens again must not move it.
+    // Mouse look starts with the next move instead.
+    uiPointer   = false;
+    dMouse      = Point();
+    mouseResync = true;
     }
 
 #if defined(OPENGOTHIC_GAMEPAD)
