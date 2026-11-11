@@ -116,6 +116,7 @@ class WorldObjects final {
     void           addInteractive(Interactive*         obj);
     void           addStatic     (StaticObj*           obj);
     void           addRoot       (const std::shared_ptr<zenkit::VirtualObject>& vob, bool startup);
+    Vob*           addScriptObject(std::string_view visual, const Tempest::Matrix4x4& transform);
     void           invalidateVobIndex();
 
     Interactive*   validateInteractive(Interactive *def);
@@ -164,6 +165,11 @@ class WorldObjects final {
 
     std::vector<CollisionZone*>        collisionZn;
     std::vector<std::unique_ptr<Vob>>  rootVobs;
+    struct ScriptObject {
+      std::string          visual;
+      std::unique_ptr<Vob>  object;
+      };
+    std::vector<ScriptObject>         scriptObjects;
 
     SpaceIndex<Interactive>            interactiveObj;
     SpaceIndex<Item>                   items;

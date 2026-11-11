@@ -162,6 +162,7 @@ class World final {
     void                 removeNpc  (Npc& npc);
 
     Item*                addItem    (size_t itemInstance,   std::string_view     at);
+    Vob*                 addObject  (std::string_view visual, std::string_view at);
     Item*                addItem    (const zenkit::VItem& vob);
     Item*                addItem    (size_t itemInstance, const Tempest::Vec3&      pos);
     Item*                addItemDyn (size_t itemInstance, const Tempest::Matrix4x4& pos, size_t owner);
