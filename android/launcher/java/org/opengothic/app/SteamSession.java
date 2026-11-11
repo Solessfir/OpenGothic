@@ -313,6 +313,9 @@ final class SteamSession implements Closeable {
     void readLibrary(SteamStore store) throws Failure {
         Set<Integer> ids = new HashSet<>();
         for (Library.Game g : Library.GAMES) ids.add(g.appId);
+        // Archolos's voice-overs are DLC the account adds on Steam
+        ids.add(POLISH_VOICES);
+        ids.add(RUSSIAN_VOICES);
         Set<Integer> mine = owned(ids);
         for (Library.Game g : Library.GAMES) {
             Map<String, Long> sizes = languages(g.appId);
@@ -394,14 +397,27 @@ final class SteamSession implements Closeable {
      * Its Polish and Russian depots already carry their own voices; the other languages get the original Polish ones.
      */
     private static final int POLISH_VOICES = 1495950;
+    private static final int RUSSIAN_VOICES = 2887650;
 
-    private static boolean hasOwnVoices(String language) {
+    /** The DLC of Archolos with the voice-over in a Steam language. */
+    static int voicePack(String language) {
+        return "russian".equals(language) ? RUSSIAN_VOICES : POLISH_VOICES;
+    }
+
+    static boolean hasOwnVoices(String language) {
         return "polish".equals(language) || "russian".equals(language);
     }
 
-    /** Whether a depot belongs to the chosen language, as DepotDownloader would pick it, without the voice packs that do not fit. */
-    private static boolean wanted(Depot d, String language) {
-        if (d.optional) return d.id == POLISH_VOICES && !hasOwnVoices(language);
+    /**
+     * Whether a depot belongs to the chosen language, as DepotDownloader would pick it, without the voice packs that do not fit.
+     * The voices are a Steam language the player picked for Archolos, or "" for the ones of the language.
+     */
+    private static boolean wanted(Depot d, String language, String voices) {
+        if (d.optional) {
+            if (voices.isEmpty()) voices = hasOwnVoices(language) ? language : "polish";
+            if (voices.equals(language)) return false;
+            return d.id == voicePack(voices);
+        }
         return d.language.isEmpty() || d.language.equals(language.isEmpty() ? "english" : language);
     }
 
@@ -467,7 +483,7 @@ final class SteamSession implements Closeable {
      * Downloads the Windows version in the chosen language into the folder. An interrupted download continues
      * from the files already there.
      */
-    void download(int appId, File dir, String language, final Progress progress) throws Failure {
+    void download(int appId, File dir, String language, String voices, final Progress progress) throws Failure {
         List<License> list = await(licenses, 30, App.text(R.string.og_err_no_games_list));
         final boolean resume = dir.exists();
         // DepotDownloader can record a depot as finished before all of its chunks are written, and its verify option does nothing.
@@ -483,7 +499,7 @@ final class SteamSession implements Closeable {
         final Set<Integer> counted = new HashSet<>();
         final List<Integer> picked = new ArrayList<>();
         for (Depot d : depots(appId)) {
-            if (!wanted(d, language)) continue;
+            if (!wanted(d, language, voices)) continue;
             picked.add(d.id);
             // Another app's files count once they arrive, as before
             if (d.fromApp) continue;
