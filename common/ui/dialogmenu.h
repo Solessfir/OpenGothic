@@ -64,6 +64,7 @@ class DialogMenu : public Tempest::Widget {
 
     void onSelect();
     size_t choiceAt(Tempest::Point pos) const;
+    std::string choiceTitle(size_t i) const;
     void setupSettings();
     bool isChoiceMenuActive() const;
 
