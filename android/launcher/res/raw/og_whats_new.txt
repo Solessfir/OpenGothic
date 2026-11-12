@@ -1,3 +1,6 @@
+0.7.2
+- Archolos: the hero no longer stays in the fishing pose after fishing with Kurt, and no longer loses his body and clothes during it
+
 0.7.1
 - Archolos: villagers stuck away from their village after the prologue now come back to it
 
