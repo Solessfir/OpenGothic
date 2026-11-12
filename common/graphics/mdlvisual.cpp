@@ -177,6 +177,10 @@ void MdlVisual::setShield(MeshObjects::Mesh&& s) {
   bind(shield,std::move(s),"ZS_SHIELD");
   }
 
+void MdlVisual::setHelmet(MeshObjects::Mesh&& h) {
+  bind(helmet,std::move(h),"ZS_HELMET");
+  }
+
 void MdlVisual::setAmmoItem(MeshObjects::Mesh&& a, std::string_view bone) {
   bind(ammunition,std::move(a),bone);
   }
@@ -956,7 +960,7 @@ void MdlVisual::bind(Attach<View>& slot, std::string_view bone) {
   }
 
 void MdlVisual::rebindAttaches(const Skeleton& to) {
-  auto  mesh = {&head,&sword,&bow,&ammunition,&stateItm};
+  auto  mesh = {&head,&helmet,&sword,&bow,&ammunition,&stateItm};
   for(auto i:mesh)
     rebindAttaches(*i,to);
   for(auto& i:item)
@@ -979,7 +983,7 @@ void MdlVisual::rebindAttaches(Attach<View>& mesh, const Skeleton& to) {
   }
 
 void MdlVisual::syncAttaches() {
-  MdlVisual::MeshAttach* mesh[] = {&head, &sword,&shield,&bow,&ammunition,&stateItm};
+  MdlVisual::MeshAttach* mesh[] = {&head,&helmet,&sword,&shield,&bow,&ammunition,&stateItm};
   for(auto i:mesh)
     syncAttaches(*i);
   for(auto& i:item)

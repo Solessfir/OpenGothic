@@ -340,6 +340,10 @@ enum ItmFlags : uint32_t {
   ITM_TORCH      = 1 << 28
   };
 
+enum ItmWear:int32_t {
+  ITM_WEAR_HEAD  = 1 << 1,
+  };
+
 enum Action:uint32_t {
   AI_None  =0,
   AI_LookAtNpc,

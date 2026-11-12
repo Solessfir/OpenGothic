@@ -138,6 +138,8 @@ void Inventory::implLoad(Npc* owner, World& world, Serialize &s) {
   range  = readPtr(s);
   if(s.version()>45)
     shield = readPtr(s);
+  if(s.version()>56)
+    helmet = readPtr(s);
   for(auto& i:numslot)
     i = readPtr(s);
 
@@ -186,6 +188,7 @@ void Inventory::save(Serialize &fout) const {
   fout.write(indexOf(melee) );
   fout.write(indexOf(range) );
   fout.write(indexOf(shield));
+  fout.write(indexOf(helmet));
   for(auto& i:numslot)
     fout.write(indexOf(i));
 
@@ -364,6 +367,10 @@ void Inventory::unequip(Item *it, Npc &owner) {
     setSlot(armor,nullptr,owner,false);
     return;
     }
+  if(helmet==it) {
+    setSlot(helmet,nullptr,owner,false);
+    return;
+    }
   if(belt==it) {
     setSlot(belt,nullptr,owner,false);
     return;
@@ -495,12 +502,7 @@ void Inventory::updateView(Npc& owner) {
   }
 
 void Inventory::updateArmorView(Npc& owner) {
-  if(armor==nullptr)
-    return;
-
-  auto& itData = armor->handle();
-  auto  flag   = ItmFlags(itData.main_flag);
-  if(flag & ITM_CAT_ARMOR)
+  if(armor!=nullptr || helmet!=nullptr)
     owner.updateArmor();
   }
 
@@ -907,8 +909,12 @@ bool Inventory::use(size_t cls, Npc &owner, uint8_t slotHint, bool force) {
     return equipNumSlot(it,slotHint,owner,force);
     }
 
-  if(mainflag & ITM_CAT_ARMOR)
+  if(mainflag & ITM_CAT_ARMOR) {
+    // A helmet is worn together with the armor of the body (CoM puts the fishing rod on the head this way)
+    if(itData.wear & ITM_WEAR_HEAD)
+      return setSlot(helmet,it,owner,force);
     return setSlot(armor,it,owner,force);
+    }
 
   if(flag & ITM_BELT)
     return setSlot(belt,it,owner,force);
@@ -962,6 +968,7 @@ void Inventory::invalidateCond(Npc &owner) {
   if(!owner.isPlayer())
     return; // gothic doesn't care
   invalidateCond(armor,owner);
+  invalidateCond(helmet,owner);
   invalidateCond(belt  ,owner);
   invalidateCond(amulet,owner);
   invalidateCond(ringL ,owner);
