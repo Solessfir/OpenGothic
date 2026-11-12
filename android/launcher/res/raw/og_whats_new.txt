@@ -1,3 +1,6 @@
+0.7.1
+- Archolos: villagers stuck away from their village after the prologue now come back to it
+
 0.7.0
 - The Chronicles of Myrtana: Archolos can now be played: its Ikarus and LeGo scripts run, including crafting, lock picking and typed dialog answers. Please report anything that breaks
 - Archolos: choose the voice-over (Polish or Russian) under ⋯ › Voice-over. Hearing Russian voices with Polish text? Pick Polish there
