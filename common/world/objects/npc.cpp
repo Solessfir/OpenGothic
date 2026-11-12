@@ -1040,6 +1040,10 @@ void Npc::updateArmor() {
       visual.setArmor(*this,std::move(vbody));
       }
     }
+
+  auto  hl    = invent.currentHelmet();
+  auto  vhelm = hl==nullptr ? MeshObjects::Mesh() : w.addView(hl->handle());
+  visual.setHelmet(std::move(vhelm));
   }
 
 void Npc::setSword(MeshObjects::Mesh&& s) {
