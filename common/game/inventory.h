@@ -103,6 +103,7 @@ class Inventory final {
     void   switchActiveSpell (int32_t spell, Npc &owner);
 
     Item*  currentArmor()          { return armor;      }
+    Item*  currentHelmet()         { return helmet;     }
     Item*  currentMeleeWeapon()    { return melee;      }
     Item*  currentRangedWeapon()   { return range;      }
     Item*  currentShield()         { return shield;     }
@@ -162,6 +163,7 @@ class Inventory final {
     Item*                              readPtr(Serialize& fin);
 
     Item*                              armor      = nullptr;
+    Item*                              helmet     = nullptr;
     Item*                              belt       = nullptr;
     Item*                              amulet     = nullptr;
     Item*                              ringL      = nullptr;
