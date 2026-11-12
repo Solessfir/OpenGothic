@@ -2844,6 +2844,15 @@ void Npc::nextAiAction(AiQueue& queue, uint64_t dt) {
           go2.set(wpoint);
           attachToPoint(wpoint);
           } else
+        if(aiPolicy==NpcProcessPolicy::AiFar2 && !MoveAlgo::isClose(*this,*act.point)) {
+          // Away from the player the original engine takes a character out of the world and inserts it again at its routine point,
+          // so a character the scripts parked on a lone point comes back (the villagers of CoM wait on TOT2 during the prologue)
+          attachToPoint(act.point);
+          clearGoTo();
+          setPosition (act.point->position());
+          setDirection(act.point->direction());
+          owner.script().fixNpcPosition(*this,0,100);
+          } else
         if(owner.script().hasDma() && !MoveAlgo::isClose(*this,*act.point)) {
           // the way net has no path (the points of a scene on a ship are not connected): the scene of a mod still needs the character
           // at the point, so he walks to it straight
