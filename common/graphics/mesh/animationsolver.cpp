@@ -63,6 +63,13 @@ void AnimationSolver::addOverlay(const Skeleton* sk, uint64_t time) {
     Log::d("overlay '", sk->name(), "' is not compatible with the skeleton and is skipped");
     return;
     }
+  // Like the original engine an overlay is applied once: a single Mdl_RemoveOverlayMds has to take it off again
+  for(auto& i:overlay)
+    if(i.skeleton==sk) {
+      i.time = time;
+      invalidateCache();
+      return;
+      }
   Overlay ov;
   ov.skeleton = sk;
   ov.time     = time;
