@@ -173,5 +173,15 @@ int main(int argc,const char** argv) {
 
   MainWindow           wx(device);
   Tempest::Application app;
+#if defined(__ANDROID__)
+  try {
+    return app.exec();
+    }
+  catch(...) {
+    // android_main catches what escapes main and only logs the message: the crash log keeps where it was thrown
+    std::terminate();
+    }
+#else
   return app.exec();
+#endif
   }
