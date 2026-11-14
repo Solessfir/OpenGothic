@@ -1,3 +1,7 @@
+0.7.3
+- Archolos: Riordian now goes into Lokvar's hut after the sleep scroll, so his scroll copying quest can go on
+- Crash reports now say where an error inside the game was raised
+
 0.7.2
 - Archolos: the hero no longer stays in the fishing pose after fishing with Kurt, and no longer loses his body and clothes during it
 
