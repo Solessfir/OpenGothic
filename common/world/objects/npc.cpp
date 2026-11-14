@@ -3441,10 +3441,10 @@ bool Npc::startState(ScriptFn id, std::string_view wp, gtime endTime, bool noFin
 void Npc::clearState(bool noFinalize) {
   if(aiState.funcIni.isValid() && aiState.started) {
     if(!noFinalize) {
-      const bool prev = stateEnding;
-      stateEnding = true;
+      const bool prev = inOwnState;
+      inOwnState = true;
       owner.script().invokeState(this,currentOther,currentVictim,aiState.funcEnd);  // cleanup
-      stateEnding = prev;
+      inOwnState = prev;
       }
     aiPrevState = aiState.funcIni;
     invent.putState(*this,0,0);
@@ -3504,7 +3504,10 @@ void Npc::tickRoutine() {
     aiState.loopNextTime = owner.tickCount();
     // WA: for gothic1 dialogs
     perceptionNextTime   = owner.tickCount();
+    const bool prev = inOwnState;
+    inOwnState = true;
     sc.invokeState(this,currentOther,currentVictim,aiState.funcIni);
+    inOwnState = prev;
     return;
     }
 
@@ -3512,6 +3515,8 @@ void Npc::tickRoutine() {
   if(aiState.loopNextTime<=owner.tickCount()) {
     aiState.loopNextTime = owner.tickCount() + perceptionTimeClampt();
     int loop = LOOP_CONTINUE;
+    const bool prev = inOwnState;
+    inOwnState = true;
     if(aiState.funcLoop.isValid()) {
       static const float MAX_DIST = 300;
       if(fastPath && currentFp!=nullptr && qDistTo(currentFp) < MAX_DIST*MAX_DIST) {
@@ -3529,6 +3534,7 @@ void Npc::tickRoutine() {
       // ZS_GETMEAT have no loop-function, in G2-notr
       loop = owner.version().hasZSStateLoop() ? 1 : 0;
       }
+    inOwnState = prev;
 
     if(aiState.eTime<=owner.time()) {
       // Avoid interruption of ZS_TALK/ZS_ATTACK
@@ -5003,8 +5009,9 @@ void Npc::addRoutine(gtime s, gtime e, uint32_t callback, std::string_view point
 void Npc::excRoutine(size_t callback) {
   routines.clear();
   owner.script().invokeState(this,currentOther,currentVictim,callback);
-  // (not from the end function of the state that is ended here: a state that changes the routine of its own character would end itself for ever)
-  if(!isPlayer() && !stateEnding && !isTalk() && !isDown() && currentTarget==nullptr && owner.script().hasDma() && aiState.funcIni.isValid()) {
+  // (not from a function of the state that is ended here: a state that changes the routine of its own character would end itself, Lokvar's
+  // ZS_RAMHASLEEP of SQ121 in Archolos checks right after the change that he still sleeps)
+  if(!isPlayer() && !inOwnState && !isTalk() && !isDown() && currentTarget==nullptr && owner.script().hasDma() && aiState.funcIni.isValid()) {
     // The scenes of the mods (CoM) move a character to another place with the new routine (B_StartOtherRoutine, TeleportNpcToWP): the state
     // of the old routine must not go on, the character would walk back to its free point (Ezekiel on the ship, after the teleport to the beach)
     // (the commands in the queue stay: the scripts that queue the change of the routine of the character queue the rest of the scene
