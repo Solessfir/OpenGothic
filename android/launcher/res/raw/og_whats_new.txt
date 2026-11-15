@@ -1,3 +1,6 @@
+0.7.5
+- Archolos plays its own music in the main menu and in the game instead of the Gothic 2 soundtrack
+
 0.7.4
 - Archolos and other mods with Ikarus use about 2 GB less memory, so phones with less RAM no longer close the game when it loads
 - Updated to the latest OpenGothic
