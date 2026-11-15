@@ -133,6 +133,7 @@ class MainWindow : public Tempest::Window {
     void showDocument(const DocumentMenu::Show& doc);
 
     void render() override;
+    void logStatus(uint64_t now, uint64_t frameTime);
 
     uint64_t tick();
     void     updateAnimation(uint64_t dt);
@@ -260,6 +261,9 @@ class MainWindow : public Tempest::Window {
       void     push(uint64_t t);
       };
     Fps           fps;
+    uint64_t      statusSince = 0;
+    uint32_t      statusFrames = 0;
+    uint64_t      statusMaxFrame = 0;
     bool          profileGpu = false;
     uint32_t      gpuProfileFrames = 0;
     uint32_t      gpuProfileAttempts = 0;
