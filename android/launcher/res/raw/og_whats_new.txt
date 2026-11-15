@@ -1,3 +1,6 @@
+0.7.7
+- Crash reports now include frame rate, memory use and details about saves that fail to load
+
 0.7.6
 - Archolos no longer runs out of memory on phones with Mali graphics: large textures load at half resolution there, since these GPUs cannot use the compressed textures of the game
 
