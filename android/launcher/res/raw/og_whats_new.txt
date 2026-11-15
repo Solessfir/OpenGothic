@@ -1,3 +1,6 @@
+0.7.6
+- Archolos no longer runs out of memory on phones with Mali graphics: large textures load at half resolution there, since these GPUs cannot use the compressed textures of the game
+
 0.7.5
 - Archolos plays its own music in the main menu and in the game instead of the Gothic 2 soundtrack
 
