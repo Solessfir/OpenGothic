@@ -222,7 +222,8 @@ void Serialize::writeBytes(const void* buf, size_t sz) {
 
 void Serialize::readBytes(void* buf, size_t sz) {
   if(fin==nullptr || readOffset+sz>entryBuf.size())
-    throw std::runtime_error("unable to read save-game file");
+    throw std::runtime_error("unable to read save-game file: \""+entryName+"\" ends at "+std::to_string(entryBuf.size())+
+                             ", reading "+std::to_string(sz)+" bytes at "+std::to_string(readOffset)+", version "+std::to_string(version()));
   std::memcpy(buf,&entryBuf[size_t(readOffset)],sz);
   readOffset+=sz;
   }

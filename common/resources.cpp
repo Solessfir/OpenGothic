@@ -37,6 +37,7 @@
 #include "utils/workers.h"
 #include "world/worlddata.h"
 #include <future>
+#include <mutex>
 
 #include "gothic.h"
 #include "utils/string_frm.h"
@@ -658,6 +659,8 @@ Texture2d Resources::implLoadTextureUncached(std::string_view name, zenkit::Read
     if(dxt && !dev.properties().hasSamplerFormat(frm) && pm.mipCount()>1 && std::max(pm.w(),pm.h())>256 && !isFont(name)) {
       // Without BC support (Mali) the texture is unpacked to RGBA8, 4-8 times the memory: Archolos ran out of memory on 8 GB phones.
       // Only textures with mips: the ones without are 2D UI, often drawn at their pixel size.
+      static std::once_flag once;
+      std::call_once(once,[]() { Log::i("GPU has no BC formats: large textures load at half size"); });
       pm = halfSize(Tempest::Pixmap(pm,TextureFormat::RGBA8));
       }
     return dev.texture(pm, useMipmap);
