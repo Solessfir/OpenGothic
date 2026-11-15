@@ -38,12 +38,15 @@ class PatternList;
 class VdfsIndex final {
   public:
     const zenkit::VfsNode* find(std::string_view name) const;
+    const zenkit::VfsNode* resolve(std::string_view path) const;
+    const zenkit::VfsNode& root() const { return vfs->root(); }
     void                   build(const zenkit::Vfs& vfs);
 
   private:
     struct Hash  { size_t operator()(std::string_view s) const noexcept; };
     struct Equal { bool   operator()(std::string_view a, std::string_view b) const noexcept; };
     std::unordered_map<std::string_view,const zenkit::VfsNode*,Hash,Equal> nodes;
+    const zenkit::Vfs* vfs = nullptr;
   };
 
 class Resources final {

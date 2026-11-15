@@ -173,6 +173,11 @@ endif()
 add_subdirectory(lib/Tempest/Engine)
 include_directories(lib/Tempest/Engine/include)
 target_link_libraries(${PROJECT_NAME} Tempest)
+if(TARGET minivorbis)
+  target_include_directories(${PROJECT_NAME} PRIVATE lib/Tempest/Engine/thirdparty/minivorbis)
+  target_link_libraries(${PROJECT_NAME} minivorbis)
+  target_compile_definitions(${PROJECT_NAME} PRIVATE OPENGOTHIC_RECORDED_MUSIC)
+endif()
 
 # zip
 include_directories(lib/miniz)

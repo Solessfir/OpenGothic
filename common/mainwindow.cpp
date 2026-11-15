@@ -30,6 +30,7 @@
 
 #include "commandline.h"
 #include "gothic.h"
+#include "game/definitions/musicdefinitions.h"
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -1996,7 +1997,9 @@ void MainWindow::render(){
 
     static bool once=true;
     if(once) {
-      Gothic::inst().emitGlobalSoundWav("GAMESTART.WAV");
+      // CoM starts its own menu track instead of the startup theme
+      if(!Gothic::musicDef().hasRecordedMusic())
+        Gothic::inst().emitGlobalSoundWav("GAMESTART.WAV");
       once=false;
       }
 
