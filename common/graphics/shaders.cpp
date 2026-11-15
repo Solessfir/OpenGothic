@@ -551,6 +551,10 @@ bool Shaders::isLightsTreeSupported() {
   }
 
 bool Shaders::isGi1Supported() {
+#if defined(__ANDROID__)
+  // GI has no menu option on Android; building its pipelines crashes the Xclipse 940 shader compiler on older drivers
+  return false;
+#endif
   auto& gpu = Resources::device().properties();
   if(!gpu.raytracing.rayQuery)
     return false;
@@ -562,6 +566,10 @@ bool Shaders::isGi1Supported() {
   }
 
 bool Shaders::isGi2Supported() {
+#if defined(__ANDROID__)
+  // GI has no menu option on Android
+  return false;
+#endif
   auto& gpu = Resources::device().properties();
   if(!gpu.raytracing.rayQuery)
     return false; //TODO: splatting
