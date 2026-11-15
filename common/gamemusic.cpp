@@ -111,7 +111,7 @@ struct GameMusic::RecordedMusic : Tempest::SoundProducer {
       int16_t buffer[2048];
       const size_t wanted = std::min(frames-done,size_t(1024));
       int section = 0;
-      const long bytes = ov_read(&source->file,reinterpret_cast<char*>(buffer),int(wanted*source->channels*2),0,2,1,&section);
+      const long bytes = ov_read(&source->file,reinterpret_cast<char*>(buffer),int(wanted*size_t(source->channels)*2),0,2,1,&section);
       if(bytes<=0) {
         if(bytes<0 || sought || ov_time_seek(&source->file,loopStart)!=0) {
           std::fill(out+done*2,out+frames*2,int16_t(0));

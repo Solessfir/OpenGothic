@@ -1265,7 +1265,11 @@ void GameMenu::onTick() {
   }
 
 void GameMenu::processMusicTheme() {
-  if(auto theme = Gothic::musicDef()[menu->music_theme])
+  std::string_view name = menu->music_theme;
+  // CoM's menus have no theme, KmLib starts the menu track itself
+  if(name.empty() && Gothic::musicDef().hasRecordedMusic())
+    name = "SYS_MENU";
+  if(auto theme = Gothic::musicDef()[name])
     GameMusic::inst().setMusic(*theme,GameMusic::mkTags(GameMusic::Std,GameMusic::Day));
   }
 
