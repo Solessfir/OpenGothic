@@ -1,3 +1,6 @@
+0.7.8
+- Fixed a crash at startup on Samsung Galaxy S24 FE and other Xclipse phones with older graphics drivers
+
 0.7.7
 - Crash reports now include frame rate, memory use and details about saves that fail to load
 
