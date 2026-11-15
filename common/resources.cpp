@@ -72,7 +72,12 @@ bool VdfsIndex::Equal::operator()(std::string_view a, std::string_view b) const 
     });
   }
 
+const zenkit::VfsNode* VdfsIndex::resolve(std::string_view path) const {
+  return vfs!=nullptr ? vfs->resolve(path) : nullptr;
+  }
+
 void VdfsIndex::build(const zenkit::Vfs& vfs) {
+  this->vfs = &vfs;
   // Same traversal as zenkit::Vfs::find, so the first node it would return for a name is the one kept
   nodes.clear();
   std::vector<const zenkit::VfsNode*> stack = {&vfs.root()};
