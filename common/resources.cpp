@@ -59,6 +59,35 @@ static std::string_view trimTrailingSpace(std::string_view s) {
   return s;
   }
 
+static bool isFont(std::string_view name) {
+  return name.size()>=4 && std::equal(name.begin(), name.begin()+4, "FONT", [](char x, char y) { return std::toupper(uint8_t(x))==y; });
+  }
+
+static Pixmap halfSize(const Pixmap& src) {
+  const uint32_t w = std::max(src.w()/2,1u), h = std::max(src.h()/2,1u);
+  Pixmap dst(w,h,TextureFormat::RGBA8);
+  auto* s = reinterpret_cast<const uint8_t*>(src.data());
+  auto* d = reinterpret_cast<uint8_t*>(dst.data());
+  for(uint32_t y=0; y<h; ++y)
+    for(uint32_t x=0; x<w; ++x) {
+      const uint32_t x0 = std::min(x*2,src.w()-1), x1 = std::min(x*2+1,src.w()-1);
+      const uint32_t y0 = std::min(y*2,src.h()-1), y1 = std::min(y*2+1,src.h()-1);
+      const uint8_t* px[4] = {s+(y0*src.w()+x0)*4, s+(y0*src.w()+x1)*4, s+(y1*src.w()+x0)*4, s+(y1*src.w()+x1)*4};
+      const uint32_t alpha = uint32_t(px[0][3])+px[1][3]+px[2][3]+px[3][3];
+      uint8_t* out = d+(y*w+x)*4;
+      for(uint32_t c=0; c<3; ++c) {
+        // weighted by alpha: the transparent texels of DXT1 are black and would darken the edges of alpha tested textures
+        uint32_t sum = 0;
+        for(auto* p:px)
+          sum += alpha>0 ? uint32_t(p[c])*p[3] : p[c];
+        const uint32_t div = alpha>0 ? alpha : 4;
+        out[c] = uint8_t((sum+div/2)/div);
+        }
+      out[3] = uint8_t((alpha+2)/4);
+      }
+  return dst;
+  }
+
 size_t VdfsIndex::Hash::operator()(std::string_view s) const noexcept {
   size_t h = 14695981039346656037ull;
   for(auto c:s)
@@ -623,6 +652,14 @@ Texture2d Resources::implLoadTextureUncached(std::string_view name, zenkit::Read
     Tempest::Pixmap    pm(rd);
 
     const bool useMipmap = forceMips || (pm.mipCount()>1); // do not generate mips, if original texture has has none
+
+    const auto frm = pm.format();
+    const bool dxt = frm==TextureFormat::DXT1 || frm==TextureFormat::DXT3 || frm==TextureFormat::DXT5;
+    if(dxt && !dev.properties().hasSamplerFormat(frm) && pm.mipCount()>1 && std::max(pm.w(),pm.h())>256 && !isFont(name)) {
+      // Without BC support (Mali) the texture is unpacked to RGBA8, 4-8 times the memory: Archolos ran out of memory on 8 GB phones.
+      // Only textures with mips: the ones without are 2D UI, often drawn at their pixel size.
+      pm = halfSize(Tempest::Pixmap(pm,TextureFormat::RGBA8));
+      }
     return dev.texture(pm, useMipmap);
     }
   catch(...){
