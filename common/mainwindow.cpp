@@ -35,8 +35,33 @@
 #include <fstream>
 #include <iomanip>
 #include <locale>
+#if defined(__linux__)
+#include <unistd.h>
+#endif
 
 using namespace Tempest;
+
+// memory of the process (without the GPU memory on most phones) and what the system has left, empty where it is not read
+static std::string memoryInfo() {
+#if defined(__linux__)
+  std::ifstream statm("/proc/self/statm");
+  uint64_t size = 0, resident = 0;
+  if(!(statm >> size >> resident))
+    return std::string();
+  std::string info = " process MB="+std::to_string(resident*uint64_t(sysconf(_SC_PAGESIZE))/(1024*1024));
+  std::ifstream meminfo("/proc/meminfo");
+  std::string   key;
+  uint64_t      kb = 0;
+  while(meminfo >> key >> kb) {
+    if(key=="MemAvailable:")
+      return info+" available MB="+std::to_string(kb/1024);
+    meminfo.ignore(64,'\n');
+    }
+  return info;
+#else
+  return std::string();
+#endif
+  }
 
 MainWindow::MainWindow(Device& device)
   : Window(Maximized),device(device),swapchain(device,hwnd()),
@@ -1536,6 +1561,9 @@ uint64_t MainWindow::tick() {
   auto st = Gothic::inst().checkLoading();
   if(st==Gothic::LoadState::Finalize || st==Gothic::LoadState::FailedLoad || st==Gothic::LoadState::FailedSave) {
     Gothic::inst().finishLoading();
+    // the system often closes the game for memory right after a load, before the first status line (saves end here too)
+    if(const auto mem = memoryInfo(); !mem.empty() && st==Gothic::LoadState::Finalize)
+      Log::i("Memory after load or save:",mem);
     if(st==Gothic::LoadState::FailedLoad) {
       rootMenu.setMainMenu();
       Gothic::inst().onPrint("unable to load savegame file");
@@ -2171,6 +2199,7 @@ void MainWindow::render(){
 #endif
     fps.push(t-time);
     ++fpsOverlayFrames;
+    logStatus(t,t-time);
     if(Gothic::inst().isBenchmarkMode() && Gothic::inst().world()!=nullptr && Gothic::inst().world()->currentCs()!=nullptr)
       benchmark.push(t-time);
     time = t;
@@ -2180,6 +2209,26 @@ void MainWindow::render(){
     device.waitIdle();
     swapchain.reset();
     }
+  }
+
+void MainWindow::logStatus(uint64_t now, uint64_t frameTime) {
+  // reports carry only the log: a line a minute tells how the game ran and how much memory it took
+  if(!Gothic::inst().isInGame() || Gothic::inst().isPause()) {
+    statusSince = 0;
+    return;
+    }
+  if(statusSince==0) {
+    statusSince    = now;
+    statusFrames   = 0;
+    statusMaxFrame = 0;
+    return;
+    }
+  ++statusFrames;
+  statusMaxFrame = std::max(statusMaxFrame,frameTime);
+  if(now-statusSince<60000)
+    return;
+  Log::i("Status: fps=",uint64_t(statusFrames)*1000/(now-statusSince)," worst frame ms=",statusMaxFrame,memoryInfo());
+  statusSince = 0;
   }
 
 double MainWindow::Fps::get() const {

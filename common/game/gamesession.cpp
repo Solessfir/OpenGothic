@@ -126,6 +126,7 @@ GameSession::GameSession(Serialize &fin) {
   fin.setEntry("header");
   fin.read(hdr);
   fin.setGlobalVersion(hdr.version);
+  Log::i("Loading save \"",hdr.name,"\", version ",hdr.version);
 
   {
   uint16_t wssSize=0;
