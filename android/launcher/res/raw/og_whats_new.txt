@@ -1,3 +1,7 @@
+0.7.4
+- Archolos and other mods with Ikarus use about 2 GB less memory, so phones with less RAM no longer close the game when it loads
+- Updated to the latest OpenGothic
+
 0.7.3
 - Archolos: Riordian now goes into Lokvar's hut after the sleep scroll, so his scroll copying quest can go on
 - Crash reports now say where an error inside the game was raised
