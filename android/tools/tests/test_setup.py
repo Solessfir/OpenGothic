@@ -308,6 +308,15 @@ class SetupTests(unittest.TestCase):
         subprocess.run([str(java / ("java" + suffix)), "-cp", str(self.base), "org.opengothic.app.PrivateAssetsTest", str(self.base / "extraction")], check=True)
 
     @unittest.skipUnless(os.environ.get("JAVA_HOME"), "Set JAVA_HOME to run host launcher checks")
+    def test_report_log(self):
+        java = Path(os.environ["JAVA_HOME"]) / "bin"
+        suffix = ".exe" if os.name == "nt" else ""
+        source = setup.ROOT / "android/launcher/java/org/opengothic/app/ReportLog.java"
+        test = Path(__file__).with_name("ReportLogTest.java")
+        subprocess.run([str(java / ("javac" + suffix)), "-d", str(self.base), str(source), str(test)], check=True)
+        subprocess.run([str(java / ("java" + suffix)), "-cp", str(self.base), "org.opengothic.app.ReportLogTest", str(self.base / "logs")], check=True)
+
+    @unittest.skipUnless(os.environ.get("JAVA_HOME"), "Set JAVA_HOME to run host launcher checks")
     def test_launcher_game_files(self):
         java = Path(os.environ["JAVA_HOME"]) / "bin"
         suffix = ".exe" if os.name == "nt" else ""

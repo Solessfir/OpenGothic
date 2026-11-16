@@ -4,6 +4,7 @@
 
 #include "utils/gamepadactivity.h"
 #include "utils/radialinput.h"
+#include "utils/frametimings.h"
 
 #include "camera.h"
 #include "game/gamescript.h"
@@ -264,6 +265,7 @@ class MainWindow : public Tempest::Window {
     uint64_t      statusSince = 0;
     uint32_t      statusFrames = 0;
     uint64_t      statusMaxFrame = 0;
+    FrameTimings  statusTimings;
     bool          profileGpu = false;
     uint32_t      gpuProfileFrames = 0;
     uint32_t      gpuProfileAttempts = 0;

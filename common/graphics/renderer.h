@@ -33,6 +33,7 @@ class Renderer final {
               WorldView& view, const Camera& camera);
 
     void dbgDraw(Tempest::Painter& painter);
+    void logSettings() const;
 
     Tempest::Attachment screenshoot(uint8_t frameId, Tempest::Size size);
 

@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include "utils/saveloadprofile.h"
+#include "utils/memoryinfo.h"
 #include "utils/feedback.h"
 
 #include <Tempest/Except>
@@ -35,33 +36,8 @@
 #include <fstream>
 #include <iomanip>
 #include <locale>
-#if defined(__linux__)
-#include <unistd.h>
-#endif
 
 using namespace Tempest;
-
-// memory of the process (without the GPU memory on most phones) and what the system has left, empty where it is not read
-static std::string memoryInfo() {
-#if defined(__linux__)
-  std::ifstream statm("/proc/self/statm");
-  uint64_t size = 0, resident = 0;
-  if(!(statm >> size >> resident))
-    return std::string();
-  std::string info = " process MB="+std::to_string(resident*uint64_t(sysconf(_SC_PAGESIZE))/(1024*1024));
-  std::ifstream meminfo("/proc/meminfo");
-  std::string   key;
-  uint64_t      kb = 0;
-  while(meminfo >> key >> kb) {
-    if(key=="MemAvailable:")
-      return info+" available MB="+std::to_string(kb/1024);
-    meminfo.ignore(64,'\n');
-    }
-  return info;
-#else
-  return std::string();
-#endif
-  }
 
 MainWindow::MainWindow(Device& device)
   : Window(Maximized),device(device),swapchain(device,hwnd()),
@@ -2019,6 +1995,8 @@ void MainWindow::setFullscreen(bool fs) {
   }
 
 void MainWindow::render(){
+  using Clock = std::chrono::steady_clock;
+  using Milliseconds = std::chrono::duration<double,std::milli>;
   CpuTrace frameTrace("OpenGothic::frame");
   try {
     static uint64_t time=Application::tickCount();
@@ -2057,6 +2035,14 @@ void MainWindow::render(){
     framePacer.wait();
 #endif
 
+    const bool reportFrame = Gothic::inst().isInGame() && !Gothic::inst().isPause() &&
+                             Gothic::inst().checkLoading()==Gothic::LoadState::Idle && !video.isActive();
+    if(!reportFrame) {
+      statusSince = 0;
+      statusTimings = {};
+      }
+    auto phaseStart = Clock::now();
+
     /*
       Note: game update goes first
       once player position is updated, animation bones(cameraBone in particular) can be updated
@@ -2075,6 +2061,8 @@ void MainWindow::render(){
     CpuTrace trace("OpenGothic::camera");
     tickCamera(dt);
     }
+    if(reportFrame)
+      statusTimings.simulation.add(Milliseconds(Clock::now()-phaseStart).count());
 
     auto& sync = fence[cmdId];
     bool ready;
@@ -2083,6 +2071,8 @@ void MainWindow::render(){
     ready = sync.wait(0);
     }
     if(!ready) {
+      if(reportFrame)
+        ++statusTimings.skipped;
       CpuTrace trace("OpenGothic::skipped frame");
       // GPU rendering is not done, pass to next frame
       std::this_thread::yield();
@@ -2141,10 +2131,20 @@ void MainWindow::render(){
     }
 
     CommandBuffer& cmd = commands[cmdId];
+    const auto acquireStart = Clock::now();
+    // A lost swapchain must not consume a sample or finish a recording that will never be submitted.
+    auto& output = swapchain.acquire();
+    const auto acquireTime = Clock::now()-acquireStart;
     // This slot's normal submission fence has completed above.
     // Read timestamps before startEncoding resets the previous recording.
+    const auto timings = cmd.gpuTimings();
+    if(reportFrame && !timings.empty()) {
+      double gpuMs = 0;
+      for(const auto& timing:timings)
+        gpuMs += timing.milliseconds;
+      statusTimings.gpu.add(gpuMs);
+      }
     if(profileGpu && gpuProfileLog.is_open() && gpuProfileFrames<600) {
-      const auto timings = cmd.gpuTimings();
       if(!timings.empty()) {
         for(const auto& timing:timings) {
           gpuProfileLog << gpuProfileFrames << ",\"";
@@ -2170,20 +2170,31 @@ void MainWindow::render(){
                             Gothic::inst().checkLoading()==Gothic::LoadState::Idle && !video.isActive();
     if(captureGpu)
       ++gpuProfileAttempts;
+    // Sparse report samples reuse the normal fence and never wait for timestamp results.
+    const bool reportGpu = reportFrame && statusFrames%120==0;
+    phaseStart = Clock::now();
     {
     CpuTrace trace("OpenGothic::record");
-    auto enc = cmd.startEncoding(device,captureGpu);
-    renderer.draw(swapchain.acquire(),enc,cmdId,uiMesh[cmdId],numMesh[cmdId],inventory,video,
+    auto enc = cmd.startEncoding(device,captureGpu || reportGpu);
+    renderer.draw(output,enc,cmdId,uiMesh[cmdId],numMesh[cmdId],inventory,video,
                   swapchain.hdrMaxLuminance());
     }
+    if(reportFrame)
+      statusTimings.record.add(Milliseconds(Clock::now()-phaseStart+acquireTime).count());
+    phaseStart = Clock::now();
     {
     CpuTrace trace("OpenGothic::submit");
     sync = device.submit(cmd);
     }
+    if(reportFrame)
+      statusTimings.submit.add(Milliseconds(Clock::now()-phaseStart).count());
+    phaseStart = Clock::now();
     {
     CpuTrace trace("OpenGothic::present");
     device.present(swapchain);
     }
+    if(reportFrame)
+      statusTimings.present.add(Milliseconds(Clock::now()-phaseStart).count());
     cmdId = (cmdId+1u)%Resources::MaxFramesInFlight;
 
     auto t = Application::tickCount();
@@ -2212,9 +2223,11 @@ void MainWindow::render(){
   }
 
 void MainWindow::logStatus(uint64_t now, uint64_t frameTime) {
-  // reports carry only the log: a line a minute tells how the game ran and how much memory it took
-  if(!Gothic::inst().isInGame() || Gothic::inst().isPause()) {
+  // Short sessions still need a useful sample without logging every frame.
+  if(!Gothic::inst().isInGame() || Gothic::inst().isPause() ||
+     Gothic::inst().checkLoading()!=Gothic::LoadState::Idle || video.isActive()) {
     statusSince = 0;
+    statusTimings = {};
     return;
     }
   if(statusSince==0) {
@@ -2225,10 +2238,22 @@ void MainWindow::logStatus(uint64_t now, uint64_t frameTime) {
     }
   ++statusFrames;
   statusMaxFrame = std::max(statusMaxFrame,frameTime);
-  if(now-statusSince<60000)
+  if(now-statusSince<10000)
     return;
-  Log::i("Status: fps=",uint64_t(statusFrames)*1000/(now-statusSince)," worst frame ms=",statusMaxFrame,memoryInfo());
+  Log::i("Status: fps=",uint64_t(statusFrames)*1000/(now-statusSince)," worst frame ms=",statusMaxFrame,
+         " output=",w(),"x",h(),
+         " FPS preference=",Gothic::settingsFpsLimit(),memoryInfo());
+  Log::i("Frame timings: wall averages ms simulation=",statusTimings.simulation.average(),
+         " record/acquire=",statusTimings.record.average()," submit=",statusTimings.submit.average(),
+         " present=",statusTimings.present.average()," simulation samples=",statusTimings.simulation.count,
+         " rendered samples=",statusTimings.record.count," skipped GPU-busy attempts=",statusTimings.skipped);
+  if(statusTimings.gpu.count>0)
+    Log::i("Frame timings: GPU marker intervals average ms=",statusTimings.gpu.average()," samples=",statusTimings.gpu.count);
+  else
+    Log::i("Frame timings: GPU timestamps unavailable");
+  renderer.logSettings();
   statusSince = 0;
+  statusTimings = {};
   }
 
 double MainWindow::Fps::get() const {
