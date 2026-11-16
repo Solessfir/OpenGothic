@@ -1,3 +1,8 @@
+0.7.10
+- Improved problem reports for investigating low FPS, memory pressure and saving issues
+- Important performance diagnostics are preserved when logs contain repeated warnings
+- Corrected GPU timing samples when the display is recreated
+
 0.7.9
 - Added Spanish translation for the launcher
 

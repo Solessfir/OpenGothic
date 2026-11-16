@@ -253,6 +253,19 @@ void Renderer::setupSettings() {
 
   resetSkyFog();
   resetShadowmap();
+  logSettings();
+  }
+
+void Renderer::logSettings() const {
+  const auto& props = Resources::device().properties();
+  const int32_t dlssArg = CommandLine::inst().dlss();
+  const bool ssaoHalf = settings.zCloudShadowScale && settings.ssaoHalfResolution && props.hasStorageFormat(TextureFormat::RG32F);
+  Log::i("Graphics: GPU=",Resources::device().properties().name," scale=",settings.renderScale,
+         " scene=",gbufDiffuse.w(),"x",gbufDiffuse.h(),
+         " shadows=",settings.shadowResolution," SMAA=",settings.aaEnabled," TAA=",settings.taaEnabled,
+         " temporal upscaler=",settings.fsrEnabled," DLSS requested=",dlssArg>=0 ? dlssArg>0 : settings.dlss," GI=",uint32_t(settings.giMethod),
+         " RT shadows=",settings.rtShadows," soft shadows=",settings.softShadows,
+         " SSAO=",settings.zCloudShadowScale," SSAO half=",ssaoHalf," fog half=",settings.fogHalfResolution);
   }
 
 ShadowMethod Renderer::shadowMethod() const {

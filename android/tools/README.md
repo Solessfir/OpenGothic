@@ -22,6 +22,10 @@ Add `-DTEMPEST_ANDROID_BUILD_TYPE=Debug` when configuring to check the debug var
 Separate suites cover [rendering](../../tests/rendering/README.md) and [worker completion](../../tests/workers/README.md).
 Compilation/tests do not replace device checks for controls, audio, lifecycle, imports and save/load.
 
+Problem reports include a separate performance and memory section from recent game logs. Every ten seconds of active gameplay it records FPS, output and scene resolution, effective graphics settings, process resident memory and available system memory. CPU phase values are wall times, so they include waits; simulation attempts can outnumber rendered frames when the GPU is busy. GPU marker intervals are sampled every 120 rendered gameplay frames, read after the normal submission fence, and include stalls and overlap. Unsupported or unavailable timestamps are reported explicitly.
+
+Saving logs memory before capture, after serialization with snapshot payload bytes, and after the save is committed. Compare the committed sample with the next gameplay samples before attributing a peak to retained memory. Resident memory excludes most GPU allocations and does not distinguish live allocations from allocator-retained pages. Reports preserve up to 4,000 characters of diagnostics from the last MiB of the game log, separately from its normal tail.
+
 ## Inspect the APK
 
 ```powershell

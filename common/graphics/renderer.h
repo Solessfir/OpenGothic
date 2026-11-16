@@ -37,6 +37,7 @@ class Renderer final {
               WorldView& view, const Camera& camera, gtime gameTime, uint64_t tickCount);
 
     void dbgDraw(Tempest::Painter& painter);
+    void logSettings() const;
 
     Tempest::Attachment screenshoot(uint8_t frameId, Tempest::Size size);
 

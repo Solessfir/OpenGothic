@@ -1,6 +1,7 @@
 #include "gothic.h"
 #include "utils/saveloadprofile.h"
 #include "utils/savesnapshot.h"
+#include "utils/memoryinfo.h"
 #include "game/serialize.h"
 #include <Tempest/File>
 
@@ -683,14 +684,14 @@ void Gothic::startSave(Tempest::Texture2d&& tex, std::string slot, std::string n
       if(!game)
         throw std::runtime_error("no game to save");
       try {
+        logMemoryInfo("Memory before save capture:");
         SaveSnapshot snapshot;
         {
           Serialize serializer(snapshot);
           game->save(serializer, name, screen);
           serializer.finish();
         }
-        if(SaveLoadProfile::enabled())
-          Log::i("[SaveLoad] snapshot payload bytes=", snapshot.byteSize());
+        logMemoryInfo("Memory after save capture:"," snapshot payload bytes=",snapshot.byteSize());
         // The background task owns bytes only, never references to the live game.
         saveTask = std::async(std::launch::async, [destination,snapshot=std::move(snapshot)] {
           Workers::setThreadName("Writing save");
@@ -705,6 +706,7 @@ void Gothic::startSave(Tempest::Texture2d&& tex, std::string slot, std::string n
       catch(const std::bad_alloc&) {
         Log::i("Not enough memory for save snapshot; using blocking save");
         }
+      logMemoryInfo("Memory before blocking save:");
       // Very large saves still work without retaining an unbounded snapshot in RAM.
       AtomicSave::replace(destination, [&](const std::filesystem::path& temporary) {
         WFile file(temporary.u16string());
@@ -731,6 +733,7 @@ void Gothic::finishSave(bool wait) {
   try {
     if(saveTask.valid())
       saveTask.get();
+    logMemoryInfo("Memory after save committed:");
     SaveLoadProfile::report("save/request-to-committed", SaveLoadProfile::now()-saveProfileStart);
     if(SaveLoadProfile::enabled() && game)
       Log::i("[SaveLoad] game progressed during save ms=", game->tickCount()-saveGameTick);
