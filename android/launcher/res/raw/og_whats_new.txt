@@ -1,3 +1,6 @@
+0.7.9
+- Added Spanish translation for the launcher
+
 0.7.8
 - Fixed a crash at startup on Samsung Galaxy S24 FE and other Xclipse phones with older graphics drivers
 
