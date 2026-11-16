@@ -313,6 +313,31 @@ class SetupTests(unittest.TestCase):
         suffix = ".exe" if os.name == "nt" else ""
         sources = [str(setup.ROOT / "android/launcher/java/org/opengothic/app" / name) for name in ("GameFiles.java", "Backups.java")]
         tests = [str(Path(__file__).with_name(name)) for name in ("GameFilesTest.java", "BackupsTest.java")]
+        resources = self.base / "R.java"
+        resources.write_text("""package org.opengothic.launcher;
+public final class R {
+    public static final class string {
+        public static final int og_err_nothing_to_back_up = 1;
+        public static final int og_err_prepare_restore = 2;
+        public static final int og_err_not_backup = 3;
+    }
+}
+""")
+        app = self.base / "App.java"
+        app.write_text("""package org.opengothic.app;
+import org.opengothic.launcher.R;
+final class App {
+    static String text(int resource) {
+        switch (resource) {
+            case R.string.og_err_nothing_to_back_up: return "There are no saves or settings to back up yet.";
+            case R.string.og_err_prepare_restore: return "Cannot prepare the restore.";
+            case R.string.og_err_not_backup: return "This is not an OpenGothic backup.";
+            default: throw new AssertionError("Unknown resource: " + resource);
+        }
+    }
+}
+""")
+        sources.extend((str(resources), str(app)))
         subprocess.run([str(java / ("javac" + suffix)), "-d", str(self.base), *sources, *tests], check=True)
         subprocess.run([str(java / ("java" + suffix)), "-cp", str(self.base), "org.opengothic.app.GameFilesTest", str(self.base / "games")], check=True)
         subprocess.run([str(java / ("java" + suffix)), "-cp", str(self.base), "org.opengothic.app.BackupsTest", str(self.base / "backups")], check=True)
