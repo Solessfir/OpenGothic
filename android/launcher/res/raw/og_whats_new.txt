@@ -1,3 +1,11 @@
+0.7.11
+- Archolos maps now show the map and the player marker; the map key toggles them and Esc or Menu closes them. This also fixes low FPS after reading a map
+- Key presses now reach mod scripts (Ikarus/LeGo), so mod hotkeys work
+- In first person on touch and gamepad, the view now turns with the character
+- Weapons can be added to the Draw wheel by holding them in the inventory; once you add one, the wheel shows only added and equipped weapons
+- Gothic 1: the Control spell lets you control the target
+- Fixed scripted triggers in mods running without the character who set them off
+
 0.7.10
 - Improved problem reports for investigating low FPS, memory pressure and saving issues
 - Important performance diagnostics are preserved when logs contain repeated warnings
