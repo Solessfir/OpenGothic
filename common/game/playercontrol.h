@@ -169,6 +169,7 @@ class PlayerControl final {
 
     bool           cacheFocus=false;
     bool           pickupHeld=false;
+    bool           scriptMapOpenAtPress=false;
     Focus          currentFocus;
     Item*          telekinesisItem = nullptr;
     float          rotMouse=0;

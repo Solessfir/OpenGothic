@@ -1,5 +1,6 @@
 #pragma once
 
+#include <bitset>
 #include <zenkit/DaedalusScript.hh>
 
 #include "game/gamescript.h"
@@ -61,6 +62,8 @@ class DirectMemory {
     int         eventChangeAttribute(Npc& npc, int attribute, int change);
     void        eventKey(int key);
     void        eventKeyState(int key, bool down);
+    bool        isSpriteMapOpen() const;
+    void        closeSpriteMap();
     void        eventZoneMusic(std::string_view name);
     void        eventFallDamage(Npc& npc);
     void        eventFocus(Npc& player, const Focus& focus);
@@ -261,6 +264,8 @@ class DirectMemory {
     ptr32_t                          focusMagic = 0;
     uint8_t                          keyEvents[1100] = {};   // MEM_KeyPressed reads it (the table of the keys of the engine)
     uint8_t                          keyToggles[1100] = {};
+    std::bitset<1100>                keysUnseen;             // down since the last tick: their release waits for it
+    std::bitset<1100>                keysReleaseLater;
     int                              lastSpellFocus = -1;
     auto        mobPointer(Interactive& mob) -> ptr32_t;
     void        setupFocusMagic();
@@ -409,6 +414,7 @@ class DirectMemory {
     bool        hooksReported = false;
     bool        resolutionFired = false;
     ptr32_t     csCamera = 0;
+    void        syncNpcTransforms();
     void        refreshNpcList();
     void        setupInstanceAliases();
     auto        searchVobsByName(std::string_view name) -> std::vector<ptr32_t>;
