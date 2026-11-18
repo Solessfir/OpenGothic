@@ -1672,12 +1672,13 @@ void MainWindow::tickCamera(uint64_t dt) {
       }
 #if defined(__ANDROID__)
     // Both Android input paths own camera yaw; do not overwrite touch look with character facing.
-    else if(pl!=nullptr && pl->interactive()==nullptr && !pl->isDown()) {
+    // In first person the view is the character's: look input turns the character, as the mouse does.
+    else if(pl!=nullptr && pl->interactive()==nullptr && !pl->isDown() && !camera.isFirstPerson()) {
       camera.setTarget(pos);
       }
 #elif defined(OPENGOTHIC_GAMEPAD)
     // The right stick owns camera yaw, as on Android
-    else if(controllerConnected && pl!=nullptr && pl->interactive()==nullptr && !pl->isDown()) {
+    else if(controllerConnected && pl!=nullptr && pl->interactive()==nullptr && !pl->isDown() && !camera.isFirstPerson()) {
       camera.setTarget(pos);
       }
 #endif
