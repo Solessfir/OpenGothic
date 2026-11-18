@@ -1548,6 +1548,16 @@ int GameScript::invokeState(Npc* npc, Npc* oth, Npc* vic, ScriptFn fn) {
   return ret;
   }
 
+/// oCTriggerScript runs its function with SELF = the character that set the trigger off
+void GameScript::invokeTriggerScript(std::string_view function, Npc* self) {
+  if(self==nullptr) {
+    vm.call_function(function);
+    return;
+    }
+  ScopeVar slf(*vm.global_self(), self->handlePtr());
+  vm.call_function(function);
+  }
+
 /// The function of an item (on_state, on_equip, on_unequip) runs with self = the character and item = the item, as in the
 /// original engine: CoM reads ITEM.HP in the functions that read the recipes.
 void GameScript::invokeItem(Npc *npc, ScriptFn fn, Item* itm) {

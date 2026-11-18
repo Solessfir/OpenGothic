@@ -184,6 +184,7 @@ class GameScript final {
     void         removeItem(Item& it);
 
     void         setInstanceNPC (std::string_view name, Npc& npc);
+    void         invokeTriggerScript(std::string_view function, Npc* self);
     void         setInstanceItem(Npc& holder, size_t itemId);
 
     AiOuputPipe* openAiOuput();

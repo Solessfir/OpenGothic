@@ -12,7 +12,8 @@ TriggerScript::TriggerScript(Vob* parent, World &world, const zenkit::VTriggerSc
 
 void TriggerScript::onTrigger(const TriggerEvent &) {
   try {
-    world.script().getVm().call_function(function);
+    // Trigger events don't carry the character that set them off; in practice it is the player walking into a trigger
+    world.script().invokeTriggerScript(function,world.player());
     }
   catch(const std::exception& e){
     Tempest::Log::e("exception in trigger-script: ",e.what());
