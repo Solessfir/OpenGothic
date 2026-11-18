@@ -293,7 +293,10 @@ void MainWindow::controllerAction(const GamepadBindings::Event& event) {
       player.controllerInteract(controllerExploration);
       break;
     case PadAction::Back:
-      if(pl->interactive()!=nullptr) key(KeyCodec::Back);
+      if(world->script().isScriptMapOpen())
+        world->script().closeScriptMap(); else
+      if(pl->interactive()!=nullptr)
+        key(KeyCodec::Back);
       break;
     case PadAction::Jump: key(KeyCodec::Jump); break;
     case PadAction::Walk: key(KeyCodec::Walk); break;
@@ -310,7 +313,11 @@ void MainWindow::controllerAction(const GamepadBindings::Event& event) {
     case PadAction::Finish: player.controllerCombat(6,true); break;
     case PadAction::HealthPotion: world->script().playerHotLameHeal(*pl); break;
     case PadAction::ManaPotion: world->script().playerHotLamePotion(*pl); break;
-    case PadAction::Map: world->script().playerHotKeyScreenMap(*pl); break;
+    case PadAction::Map:
+      if(world->script().isScriptMapOpen())
+        world->script().closeScriptMap(); else
+        world->script().playerHotKeyScreenMap(*pl);
+      break;
     case PadAction::QuickSave:
       if(gothic.isInGameAndAlive() && Gothic::settingsGetI("GAME","useQuickSaveKeys")) gothic.quickSave();
       break;

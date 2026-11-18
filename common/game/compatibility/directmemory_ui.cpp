@@ -300,8 +300,10 @@ void DirectMemory::setupUiFunctions() {
     spriteOverlay.push_back(std::move(result));
     });
 
-  cpu.register_thiscall(ZRND_D3D__SETALPHABLENDFUNC,[this](ptr32_t, int blend) {
-    uiBlend = blend;
+  cpu.register_thiscall(ZRND_D3D__SETALPHABLENDFUNC,[this](ptr32_t, ptr32_t blend) {
+    // zCRnd_D3D::SetAlphaBlendFunc(const zTRnd_AlphaBlendFunc&): LeGo passes the address of the value
+    if(auto* value = mem32.deref<const int32_t>(blend))
+      uiBlend = *value;
     });
   cpu.register_thiscall(ZRND_D3D__SETRENDERSTATE,[](ptr32_t, int state, int /*value*/) {
     // Sprite rendering is submitted to the depth-independent UI pass. Its

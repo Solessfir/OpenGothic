@@ -6,6 +6,7 @@
 #include <Tempest/Log>
 
 #include <algorithm>
+#include <bit>
 #include <cassert>
 #include <charconv>
 #include <cmath>
@@ -245,10 +246,17 @@ void DirectMemory::tick(uint64_t dt) {
     auto* mob = pl->interactive();
     pl->handle().compat_interact_mob = mob==nullptr ? 0 : int32_t(mobPointer(*mob));
     }
+  syncNpcTransforms();
   //TODO: propper hook-engine
   if(auto* sym = vm.find_symbol_by_name("_FF_Hook")) {
     vm.call_function(sym);
     }
+  keysUnseen.reset();
+  for(size_t i=0; keysReleaseLater.any() && i<keysReleaseLater.size(); ++i)
+    if(keysReleaseLater[i]) {
+      keysReleaseLater[i] = false;
+      eventKeyState(int(i),false);
+      }
 
   if(!hooksReported && !hooksUnanswered.empty()) {
     hooksReported = true;
@@ -2702,6 +2710,20 @@ void DirectMemory::setupWorldFunctions() {
     });
   }
 
+void DirectMemory::syncNpcTransforms() {
+  auto& world = gameScript.world();
+  for(uint32_t i=0, n=world.npcCount(); i<n; ++i) {
+    auto* npc = world.npcById(i);
+    if(npc==nullptr)
+      continue;
+    const auto m     = npc->transform();
+    auto&      trafo = npc->handle().compat_trafo;
+    for(int r=0; r<4; ++r)
+      for(int c=0; c<4; ++c)
+        trafo[r*4+c] = std::bit_cast<int32_t>(m.at(c,r));
+    }
+  }
+
 /// MEM_World.voblist_npcs: the characters of the world as a list, every node has the pointer of a character
 void DirectMemory::refreshNpcList() {
   auto& world = gameScript.world();
@@ -2786,6 +2808,8 @@ void DirectMemory::setupInstanceAliases() {
   reg("OCNPC.LEARN_POINTS",    &N::lp);
   reg("OCNPC.BODYSTATEINTERRUPTABLEOVERRIDE",&N::bodystate_interruptable_override);
   reg("OCNPC.NOFOCUS",         &N::no_focus);
+  // oCNpc derives from zCVob: scripts cast a character to zCVob for its position (CoM's map marker, GetPositionWorldVec)
+  reg("ZCVOB.TRAFOOBJTOWORLD", &N::compat_trafo);
 
   using I = zenkit::IItem;
   reg("OCITEM.ID",             &I::id);

@@ -99,6 +99,10 @@ class KeyCodec final {
 
     static int32_t     keyToCode(Tempest::Event::KeyType     t);
     static int32_t     keyToCode(Tempest::Event::MouseButton t);
+    // DirectInput scan code (Ikarus' MEM_KeyPressed, oCGame::HandleEvent); 0 if the key has none
+    static int32_t     keyToScanCode(Tempest::Event::KeyType     t);
+    static int32_t     keyToScanCode(Tempest::Event::MouseButton t);
+    static int32_t     iniToScanCode(int32_t code);
 
     static std::string toCode(int32_t scan);
 

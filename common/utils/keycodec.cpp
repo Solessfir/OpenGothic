@@ -471,6 +471,28 @@ int32_t KeyCodec::keyToCode(Tempest::Event::MouseButton t) {
   return 0;
   }
 
+int32_t KeyCodec::iniToScanCode(int32_t code) {
+  // The codes of the INI are the scan codes with their two bytes swapped
+  code = ((code&0xFF)<<8) | ((code>>8)&0xFF);
+  // OpenGothic's key editor stores its digit shortcuts as 120..129, the DirectInput digit scans are 2..11
+  if(code>=120 && code<=129)
+    code = code-120+2;
+  return code;
+  }
+
+int32_t KeyCodec::keyToScanCode(Tempest::Event::KeyType t) {
+  // Not bindable in the INI, so not in 'keys'
+  if(t==Tempest::Event::K_ESCAPE)
+    return 0x01;
+  if(t==Tempest::Event::K_Return)
+    return 0x1C;
+  return iniToScanCode(keyToCode(t));
+  }
+
+int32_t KeyCodec::keyToScanCode(Tempest::Event::MouseButton t) {
+  return iniToScanCode(keyToCode(t));
+  }
+
 void KeyCodec::setupSettings() {
   keyEnd         = setup("keyEnd");
   keyHeal        = setup("keyHeal");

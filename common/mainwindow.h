@@ -193,6 +193,9 @@ class MainWindow : public Tempest::Window {
 
     Tempest::Widget*          uiKeyUp=nullptr;
     std::bitset<1100>         dmaKeysDown;
+    bool                      escClosesScriptMap=false;
+    void                      dmaKeyDown(int32_t code);
+    void                      dmaKeyUp(int32_t code);
     Tempest::Point            dMouse;
     bool                      uiPointer=false;
     bool                      mouseResync=false;
