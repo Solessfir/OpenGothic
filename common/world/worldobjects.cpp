@@ -205,7 +205,7 @@ void WorldObjects::tick(uint64_t dt, uint64_t dtPlayer) {
 
   auto       camera  = Gothic::inst().camera();
   const bool freeCam = (camera!=nullptr && camera->isFree());
-  const auto pl      = owner.player();
+  auto       pl      = owner.player();
   for(size_t i=0; i<npcArr.size(); ++i) {
     auto& npc = *npcArr[i];
     uint64_t d = (pl==&npc ? dtPlayer : dt);
@@ -252,6 +252,7 @@ void WorldObjects::tick(uint64_t dt, uint64_t dtPlayer) {
       }
     }
 
+  pl = owner.player();
   npcNear.clear();
   //const int   PERC_DIST_INTERMEDIAT = 1000;
   const float nearDist              = 3000*3000;
@@ -388,6 +389,8 @@ Npc* WorldObjects::insertPlayer(std::unique_ptr<Npc> &&npc, std::string_view at)
   }
 
 std::unique_ptr<Npc> WorldObjects::takeNpc(const Npc* ptr) {
+  if(ptr!=nullptr && (owner.isControlling(*ptr) || owner.isControlled(*ptr)))
+    owner.endControl();
   for(size_t i=0; i<npcArr.size(); ++i){
     auto& npc=*npcArr[i];
     if(&npc==ptr){

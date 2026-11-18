@@ -40,6 +40,10 @@ class World final {
     void                 createPlayer(std::string_view cls);
     void                 insertPlayer(std::unique_ptr<Npc>&& npc, std::string_view waypoint);
     void                 setPlayer(Npc* npc);
+    bool                 startControl(Npc& caster, Npc& target);
+    void                 endControl();
+    bool                 isControlling(const Npc& npc) const { return npcControlCaster==&npc; }
+    bool                 isControlled(const Npc& npc) const { return npcControlCaster!=nullptr && npcPlayer==&npc; }
     void                 postInit();
     std::string_view     name() const { return wname; }
 
@@ -113,6 +117,7 @@ class World final {
 
     auto                 takeHero() -> std::unique_ptr<Npc>;
     Npc*                 player() const { return npcPlayer; }
+    Npc*                 hero() const { return npcControlCaster!=nullptr ? npcControlCaster : npcPlayer; }
     Npc*                 findNpcByInstance(size_t instance, size_t n = 0);
     Item*                findItemByInstance(size_t instance, size_t n = 0);
     std::string_view     roomAt(const Tempest::Vec3& arr);
@@ -226,6 +231,9 @@ class World final {
       } bsp;
 
     Npc*                                  npcPlayer=nullptr;
+    Npc*                                  npcControlCaster=nullptr;
+    int32_t                               controlCasterHp=0;
+    bool                                  controlRangeWarning=false;
 
     std::unique_ptr<DynamicWorld>         wdynamic;
     std::unique_ptr<WorldView>            wview;

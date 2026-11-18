@@ -29,9 +29,7 @@
 #include <vector>
 #include <thread>
 #include <fstream>
-#if defined(__ANDROID__)
 #include <Tempest/FramePacer>
-#endif
 
 #include "world/world.h"
 #include "world/focus.h"
@@ -201,6 +199,7 @@ class MainWindow : public Tempest::Window {
     uint64_t                  mouseLookIdle=0;
     float                     cursorScale=0;
     bool                      focusPaused=false;
+    bool                      frameSimulated=false;
     // Pause after camera input before the swim camera eases back to the surface view.
     static constexpr uint64_t SwimViewDelayMs = 300;
     PlayerControl             player;
@@ -274,10 +273,7 @@ class MainWindow : public Tempest::Window {
     uint32_t      fpsOverlayFrames = 0;
     char          fpsText[32] = {};
     bool          showFps = false;
-#if defined(__ANDROID__)
     uint32_t      maxFps = 60;
     Tempest::FramePacer framePacer;
-#endif
     BenchmarkData benchmark;
-    uint64_t      maxFpsInv = 0;
   };
