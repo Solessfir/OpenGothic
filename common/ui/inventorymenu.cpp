@@ -120,7 +120,7 @@ void InventoryMenu::close() {
   }
 
 void InventoryMenu::open(Npc &pl) {
-  if(pl.isDown() || pl.isMonster() || pl.isInAir() || pl.isSlide() || (pl.interactive()!=nullptr))
+  if(pl.world().isControlled(pl) || pl.isDown() || pl.isMonster() || pl.isInAir() || pl.isSlide() || (pl.interactive()!=nullptr))
     return;
   if(pl.bodyStateMasked()==BS_UNCONSCIOUS || pl.bodyStateMasked()==BS_LIE)
     return;
@@ -144,7 +144,7 @@ void InventoryMenu::open(Npc &pl) {
   }
 
 void InventoryMenu::trade(Npc &pl, Npc &tr) {
-  if(pl.isDown())
+  if(pl.world().isControlled(pl) || pl.isDown())
     return;
   state  = State::Trade;
   player = &pl;
@@ -159,7 +159,7 @@ void InventoryMenu::trade(Npc &pl, Npc &tr) {
   }
 
 bool InventoryMenu::ransack(Npc &pl, Npc &tr) {
-  if(pl.isDown())
+  if(pl.world().isControlled(pl) || pl.isDown())
     return false;
   auto it = tr.inventory().iterator(Inventory::T_Ransack);
   if(!it.isValid())
@@ -178,7 +178,7 @@ bool InventoryMenu::ransack(Npc &pl, Npc &tr) {
   }
 
 void InventoryMenu::open(Npc &pl, Interactive &ch) {
-  if(pl.isDown())
+  if(pl.world().isControlled(pl) || pl.isDown())
     return;
   const bool needToPicklock = ch.needToLockpick(pl);
   if(!pl.setInteraction(&ch))
@@ -1056,7 +1056,7 @@ void InventoryMenu::controllerAction(int action, bool repeat) {
 void InventoryMenu::openWheel(Npc& pl, WheelKind kind) {
   wheelFilter=QuickSlots::Kind::Empty;
   const bool utilityMenu=kind!=WheelKind::Equipment;
-  if(pl.isDown() || pl.isMonster() || pl.interactive()!=nullptr) return;
+  if(pl.world().isControlled(pl) || pl.isDown() || pl.isMonster() || pl.interactive()!=nullptr) return;
   if(!utilityMenu && (!pl.canSwitchWeapon() || !pl.isAiQueueEmpty())) return;
   state=State::Equip; player=&pl; trader=nullptr; chest=nullptr; page=0;
   pagePl.reset(new InvPage(pl.inventory())); pageOth.reset();

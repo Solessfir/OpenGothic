@@ -111,9 +111,9 @@ void PlayerControl::onKeyPressed(KeyCodec::Action a, Tempest::KeyEvent::KeyType 
       }
 
     if(a==Action::Weapon) {
-      // Touch and controllers have no Enter key, so their draw button turns an animal form back.
+      // Touch and controllers use their draw button to return from transformation or Control.
       // A sheathed animal (after swimming) draws first, so it can always still fight.
-      if(pl->isTransformed() && ws!=WeaponState::NoWeapon)
+      if(w->isControlled(*pl) || (pl->isTransformed() && ws!=WeaponState::NoWeapon))
         ctrl[Action::K_ENTER] = true; else
       if(ws!=WeaponState::NoWeapon) //Currently a weapon is active
         wctrl[WeaponClose] = true;
@@ -984,6 +984,13 @@ bool PlayerControl::tickMove(uint64_t dt) {
 
   Npc*  pl     = w->player();
   auto  camera = Gothic::inst().camera();
+  auto* controlled = pl!=nullptr && w->isControlled(*pl) ? pl : nullptr;
+  if(controlledNpc!=controlled) {
+    controlledNpc = controlled;
+    clearInput();
+    clearFocus();
+    casting = false;
+    }
 
   if(w->isCutsceneLock())
     clearInput();
@@ -1008,6 +1015,12 @@ bool PlayerControl::tickMove(uint64_t dt) {
 
   if(pl==nullptr)
     return true;
+
+  if(ctrl[Action::K_ENTER] && w->isControlled(*pl)) {
+    w->endControl();
+    clearInput();
+    return true;
+    }
 
   if(controllerFinisher!=nullptr) {
     const auto ws=pl->weaponState();
@@ -1079,6 +1092,7 @@ void PlayerControl::implMove(uint64_t dt) {
   float rspeed    = (pl.weaponState()==WeaponState::NoWeapon ? 90.f : 180.f)*(float(dt)/1000.f);
   auto  ws        = pl.weaponState();
   auto  bs        = pl.bodyStateMasked();
+  const bool controlled = w->isControlled(pl) && pl.isInState(w->script().findSymbolIndex("ZS_CONTROLLED"));
   bool  allowRot  = !ctrl[KeyCodec::ActionGeneric] && pl.isRotationAllowed();
 
   Npc::Anim ani = Npc::Anim::Idle;
@@ -1087,7 +1101,7 @@ void PlayerControl::implMove(uint64_t dt) {
     const auto weapon=pl.inventory().activeWeapon();
     if((ws!=WeaponState::Bow && ws!=WeaponState::CBow) || weapon==nullptr || weapon->clsId()!=controllerBowWeapon ||
        !pl.hasAmmunition() || pl.isDown() || bs==BS_STUMBLE || pl.isAiBusy() || pl.interactive()!=nullptr ||
-       !pl.isInState(ScriptFn()) || dlg.isActive() || pl.isFalling() || pl.isSlide() || pl.isInAir() ||
+       (!pl.isInState(ScriptFn()) && !controlled) || dlg.isActive() || pl.isFalling() || pl.isSlide() || pl.isInAir() ||
        pl.isJump() || pl.isJumpUp() || pl.isSwim() || pl.isDive() || pendingEquipment!=size_t(-1) ||
        std::any_of(std::begin(wctrl),std::end(wctrl),[](bool pending){ return pending; }))
       controllerBowShot.cancel();
@@ -1186,7 +1200,7 @@ void PlayerControl::implMove(uint64_t dt) {
       }
     }
 
-  if(!pl.isInState(ScriptFn()) || dlg.isActive()) {
+  if((!pl.isInState(ScriptFn()) && !controlled) || dlg.isActive()) {
     runAngleDest = 0;
     return;
     }
