@@ -192,7 +192,7 @@
     <string name="og_controls_gestures_title">Hidden gestures</string>
     <string name="og_controls_gestures">• Two fingers left: health potion\n• Two fingers right: mana potion\n• Two fingers down on the left: sneak, up: stand up\n• Two fingers up on the right: first person\n• Two fingers down on the right and hold: look behind\n• Three-finger tap: quicksave\n• Four-finger tap: quickload</string>
     <string name="og_controls_inventory_title">Inventory</string>
-    <string name="og_controls_inventory">Tap an item to select it and tap it again to use, equip or take it. Hold a potion, food or a document to add it to the Draw wheel, and hold it again to remove it. Tap free space to close the inventory.</string>
+    <string name="og_controls_inventory">Tap an item to select it and tap it again to use, equip or take it. Hold a weapon, potion, food or a document to add it to the Draw wheel, and hold it again to remove it. Once you add a weapon, the wheel shows only the weapons you added and the ones you have equipped. Tap free space to close the inventory.</string>
     <string name="og_controls_screens_title">Dialogue, videos and menus</string>
     <string name="og_controls_screens">Tap an answer to pick it, or anywhere else to skip a line, a video or a chapter screen. Tap menu items directly, and tap outside a menu to close it. Hide the buttons in Options › Game Settings › Touch UI.</string>
     <string name="og_voices">Voice-over</string>

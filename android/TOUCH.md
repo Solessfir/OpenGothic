@@ -20,7 +20,7 @@ An already-held stick or button cannot take control back until released and used
 - **Upper-right corner:** Menu and Inventory.
 
 A touch slightly outside a button still presses it, and a touch between two buttons goes to the nearer one.
-In the inventory, tap an item to select it and tap it again to use, equip or take it. Hold a potion, food or a document in your own inventory to add it to the equipment wheel next to your weapons and spells, or hold it again to remove it. Picking it on the wheel uses it, with the weapon put away. Tap free space to close the inventory.
+In the inventory, tap an item to select it and tap it again to use, equip or take it. Hold a weapon, potion, food or a document in your own inventory to add it to the equipment wheel, or hold it again to remove it. Picking a potion, food or a document on the wheel uses it, with the weapon put away. Once you add a weapon, the wheel shows only the weapons you added and the ones you have equipped, instead of every weapon you carry. Tap free space to close the inventory.
 Dialogue and documents show only Back (Menu) and Accept (the corner button); game menus are tapped directly, and a tap outside a menu closes it, including the stats and journal screens. No controls are drawn while loading.
 In dialogue, tap a choice to pick it, or tap anywhere else to skip the current line. A tap also skips a video or the chapter screen.
 Guide text and FPS stay clear of the phone's camera cutout, and the buttons stay inside the safe area.
@@ -59,7 +59,7 @@ Focus range is not attack reach or guaranteed safety; see [targeting settings](C
 - Release without selecting, or return to the finger's starting point, to cancel.
 
 The wheel is drawn in the screen center, but selection is relative to your finger's position when it opened. Dragging farther pulls that point along, so from a button at the screen edge you can drag away from the edge and then back to reach every choice.
-You do not need to reach the wheel. Equipment pages show usable owned weapons, assigned spells and the items you added from the inventory.
+You do not need to reach the wheel. Equipment pages show usable owned weapons (only added and equipped ones once you add a weapon), assigned spells and the items you added from the inventory.
 For more pages, hold toward Previous/Next, return near the starting point, then select.
 The world keeps running; other touch controls are suspended until the wheel closes.
 

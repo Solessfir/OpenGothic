@@ -122,7 +122,7 @@ void MainWindow::paintControllerOverlay(PaintEvent& event,int top) {
 void MainWindow::applyEquipmentWheel(size_t id) {
   auto pl   = Gothic::inst().player();
   auto item = pl!=nullptr ? pl->getItem(id) : nullptr;
-  if(item==nullptr || !QuickSlots::canPin(*item)) {
+  if(item==nullptr || !QuickSlots::canPin(*item) || QuickSlots::kind(*item)==QuickSlots::Kind::Weapons) {
     player.controllerEquip(id);
     return;
     }

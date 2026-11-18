@@ -190,7 +190,7 @@
     <string name="og_controls_gestures_title">Gestos ocultos</string>
     <string name="og_controls_gestures">• Dos dedos hacia la izquierda: poción de salud\n• Dos dedos hacia la derecha: poción de maná\n• Dos dedos hacia abajo en la mitad izquierda: sigilo; hacia arriba: levantarse\n• Dos dedos hacia arriba en la mitad derecha: primera persona\n• Dos dedos hacia abajo en la mitad derecha y mantener: mirar atrás\n• Toque con tres dedos: guardado rápido\n• Toque con cuatro dedos: carga rápida</string>
     <string name="og_controls_inventory_title">Inventario</string>
-    <string name="og_controls_inventory">Pulsa un objeto para seleccionarlo y vuelve a pulsarlo para usarlo, equiparlo o recogerlo. Mantén pulsada una poción, un alimento o un documento para añadirlo a la rueda Draw; repite para quitarlo. Pulsa un espacio libre para cerrar el inventario.</string>
+    <string name="og_controls_inventory">Pulsa un objeto para seleccionarlo y vuelve a pulsarlo para usarlo, equiparlo o recogerlo. Mantén pulsada un arma, una poción, un alimento o un documento para añadirlo a la rueda Draw; repite para quitarlo. Cuando añades un arma, la rueda solo muestra las armas añadidas y las equipadas. Pulsa un espacio libre para cerrar el inventario.</string>
     <string name="og_controls_screens_title">Diálogos, vídeos y menús</string>
     <string name="og_controls_screens">Pulsa una respuesta para elegirla o cualquier otro lugar para saltar una frase, un vídeo o una pantalla de capítulo. Pulsa directamente las opciones de los menús y fuera de un menú para cerrarlo. Oculta los botones en Opciones › Ajustes del juego › Interfaz táctil.</string>
     <string name="og_voices">Doblaje</string>

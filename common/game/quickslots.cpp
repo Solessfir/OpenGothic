@@ -77,7 +77,7 @@ Item* QuickSlots::resolve(Npc& player,size_t slot) {
 
 bool QuickSlots::canPin(const Item& item) {
   const auto k = kind(item);
-  return k==Kind::Potions || k==Kind::Food || k==Kind::Documents;
+  return k==Kind::Weapons || k==Kind::Potions || k==Kind::Food || k==Kind::Documents;
   }
 
 bool QuickSlots::isPinned(Npc& player, const Item& item) {
