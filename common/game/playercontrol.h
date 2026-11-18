@@ -202,6 +202,7 @@ class PlayerControl final {
     uint64_t       pendingInteractionUntil=0;
     size_t         pendingEquipment=size_t(-1);
     bool           casting = false;
+    Npc*           controlledNpc = nullptr;
     size_t         pickLockProgress = 0;
 
     float          runAngleDest   = 0.f;

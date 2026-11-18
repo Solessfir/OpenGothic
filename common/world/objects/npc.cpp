@@ -2678,6 +2678,12 @@ void Npc::tick(uint64_t dt) {
   if(!visual.pose().hasAnim())
     setAnim(AnimationSolver::Idle);
 
+  if(owner.isControlling(*this) && !isDown()) {
+    tickRoutine();
+    mvAlgo.tick(dt,MoveAlgo::WaitMove);
+    return;
+    }
+
   if(!randomAni.empty() && !isDead())
     tickRandomAni();
 
@@ -2708,7 +2714,7 @@ void Npc::tick(uint64_t dt) {
 
   nextAiAction(aiQueueOverlay,dt);
 
-  if(tickCast(dt))
+  if(tickCast(dt) || owner.isControlling(*this))
     return;
 
   if(!isDead()) {
@@ -3720,7 +3726,10 @@ void Npc::commitSpell() {
       }
     }
 
-  if(spellInfo!=0 && transformSpl==nullptr) {
+  if(spellInfo!=0 && owner.script().isControlSpell(splId)) {
+    if(currentTarget!=nullptr)
+      owner.startControl(*this,*currentTarget);
+    } else if(spellInfo>0 && transformSpl==nullptr && owner.script().isNpcInstance(size_t(spellInfo))) {
     transformSpl.reset(new TransformBack(*this));
     invent.updateView(*this);
 
@@ -3805,6 +3814,10 @@ BodyState Npc::bodyState() const {
   uint32_t s = visual.pose().bodyState();
   if(auto i = interactive())
     s = i->stateMask();
+  if(owner.isControlling(*this))
+    s = BS_CONTROLLING;
+  if(owner.isControlled(*this))
+    s |= BS_MOD_CONTROLLED;
   return BodyState(s);
   }
 
@@ -3814,6 +3827,8 @@ BodyState Npc::bodyStateMasked() const {
   }
 
 bool Npc::hasState(BodyState s) const {
+  if((s==BS_CONTROLLING && owner.isControlling(*this)) || (s==BS_MOD_CONTROLLED && owner.isControlled(*this)))
+    return true;
   if(visual.pose().hasState(s))
     return true;
   if(auto i = interactive())
@@ -3822,6 +3837,8 @@ bool Npc::hasState(BodyState s) const {
   }
 
 bool Npc::hasStateFlag(BodyState flg) const {
+  if((flg & BS_MOD_CONTROLLED)!=0 && owner.isControlled(*this))
+    return true;
   if(visual.pose().hasStateFlag(flg))
     return true;
   if(auto i = interactive())
@@ -4838,6 +4855,8 @@ void Npc::startDialog(Npc& pl) {
   }
 
 bool Npc::perceptionProcess(Npc &pl) {
+  if(owner.isControlling(*this))
+    return false;
   static bool dbg = false;
   static int  kId = -1;
   if(dbg && hnpc->id!=kId)
@@ -4883,6 +4902,8 @@ bool Npc::perceptionProcess(Npc &pl) {
   }
 
 bool Npc::perceptionProcess(Npc &pl, Npc* victim, float quadDist, PercType perc) {
+  if(owner.isControlling(*this) && perc!=PERC_ASSESSDAMAGE && perc!=PERC_ASSESSMAGIC)
+    return false;
   if(!aiState.started && aiState.funcIni.isValid()) {
     // avoid ugly soft-lock (ZS_MM_Attack <-> B_MM_AssessWarn) for the orks near ramp
     return false;

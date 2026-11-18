@@ -1250,6 +1250,26 @@ bool GameScript::isTransformSpell(int32_t splId) const {
   return spellFxInstanceNames->get_string(uint16_t(splId))=="Transform";
   }
 
+bool GameScript::isControlSpell(int32_t splId) const {
+  return owner.version().game==1 && splId==15;
+  }
+
+bool GameScript::isNpcInstance(size_t instance) {
+  auto* sym = findSymbol(instance);
+  if(sym==nullptr || sym->type()!=zenkit::DaedalusDataType::INSTANCE)
+    return false;
+  for(size_t i=0; i<vm.symbols().size(); ++i) {
+    sym = findSymbol(sym->parent());
+    if(sym==nullptr)
+      return false;
+    if(sym->type()==zenkit::DaedalusDataType::CLASS)
+      return sym->name()=="C_NPC";
+    if(sym->type()!=zenkit::DaedalusDataType::PROTOTYPE)
+      return false;
+    }
+  return false;
+  }
+
 bool GameScript::isTelekinesisSpell(int32_t splId) const {
   // The original G1 engine moves the item for this hardcoded spell id; the script only invests mana
   const int32_t SPL_TELEKINESIS = 10;

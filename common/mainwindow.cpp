@@ -917,13 +917,7 @@ void MainWindow::onSettings() {
     update();
     }
   const auto zMaxFps = Gothic::settingsFpsLimit();
-#if defined(__ANDROID__)
   maxFps = uint32_t(std::max(0,zMaxFps));
-#else
-  if(zMaxFps>0)
-    maxFpsInv = 1000u/uint64_t(zMaxFps); else
-    maxFpsInv = 0;
-#endif
   }
 
 void MainWindow::mouseWheelEvent(MouseEvent &event) {
@@ -2028,12 +2022,13 @@ void MainWindow::render(){
         }
       }
 
-#if defined(__ANDROID__)
     const bool menuFrame = !Gothic::inst().isInGame() && !video.isActive();
     const uint32_t targetFps = menuFrame ? (maxFps==0 ? 60 : std::min(maxFps,60u)) : maxFps;
     framePacer.setFrameRate(Gothic::inst().isBenchmarkModeCi() ? 0 : targetFps);
-    framePacer.wait();
-#endif
+    if(!framePacer.ready()) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      return;
+      }
 
     const bool reportFrame = Gothic::inst().isInGame() && !Gothic::inst().isPause() &&
                              Gothic::inst().checkLoading()==Gothic::LoadState::Idle && !video.isActive();
@@ -2048,21 +2043,25 @@ void MainWindow::render(){
       once player position is updated, animation bones(cameraBone in particular) can be updated
       lastly - camera position
       */
-    uint64_t dt;
-    {
-    CpuTrace trace("OpenGothic::simulation");
-    dt = tick();
-    }
-    {
-    CpuTrace trace("OpenGothic::animation");
-    updateAnimation(dt);
-    }
-    {
-    CpuTrace trace("OpenGothic::camera");
-    tickCamera(dt);
-    }
-    if(reportFrame)
-      statusTimings.simulation.add(Milliseconds(Clock::now()-phaseStart).count());
+    // A frame that is retried (GPU busy, no image yet) must not advance the game again
+    if(!frameSimulated) {
+      frameSimulated = true;
+      uint64_t dt;
+      {
+      CpuTrace trace("OpenGothic::simulation");
+      dt = tick();
+      }
+      {
+      CpuTrace trace("OpenGothic::animation");
+      updateAnimation(dt);
+      }
+      {
+      CpuTrace trace("OpenGothic::camera");
+      tickCamera(dt);
+      }
+      if(reportFrame)
+        statusTimings.simulation.add(Milliseconds(Clock::now()-phaseStart).count());
+      }
 
     auto& sync = fence[cmdId];
     bool ready;
@@ -2071,6 +2070,7 @@ void MainWindow::render(){
     ready = sync.wait(0);
     }
     if(!ready) {
+      framePacer.reset();
       if(reportFrame)
         ++statusTimings.skipped;
       CpuTrace trace("OpenGothic::skipped frame");
@@ -2079,6 +2079,22 @@ void MainWindow::render(){
       return;
       }
     Resources::resetRecycled(cmdId);
+
+    CommandBuffer& cmd = commands[cmdId];
+    const auto acquireStart = Clock::now();
+    // A lost swapchain must not consume a sample or finish a recording that will never be submitted.
+#if defined(__APPLE__)
+    auto* output = &swapchain.acquire();
+#else
+    auto* output = swapchain.tryAcquire();
+    if(output==nullptr) {
+      // A missed acquisition must not consume the next frame's rate-limit slot.
+      framePacer.reset();
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      return;
+      }
+#endif
+    const auto acquireTime = Clock::now()-acquireStart;
 
     {
     CpuTrace trace("OpenGothic::UI");
@@ -2130,11 +2146,6 @@ void MainWindow::render(){
     numMesh[cmdId].update(device,numOverlay);
     }
 
-    CommandBuffer& cmd = commands[cmdId];
-    const auto acquireStart = Clock::now();
-    // A lost swapchain must not consume a sample or finish a recording that will never be submitted.
-    auto& output = swapchain.acquire();
-    const auto acquireTime = Clock::now()-acquireStart;
     // This slot's normal submission fence has completed above.
     // Read timestamps before startEncoding resets the previous recording.
     const auto timings = cmd.gpuTimings();
@@ -2176,7 +2187,7 @@ void MainWindow::render(){
     {
     CpuTrace trace("OpenGothic::record");
     auto enc = cmd.startEncoding(device,captureGpu || reportGpu);
-    renderer.draw(output,enc,cmdId,uiMesh[cmdId],numMesh[cmdId],inventory,video,
+    renderer.draw(*output,enc,cmdId,uiMesh[cmdId],numMesh[cmdId],inventory,video,
                   swapchain.hdrMaxLuminance());
     }
     if(reportFrame)
@@ -2196,18 +2207,9 @@ void MainWindow::render(){
     if(reportFrame)
       statusTimings.present.add(Milliseconds(Clock::now()-phaseStart).count());
     cmdId = (cmdId+1u)%Resources::MaxFramesInFlight;
+    frameSimulated = false;
 
     auto t = Application::tickCount();
-#if !defined(__ANDROID__)
-    auto frameTime = maxFpsInv;
-    if(!Gothic::inst().isInGame() && !video.isActive())
-      frameTime = std::max<uint64_t>(frameTime,16);
-    if(t-time<frameTime) {
-      uint32_t delay = uint32_t(frameTime-(t-time));
-      Application::sleep(delay);
-      t += delay;
-      }
-#endif
     fps.push(t-time);
     ++fpsOverlayFrames;
     logStatus(t,t-time);
@@ -2216,6 +2218,7 @@ void MainWindow::render(){
     time = t;
     }
   catch(const Tempest::SwapchainSuboptimal&) {
+    framePacer.reset();
     Log::e("swapchain is outdated - reset renderer");
     device.waitIdle();
     swapchain.reset();

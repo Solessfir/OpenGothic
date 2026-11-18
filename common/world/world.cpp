@@ -8,6 +8,7 @@
 #include <cctype>
 #include <stdexcept>
 #include <cmath>
+#include <cassert>
 
 #include <Tempest/Log>
 #include <Tempest/Painter>
@@ -174,6 +175,7 @@ void World::insertPlayer(std::unique_ptr<Npc> &&npc, std::string_view waypoint) 
   }
 
 void World::setPlayer(Npc* npc) {
+  endControl();
   if(npc==nullptr)
     return;
   npcPlayer->setProcessPolicy(NpcProcessPolicy::AiNormal);
@@ -191,6 +193,62 @@ void World::setPlayer(Npc* npc) {
   npcPlayer = npc;
   }
 
+bool World::startControl(Npc& caster, Npc& target) {
+  if(npcControlCaster!=nullptr || player()!=&caster || &caster==&target || caster.isDown() || target.isDown() ||
+     !target.isHuman() || target.isImmortal() || caster.qDistTo(target)>4000.f*4000.f)
+    return false;
+
+  target.setInteraction(nullptr,true);
+  target.clearState(true);
+  target.clearAiQueue();
+  target.clearSpeed();
+  target.stopAnim("");
+  target.setAnim(Npc::Anim::Idle);
+  // ZS_Controlled_End owns the recovery animation, dropped equipment and retaliation.
+  target.startState(script().findSymbolIndex("ZS_CONTROLLED"), "");
+  caster.clearState(true);
+  caster.clearAiQueue();
+  caster.clearSpeed();
+  caster.setProcessPolicy(NpcProcessPolicy::AiNormal);
+  caster.startState(script().findSymbolIndex("ZS_PC_CONTROLLING"), "");
+
+  npcControlCaster = &caster;
+  controlCasterHp  = caster.attribute(ATR_HITPOINTS);
+  target.setProcessPolicy(NpcProcessPolicy::Player);
+  npcPlayer = &target;
+  assert(isControlling(caster) && isControlled(target) && !caster.isPlayer() && target.isPlayer());
+  return true;
+  }
+
+void World::endControl() {
+  if(npcControlCaster==nullptr)
+    return;
+  Npc& caster = *npcControlCaster;
+  Npc& target = *npcPlayer;
+  if(controlRangeWarning)
+    if(auto* fx = Gothic::inst().loadVisualFx("CONTROL_LEAVERANGEFX"))
+      target.stopEffect(*fx);
+  npcControlCaster = nullptr;
+  controlRangeWarning = false;
+  npcPlayer = &caster;
+  caster.setProcessPolicy(NpcProcessPolicy::Player);
+  target.setProcessPolicy(NpcProcessPolicy::AiNormal);
+  target.clearSpeed();
+  if(!caster.isDown()) {
+    if(caster.isInState(script().findSymbolIndex("ZS_PC_CONTROLLING")))
+      caster.clearState(false);
+    caster.stopAnim("");
+    caster.setAnim(Npc::Anim::Idle);
+    }
+  if(!target.isDown()) {
+    target.clearAiQueue();
+    target.setTarget(&caster);
+    target.clearState(true);
+    script().invokeState(&target,&caster,nullptr,script().findSymbolIndex("ZS_CONTROLLED_END"));
+    }
+  assert(caster.isPlayer() && !target.isPlayer());
+  }
+
 void World::postInit() {
   // NOTE: level inspector override player stats globaly
   // lvlInspector.reset(new Npc(*this,script().getSymbolIndex("PC_Levelinspektor"),""));
@@ -199,6 +257,8 @@ void World::postInit() {
   }
 
 void World::load(Serialize &fin) {
+  npcControlCaster = nullptr;
+  controlRangeWarning = false;
   fin.setContext(this);
   fin.setEntry("worlds/",wname,"/world");
 
@@ -216,6 +276,15 @@ void World::load(Serialize &fin) {
   npcPlayer = wobj.findHero();
   globFx->load(fin);
   wsound.load(fin);
+  if(fin.setEntry("worlds/",wname,"/control")) {
+    uint8_t version = 0;
+    fin.read(version);
+    if(version==1) {
+      fin.read(npcControlCaster,controlCasterHp);
+      if(npcPlayer==nullptr || npcControlCaster==npcPlayer)
+        npcControlCaster = nullptr;
+      }
+    }
   }
 
 void World::save(Serialize &fout) {
@@ -230,6 +299,10 @@ void World::save(Serialize &fout) {
   wobj.save(fout);
   globFx->save(fout);
   wsound.save(fout);
+  if(npcControlCaster!=nullptr) {
+    fout.setEntry("worlds/",wname,"/control");
+    fout.write(uint8_t(1),npcControlCaster,controlCasterHp);
+    }
   }
 
 uint32_t World::npcId(const Npc *ptr) const {
@@ -337,6 +410,7 @@ void World::resetPositionToTA() {
   }
 
 std::unique_ptr<Npc> World::takeHero() {
+  endControl();
   return wobj.takeNpc(npcPlayer);
   }
 
@@ -417,6 +491,24 @@ void World::tick(uint64_t dt) {
   if(!doTicks)
     return;
   wobj.tick(dt,dt);
+  if(npcControlCaster!=nullptr) {
+    const float distance = npcControlCaster->qDistTo(*npcPlayer);
+    if(npcControlCaster->isDown() || npcPlayer->isDown() ||
+       npcControlCaster->attribute(ATR_HITPOINTS)<controlCasterHp || distance>=4000.f*4000.f) {
+      endControl();
+      } else {
+      const bool warning = distance>=3500.f*3500.f;
+      if(warning!=controlRangeWarning) {
+        if(auto* fx = Gothic::inst().loadVisualFx("CONTROL_LEAVERANGEFX")) {
+          if(warning)
+            npcPlayer->startEffect(*npcPlayer,*fx); else
+            npcPlayer->stopEffect(*fx);
+          }
+        controlRangeWarning = warning;
+        }
+      controlCasterHp = npcControlCaster->attribute(ATR_HITPOINTS);
+      }
+    }
   wdynamic->tick(dt);
   if(auto pl = player())
     wsound.tick(*pl);

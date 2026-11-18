@@ -213,6 +213,8 @@ class GameScript final {
     const VisualFx*             spellVfx (int32_t splId);
     bool                       isTeleportSpell(int32_t splId) const;
     bool                       isTransformSpell(int32_t splId) const;
+    bool                       isControlSpell(int32_t splId) const;
+    bool                       isNpcInstance(size_t instance);
     bool                       isTelekinesisSpell(int32_t splId) const;
 
     auto dialogChoices(std::shared_ptr<zenkit::INpc> self, std::shared_ptr<zenkit::INpc> npc, const std::vector<uint32_t> &except, bool includeImp) -> std::vector<DlgChoice>;

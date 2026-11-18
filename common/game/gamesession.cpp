@@ -187,7 +187,7 @@ GameSession::GameSession(Serialize &fin) {
   vm->loadVar(fin);
   time.step("load/script-variables");
 
-  if(auto hero = wrld->player())
+  if(auto hero = wrld->hero())
     vm->setInstanceNPC("HERO",*hero);
 
   if(vm->hasDma()) {
@@ -420,6 +420,7 @@ auto GameSession::implChangeWorld(std::unique_ptr<GameSession>&& game,
     return std::move(game);
     }
 
+  wrld->endControl();
   HeroStorage hdata;
   if(auto hero = wrld->player())
     hdata.save(*hero);
@@ -452,7 +453,7 @@ auto GameSession::implChangeWorld(std::unique_ptr<GameSession>&& game,
     // put hero to world
     hdata.putToWorld(*game->wrld,wayPoint);
     }
-  if(auto hero = wrld->player())
+  if(auto hero = wrld->hero())
     vm->setInstanceNPC("HERO",*hero);
 
   initScripts(wss.isEmpty());
