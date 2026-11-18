@@ -190,7 +190,7 @@
     <string name="og_controls_gestures_title">Versteckte Gesten</string>
     <string name="og_controls_gestures">• Zwei Finger nach links: Heiltrank\n• Zwei Finger nach rechts: Manatrank\n• Zwei Finger links nach unten: schleichen, nach oben: aufstehen\n• Zwei Finger rechts nach oben: Ich-Perspektive\n• Zwei Finger rechts nach unten und halten: zurückschauen\n• Mit drei Fingern tippen: Schnellspeichern\n• Mit vier Fingern tippen: Schnellladen</string>
     <string name="og_controls_inventory_title">Inventar</string>
-    <string name="og_controls_inventory">Tippe auf einen Gegenstand, um ihn auszuwählen, und erneut, um ihn zu benutzen, anzulegen oder zu nehmen. Halte einen Trank, Essen oder ein Dokument, um es zum Draw-Rad hinzuzufügen, und halte es erneut, um es zu entfernen. Tippe auf eine freie Stelle, um das Inventar zu schließen.</string>
+    <string name="og_controls_inventory">Tippe auf einen Gegenstand, um ihn auszuwählen, und erneut, um ihn zu benutzen, anzulegen oder zu nehmen. Halte eine Waffe, einen Trank, Essen oder ein Dokument, um es zum Draw-Rad hinzuzufügen, und halte es erneut, um es zu entfernen. Sobald du eine Waffe hinzufügst, zeigt das Rad nur noch hinzugefügte und angelegte Waffen. Tippe auf eine freie Stelle, um das Inventar zu schließen.</string>
     <string name="og_controls_screens_title">Dialoge, Videos und Menüs</string>
     <string name="og_controls_screens">Tippe auf eine Antwort, um sie zu wählen, oder irgendwo anders, um einen Satz, ein Video oder einen Kapitelbildschirm zu überspringen. Tippe direkt auf Menüeinträge; ein Tippen außerhalb eines Menüs schließt es. Die Tasten blendest du in den Spieleinstellungen unter Touch UI aus.</string>
     <string name="og_voices">Sprachausgabe</string>

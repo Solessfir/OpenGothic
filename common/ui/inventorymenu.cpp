@@ -1061,17 +1061,24 @@ void InventoryMenu::openWheel(Npc& pl, WheelKind kind) {
   state=State::Equip; player=&pl; trader=nullptr; chest=nullptr; page=0;
   pagePl.reset(new InvPage(pl.inventory())); pageOth.reset();
   wheelItems.clear();
+  const auto pins = utilityMenu ? std::vector<size_t>() : QuickSlots::pinned(pl);
+  const bool pinnedWeapons = std::any_of(pins.begin(),pins.end(),[&pl](size_t id) {
+    auto* item = pl.getItem(id);
+    return item!=nullptr && QuickSlots::kind(*item)==QuickSlots::Kind::Weapons;
+    });
   for(auto it=pl.inventory().iterator(Inventory::T_Inventory);!utilityMenu && it.isValid();++it) {
     if(!it->checkCond(pl)) continue;
     // Equipped items and their spare copies appear separately in the inventory iterator.
     if(std::find(wheelItems.begin(),wheelItems.end(),it->clsId())!=wheelItems.end()) continue;
-    if((it->mainFlag()&(ITM_CAT_NF|ITM_CAT_FF))!=0 || (it->isSpellOrRune() && it.slot()!=Item::NSLOT))
+    const bool weapon = (it->mainFlag()&(ITM_CAT_NF|ITM_CAT_FF))!=0;
+    if(weapon && pinnedWeapons && !it.isEquipped() && std::find(pins.begin(),pins.end(),it->clsId())==pins.end())
+      continue;
+    if(weapon || (it->isSpellOrRune() && it.slot()!=Item::NSLOT))
       wheelItems.push_back(it->clsId());
     }
-  if(!utilityMenu)
-    for(auto id:QuickSlots::pinned(pl))
-      if(std::find(wheelItems.begin(),wheelItems.end(),id)==wheelItems.end())
-        wheelItems.push_back(id);
+  for(auto id:pins)
+    if(std::find(wheelItems.begin(),wheelItems.end(),id)==wheelItems.end())
+      wheelItems.push_back(id);
   wheelActive=true; wheelPageId=0; wheelSelected=-1; wheelCentered=true;
   wheelKind=kind; wheelTouch=false;
   wheelHoverPage=0;

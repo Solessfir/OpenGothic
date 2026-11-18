@@ -19,7 +19,8 @@ class QuickSlots final {
     static bool assign(Npc& player, size_t slot, const Item& item);
     static Item* resolve(Npc& player, size_t slot);
 
-    // Consumables and documents can be pinned to the equipment wheel, next to weapons and spells
+    // Weapons, consumables and documents can be pinned to the equipment wheel.
+    // Once a weapon is pinned, the wheel shows only pinned and equipped weapons instead of all of them.
     static bool canPin(const Item& item);
     static bool isPinned(Npc& player, const Item& item);
     static bool togglePinned(Npc& player, const Item& item);
