@@ -512,8 +512,29 @@ void MainWindow::metricsEvent(DisplayMetricsEvent& event) {
   update();
   }
 
+void MainWindow::dmaKeyDown(int32_t code) {
+  // the mods of Ikarus and LeGo hook the keys of the game (oCGame::HandleEvent), once for a press
+  auto* w = Gothic::inst().world();
+  if(w==nullptr || rootMenu.isActive() || video.isActive())
+    return;
+  if(code>0 && code<int32_t(dmaKeysDown.size()) && !dmaKeysDown[size_t(code)]) {
+    dmaKeysDown[size_t(code)] = true;
+    w->script().dmaKeyState(code,true);
+    w->script().dmaKey(code);
+    }
+  }
+
+void MainWindow::dmaKeyUp(int32_t code) {
+  if(code<=0 || code>=int32_t(dmaKeysDown.size()))
+    return;
+  dmaKeysDown[size_t(code)] = false;
+  if(auto* w = Gothic::inst().world())
+    w->script().dmaKeyState(code,false);
+  }
+
 void MainWindow::mouseDownEvent(MouseEvent &event) {
   onDesktopInput();
+  dmaKeyDown(KeyCodec::keyToScanCode(event.button));
   if(event.button<sizeof(mouseP))
     mouseP[event.button]=true;
   auto act     = keycodec.tr(event);
@@ -522,6 +543,7 @@ void MainWindow::mouseDownEvent(MouseEvent &event) {
   }
 
 void MainWindow::mouseUpEvent(MouseEvent &event) {
+  dmaKeyUp(KeyCodec::keyToScanCode(event.button));
   auto act     = keycodec.tr(event);
   auto mapping = keycodec.mapping(event);
   player.onKeyReleased(act,mapping);
@@ -930,14 +952,11 @@ void MainWindow::mouseWheelEvent(MouseEvent &event) {
 
 void MainWindow::keyDownEvent(KeyEvent &event) {
   onDesktopInput();
-  // the mods of Ikarus and LeGo hook the keys of the game (oCGame::HandleEvent), once for a press
-  if(auto* w = Gothic::inst().world(); w!=nullptr && !rootMenu.isActive() && !video.isActive() && !dialogs.wantsText()) {
-    const int32_t code = KeyCodec::keyToCode(event.key);
-    if(code>0 && code<int32_t(dmaKeysDown.size()) && !dmaKeysDown[size_t(code)]) {
-      dmaKeysDown[size_t(code)] = true;
-      w->script().dmaKeyState(code,true);
-      w->script().dmaKey(code);
-      }
+  if(!dialogs.wantsText())
+    dmaKeyDown(KeyCodec::keyToScanCode(event.key));
+  if(event.key==Event::K_ESCAPE) {
+    auto* w = Gothic::inst().world();
+    escClosesScriptMap = w!=nullptr && !rootMenu.isActive() && w->script().isScriptMapOpen();
     }
 
   if(video.isActive()){
@@ -1042,14 +1061,7 @@ void MainWindow::keyRepeatEvent(KeyEvent& event) {
   }
 
 void MainWindow::keyUpEvent(KeyEvent &event) {
-  {
-  const int32_t code = KeyCodec::keyToCode(event.key);
-  if(code>0 && code<int32_t(dmaKeysDown.size())) {
-    dmaKeysDown[size_t(code)] = false;
-    if(auto* w = Gothic::inst().world())
-      w->script().dmaKeyState(code,false);
-    }
-  }
+  dmaKeyUp(KeyCodec::keyToScanCode(event.key));
   if(uiKeyUp==&video){
     video.keyUpEvent(event);
     if(event.isAccepted())
@@ -1089,6 +1101,15 @@ void MainWindow::keyUpEvent(KeyEvent &event) {
 #endif
 
   if(sceneLocksUi() && (act==KeyCodec::Escape || act==KeyCodec::Log || act==KeyCodec::Status || act==KeyCodec::Inventory)) {
+    clearInput();
+    return;
+    }
+
+  if(act==KeyCodec::Escape && escClosesScriptMap) {
+    // CoM takes Esc out of the key buffer of the engine: it closes the map instead of opening the menu
+    escClosesScriptMap = false;
+    if(auto* w = Gothic::inst().world())
+      w->script().closeScriptMap();
     clearInput();
     return;
     }

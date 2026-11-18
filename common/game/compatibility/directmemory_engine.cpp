@@ -9,6 +9,7 @@
 #include <cstring>
 
 #include "world/aiqueue.h"
+#include "utils/keycodec.h"
 #include "logbudget.h"
 #include "world/objects/item.h"
 #include "world/objects/npc.h"
@@ -252,12 +253,7 @@ void DirectMemory::setupEngineCalls() {
       const auto parsed = std::from_chars(begin,begin+4,packed,16);
       if(parsed.ec!=std::errc() || parsed.ptr!=begin+4)
         continue;
-      int32_t code = int32_t(((packed&255)<<8) | ((packed>>8)&255));
-      // OpenGothic's key editor stores its digit shortcuts as 120..129.
-      // Ikarus must see the corresponding DirectInput digit scans 2..11.
-      if(code>=120 && code<=129)
-        code = code-120+2;
-      result[i] = code;
+      result[i] = KeyCodec::iniToScanCode(int32_t(packed));
       }
     return result;
     };
@@ -292,6 +288,8 @@ void DirectMemory::setupEngineCalls() {
   cpu.register_thiscall(ZCINPUT_WIN32__CLEARKEYBUFFER,[this](ptr32_t) {
     std::fill(std::begin(keyEvents),std::end(keyEvents),uint8_t(0));
     std::fill(std::begin(keyToggles),std::end(keyToggles),uint8_t(0));
+    keysUnseen.reset();
+    keysReleaseLater.reset();
     });
   cpu.register_thiscall(ZCINPUT_WIN32__GETSTATE,[this,bindings,weaponAction](ptr32_t, int action) -> float {
     // The CoM DAT calls this only for ZOPT_GAMEKEY_WEAPON (8).

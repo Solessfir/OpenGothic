@@ -160,6 +160,15 @@ void GameScript::dmaKey(int key) {
     dma->eventKey(key);
   }
 
+bool GameScript::isScriptMapOpen() const {
+  return dma!=nullptr && dma->isSpriteMapOpen();
+  }
+
+void GameScript::closeScriptMap() {
+  if(dma!=nullptr)
+    dma->closeSpriteMap();
+  }
+
 void GameScript::dmaKeyState(int key, bool down) {
   if(dma!=nullptr)
     dma->eventKeyState(key,down);

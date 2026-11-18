@@ -103,6 +103,8 @@ class GameScript final {
     int          dmaChangeAttribute(Npc& npc, int attribute, int change);
     void         dmaKey(int key);
     void         dmaKeyState(int key, bool down);
+    bool         isScriptMapOpen() const;
+    void         closeScriptMap();
     void         dmaZoneMusic(std::string_view name);
     void         dmaFallDamage(Npc& npc);
     void         dmaFocus(Npc& player, const Focus& focus);

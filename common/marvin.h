@@ -66,6 +66,7 @@ class Marvin {
       C_PlayAni,
 
       // opengothic specific
+      C_Give,
       C_ToggleGI,
       C_ToggleVsm,
       C_ToggleRtsm,
@@ -95,6 +96,7 @@ class Marvin {
     auto   completeInstanceName(std::string_view inp, bool& fullword) const -> std::string_view;
 
     bool   addItemOrNpcBySymbolName(World* world, std::string_view name, const Tempest::Vec3& at);
+    bool   giveItemBySymbolName(World* world, Npc& npc, std::string_view name);
     bool   printVariable           (World* world, std::string_view name);
     bool   setVariable             (World* world, std::string_view name, std::string_view value);
     bool   setTime                 (World& world, std::string_view hh, std::string_view mm);

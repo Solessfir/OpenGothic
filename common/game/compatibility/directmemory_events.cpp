@@ -358,14 +358,32 @@ void DirectMemory::eventMobCanOpen(Interactive& mob) {
   fireHook(HookAdr::MobCanOpen,r);
   }
 
+/// CoM's maps are LeGo sprites (SpriteMap_Init), not documents of the engine
+bool DirectMemory::isSpriteMapOpen() const {
+  auto* sym = vm.find_symbol_by_name("SPRITEMAP_SPRITEHNDL");
+  return sym!=nullptr && sym->type()==zenkit::DaedalusDataType::INT && sym->get_int()!=0;
+  }
+
+void DirectMemory::closeSpriteMap() {
+  if(isSpriteMapOpen())
+    vm.call_function("SPRITEMAP_DESTROY");
+  }
+
 /// A key is down or up: MEM_KeyPressed and MEM_KeyState of Ikarus read it
 void DirectMemory::eventKeyState(int key, bool down) {
   if(key>0 && size_t(key)<sizeof(keyEvents)) {
+    // The scripts poll the keys once per tick: a tap shorter than a tick must still be seen once
+    if(!down && keysUnseen[size_t(key)]) {
+      keysReleaseLater[size_t(key)] = true;
+      return;
+      }
     if(down && keyEvents[key]==0)
       keyToggles[key] = 1;
     if(!down)
       keyToggles[key] = 0;
     keyEvents[key] = down ? 1 : 0;
+    keysUnseen[size_t(key)]       = down;
+    keysReleaseLater[size_t(key)] = false;
     }
   }
 

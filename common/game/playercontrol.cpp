@@ -65,6 +65,9 @@ void PlayerControl::onKeyPressed(KeyCodec::Action a, Tempest::KeyEvent::KeyType 
   if(w!=nullptr && w->isCutsceneLock())
     return;
 
+  if(a==KeyCodec::Map)
+    scriptMapOpenAtPress = w!=nullptr && w->script().isScriptMapOpen();
+
   if(a==KeyCodec::LockTarget) {
     toggleTargetLock();
     return;
@@ -265,7 +268,11 @@ void PlayerControl::onKeyReleased(KeyCodec::Action a, KeyCodec::Mapping mapping)
   auto pl = w ? w->player() : nullptr;
 
   if(a==KeyCodec::Map && pl!=nullptr) {
-    w->script().playerHotKeyScreenMap(*pl);
+    // The map key toggles a script map: the release must not open again what the press closed
+    if(scriptMapOpenAtPress)
+      w->script().closeScriptMap(); else
+      w->script().playerHotKeyScreenMap(*pl);
+    scriptMapOpenAtPress = false;
     }
   if(a==KeyCodec::Heal && pl!=nullptr) {
     w->script().playerHotLameHeal(*pl);
