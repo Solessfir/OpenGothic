@@ -576,6 +576,9 @@ void MainWindow::tickGamepad() {
     else touchLookIdle+=dt;
     if(swimming && touchLookIdle>=SwimViewDelayMs) camera->easeToSwimView();
     camera->onRotateMouse(PointF(pitch,locked ? 0.f : -yaw));
+    // The swimmer steers from the camera; the character turns only on land
+    if(camera->isFirstPerson() && !locked && !swimming)
+      player.onRotateMouse(-yaw,-pitch);
     const float movement = touchMovementBlocked ? 0.f : std::max(std::abs(touchMove.x),std::abs(touchMove.y));
     const float followSpeed=camera->followSpeed();
     if(auto pl = Gothic::inst().player(); pl!=nullptr && !player.isPressed(KeyCodec::LookBack) &&
@@ -699,6 +702,8 @@ void MainWindow::tickGamepad() {
   const bool locked=player.lockedTarget()!=nullptr;
   // Lock owns horizontal tracking, but vertical look remains under player control.
   camera->onRotateMouse(PointF(look.y*140.f*dtSec*sensitivity*inverse,locked?0.f:-look.x*180.f*dtSec*sensitivity));
+  if(camera->isFirstPerson() && !locked && !swimming)
+    player.onRotateMouse(-look.x*180.f*dtSec*sensitivity,-look.y*140.f*dtSec*sensitivity*inverse);
   if(locked) {
     if(std::abs(look.x)<options.switchReset) controllerSwitchReady=true;
     if(controllerSwitchReady && std::abs(look.x)>options.switchThreshold && now-controllerLastSwitch>=options.switchCooldownMs) {
