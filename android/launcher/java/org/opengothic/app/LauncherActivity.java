@@ -840,8 +840,7 @@ public final class LauncherActivity extends AppCompatActivity {
         addMenuRow(list, popup, R.drawable.og_ic_restore, R.string.og_restore, R.color.og_muted, R.color.og_text, this::restore);
         addMenuDivider(list);
         addMenuRow(list, popup, R.drawable.og_ic_feedback, R.string.og_feedback, R.color.og_muted, R.color.og_text, () -> askReport(game(), null));
-        addMenuRow(list, popup, R.drawable.og_ic_heart, R.string.og_donate, R.color.og_accent, R.color.og_text,
-                () -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://ko-fi.com/solessfir"))));
+        addMenuRow(list, popup, R.drawable.og_ic_heart, R.string.og_donate, R.color.og_accent, R.color.og_text, this::showDonate);
         if (Library.installed(root, game())) {
             if ("Archolos".equals(game().folder) && !voiceChoices().isEmpty()) {
                 addMenuDivider(list);
@@ -1332,6 +1331,15 @@ public final class LauncherActivity extends AppCompatActivity {
     }
 
     /** Archolos has Polish and Russian voice-overs for every language: which one plays, and downloading or removing them. */
+    private void showDonate() {
+        final String[] links = {"https://ko-fi.com/solessfir", "https://paypal.me/Solessfir"};
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.og_donate)
+                .setItems(new String[]{"Ko-fi", "PayPal"}, (d, which) -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(links[which]))))
+                .setNegativeButton(R.string.og_cancel, null)
+                .show();
+    }
+
     private void showVoices() {
         final Library.Game game = game();
         File root = Library.root(this);
