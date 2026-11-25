@@ -1,3 +1,13 @@
+0.7.12
+- Rebind gamepad buttons in the launcher: ⋯ › Gamepad buttons
+- The launcher works with a gamepad; A on a game cover starts it
+- PlayStation controllers show their own button names, and DualShock and DualSense controllers are picked up reliably
+- Touch: dragging on the right side turns the hero, and the movement stick keeps running through wide turns
+- Light spells no longer go out when using a lever, a bench or the inventory
+- Fixed hits that went through or landed from too far away against monsters such as Scavengers and Giant bugs
+- New installs render at 75% resolution for smoother play
+- With a gamepad, B closes the controls guide
+
 0.7.11
 - Archolos maps now show the map and the player marker; the map key toggles them and Esc or Menu closes them. This also fixes low FPS after reading a map
 - Key presses now reach mod scripts (Ikarus/LeGo), so mod hotkeys work
