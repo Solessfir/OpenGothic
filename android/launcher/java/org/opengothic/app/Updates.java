@@ -23,6 +23,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
@@ -207,12 +208,25 @@ final class Updates {
             String match = entry == null ? "" : entry.optString("match");
             if (match.isEmpty()) continue;
             try {
-                if (Pattern.compile(match, Pattern.CASE_INSENSITIVE).matcher(device).find()) return entry.optString("reason");
+                // "reason" is the English text launchers before 0.7.12 show; "text" has it by language
+                if (Pattern.compile(match, Pattern.CASE_INSENSITIVE).matcher(device).find())
+                    return entry.has("text") ? localized(entry.opt("text")) : entry.optString("reason");
             } catch (PatternSyntaxException ignored) {
                 // A broken entry warns nobody
             }
         }
         return null;
+    }
+
+    /** A text in the phone's language, else English, else any; a plain string is the same in every language. */
+    static String localized(Object text) {
+        if (text instanceof String) return (String) text;
+        if (!(text instanceof JSONObject)) return "";
+        JSONObject byLanguage = (JSONObject) text;
+        String ret = byLanguage.optString(Locale.getDefault().getLanguage());
+        if (ret.isEmpty()) ret = byLanguage.optString("en");
+        if (ret.isEmpty() && byLanguage.keys().hasNext()) ret = byLanguage.optString(byLanguage.keys().next());
+        return ret;
     }
 
     private static Release newest(JSONArray releases) throws JSONException {
