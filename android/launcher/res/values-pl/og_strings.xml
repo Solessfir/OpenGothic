@@ -206,7 +206,7 @@
     <string name="og_pad_none">Brak podłączonego kontrolera</string>
     <string name="og_pad_connected">Połączono: %1$s</string>
     <string name="og_pad_swap_sticks">Zamień gałki: ruch prawą gałką</string>
-    <string name="og_pad_hint">A: zmień · X: usuń · Y: domyślne · LB / RB: karty · B: zamknij. Przytrzymaj wiersz, aby usunąć przypisanie dotykiem. Zmiany obowiązują we wszystkich grach od następnego uruchomienia.</string>
+    <string name="og_pad_hint">A: zmień X: usuń Y: domyślne LB / RB: karty B: zamknij. Przytrzymaj wiersz, aby usunąć przypisanie dotykiem. Zmiany obowiązują we wszystkich grach od następnego uruchomienia.</string>
     <string name="og_pad_press">Naciśnij przycisk lub kombinację albo przytrzymaj jeden przycisk, by przypisać długie naciśnięcie</string>
     <string name="og_pad_unbound">Brak</string>
     <string name="og_pad_hold">Przytrzymaj %1$s</string>

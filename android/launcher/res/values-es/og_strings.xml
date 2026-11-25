@@ -206,7 +206,7 @@
     <string name="og_pad_none">No hay ningún mando conectado</string>
     <string name="og_pad_connected">Conectado: %1$s</string>
     <string name="og_pad_swap_sticks">Intercambiar sticks: moverse con el stick derecho</string>
-    <string name="og_pad_hint">A: cambiar · X: quitar · Y: predeterminado · LB / RB: pestañas · B: cerrar. Mantén pulsada una fila para quitarla con el dedo. Los cambios se aplican a todos los juegos la próxima vez que se inicien.</string>
+    <string name="og_pad_hint">A: cambiar X: quitar Y: predeterminado LB / RB: pestañas B: cerrar. Mantén pulsada una fila para quitarla con el dedo. Los cambios se aplican a todos los juegos la próxima vez que se inicien.</string>
     <string name="og_pad_press">Pulsa un botón o una combinación, o mantén un botón para una pulsación larga</string>
     <string name="og_pad_unbound">Ninguno</string>
     <string name="og_pad_hold">Mantener %1$s</string>
