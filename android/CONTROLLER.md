@@ -96,10 +96,10 @@ Movement follows the camera. Swim forward while looking steeply down to dive, an
 
 In Gothic Launcher, open ⋯ › Gamepad buttons. Each tab is a `Gamepad.ini` section; LB/RB switch tabs.
 Press A on an action and then the new button or combination; hold a single button for a long press.
-X clears an action and Y restores its default. A button already used in the same tab moves to the other action.
+X clears an action and Y restores its default. A button another action in the same tab uses is taken from it; that action gets your old button only if it would otherwise have none.
 The layout applies to every game the next time one starts.
 
-To edit by hand, open `/sdcard/Android/data/org.opengothic.gothic2notr/files/Gamepad.ini` with the game closed.
+To edit by hand, close the game and open its `Gamepad.ini`: in Gothic Launcher `/sdcard/Android/data/org.opengothic.launcher/files/User/<game>/Gamepad.ini`, in a standalone app such as Gothic II `/sdcard/Android/data/org.opengothic.gothic2notr/files/Gamepad.ini`.
 Use the [INI editing commands](CONFIGURATION.md#editing-settings), choosing `Gamepad.ini`.
 Updates preserve the file; missing entries inherit defaults. Restart after editing.
 

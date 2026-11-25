@@ -88,15 +88,21 @@ final class ControllerSetup {
     private final Map<String, Map<String, String>> defaults;
     private final Map<String, Map<String, String>> current;
     private final Handler handler = new Handler(Looper.getMainLooper());
+    // The game the shown layout was read from; a game without a file is seeded from it, so it gets what the screen shows
+    private final Library.Game from;
     private final float dp;
 
     private Dialog dialog;
     // Sony's USB vendor; its pads are labelled with symbols instead of letters
-    private final boolean playStation;
+    private static final int SONY = 0x054c;
+    private boolean playStation;
     private android.content.Context ctx;
     private LinearLayout tabs;
     private TextView[] tabViews;
     private ScrollView tabScroll;
+    private TextView hint;
+    // One message for a storage problem, not one per game and key
+    private boolean writeFailed;
     private LinearLayout rows;
     private int tab;
 
@@ -108,28 +114,37 @@ final class ControllerSetup {
     private long captureStart;
     private final Runnable captureTimeout = this::cancelCapture;
 
-    private ControllerSetup(Activity activity, File root, Library.Game selected) {
+    private ControllerSetup(Activity activity, File root, Library.Game selected, int lastPad) {
         this.activity = activity;
         this.root = root;
         this.dp = activity.getResources().getDisplayMetrics().density;
-        InputDevice pad = controller();
-        this.playStation = pad != null && pad.getVendorId() == 0x054c;
+        InputDevice used = InputDevice.getDevice(lastPad);
+        InputDevice pad = used != null ? used : controller();
+        this.playStation = pad != null && pad.getVendorId() == SONY;
         this.defaults = load(activity.getResources().openRawResource(R.raw.og_gamepad_defaults));
         this.current = copy(defaults);
-        File source = file(selected);
-        if (!source.isFile()) {
-            for (Library.Game game : Library.GAMES) {
-                if (file(game).isFile()) {
-                    source = file(game);
-                    break;
-                }
-            }
-        }
-        if (source.isFile()) {
+        from = layoutSource(root, selected, null);
+        File source = from == null ? null : file(from);
+        if (source != null) {
             try {
+                // The screen shows what the game uses: the engine drops a whole binding section over an unknown action,
+                // an invalid value or a clash, and then plays the defaults for all of it
                 for (Map.Entry<String, Map<String, String>> section : load(new FileInputStream(source)).entrySet()) {
                     Map<String, String> into = current.get(section.getKey());
-                    if (into != null) into.putAll(section.getValue());
+                    if (into == null) continue;
+                    if (!Arrays.asList(SECTIONS).contains(section.getKey())) {
+                        for (Map.Entry<String, String> e : section.getValue().entrySet())
+                            if (into.containsKey(e.getKey())) into.put(e.getKey(), e.getValue());
+                        continue;
+                    }
+                    // Any known action is accepted, also one the section's defaults lack: the engine takes it as an override
+                    Map<String, String> loaded = new LinkedHashMap<>(into);
+                    boolean accepted = true;
+                    for (Map.Entry<String, String> e : section.getValue().entrySet()) {
+                        accepted &= isAction(e.getKey()) && valid(e.getValue());
+                        loaded.put(e.getKey(), e.getValue());
+                    }
+                    if (accepted && !hasClash(loaded)) current.put(section.getKey(), loaded);
                 }
             } catch (IOException ignored) {
                 // An unreadable file shows the defaults
@@ -137,12 +152,60 @@ final class ControllerSetup {
         }
     }
 
-    static void show(Activity activity, File root, Library.Game selected) {
-        new ControllerSetup(activity, root, selected).open();
+    /** lastPad is the input device id of the gamepad used last in the launcher, or -1. */
+    static void show(Activity activity, File root, Library.Game selected, int lastPad) {
+        new ControllerSetup(activity, root, selected, lastPad).open();
     }
 
     private File file(Library.Game game) {
+        return file(root, game);
+    }
+
+    private static File file(File root, Library.Game game) {
         return new File(Library.user(root, game), "Gamepad.ini");
+    }
+
+    /**
+     * The game whose Gamepad.ini holds the current layout: the preferred one, then any installed one, then any.
+     * An installed game's file is kept up to date; an uninstalled one may be left from long ago.
+     */
+    private static Library.Game layoutSource(File root, Library.Game preferred, Library.Game exclude) {
+        Library.Game any = null;
+        if (preferred != null && preferred != exclude && Library.installed(root, preferred) && file(root, preferred).isFile()) return preferred;
+        for (Library.Game game : Library.GAMES) {
+            if (game == exclude || !file(root, game).isFile()) continue;
+            if (Library.installed(root, game)) return game;
+            if (any == null) any = game;
+        }
+        return any;
+    }
+
+    /**
+     * Before a game first starts, gives it the layout the other games share; with none yet, the engine's commented
+     * defaults, the same file the game would write itself, so a hand edit still has the reference to start from.
+     */
+    static void seed(android.content.Context context, File root, Library.Game game, Library.Game preferred) {
+        File target = file(root, game);
+        if (target.isFile()) return;
+        Library.Game from = layoutSource(root, preferred, game);
+        try {
+            File dir = target.getParentFile();
+            if (dir != null && !dir.isDirectory() && !dir.mkdirs()) return;
+            File temp = new File(target.getPath() + ".tmp");
+            try {
+                try (InputStream in = from != null ? new FileInputStream(file(root, from)) : context.getResources().openRawResource(R.raw.og_gamepad_defaults);
+                     java.io.OutputStream out = new FileOutputStream(temp)) {
+                    byte[] buffer = new byte[8192];
+                    for (int n; (n = in.read(buffer)) > 0; ) out.write(buffer, 0, n);
+                }
+                temp.renameTo(target);
+            } finally {
+                // Gone after a rename; left only by a failed copy
+                temp.delete();
+            }
+        } catch (IOException ignored) {
+            // The game writes its defaults instead
+        }
     }
 
     private void open() {
@@ -197,8 +260,9 @@ final class ControllerSetup {
         swap.setTextColor(ContextCompat.getColor(activity, R.color.og_text));
         swap.setChecked("RightStick".equals(value("Axes", "MovementStick")));
         swap.setOnCheckedChangeListener((v, on) -> {
-            set("Axes", "MovementStick", on ? "RightStick" : "LeftStick");
-            set("Axes", "CameraStick", on ? "LeftStick" : "RightStick");
+            current.get("Axes").put("MovementStick", on ? "RightStick" : "LeftStick");
+            current.get("Axes").put("CameraStick", on ? "LeftStick" : "RightStick");
+            save("Axes", "MovementStick", "CameraStick");
         });
         // Same inset as the rows, so the focus ring does not sit on the text
         swap.setPadding(Math.round(8 * dp), Math.round(6 * dp), Math.round(8 * dp), Math.round(6 * dp));
@@ -217,6 +281,7 @@ final class ControllerSetup {
             TextView t = text(activity.getString(SECTION_NAMES[i]), 15, R.color.og_muted);
             t.setPadding(Math.round(14 * dp), Math.round(8 * dp), Math.round(14 * dp), Math.round(8 * dp));
             t.setFocusable(true);
+            t.setId(View.generateViewId());
             t.setOnClickListener(v -> selectTab(at, true));
             // Moving through the tabs with the D-pad shows each one right away
             t.setOnFocusChangeListener((v, focused) -> {
@@ -241,7 +306,7 @@ final class ControllerSetup {
         body.addView(scroll, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1));
         page.addView(body, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
 
-        TextView hint = text("", 12, R.color.og_muted);
+        hint = text("", 12, R.color.og_muted);
         setIcons(hint, names(activity.getString(R.string.og_pad_hint)));
         hint.setPadding(0, Math.round(8 * dp), 0, 0);
         page.addView(hint);
@@ -273,9 +338,9 @@ final class ControllerSetup {
         final View chosen = tabViews[tab];
         tabScroll.post(() -> {
             int top = chosen.getTop(), bottom = chosen.getBottom();
-            int from = tabScroll.getScrollY(), height = tabScroll.getHeight();
-            if (top < from) tabScroll.smoothScrollTo(0, top);
-            else if (bottom > from + height) tabScroll.smoothScrollTo(0, bottom - height);
+            int scrollY = tabScroll.getScrollY(), height = tabScroll.getHeight();
+            if (top < scrollY) tabScroll.smoothScrollTo(0, top);
+            else if (bottom > scrollY + height) tabScroll.smoothScrollTo(0, bottom - height);
         });
     }
 
@@ -283,7 +348,8 @@ final class ControllerSetup {
     private void showRows(String focusKey) {
         rows.removeAllViews();
         final String section = SECTIONS[tab];
-        for (String key : defaults.get(section).keySet()) {
+        // Also overrides of other actions the file has: they take part in swaps, so they must be visible
+        for (String key : current.get(section).keySet()) {
             View row = row(section, key);
             rows.addView(row);
             if (key.equals(focusKey)) row.requestFocus();
@@ -300,6 +366,8 @@ final class ControllerSetup {
         ctx.getTheme().resolveAttribute(android.R.attr.selectableItemBackground, ripple, true);
         row.setBackgroundResource(ripple.resourceId);
         row.setFocusable(true);
+        // Left goes to the open tab, not the one beside this row, which focusing would select
+        row.setNextFocusLeftId(tabViews[tab].getId());
         LauncherActivity.addFocusRings(row);
         row.setTag(key);
 
@@ -316,7 +384,7 @@ final class ControllerSetup {
             menu.getMenu().add(0, 1, 0, R.string.og_pad_clear);
             menu.getMenu().add(0, 2, 0, R.string.og_pad_default);
             menu.setOnMenuItemClickListener(item -> {
-                assign(section, key, item.getItemId() == 1 ? "None" : defaults.get(section).get(key));
+                assign(section, key, item.getItemId() == 1 ? "None" : defaultOf(section, key));
                 return true;
             });
             menu.show();
@@ -355,6 +423,7 @@ final class ControllerSetup {
 
     private boolean onKey(KeyEvent event) {
         if (!fromController(event.getDevice())) return false;
+        followLabels(event.getDevice());
         String name = buttonName(event.getKeyCode());
         if (captureKey != null) {
             if (name != null && event.getRepeatCount() == 0) {
@@ -365,16 +434,18 @@ final class ControllerSetup {
         }
         if (event.getAction() != KeyEvent.ACTION_DOWN || name == null) return false;
         switch (name) {
-            case "LB": selectTab(tab - 1, true); return true;
-            case "RB": selectTab(tab + 1, true); return true;
+            // One tab per press: a held shoulder button would otherwise race through them at key-repeat speed
+            case "LB": if (event.getRepeatCount() == 0) selectTab(tab - 1, true); return true;
+            case "RB": if (event.getRepeatCount() == 0) selectTab(tab + 1, true); return true;
             case "Menu": dialog.dismiss(); return true;
             case "X":
             case "Y": {
+                if (event.getRepeatCount() != 0) return true;
                 View focused = dialog.getCurrentFocus();
                 if (focused == null || !(focused.getTag() instanceof String)) return true;
                 String key = (String) focused.getTag();
                 String section = SECTIONS[tab];
-                assign(section, key, name.equals("X") ? "None" : defaults.get(section).get(key));
+                assign(section, key, name.equals("X") ? "None" : defaultOf(section, key));
                 return true;
             }
             default: return false;
@@ -387,7 +458,10 @@ final class ControllerSetup {
             "RightStickUp", "RightStickDown", "RightStickLeft", "RightStickRight", "LT", "RT"};
 
     private boolean onMotion(MotionEvent event) {
-        if (captureKey == null || !fromController(event.getDevice())) return false;
+        // A DualShock also lists its motion sensors as a joystick; only a device with gamepad buttons counts
+        InputDevice device = event.getDevice();
+        if (captureKey == null || device == null || !device.supportsSource(InputDevice.SOURCE_GAMEPAD)
+                || !event.isFromSource(InputDevice.SOURCE_JOYSTICK)) return false;
         float lx = event.getAxisValue(MotionEvent.AXIS_X), ly = event.getAxisValue(MotionEvent.AXIS_Y);
         float rx = axis(event, MotionEvent.AXIS_Z, MotionEvent.AXIS_RX), ry = axis(event, MotionEvent.AXIS_RZ, MotionEvent.AXIS_RY);
         float lt = Math.max(event.getAxisValue(MotionEvent.AXIS_LTRIGGER), event.getAxisValue(MotionEvent.AXIS_BRAKE));
@@ -402,16 +476,29 @@ final class ControllerSetup {
             }
         }
         // Some pads send the D-pad as a hat axis only
-        hat(hy < -0.5f, "DpadUp");
-        hat(hy > 0.5f, "DpadDown");
-        hat(hx < -0.5f, "DpadLeft");
-        hat(hx > 0.5f, "DpadRight");
+        hat(0, hy < -0.5f, "DpadUp");
+        hat(1, hy > 0.5f, "DpadDown");
+        hat(2, hx < -0.5f, "DpadLeft");
+        hat(3, hx > 0.5f, "DpadRight");
         return true;
     }
 
-    private void hat(boolean down, String name) {
-        if (down && !held.contains(name)) press(name);
-        else if (!down && held.contains(name)) release(name);
+    /** The labels follow the pad that was used last, as the game does. */
+    private void followLabels(InputDevice device) {
+        if (!device.supportsSource(InputDevice.SOURCE_GAMEPAD) || (device.getVendorId() == SONY) == playStation) return;
+        playStation = !playStation;
+        setIcons(hint, names(activity.getString(R.string.og_pad_hint)));
+        View focused = dialog.getCurrentFocus();
+        if (captureKey == null) showRows(focused != null && focused.getTag() instanceof String ? (String) focused.getTag() : null);
+    }
+
+    // Only what the hat itself pressed: a D-pad that sends key events must not be released by a motion event
+    private final boolean[] hatDown = new boolean[4];
+
+    private void hat(int index, boolean down, String name) {
+        if (down == hatDown[index]) return;
+        hatDown[index] = down;
+        if (down) press(name); else release(name);
     }
 
     private static float axis(MotionEvent event, int axis, int fallback) {
@@ -431,6 +518,7 @@ final class ControllerSetup {
         captured.clear();
         held.clear();
         Arrays.fill(axisDown, false);
+        Arrays.fill(hatDown, false);
         view.setText(R.string.og_pad_press);
         view.setTextColor(ContextCompat.getColor(activity, R.color.og_accent));
         handler.postDelayed(captureTimeout, CAPTURE_TIMEOUT_MS);
@@ -465,44 +553,67 @@ final class ControllerSetup {
 
     // ---- Bindings ----
 
-    /** Gives the action this binding. Another action of the same section that had it takes the old one, since the engine rejects duplicates. */
+    /**
+     * Gives the action this binding. The engine rejects duplicates, so another action of the same section loses it,
+     * and gets one of this action's old buttons only if it would otherwise have none.
+     */
     private void assign(String section, String key, String binding) {
-        String old = value(section, key);
-        if (!binding.equals("None")) {
-            for (String other : current.get(section).keySet()) {
-                if (other.equals(key)) continue;
-                List<String> choices = new ArrayList<>(Arrays.asList(value(section, other).split(",")));
-                boolean found = false;
-                for (int i = 0; i < choices.size(); ++i) {
-                    if (same(choices.get(i).trim(), binding)) {
-                        choices.remove(i--);
-                        found = true;
-                    }
-                }
-                if (!found) continue;
-                // The other action keeps its remaining alternatives and gets this action's old binding
-                for (String o : old.split(",")) {
-                    String choice = o.trim();
-                    if (choice.equals("None") || choice.isEmpty()) continue;
-                    boolean clash = false;
-                    for (String c : choices) clash |= same(c.trim(), choice);
-                    if (!clash) choices.add(choice);
-                }
-                set(section, other, choices.isEmpty() ? "None" : String.join(",", choices));
-                Toast.makeText(activity, activity.getString(R.string.og_pad_swapped, label(other)), Toast.LENGTH_SHORT).show();
+        List<String> old = choices(value(section, key));
+        List<String> wanted = choices(binding);
+        for (String other : current.get(section).keySet()) {
+            if (other.equals(key)) continue;
+            List<String> kept = choices(value(section, other));
+            if (!kept.removeIf(c -> clashes(c, wanted))) continue;
+            boolean handed = false;
+            // The other action keeps its remaining alternatives; one left with none gets one of this action's old buttons
+            // that the new binding does not use; removing it from old keeps a second action from getting it too
+            for (java.util.Iterator<String> it = old.iterator(); kept.isEmpty() && it.hasNext(); ) {
+                String choice = it.next();
+                if (clashes(choice, wanted)) continue;
+                kept.add(choice);
+                it.remove();
+                handed = true;
             }
+            current.get(section).put(other, kept.isEmpty() ? "None" : String.join(",", kept));
+            // Only news worth a message: the old button moved over, or the action is left without any
+            if (handed || kept.isEmpty())
+                Toast.makeText(activity, activity.getString(handed ? R.string.og_pad_swapped : R.string.og_pad_unbound_other, label(other)),
+                        Toast.LENGTH_SHORT).show();
         }
-        set(section, key, binding);
+        current.get(section).put(key, binding);
+        save(section);
         showRows(key);
     }
 
-    /** Whether two bindings are the same chord: the same buttons, the same last button and the same hold. */
+    private static List<String> choices(String value) {
+        List<String> out = new ArrayList<>();
+        for (String c : value.split(",")) {
+            c = c.trim();
+            if (!c.isEmpty() && !c.equals("None")) out.add(c);
+        }
+        return out;
+    }
+
+    private static boolean clashes(String choice, List<String> others) {
+        for (String o : others)
+            if (same(choice, o)) return true;
+        return false;
+    }
+
+    /** Whether two bindings conflict for the engine: the same set of buttons, in any order, and the same hold. */
     private static boolean same(String a, String b) {
         boolean holdA = a.startsWith("Hold:"), holdB = b.startsWith("Hold:");
-        if (holdA != holdB) return false;
-        List<String> pa = Arrays.asList((holdA ? a.substring(5) : a).split("\\+"));
-        List<String> pb = Arrays.asList((holdB ? b.substring(5) : b).split("\\+"));
-        return pa.size() == pb.size() && pa.containsAll(pb) && pa.get(pa.size() - 1).equals(pb.get(pb.size() - 1));
+        return holdA == holdB && buttons(holdA ? a.substring(5) : a).equals(buttons(holdB ? b.substring(5) : b));
+    }
+
+    private static java.util.Set<String> buttons(String chord) {
+        java.util.Set<String> out = new java.util.HashSet<>();
+        for (String b : chord.split("\\+")) {
+            b = b.trim();
+            // The engine reads Start and Select as Menu and View
+            out.add(b.equals("Start") ? "Menu" : b.equals("Select") ? "View" : b);
+        }
+        return out;
     }
 
     private String value(String section, String key) {
@@ -511,28 +622,47 @@ final class ControllerSetup {
         return v == null ? "None" : v;
     }
 
-    private void set(String section, String key, String value) {
-        current.get(section).put(key, value);
+    /**
+     * Writes a section from current to every game, once all of a change is in current, so a file never holds half of it.
+     * A binding section goes whole, so the files cannot drift apart into conflicting bindings; other sections hold tuning
+     * values the screen does not show, so only the given keys are written there.
+     */
+    private void save(String section, String... keys) {
+        Map<String, String> values = new LinkedHashMap<>();
+        boolean whole = Arrays.asList(SECTIONS).contains(section);
+        if (whole) values.putAll(current.get(section));
+        else for (String key : keys) values.put(key, current.get(section).get(key));
+        // An uninstalled game with a file left over is kept current too; one without gets the layout from seed() when it first starts
         for (Library.Game game : Library.GAMES) {
-            File dir = Library.user(root, game);
-            if (!dir.isDirectory() && !Library.installed(root, game)) continue;
+            if (!Library.installed(root, game) && !file(game).isFile()) continue;
             try {
-                write(file(game), section, key, value);
+                // A game not started yet starts from the shared layout, not from this one section
+                seed(activity, root, game, from);
+                write(file(game), section, values, whole);
             } catch (IOException e) {
-                Toast.makeText(activity, e.getMessage(), Toast.LENGTH_LONG).show();
+                if (!writeFailed) Toast.makeText(activity, e.getMessage(), Toast.LENGTH_LONG).show();
+                writeFailed = true;
             }
         }
     }
 
+    /** Puts the bindings and the stick choice back to the defaults; hand-tuned values in other sections stay. */
     private void resetAll() {
-        for (Library.Game game : Library.GAMES) {
-            File f = file(game);
-            if (f.isFile() && !f.delete()) Toast.makeText(activity, f.getPath(), Toast.LENGTH_LONG).show();
-        }
-        current.clear();
-        current.putAll(copy(defaults));
-        dialog.dismiss();
-        open();
+        new FocusDialog(ctx)
+                .setMessage(R.string.og_pad_reset_confirm)
+                .setPositiveButton(R.string.og_pad_reset_all, (d, which) -> {
+                    for (String section : SECTIONS) {
+                        current.put(section, new LinkedHashMap<>(defaults.get(section)));
+                        save(section);
+                    }
+                    current.get("Axes").put("MovementStick", defaults.get("Axes").get("MovementStick"));
+                    current.get("Axes").put("CameraStick", defaults.get("Axes").get("CameraStick"));
+                    save("Axes", "MovementStick", "CameraStick");
+                    dialog.dismiss();
+                    open();
+                })
+                .setNegativeButton(R.string.og_cancel, null)
+                .show();
     }
 
     private String display(String binding) {
@@ -553,7 +683,8 @@ final class ControllerSetup {
     // The face buttons become private-use characters that icons() draws as matching vector icons:
     // symbol characters come from different fallback fonts and differ a lot in size
     private static final String[][] PLAYSTATION = {{"A", "\uE000"}, {"B", "\uE001"}, {"X", "\uE002"}, {"Y", "\uE003"},
-            {"LB", "L1"}, {"RB", "R1"}, {"LT", "L2"}, {"RT", "R2"}, {"Menu", "Options"}, {"View", "Share"}};
+            {"LB", "L1"}, {"RB", "R1"}, {"LT", "L2"}, {"RT", "R2"}, {"Menu", "Options"}, {"View", "Share"},
+            {"Start", "Options"}, {"Select", "Share"}};
     private static final int[] FACE_ICONS = {R.drawable.og_pad_cross, R.drawable.og_pad_circle, R.drawable.og_pad_square, R.drawable.og_pad_triangle};
 
     /** Sets text whose face button characters show as icons the size of the text, in its color. */
@@ -577,10 +708,12 @@ final class ControllerSetup {
         view.setText(out);
     }
 
+    private static final java.util.regex.Pattern WORD = java.util.regex.Pattern.compile("[A-Za-z0-9]+");
+
     /** Gamepad.ini keeps Xbox names; a Sony pad shows its own labels. Whole words only, so DpadUp or LeftStickUp stay. */
     private String names(String text) {
         if (!playStation) return text;
-        java.util.regex.Matcher m = java.util.regex.Pattern.compile("[A-Za-z0-9]+").matcher(text);
+        java.util.regex.Matcher m = WORD.matcher(text);
         StringBuffer out = new StringBuffer();
         while (m.find()) {
             String token = m.group();
@@ -592,18 +725,65 @@ final class ControllerSetup {
         return out.toString();
     }
 
+    private static final java.util.Set<String> BUTTONS = new java.util.HashSet<>(Arrays.asList(
+            "A", "B", "X", "Y", "LB", "RB", "L3", "R3", "Menu", "View", "Start", "Select", "DpadUp", "DpadDown", "DpadLeft", "DpadRight",
+            "LT", "RT", "LeftStickUp", "LeftStickDown", "LeftStickLeft", "LeftStickRight",
+            "RightStickUp", "RightStickDown", "RightStickLeft", "RightStickRight"));
+
+    /** Whether the engine accepts the value: None, or alternatives of known buttons, each used once per chord. */
+    private static boolean valid(String value) {
+        if (value.equals("None")) return true;
+        if (value.trim().isEmpty()) return false;
+        for (String choice : value.split(",")) {
+            String c = choice.trim();
+            if (c.startsWith("Hold:")) c = c.substring(5);
+            if (c.isEmpty() || c.endsWith("+")) return false;
+            java.util.Set<String> seen = new java.util.HashSet<>();
+            for (String b : c.split("\\+"))
+                if (!BUTTONS.contains(b.trim()) || !seen.add(buttons(b).iterator().next())) return false;
+        }
+        return true;
+    }
+
+    private static boolean hasClash(Map<String, String> section) {
+        List<String> all = new ArrayList<>();
+        for (String value : section.values()) {
+            for (String choice : choices(value)) {
+                if (clashes(choice, all)) return true;
+                all.add(choice);
+            }
+        }
+        return false;
+    }
+
+    /** An override the section's defaults lack defaults to None, which in an override section falls back to the base binding. */
+    private String defaultOf(String section, String key) {
+        String value = defaults.get(section).get(key);
+        return value == null ? "None" : value;
+    }
+
+    private static boolean isAction(String key) {
+        for (Object[] action : ACTIONS)
+            if (action[0].equals(key)) return true;
+        return false;
+    }
+
     private String label(String key) {
         for (Object[] action : ACTIONS)
             if (action[0].equals(key)) return activity.getString((Integer) action[1]);
         return key;
     }
 
+    /** A real pad first; a virtual one, such as a remapping app or Remote Play, also plays the games. */
     private static InputDevice controller() {
+        InputDevice virtual = null;
         for (int id : InputDevice.getDeviceIds()) {
             InputDevice device = InputDevice.getDevice(id);
-            if (device != null && !device.isVirtual() && device.supportsSource(InputDevice.SOURCE_GAMEPAD)) return device;
+            if (device == null || !device.supportsSource(InputDevice.SOURCE_GAMEPAD)) continue;
+            if (!device.isVirtual()) return device;
+            if (virtual == null) virtual = device;
         }
-        return null;
+        return virtual;
     }
 
     private static String controllerName() {
@@ -622,8 +802,8 @@ final class ControllerSetup {
                 line = strip(line);
                 if (line.isEmpty()) continue;
                 if (line.startsWith("[") && line.endsWith("]")) {
-                    section = new LinkedHashMap<>();
-                    out.put(line.substring(1, line.length() - 1), section);
+                    // A section listed twice adds up, as in the engine
+                    section = out.computeIfAbsent(line.substring(1, line.length() - 1), k -> new LinkedHashMap<>());
                 } else if (section != null && line.contains("=")) {
                     int eq = line.indexOf('=');
                     section.put(line.substring(0, eq).trim(), line.substring(eq + 1).trim());
@@ -646,8 +826,11 @@ final class ControllerSetup {
         return out;
     }
 
-    /** Sets one key, keeping the rest of the file and its comments. */
-    private static void write(File file, String section, String key, String value) throws IOException {
+    /**
+     * Sets the section's keys, keeping the rest of the file and its comments, also those after a value.
+     * With whole, the section holds exactly these keys: any other one is commented out.
+     */
+    private static void write(File file, String section, Map<String, String> values, boolean whole) throws IOException {
         List<String> lines = new ArrayList<>();
         if (file.isFile()) {
             try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) {
@@ -655,39 +838,52 @@ final class ControllerSetup {
                 while ((line = in.readLine()) != null) lines.add(line);
             }
         }
-        int sectionAt = -1, end = lines.size(), keyAt = -1;
+        // A section listed twice adds up in the engine, so keys are replaced in every copy; new ones go to the first
+        int sectionAt = -1, end = lines.size();
+        boolean inside = false;
+        Map<String, String> missing = new LinkedHashMap<>(values);
         for (int i = 0; i < lines.size(); ++i) {
             String l = strip(lines.get(i));
             if (l.startsWith("[") && l.endsWith("]")) {
-                if (sectionAt >= 0) {
-                    end = i;
-                    break;
+                if (inside && end == lines.size()) end = i;
+                inside = l.substring(1, l.length() - 1).equals(section);
+                if (inside && sectionAt < 0) sectionAt = i;
+            } else if (inside && l.contains("=")) {
+                String key = l.substring(0, l.indexOf('=')).trim();
+                if (values.containsKey(key)) {
+                    int comment = lines.get(i).indexOf(';');
+                    lines.set(i, key + "=" + values.get(key) + (comment >= 0 ? " " + lines.get(i).substring(comment) : ""));
+                    missing.remove(key);
+                } else if (whole) {
+                    // Not in the shared layout, such as an unknown name the engine would drop the whole section over; as a comment it is ignored
+                    lines.set(i, "; " + lines.get(i));
                 }
-                if (l.substring(1, l.length() - 1).equals(section)) sectionAt = i;
-            } else if (sectionAt >= 0 && l.contains("=") && l.substring(0, l.indexOf('=')).trim().equals(key)) {
-                keyAt = i;
             }
         }
-        String entry = key + "=" + value;
-        if (keyAt >= 0) {
-            lines.set(keyAt, entry);
-        } else if (sectionAt >= 0) {
+        List<String> added = new ArrayList<>();
+        for (Map.Entry<String, String> e : missing.entrySet()) added.add(e.getKey() + "=" + e.getValue());
+        if (sectionAt >= 0) {
             // After the section's last entry, before any blank lines that separate it from the next one
             int at = end;
             while (at > sectionAt + 1 && strip(lines.get(at - 1)).isEmpty()) --at;
-            lines.add(at, entry);
+            lines.addAll(at, added);
         } else {
             if (!lines.isEmpty() && !lines.get(lines.size() - 1).trim().isEmpty()) lines.add("");
             lines.add("[" + section + "]");
-            lines.add(entry);
+            lines.addAll(added);
         }
         File dir = file.getParentFile();
         if (dir != null && !dir.isDirectory() && !dir.mkdirs()) throw new IOException("Cannot create " + dir);
         File temp = new File(file.getPath() + ".tmp");
-        try (Writer out = new OutputStreamWriter(new FileOutputStream(temp), StandardCharsets.UTF_8)) {
-            for (String l : lines) out.write(l + "\n");
+        try {
+            try (Writer out = new OutputStreamWriter(new FileOutputStream(temp), StandardCharsets.UTF_8)) {
+                for (String l : lines) out.write(l + "\n");
+            }
+            if (!temp.renameTo(file)) throw new IOException("Cannot write " + file);
+        } finally {
+            // Gone after a rename; left only by a failed write
+            temp.delete();
         }
-        if (!temp.renameTo(file)) throw new IOException("Cannot write " + file);
     }
 
     private TextView text(String s, int size, int color) {

@@ -128,9 +128,15 @@ public final class LauncherActivity extends AppCompatActivity {
     protected void onCreate(Bundle saved) {
         super.onCreate(saved);
         setContentView(R.layout.og_launcher);
-        // Again after every layout, for rows added later such as the download languages
+        // Once laid out, after onCreate has set up every view; rows added later get theirs where they are added
         final View page = findViewById(R.id.og_root);
-        page.getViewTreeObserver().addOnGlobalLayoutListener(() -> addFocusRings(page));
+        page.getViewTreeObserver().addOnGlobalLayoutListener(new android.view.ViewTreeObserver.OnGlobalLayoutListener() {
+            @Override
+            public void onGlobalLayout() {
+                page.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+                addFocusRings(page);
+            }
+        });
         prefs = getSharedPreferences("launcher", MODE_PRIVATE);
         store = new SteamStore(getApplicationContext());
         selected = 1;
@@ -151,6 +157,13 @@ public final class LauncherActivity extends AppCompatActivity {
         status = findViewById(R.id.og_status);
         progress = findViewById(R.id.og_progress);
         primary = findViewById(R.id.og_primary);
+        // The first gamepad press leaves touch mode, and Android then focuses the first focusable view, a cover;
+        // it announces the change just before, so that focus can go to the main button instead of switching games
+        getWindow().getDecorView().getViewTreeObserver().addOnTouchModeChangeListener(inTouchMode -> {
+            if (inTouchMode) return;
+            leavingTouchMode = true;
+            handler.post(() -> leavingTouchMode = false);
+        });
         secondary = findViewById(R.id.og_secondary);
         plain = findViewById(R.id.og_plain);
         more = findViewById(R.id.og_more);
@@ -180,7 +193,17 @@ public final class LauncherActivity extends AppCompatActivity {
             });
             // With a gamepad, moving to a cover selects the game, and the selection ring shows the focus instead of a second ring
             covers[i].setOnFocusChangeListener((v, focused) -> {
-                if (focused) select(index);
+                if (!focused) return;
+                if (leavingTouchMode && primary.getVisibility() == View.VISIBLE) {
+                    primary.requestFocus();
+                    return;
+                }
+                // A refresh that hid every button, or leaving touch mode, pushes focus here: send it on to the selected game
+                if (rendering || leavingTouchMode) {
+                    if (index != selected) covers[selected].requestFocus();
+                } else {
+                    select(index);
+                }
             });
             covers[i].setForeground(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
             final ImageView image = covers[i].findViewById(R.id.og_cover_image);
@@ -398,7 +421,22 @@ public final class LauncherActivity extends AppCompatActivity {
         return Build.VERSION.SDK_INT >= 26;
     }
 
+    // While render() runs, a button it hides can push focus onto a cover; that must not switch the game
+    private boolean rendering;
+    private boolean leavingTouchMode;
+    // The gamepad used last, so the button screen opens with its labels
+    private int lastPad = -1;
+
     private void render() {
+        rendering = true;
+        try {
+            implRender();
+        } finally {
+            rendering = false;
+        }
+    }
+
+    private void implRender() {
         final Library.Game game = game();
         final File root = Library.root(this);
         final String user = store.name();
@@ -473,6 +511,15 @@ public final class LauncherActivity extends AppCompatActivity {
         if (root != null && !Importer.running && (d == null || !d.active()) && !Backups.files(Library.user(root, game)).isEmpty()) {
             moreVisible = true;
         }
+        // Hand a gamepad's focus to a remaining button first, or hiding ⋯ would send it off to the covers
+        if (!moreVisible && more.hasFocus()) {
+            for (Button b : new Button[] {primary, secondary, plain}) {
+                if (b.getVisibility() == View.VISIBLE) {
+                    b.requestFocus();
+                    break;
+                }
+            }
+        }
         more.setVisibility(moreVisible ? View.VISIBLE : View.GONE);
         // The header offers sign-in only where the game itself does not
         boolean cardSignIn = secondary.getVisibility() == View.VISIBLE && getString(R.string.og_sign_in_steam).contentEquals(secondary.getText());
@@ -501,9 +548,22 @@ public final class LauncherActivity extends AppCompatActivity {
     }
 
     private void actions(int primaryText, Runnable primaryAction, int secondaryText, Runnable secondaryAction, int plainText, Runnable plainAction) {
-        action(primary, primaryText, primaryAction);
-        action(secondary, secondaryText, secondaryAction);
-        action(plain, plainText, plainAction);
+        Button[] buttons = {primary, secondary, plain};
+        int[] texts = {primaryText, secondaryText, plainText};
+        Runnable[] runs = {primaryAction, secondaryAction, plainAction};
+        // Show the remaining buttons first and move a gamepad's focus onto one of them, then hide the rest,
+        // so hiding the focused button does not send focus off to the covers
+        Button kept = null;
+        for (int i = 0; i < buttons.length; ++i) {
+            if (texts[i] == 0) continue;
+            action(buttons[i], texts[i], runs[i]);
+            if (kept == null) kept = buttons[i];
+        }
+        for (int i = 0; i < buttons.length; ++i) {
+            if (texts[i] != 0) continue;
+            if (buttons[i].hasFocus() && kept != null) kept.requestFocus();
+            action(buttons[i], 0, null);
+        }
     }
 
     private static void action(Button button, int text, Runnable run) {
@@ -525,7 +585,10 @@ public final class LauncherActivity extends AppCompatActivity {
             askRepair(game());
             return;
         }
+        // A game starting for the first time takes its buttons from the game played before it
+        Library.Game previous = Library.byFolder(prefs.getString("last_game", ""));
         prefs.edit().putString("last_game", game().folder).apply();
+        ControllerSetup.seed(this, root, game(), previous);
         // The engine reads the folder name and the command-line options at start, see InstallDetect::androidGame and androidArgs
         try {
             GameFiles.ensureScriptsFolder(new File(root, game().folder));
@@ -753,6 +816,7 @@ public final class LauncherActivity extends AppCompatActivity {
             row.setMinHeight(Math.round(48 * density));
             row.setPadding(Math.round(8 * density), 0, Math.round(12 * density), 0);
             languages.addView(row, new RadioGroup.LayoutParams(RadioGroup.LayoutParams.MATCH_PARENT, RadioGroup.LayoutParams.WRAP_CONTENT));
+            addFocusRings(row);
             if (language.equals(preferred) || checked == View.NO_ID) checked = row.getId();
         }
         if (checked != View.NO_ID) languages.check(checked);
@@ -836,6 +900,13 @@ public final class LauncherActivity extends AppCompatActivity {
         render();
     }
 
+    @Override
+    public boolean dispatchKeyEvent(android.view.KeyEvent event) {
+        android.view.InputDevice device = event.getDevice();
+        if (device != null && device.supportsSource(android.view.InputDevice.SOURCE_GAMEPAD)) lastPad = device.getId();
+        return super.dispatchKeyEvent(event);
+    }
+
     private void showMore(View anchor) {
         File root = Library.root(this);
         if (root == null) return;
@@ -848,7 +919,11 @@ public final class LauncherActivity extends AppCompatActivity {
         addMenuRow(group, popup, R.drawable.og_ic_news, R.string.og_whats_new, R.color.og_muted, R.color.og_text, this::showWhatsNew);
         group = menuGroup(groups);
         addMenuRow(group, popup, R.drawable.og_ic_touch, R.string.og_controls, R.color.og_muted, R.color.og_text, this::showControls);
-        addMenuRow(group, popup, R.drawable.og_ic_controls, R.string.og_pad_title, R.color.og_muted, R.color.og_text, () -> ControllerSetup.show(this, root, game()));
+        // The layout is saved with the installed games; with none there is nowhere to keep it
+        boolean anyInstalled = false;
+        for (Library.Game g : Library.GAMES) anyInstalled |= Library.installed(root, g);
+        if (anyInstalled)
+            addMenuRow(group, popup, R.drawable.og_ic_controls, R.string.og_pad_title, R.color.og_muted, R.color.og_text, () -> ControllerSetup.show(this, root, game(), lastPad));
         if (Library.installed(root, game()) && "Archolos".equals(game().folder) && !voiceChoices().isEmpty())
             addMenuRow(group, popup, R.drawable.og_ic_voice, R.string.og_voices, R.color.og_muted, R.color.og_text, this::showVoices);
         group = menuGroup(groups);
@@ -879,7 +954,6 @@ public final class LauncherActivity extends AppCompatActivity {
         menuColumn(list, groups);
         list.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
         if (list.getMeasuredHeight() > window.getHeight() - 2 * gap) {
-            for (LinearLayout g : groups) ((LinearLayout) g.getParent()).removeView(g);
             list.removeAllViews();
             // The split that keeps the taller column shortest
             int split = 1, best = Integer.MAX_VALUE, upper = 0;
@@ -971,9 +1045,11 @@ public final class LauncherActivity extends AppCompatActivity {
     /** With clickable true, views that react to a tap but cannot take focus become reachable with a gamepad too. */
     static void addFocusRings(View view, boolean clickable) {
         if (clickable && view.isClickable() && !view.isFocusable()) view.setFocusable(true);
-        // Lists and scrolling panes draw their own selection, and a radio button or switch without padding has its own
-        // focus circle; a ring around either would frame the pane or cut through the label
+        // Lists and scrolling panes draw their own selection, a radio button or switch without padding has its own
+        // focus circle, and a text field focused by a tap shows its own focused look; a ring would frame the pane,
+        // cut through the label or sit on the field
         boolean own = view instanceof android.widget.AbsListView || view instanceof android.widget.ScrollView
+                || view instanceof androidx.core.widget.NestedScrollView || view.isFocusableInTouchMode()
                 || (view instanceof android.widget.CompoundButton && view.getPaddingLeft() == 0);
         if (!own && view.isFocusable() && view.getForeground() == null)
             view.setForeground(ContextCompat.getDrawable(view.getContext(), R.drawable.og_focus));
@@ -1112,6 +1188,7 @@ public final class LauncherActivity extends AppCompatActivity {
                     row.addView(clear, new LinearLayout.LayoutParams(box, box));
                 }
                 save.addView(row, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+                addFocusRings(save, true);
             }
         };
         showSave.run();
@@ -1135,6 +1212,7 @@ public final class LauncherActivity extends AppCompatActivity {
                     row.addView(clear, new LinearLayout.LayoutParams(box, box));
                 }
                 shotsBox.addView(row, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+                addFocusRings(shotsBox, true);
             }
         };
         showShots.run();
