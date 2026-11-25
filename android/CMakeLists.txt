@@ -39,6 +39,20 @@ if(OPENGOTHIC_ANDROID_GAME STREQUAL "launcher")
   # Android only installs an update with a higher code; 0.2 is 200, 1.10.3 is 11003
   math(EXPR code "${major} * 10000 + ${minor} * 100 + ${patch}")
 
+  # The controller screen edits Gamepad.ini; its defaults come from the engine so the two never disagree
+  set(bindings_source "${CMAKE_CURRENT_SOURCE_DIR}/../common/utils/gamepadbindings.cpp")
+  set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${bindings_source}")
+  file(READ "${bindings_source}" bindings)
+  string(FIND "${bindings}" "R\"ini(" bindings_begin)
+  string(FIND "${bindings}" ")ini\"" bindings_end)
+  if(bindings_begin EQUAL -1 OR bindings_end EQUAL -1)
+    message(FATAL_ERROR "Gamepad defaults not found in ${bindings_source}")
+  endif()
+  math(EXPR bindings_begin "${bindings_begin} + 6")
+  math(EXPR bindings_length "${bindings_end} - ${bindings_begin}")
+  string(SUBSTRING "${bindings}" ${bindings_begin} ${bindings_length} bindings)
+  file(WRITE "${generated}/res/raw/og_gamepad_defaults.ini" "${bindings}")
+
   # The engine shows the release in its main menu and log
   target_compile_definitions(OpenGothic PUBLIC OPENGOTHIC_APP_VERSION="${OPENGOTHIC_LAUNCHER_VERSION}")
 

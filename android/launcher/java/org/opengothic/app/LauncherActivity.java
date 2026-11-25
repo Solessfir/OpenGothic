@@ -128,6 +128,9 @@ public final class LauncherActivity extends AppCompatActivity {
     protected void onCreate(Bundle saved) {
         super.onCreate(saved);
         setContentView(R.layout.og_launcher);
+        // Again after every layout, for rows added later such as the download languages
+        final View page = findViewById(R.id.og_root);
+        page.getViewTreeObserver().addOnGlobalLayoutListener(() -> addFocusRings(page));
         prefs = getSharedPreferences("launcher", MODE_PRIVATE);
         store = new SteamStore(getApplicationContext());
         selected = 1;
@@ -171,6 +174,11 @@ public final class LauncherActivity extends AppCompatActivity {
             covers[i] = findViewById(ids[i]);
             covers[i].setContentDescription(game.title);
             covers[i].setOnClickListener(v -> select(index));
+            // With a gamepad, moving to a cover selects the game, and the selection ring shows the focus instead of a second ring
+            covers[i].setOnFocusChangeListener((v, focused) -> {
+                if (focused) select(index);
+            });
+            covers[i].setForeground(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
             final ImageView image = covers[i].findViewById(R.id.og_cover_image);
             final TextView label = covers[i].findViewById(R.id.og_cover_label);
             image.setClipToOutline(true);
@@ -405,7 +413,8 @@ public final class LauncherActivity extends AppCompatActivity {
 
         status.setTextColor(ContextCompat.getColor(this, R.color.og_muted));
         progress.setVisibility(View.GONE);
-        more.setVisibility(View.GONE);
+        // Decided once per pass: hiding the focused button even briefly sends gamepad focus back to the first cover
+        boolean moreVisible = false;
         Downloads.State d = Downloads.get(game);
 
         if (root == null) {
@@ -418,7 +427,7 @@ public final class LauncherActivity extends AppCompatActivity {
             actions(0, null, 0, null, 0, null);
         } else if (Library.installed(root, game)) {
             setText(status, getString(R.string.og_installed));
-            more.setVisibility(View.VISIBLE);
+            moreVisible = true;
             actions(R.string.og_play, this::play, 0, null, 0, null);
         } else if (d != null && d.active()) {
             if (d.queued) {
@@ -458,8 +467,9 @@ public final class LauncherActivity extends AppCompatActivity {
         }
         // Saves outlive the game files, so their backup stays reachable after uninstalling
         if (root != null && !Importer.running && (d == null || !d.active()) && !Backups.files(Library.user(root, game)).isEmpty()) {
-            more.setVisibility(View.VISIBLE);
+            moreVisible = true;
         }
+        more.setVisibility(moreVisible ? View.VISIBLE : View.GONE);
         // The header offers sign-in only where the game itself does not
         boolean cardSignIn = secondary.getVisibility() == View.VISIBLE && getString(R.string.og_sign_in_steam).contentEquals(secondary.getText());
         signIn.setVisibility(steamAvailable() && !signedIn && !cardSignIn ? View.VISIBLE : View.GONE);
@@ -536,7 +546,7 @@ public final class LauncherActivity extends AppCompatActivity {
 
     private void askRepair(Library.Game game) {
         boolean steam = steamAvailable() && store.account() != null;
-        AlertDialog.Builder dialog = new AlertDialog.Builder(this)
+        AlertDialog.Builder dialog = new FocusDialog(this)
                 .setTitle(getString(R.string.og_damaged_title, game.title))
                 .setMessage(steam ? R.string.og_damaged_repair : R.string.og_damaged_reimport)
                 .setNegativeButton(R.string.og_cancel, null);
@@ -647,7 +657,7 @@ public final class LauncherActivity extends AppCompatActivity {
         } catch (RuntimeException e) {
             return;
         }
-        new AlertDialog.Builder(this)
+        new FocusDialog(this)
                 .setTitle(R.string.og_import_delete_title)
                 .setMessage(getString(R.string.og_import_delete_body, game.title, name, Formatter.formatShortFileSize(this, size)))
                 .setPositiveButton(R.string.og_delete, (dialog, which) -> {
@@ -663,7 +673,7 @@ public final class LauncherActivity extends AppCompatActivity {
     }
 
     private void confirmRestore(final Library.Game game, final Uri uri) {
-        new AlertDialog.Builder(this)
+        new FocusDialog(this)
                 .setTitle(getString(R.string.og_restore_title, game.title))
                 .setMessage(R.string.og_restore_body)
                 .setPositiveButton(R.string.og_restore_button, (dialog, which) -> {
@@ -774,7 +784,7 @@ public final class LauncherActivity extends AppCompatActivity {
     private void askInstallPermission() {
         if (mayInstallUpdates() || prefs.getBoolean("askedInstall", false)) return;
         prefs.edit().putBoolean("askedInstall", true).apply();
-        new AlertDialog.Builder(this)
+        new FocusDialog(this)
                 .setTitle(R.string.og_updates_title)
                 .setMessage(R.string.og_updates_body)
                 .setPositiveButton(R.string.og_allow, (dialog, which) -> openInstallPermission())
@@ -793,7 +803,7 @@ public final class LauncherActivity extends AppCompatActivity {
         } catch (IOException e) {
             return;
         }
-        new AlertDialog.Builder(this)
+        new FocusDialog(this)
                 .setTitle(R.string.og_whats_new)
                 .setMessage(notes)
                 .setPositiveButton(android.R.string.ok, null)
@@ -803,7 +813,7 @@ public final class LauncherActivity extends AppCompatActivity {
     private void showUpdate() {
         final Updates.Release release = Updates.available(this);
         if (release == null || Updates.downloading) return;
-        new AlertDialog.Builder(this)
+        new FocusDialog(this)
                 .setTitle(getString(R.string.og_update_title, release.version))
                 .setMessage(release.notes.isEmpty() ? getString(R.string.og_update_notes) : release.notes)
                 .setPositiveButton(R.string.og_update, (dialog, which) -> startUpdate(release))
@@ -827,27 +837,70 @@ public final class LauncherActivity extends AppCompatActivity {
         if (root == null) return;
         final float dp = getResources().getDisplayMetrics().density;
         final PopupWindow popup = new PopupWindow(this);
+
+        // News first, then settings, your data, contact, and removal on its own
+        List<LinearLayout> groups = new java.util.ArrayList<>();
+        LinearLayout group = menuGroup(groups);
+        addMenuRow(group, popup, R.drawable.og_ic_news, R.string.og_whats_new, R.color.og_muted, R.color.og_text, this::showWhatsNew);
+        group = menuGroup(groups);
+        addMenuRow(group, popup, R.drawable.og_ic_touch, R.string.og_controls, R.color.og_muted, R.color.og_text, this::showControls);
+        addMenuRow(group, popup, R.drawable.og_ic_controls, R.string.og_pad_title, R.color.og_muted, R.color.og_text, () -> ControllerSetup.show(this, root, game()));
+        if (Library.installed(root, game()) && "Archolos".equals(game().folder) && !voiceChoices().isEmpty())
+            addMenuRow(group, popup, R.drawable.og_ic_voice, R.string.og_voices, R.color.og_muted, R.color.og_text, this::showVoices);
+        group = menuGroup(groups);
+        addMenuRow(group, popup, R.drawable.og_ic_backup, R.string.og_backup, R.color.og_muted, R.color.og_text, this::backup);
+        addMenuRow(group, popup, R.drawable.og_ic_restore, R.string.og_restore, R.color.og_muted, R.color.og_text, this::restore);
+        group = menuGroup(groups);
+        addMenuRow(group, popup, R.drawable.og_ic_feedback, R.string.og_feedback, R.color.og_muted, R.color.og_text, () -> askReport(game(), null));
+        addMenuRow(group, popup, R.drawable.og_ic_heart, R.string.og_donate, R.color.og_accent, R.color.og_text, this::showDonate);
+        if (Library.installed(root, game())) {
+            group = menuGroup(groups);
+            addMenuRow(group, popup, R.drawable.og_ic_delete, R.string.og_uninstall, R.color.og_error, R.color.og_error, this::confirmUninstall);
+        }
+
+        // One column when it fits the screen's height, else the groups split into two columns so every item stays visible
+        final View window = getWindow().getDecorView();
+        final int gap = Math.round(8 * dp);
+        int total = 0;
+        int[] heights = new int[groups.size()];
+        for (int i = 0; i < groups.size(); ++i) {
+            groups.get(i).measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+            heights[i] = groups.get(i).getMeasuredHeight();
+            total += heights[i];
+        }
         LinearLayout list = new LinearLayout(this);
-        list.setOrientation(LinearLayout.VERTICAL);
         list.setBackgroundResource(R.drawable.og_menu);
         list.setPadding(0, Math.round(6 * dp), 0, Math.round(6 * dp));
-
-        // Help, your data, contact, then removal on its own
-        addMenuRow(list, popup, R.drawable.og_ic_controls, R.string.og_controls, R.color.og_muted, R.color.og_text, this::showControls);
-        addMenuRow(list, popup, R.drawable.og_ic_news, R.string.og_whats_new, R.color.og_muted, R.color.og_text, this::showWhatsNew);
-        addMenuDivider(list);
-        addMenuRow(list, popup, R.drawable.og_ic_backup, R.string.og_backup, R.color.og_muted, R.color.og_text, this::backup);
-        addMenuRow(list, popup, R.drawable.og_ic_restore, R.string.og_restore, R.color.og_muted, R.color.og_text, this::restore);
-        addMenuDivider(list);
-        addMenuRow(list, popup, R.drawable.og_ic_feedback, R.string.og_feedback, R.color.og_muted, R.color.og_text, () -> askReport(game(), null));
-        addMenuRow(list, popup, R.drawable.og_ic_heart, R.string.og_donate, R.color.og_accent, R.color.og_text, this::showDonate);
-        if (Library.installed(root, game())) {
-            if ("Archolos".equals(game().folder) && !voiceChoices().isEmpty()) {
-                addMenuDivider(list);
-                addMenuRow(list, popup, R.drawable.og_ic_voice, R.string.og_voices, R.color.og_muted, R.color.og_text, this::showVoices);
+        list.setOrientation(LinearLayout.VERTICAL);
+        menuColumn(list, groups);
+        list.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+        if (list.getMeasuredHeight() > window.getHeight() - 2 * gap) {
+            for (LinearLayout g : groups) ((LinearLayout) g.getParent()).removeView(g);
+            list.removeAllViews();
+            // The split that keeps the taller column shortest
+            int split = 1, best = Integer.MAX_VALUE, upper = 0;
+            for (int i = 1; i < groups.size(); ++i) {
+                upper += heights[i - 1];
+                int taller = Math.max(upper, total - upper);
+                if (taller < best) {
+                    best = taller;
+                    split = i;
+                }
             }
-            addMenuDivider(list);
-            addMenuRow(list, popup, R.drawable.og_ic_delete, R.string.og_uninstall, R.color.og_error, R.color.og_error, this::confirmUninstall);
+            list.setOrientation(LinearLayout.HORIZONTAL);
+            LinearLayout left = new LinearLayout(this), right = new LinearLayout(this);
+            left.setOrientation(LinearLayout.VERTICAL);
+            right.setOrientation(LinearLayout.VERTICAL);
+            menuColumn(left, groups.subList(0, split));
+            menuColumn(right, groups.subList(split, groups.size()));
+            // Fixed widths: a divider that fills its column would otherwise stretch the column to the whole screen
+            left.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+            right.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+            list.addView(left, new LinearLayout.LayoutParams(left.getMeasuredWidth(), LinearLayout.LayoutParams.WRAP_CONTENT));
+            View line = new View(this);
+            line.setBackgroundColor(ContextCompat.getColor(this, R.color.og_border_soft));
+            list.addView(line, new LinearLayout.LayoutParams(Math.max(1, Math.round(dp)), LinearLayout.LayoutParams.MATCH_PARENT));
+            list.addView(right, new LinearLayout.LayoutParams(right.getMeasuredWidth(), LinearLayout.LayoutParams.WRAP_CONTENT));
         }
 
         popup.setContentView(list);
@@ -862,14 +915,13 @@ public final class LauncherActivity extends AppCompatActivity {
         // Beside the button, bottoms lined up, so it stays visible; above it when there is no room on the side (portrait)
         int[] at = new int[2];
         anchor.getLocationInWindow(at);
-        final int gap = Math.round(8 * dp);
-        final View window = getWindow().getDecorView();
         int x = at[0] + anchor.getWidth() + gap;
         int y = at[1] + anchor.getHeight() - list.getMeasuredHeight();
         if (x + list.getMeasuredWidth() > window.getWidth()) {
             x = at[0];
             y = at[1] - list.getMeasuredHeight() - gap;
         }
+        x = Math.max(gap, Math.min(x, window.getWidth() - list.getMeasuredWidth() - gap));
         popup.showAtLocation(anchor, android.view.Gravity.TOP | android.view.Gravity.START, x, Math.max(y, gap));
     }
 
@@ -902,7 +954,43 @@ public final class LauncherActivity extends AppCompatActivity {
             popup.dismiss();
             action.run();
         });
+        row.setFocusable(true);
+        addFocusRings(row);
         list.addView(row, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+    }
+
+    /** Outlines whatever a gamepad or keyboard focuses: the launcher's own backgrounds have no focused look. */
+    static void addFocusRings(View view) {
+        addFocusRings(view, false);
+    }
+
+    /** With clickable true, views that react to a tap but cannot take focus become reachable with a gamepad too. */
+    static void addFocusRings(View view, boolean clickable) {
+        if (clickable && view.isClickable() && !view.isFocusable()) view.setFocusable(true);
+        // Lists and scrolling panes draw their own selection, and a radio button or switch without padding has its own
+        // focus circle; a ring around either would frame the pane or cut through the label
+        boolean own = view instanceof android.widget.AbsListView || view instanceof android.widget.ScrollView
+                || (view instanceof android.widget.CompoundButton && view.getPaddingLeft() == 0);
+        if (!own && view.isFocusable() && view.getForeground() == null)
+            view.setForeground(ContextCompat.getDrawable(view.getContext(), R.drawable.og_focus));
+        if (view instanceof android.view.ViewGroup) {
+            android.view.ViewGroup group = (android.view.ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); ++i) addFocusRings(group.getChildAt(i), clickable);
+        }
+    }
+
+    private LinearLayout menuGroup(List<LinearLayout> groups) {
+        LinearLayout group = new LinearLayout(this);
+        group.setOrientation(LinearLayout.VERTICAL);
+        groups.add(group);
+        return group;
+    }
+
+    private void menuColumn(LinearLayout column, List<LinearLayout> groups) {
+        for (int i = 0; i < groups.size(); ++i) {
+            if (i > 0) addMenuDivider(column);
+            column.addView(groups.get(i), new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        }
     }
 
     private void addMenuDivider(LinearLayout list) {
@@ -963,7 +1051,7 @@ public final class LauncherActivity extends AppCompatActivity {
         }
         ScrollView scroll = new ScrollView(this);
         scroll.addView(page);
-        new AlertDialog.Builder(this)
+        new FocusDialog(this)
                 .setTitle(R.string.og_controls)
                 .setView(scroll)
                 .setPositiveButton(android.R.string.ok, null)
@@ -1047,7 +1135,7 @@ public final class LauncherActivity extends AppCompatActivity {
         };
         showShots.run();
         page.addView(shotsBox);
-        final AlertDialog dialog = new AlertDialog.Builder(this)
+        final AlertDialog dialog = new FocusDialog(this)
                 .setTitle(problem != null ? problem : getString(R.string.og_feedback))
                 .setMessage(R.string.og_report_body)
                 .setPositiveButton(R.string.og_report_send, (d, which) -> {
@@ -1175,7 +1263,7 @@ public final class LauncherActivity extends AppCompatActivity {
         list.setOrientation(LinearLayout.VERTICAL);
         ScrollView scroll = new ScrollView(this);
         scroll.addView(list);
-        final AlertDialog dialog = new AlertDialog.Builder(this)
+        final AlertDialog dialog = new FocusDialog(this)
                 .setTitle(R.string.og_report_save_pick)
                 .setView(scroll)
                 .setNegativeButton(R.string.og_cancel, null)
@@ -1269,7 +1357,7 @@ public final class LauncherActivity extends AppCompatActivity {
     private boolean warnUnsupported(final Runnable then) {
         final String blocked = Updates.blocked(this);
         if (blocked != null) {
-            new AlertDialog.Builder(this)
+            new FocusDialog(this)
                     .setTitle(R.string.og_blocked_title)
                     .setMessage(blocked.isEmpty() ? getString(R.string.og_blocked_body) : blocked)
                     .setPositiveButton(android.R.string.ok, null)
@@ -1278,7 +1366,7 @@ public final class LauncherActivity extends AppCompatActivity {
         }
         final String reason = Updates.unsupported(this);
         if (reason == null || reason.equals(prefs.getString("unsupported_ok", null))) return false;
-        new AlertDialog.Builder(this)
+        new FocusDialog(this)
                 .setTitle(R.string.og_unsupported_title)
                 .setMessage(reason)
                 .setPositiveButton(R.string.og_try_anyway, (d, which) -> {
@@ -1304,7 +1392,7 @@ public final class LauncherActivity extends AppCompatActivity {
             String text = Updates.localized(notice.opt("text"));
             if (text.isEmpty()) continue;
             noticeShowing = true;
-            new AlertDialog.Builder(this)
+            new FocusDialog(this)
                     .setTitle(R.string.og_notice_title)
                     .setMessage(text)
                     .setPositiveButton(android.R.string.ok, null)
@@ -1322,7 +1410,7 @@ public final class LauncherActivity extends AppCompatActivity {
     /** Archolos has Polish and Russian voice-overs for every language: which one plays, and downloading or removing them. */
     private void showDonate() {
         final String[] links = {"https://ko-fi.com/solessfir", "https://paypal.me/Solessfir"};
-        new AlertDialog.Builder(this)
+        new FocusDialog(this)
                 .setTitle(R.string.og_donate)
                 .setItems(new String[]{"Ko-fi", "PayPal"}, (d, which) -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(links[which]))))
                 .setNegativeButton(R.string.og_cancel, null)
@@ -1342,7 +1430,7 @@ public final class LauncherActivity extends AppCompatActivity {
             int state = on == null ? R.string.og_voice_not_downloaded : on ? R.string.og_voice_in_use : R.string.og_voice_downloaded;
             rows[i] = Library.languageName(languages[i]) + " · " + getString(state);
         }
-        new AlertDialog.Builder(this)
+        new FocusDialog(this)
                 .setTitle(R.string.og_voices)
                 .setItems(rows, (d, which) -> voiceActions(game, dir, languages[which], have.get(GameFiles.voiceCode(languages[which]))))
                 .setNegativeButton(R.string.og_cancel, null)
@@ -1369,7 +1457,7 @@ public final class LauncherActivity extends AppCompatActivity {
 
     private void voiceActions(final Library.Game game, final File dir, final String language, Boolean on) {
         final String code = GameFiles.voiceCode(language);
-        AlertDialog.Builder dialog = new AlertDialog.Builder(this)
+        AlertDialog.Builder dialog = new FocusDialog(this)
                 .setTitle(Library.languageName(language))
                 .setNegativeButton(R.string.og_cancel, null);
         if (on == null) {
@@ -1411,7 +1499,7 @@ public final class LauncherActivity extends AppCompatActivity {
 
     private void confirmUninstall() {
         final Library.Game game = game();
-        new AlertDialog.Builder(this)
+        new FocusDialog(this)
                 .setTitle(getString(R.string.og_uninstall_title, game.title))
                 .setMessage(R.string.og_uninstall_body)
                 .setPositiveButton(R.string.og_uninstall, (dialog, which) -> new Thread(() -> {
@@ -1438,7 +1526,7 @@ public final class LauncherActivity extends AppCompatActivity {
     }
 
     private void message(String text) {
-        new AlertDialog.Builder(this).setMessage(text).setPositiveButton(android.R.string.ok, null).show();
+        new FocusDialog(this).setMessage(text).setPositiveButton(android.R.string.ok, null).show();
     }
 
     /** Reads which games the account owns, at most every few minutes; the cached answer shows meanwhile. */
