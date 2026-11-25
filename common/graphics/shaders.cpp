@@ -105,6 +105,10 @@ void Shaders::setupOptions() {
   opts.doGi             = opts.doRayQuery ? CommandLine::inst().isRtGi() : GiMethod::None;
 
   opts.doSoftwareRT     = false;
+  // Which render path this GPU takes, so a slow report can be compared with one from another GPU
+  Log::i("Render path: bindless=",opts.doBindless," meshShader=",opts.doMeshShading," rayQuery=",opts.doRayQuery,
+         " tesselation=",opts.doTesselation," virtualShadow=",opts.doVirtualShadow," softwareShadow=",opts.doSoftwareShadow,
+         " gi=",int(opts.doGi));
   }
 
 void Shaders::compileKeyShaders() {
