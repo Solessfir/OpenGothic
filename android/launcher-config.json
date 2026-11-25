@@ -1,4 +1,9 @@
 {
     "reports": "https://opengothic-reports.solessfir.workers.dev",
-    "unsupported": []
+    "unsupported": [
+        {
+            "match": "MT676[89]",
+            "reason": "This phone's graphics chip (Mali-G52 MC2) is too slow for the game: expect only a few frames per second even at the lowest settings, and Android may close the game for lack of memory."
+        }
+    ]
 }
