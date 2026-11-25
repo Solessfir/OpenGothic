@@ -211,7 +211,9 @@
     <string name="og_pad_unbound">Brak</string>
     <string name="og_pad_hold">Przytrzymaj %1$s</string>
     <string name="og_pad_swapped">%1$s dostaje poprzedni przycisk</string>
+    <string name="og_pad_unbound_other">%1$s nie ma teraz przycisku</string>
     <string name="og_pad_reset_all">Przywróć wszystko</string>
+    <string name="og_pad_reset_confirm">Przywrócić domyślne przyciski pada we wszystkich grach?</string>
     <string name="og_pad_clear">Usuń</string>
     <string name="og_pad_default">Domyślne</string>
     <string name="og_pad_tab_gameplay">Eksploracja</string>

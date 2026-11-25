@@ -45,6 +45,12 @@ static std::string playStationNames(std::string_view keys) {
     }
   return out;
   }
+
+static std::string wheelPageHint(const GamepadBindings& bindings, bool playStation) {
+  const auto pages=bindings.hint(PadAction::PreviousPage,Context::EquipmentWheel)+" / "+
+                   bindings.hint(PadAction::NextPage,Context::EquipmentWheel);
+  return (playStation ? playStationNames(pages) : pages)+": pages";
+  }
 #endif
 
 void MainWindow::updateControllerOverlay() {
@@ -269,6 +275,10 @@ void MainWindow::controllerAction(const GamepadBindings::Event& event) {
     if(action==PadAction::DeleteSave && pressed && rootMenu.isActive() && !video.isActive()) {
       auto accept=controllerBindings.hint(PadAction::Accept,context);
       auto back=controllerBindings.hint(PadAction::Back,context);
+      if(controllerPlayStation) {
+        accept=playStationNames(accept);
+        back=playStationNames(back);
+        }
       accept=accept.substr(0,accept.find(" / "));
       back=back.substr(0,back.find(" / "));
       rootMenu.requestDeleteSave(accept+": Delete    "+back+": Cancel");
@@ -313,8 +323,7 @@ void MainWindow::controllerAction(const GamepadBindings::Event& event) {
     if(inventory.isWheelOpen()) {
       wheelQuickSlot=slot;
       wheelHeldMask=event.mask;
-      inventory.setWheelPageHint(controllerBindings.hint(PadAction::PreviousPage,Context::EquipmentWheel)+" / "+
-                                controllerBindings.hint(PadAction::NextPage,Context::EquipmentWheel)+": pages");
+      inventory.setWheelPageHint(wheelPageHint(controllerBindings,controllerPlayStation));
       }
     return;
     }
@@ -326,14 +335,14 @@ void MainWindow::controllerAction(const GamepadBindings::Event& event) {
     case PadAction::Back:
       if(world->script().isScriptMapOpen())
         world->script().closeScriptMap(); else
+      if(pl->interactive()!=nullptr)
+        key(KeyCodec::Back); else
       if(controllerOverlayContext>=0) {
-        // The controls guide is a setting; Back turns it off as the system wheel would
+        // The controls guide is a setting; Back turns it off as the system wheel would, when it has nothing else to do
         Gothic::settingsSetI("DEBUG","gamepadControls",0);
         Gothic::flushSettings();
         updateControllerOverlay();
-        } else
-      if(pl->interactive()!=nullptr)
-        key(KeyCodec::Back);
+        }
       break;
     case PadAction::Jump: key(KeyCodec::Jump); break;
     case PadAction::Walk: key(KeyCodec::Walk); break;
@@ -369,10 +378,8 @@ void MainWindow::controllerAction(const GamepadBindings::Event& event) {
       if(inventory.isWheelOpen()) {
         wheelQuickSlot=size_t(-1);
         wheelHeldMask=event.mask;
-        const auto& b=controllerBindings;
         if(action==PadAction::EquipmentWheel)
-          inventory.setWheelPageHint(b.hint(PadAction::PreviousPage,Context::EquipmentWheel)+" / "+
-                                    b.hint(PadAction::NextPage,Context::EquipmentWheel)+": pages");
+          inventory.setWheelPageHint(wheelPageHint(controllerBindings,controllerPlayStation));
         }
       break;
       }

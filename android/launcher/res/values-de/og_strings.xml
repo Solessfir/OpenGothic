@@ -211,7 +211,9 @@
     <string name="og_pad_unbound">Keine</string>
     <string name="og_pad_hold">%1$s halten</string>
     <string name="og_pad_swapped">%1$s hat die alte Taste bekommen</string>
+    <string name="og_pad_unbound_other">%1$s hat jetzt keine Taste</string>
     <string name="og_pad_reset_all">Alles zurücksetzen</string>
+    <string name="og_pad_reset_confirm">Alle Gamepad-Tasten in allen Spielen auf den Standard zurücksetzen?</string>
     <string name="og_pad_clear">Entfernen</string>
     <string name="og_pad_default">Standard</string>
     <string name="og_pad_tab_gameplay">Erkunden</string>
