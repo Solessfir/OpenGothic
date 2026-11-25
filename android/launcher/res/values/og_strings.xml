@@ -186,9 +186,9 @@
 
     <string name="og_controls">Controls</string>
     <string name="og_controls_move_title">Moving and looking</string>
-    <string name="og_controls_move">Put a thumb anywhere on the left half and drag to walk or run. Drag anywhere else on the right side to look around. In water the hero swims where you look. Look steeply down while swimming to dive.</string>
+    <string name="og_controls_move">Put a thumb anywhere on the left half and drag to walk or run. Drag anywhere else on the right side to look around. Dragging sideways also turns the hero, on the spot when standing, and while you drag it steers instead of the left thumb. In water the hero swims where you look. Look steeply down while swimming to dive.</string>
     <string name="og_controls_buttons_title">Buttons</string>
-    <string name="og_controls_buttons">Tap a button to use it. Hold Menu for system settings, Inventory for stats and the journal, and Draw to pick a weapon, spell or item. Keep the finger down, drag toward a choice and let go. With a weapon drawn, press Attack and quickly drag in any direction to lock onto a target, and do it again to unlock.</string>
+    <string name="og_controls_buttons">Tap a button to use it. Hold Menu for system settings, Inventory for stats and the journal, and Draw to pick a weapon, spell or item. Keep the finger down, drag toward a choice and let go. With a weapon drawn, press Attack and quickly drag in any direction to lock onto a target, and do it again to unlock. Tip: for Gothic 1 style combat, hold Menu and switch Combat to Classic, or in Gothic II turn on Gothic 1 controls in Options › Game Settings. Then hold Attack and drag on the left side: forward strikes, left or right swings sideways, and straight back blocks.</string>
     <string name="og_controls_gestures_title">Hidden gestures</string>
     <string name="og_controls_gestures">• Two fingers left: health potion\n• Two fingers right: mana potion\n• Two fingers down on the left: sneak, up: stand up\n• Two fingers up on the right: first person\n• Two fingers down on the right and hold: look behind\n• Three-finger tap: quicksave\n• Four-finger tap: quickload</string>
     <string name="og_controls_inventory_title">Inventory</string>
