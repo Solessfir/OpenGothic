@@ -70,6 +70,7 @@ public final class SignInActivity extends AppCompatActivity {
     protected void onCreate(Bundle saved) {
         super.onCreate(saved);
         setContentView(R.layout.og_sign_in);
+        LauncherActivity.addFocusRings(getWindow().getDecorView());
         View root = findViewById(R.id.og_root);
         ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
             Insets edges = insets.getInsets(WindowInsetsCompat.Type.displayCutout() | WindowInsetsCompat.Type.ime());
