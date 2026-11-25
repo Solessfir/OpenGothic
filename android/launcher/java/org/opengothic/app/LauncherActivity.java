@@ -1301,7 +1301,7 @@ public final class LauncherActivity extends AppCompatActivity {
             org.json.JSONObject notice = list.optJSONObject(i);
             final String id = notice == null ? "" : notice.optString("id");
             if (id.isEmpty() || seen.contains(id)) continue;
-            String text = localized(notice.opt("text"));
+            String text = Updates.localized(notice.opt("text"));
             if (text.isEmpty()) continue;
             noticeShowing = true;
             new AlertDialog.Builder(this)
@@ -1317,17 +1317,6 @@ public final class LauncherActivity extends AppCompatActivity {
                     .show();
             return;
         }
-    }
-
-    /** A text in the phone's language, else English, else any; a plain string is the same in every language. */
-    private static String localized(Object text) {
-        if (text instanceof String) return (String) text;
-        if (!(text instanceof org.json.JSONObject)) return "";
-        org.json.JSONObject byLanguage = (org.json.JSONObject) text;
-        String ret = byLanguage.optString(Locale.getDefault().getLanguage());
-        if (ret.isEmpty()) ret = byLanguage.optString("en");
-        if (ret.isEmpty() && byLanguage.keys().hasNext()) ret = byLanguage.optString(byLanguage.keys().next());
-        return ret;
     }
 
     /** Archolos has Polish and Russian voice-overs for every language: which one plays, and downloading or removing them. */

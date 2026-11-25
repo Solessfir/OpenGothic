@@ -3,7 +3,14 @@
     "unsupported": [
         {
             "match": "MT676[89]",
-            "reason": "This phone's graphics chip (Mali-G52 MC2) is too slow for the game: expect only a few frames per second even at the lowest settings, and Android may close the game for lack of memory."
+            "reason": "This phone's graphics chip (Mali-G52 MC2) is too slow for the game: expect only a few frames per second even at the lowest settings, and Android may close the game for lack of memory.",
+            "text": {
+                "en": "This phone's graphics chip (Mali-G52 MC2) is too slow for the game: expect only a few frames per second even at the lowest settings, and Android may close the game for lack of memory.",
+                "de": "Der Grafikchip dieses Telefons (Mali-G52 MC2) ist zu langsam für das Spiel: Selbst mit den niedrigsten Einstellungen sind nur wenige Bilder pro Sekunde zu erwarten, und Android kann das Spiel wegen Speichermangels schließen.",
+                "es": "El chip gráfico de este teléfono (Mali-G52 MC2) es demasiado lento para el juego: incluso con los ajustes más bajos, espera solo unos pocos fotogramas por segundo, y Android puede cerrar el juego por falta de memoria.",
+                "pl": "Układ graficzny tego telefonu (Mali-G52 MC2) jest zbyt wolny dla gry: nawet przy najniższych ustawieniach gra wyświetli tylko kilka klatek na sekundę, a Android może ją zamknąć z powodu braku pamięci.",
+                "ru": "Графический чип этого телефона (Mali-G52 MC2) слишком слаб для игры: даже на самых низких настройках будет всего несколько кадров в секунду, а Android может закрыть игру из-за нехватки памяти."
+            }
         }
     ]
 }
