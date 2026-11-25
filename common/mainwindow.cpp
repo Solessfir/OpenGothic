@@ -2173,8 +2173,10 @@ void MainWindow::render(){
     const auto timings = cmd.gpuTimings();
     if(reportFrame && !timings.empty()) {
       double gpuMs = 0;
-      for(const auto& timing:timings)
+      for(const auto& timing:timings) {
         gpuMs += timing.milliseconds;
+        statusTimings.addPass(timing.name,timing.milliseconds);
+        }
       statusTimings.gpu.add(gpuMs);
       }
     if(profileGpu && gpuProfileLog.is_open() && gpuProfileFrames<600) {
@@ -2272,10 +2274,26 @@ void MainWindow::logStatus(uint64_t now, uint64_t frameTime) {
          " record/acquire=",statusTimings.record.average()," submit=",statusTimings.submit.average(),
          " present=",statusTimings.present.average()," simulation samples=",statusTimings.simulation.count,
          " rendered samples=",statusTimings.record.count," skipped GPU-busy attempts=",statusTimings.skipped);
-  if(statusTimings.gpu.count>0)
+  if(statusTimings.gpu.count>0) {
     Log::i("Frame timings: GPU marker intervals average ms=",statusTimings.gpu.average()," samples=",statusTimings.gpu.count);
-  else
+    auto passes = statusTimings.passes;
+    std::sort(passes.begin(),passes.end(),[](const FrameTimings::Pass& a, const FrameTimings::Pass& b){
+      return a.time.totalMs>b.time.totalMs;
+      });
+    // Log lines are cut at 256 characters
+    std::string line;
+    for(size_t i=0; i<passes.size() && i<12; ++i) {
+      char ms[32];
+      std::snprintf(ms,sizeof(ms),"=%.2f",passes[i].time.totalMs/double(statusTimings.gpu.count));
+      line += (line.empty() ? "" : ", ") + passes[i].name + ms;
+      if(line.size()>150 || i+1==passes.size() || i+1==12) {
+        Log::i("Frame timings: slowest GPU passes ms per frame ",line);
+        line.clear();
+        }
+      }
+    } else {
     Log::i("Frame timings: GPU timestamps unavailable");
+    }
   renderer.logSettings();
   statusSince = 0;
   statusTimings = {};
