@@ -21,7 +21,7 @@ Options > Video settings offers resolution in 5% steps, a 30 FPS / 60 FPS / Unlo
 
 | File section / key | Android default | Options |
 | --- | --- | --- |
-| `[ENGINE] renderScale` | `100` | Scene resolution percentage, `50` to `100` |
+| `[ENGINE] renderScale` | `75` | Scene resolution percentage, `50` to `100` |
 | `[ENGINE] zCloudShadowScale` | `0` | `1`: screen-space ambient occlusion (SSAO) |
 | `[ENGINE] ssaoHalfResolution` | `1` | `0`: full-resolution ambient occlusion |
 | `[ENGINE] shadowMapResolution` | `1024` | `512` reduces cost; `1536` or `2048` increases shadow detail and cost |
