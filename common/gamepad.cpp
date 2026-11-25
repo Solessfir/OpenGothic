@@ -560,7 +560,9 @@ void MainWindow::tickGamepad() {
         // The game's mouse speed slider also scales how fast the stick turns the hero, as it does for touch look.
         // Even at the bottom of the slider the hero can still turn.
         const float turnSpeed=options.touchTurnSpeed*std::max(0.2f,Gothic::settingsGetF("GAME","mouseSensitivity"))/0.5f;
-        player.setTurnMovement(ground.first,ground.second,controllerBindings.automaticWalk(0.f,raw.y,false,true),turnSpeed);
+        // Walk or run follows the whole drag distance, so a wide turn keeps running
+        const float travel=ground.second!=0.f ? std::hypot(raw.x,raw.y) : 0.f;
+        player.setTurnMovement(ground.first,ground.second,controllerBindings.automaticWalk(0.f,travel,false,true),turnSpeed);
         }
       }
     else {
