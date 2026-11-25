@@ -201,8 +201,9 @@ Gothic::Gothic(GameModDescriptor desc) {
   // Copied PC settings commonly request uncapped rendering; Android starts with a writable 60 FPS preference.
   if(!iniFile->has("ENGINE", "zMaxFPS"))
     iniFile->set("ENGINE", "zMaxFPS", 60);
+  // A fresh install renders at 75%: on a phone screen it looks almost the same, and full resolution keeps even an Adreno 750 near 30 FPS
   if(!iniFile->has("ENGINE", "renderScale")) {
-    const int legacy=iniFile->has("INTERNAL","vidResIndex") ? iniFile->getI("INTERNAL","vidResIndex") : 0;
+    const int legacy=iniFile->has("INTERNAL","vidResIndex") ? iniFile->getI("INTERNAL","vidResIndex") : 1;
     iniFile->set("ENGINE","renderScale",legacy==0 ? 100 : (legacy==1 ? 75 : 50));
     }
 #else
@@ -247,7 +248,7 @@ Gothic::Gothic(GameModDescriptor desc) {
   defaults->set("GAME", "touchOpacity",        1.f);
   defaults->set("GAME", "mouseSensitivity",   0.53f);
   defaults->set("ENGINE", "shadowMapResolution", 1024);
-  defaults->set("ENGINE", "renderScale", 100);
+  defaults->set("ENGINE", "renderScale", 75);
   defaults->set("ENGINE", "frameRateLimit", -1);
   defaults->set("ENGINE", "antiAliasing", 0);
   defaults->set("ENGINE", "globalIllumination", 0);
