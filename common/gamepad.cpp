@@ -9,6 +9,7 @@
 #include "game/quickslots.h"
 #include "utils/mouseutil.h"
 #include <Tempest/Application>
+#include <cctype>
 #include <cmath>
 
 using namespace Tempest;
@@ -16,12 +17,42 @@ using PadAction=GamepadBindings::Action;
 using Context=GamepadBindings::Context;
 using Phase=GamepadBindings::Phase;
 
+#if defined(OPENGOTHIC_GAMEPAD)
+// Gamepad.ini uses Xbox names; a Sony pad has symbols the game fonts cannot draw, so they are spelled out
+static std::string playStationNames(std::string_view keys) {
+  static constexpr std::pair<std::string_view,std::string_view> names[] = {
+    {"A","Cross"}, {"B","Circle"}, {"X","Square"}, {"Y","Triangle"}, {"LB","L1"}, {"RB","R1"},
+    {"LT","L2"}, {"RT","R2"}, {"Menu","Options"}, {"View","Share"}, {"Start","Options"}, {"Select","Share"},
+    };
+  std::string out;
+  size_t at=0;
+  while(at<keys.size()) {
+    size_t end=at;
+    while(end<keys.size() && std::isalnum(static_cast<unsigned char>(keys[end])))
+      ++end;
+    if(end==at) {
+      out+=keys[at++];
+      continue;
+      }
+    std::string_view token=keys.substr(at,end-at);
+    for(auto& [from,to]:names)
+      if(token==from) {
+        token=to;
+        break;
+        }
+    out+=token;
+    at=end;
+    }
+  return out;
+  }
+#endif
+
 void MainWindow::updateControllerOverlay() {
 #if defined(OPENGOTHIC_GAMEPAD)
   const auto context=controllerContext();
   const bool enabled=controllerConnected && Gothic::settingsGetI("DEBUG","gamepadControls")!=0 &&
                      !video.isActive() && Gothic::inst().checkLoading()==Gothic::LoadState::Idle;
-  const int key=enabled ? int(context)*2+int(player.isClassicCombat()) : -1;
+  const int key=enabled ? (int(context)*2+int(player.isClassicCombat()))*2+int(controllerPlayStation) : -1;
   if(key==controllerOverlayContext) return;
   controllerOverlayContext=key;
   for(auto& group:controllerOverlayGroups) group.lines.clear();
@@ -40,7 +71,7 @@ void MainWindow::updateControllerOverlay() {
       movement.push_back(std::string(options.swapCamera ? "LS" : "RS")+": Look / change locked target");
       }
     for(const auto& hint:controllerBindings.hints(context)) {
-      auto keys=hint.keys;
+      auto keys=controllerPlayStation ? playStationNames(hint.keys) : hint.keys;
       auto replace=[&](std::string_view from,std::string_view to) {
         size_t at=0;
         while((at=keys.find(from,at))!=std::string::npos) {
@@ -295,6 +326,12 @@ void MainWindow::controllerAction(const GamepadBindings::Event& event) {
     case PadAction::Back:
       if(world->script().isScriptMapOpen())
         world->script().closeScriptMap(); else
+      if(controllerOverlayContext>=0) {
+        // The controls guide is a setting; Back turns it off as the system wheel would
+        Gothic::settingsSetI("DEBUG","gamepadControls",0);
+        Gothic::flushSettings();
+        updateControllerOverlay();
+        } else
       if(pl->interactive()!=nullptr)
         key(KeyCodec::Back);
       break;
@@ -404,6 +441,7 @@ void MainWindow::tickGamepad() {
   controllerLastPoll=now;
   const auto gp=SystemApi::gamepadState();
   auto& options=controllerBindings.options;
+  controllerPlayStation=gp.vendorId==0x054c;
 #if defined(__MOBILE_PLATFORM__)
   player.setMeleeAssist(options.meleeAssist,options.meleeAssistMaxAngle,options.meleeAssistMaxDistance);
   if(auto world=Gothic::inst().world()) world->setMeleeFocusRangeScale(options.meleeFocusRangeScale);

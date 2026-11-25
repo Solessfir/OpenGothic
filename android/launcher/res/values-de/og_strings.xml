@@ -206,7 +206,7 @@
     <string name="og_pad_none">Kein Controller verbunden</string>
     <string name="og_pad_connected">Verbunden: %1$s</string>
     <string name="og_pad_swap_sticks">Sticks tauschen: mit dem rechten Stick bewegen</string>
-    <string name="og_pad_hint">A: ändern · X: entfernen · Y: Standard · LB / RB: Reiter · B: schließen. Halte eine Zeile gedrückt, um sie per Touch zu entfernen. Änderungen gelten für alle Spiele beim nächsten Start.</string>
+    <string name="og_pad_hint">A: ändern X: entfernen Y: Standard LB / RB: Reiter B: schließen. Halte eine Zeile gedrückt, um sie per Touch zu entfernen. Änderungen gelten für alle Spiele beim nächsten Start.</string>
     <string name="og_pad_press">Drücke eine Taste oder Kombination, oder halte eine Taste für langes Drücken</string>
     <string name="og_pad_unbound">Keine</string>
     <string name="og_pad_hold">%1$s halten</string>

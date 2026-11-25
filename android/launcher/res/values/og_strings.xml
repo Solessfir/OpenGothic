@@ -208,7 +208,7 @@
     <string name="og_pad_none">No controller connected</string>
     <string name="og_pad_connected">Connected: %1$s</string>
     <string name="og_pad_swap_sticks">Swap sticks: move with the right stick</string>
-    <string name="og_pad_hint">A: change · X: clear · Y: default · LB / RB: tabs · B: close. Long-press a row to clear it by touch. Changes apply to every game the next time one starts.</string>
+    <string name="og_pad_hint">A: change X: clear Y: default LB / RB: tabs B: close. Long-press a row to clear it by touch. Changes apply to every game the next time one starts.</string>
     <string name="og_pad_press">Press a button or a combination, or hold one button for a long press</string>
     <string name="og_pad_unbound">None</string>
     <string name="og_pad_hold">Hold %1$s</string>

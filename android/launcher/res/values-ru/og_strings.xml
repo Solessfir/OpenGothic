@@ -206,7 +206,7 @@
     <string name="og_pad_none">Геймпад не подключён</string>
     <string name="og_pad_connected">Подключён: %1$s</string>
     <string name="og_pad_swap_sticks">Поменять стики: движение правым стиком</string>
-    <string name="og_pad_hint">A: изменить · X: убрать · Y: по умолчанию · LB / RB: вкладки · B: закрыть. Удерживайте строку, чтобы убрать назначение касанием. Изменения действуют во всех играх со следующего запуска.</string>
+    <string name="og_pad_hint">A: изменить X: убрать Y: по умолчанию LB / RB: вкладки B: закрыть. Удерживайте строку, чтобы убрать назначение касанием. Изменения действуют во всех играх со следующего запуска.</string>
     <string name="og_pad_press">Нажмите кнопку или сочетание либо удерживайте одну кнопку для долгого нажатия</string>
     <string name="og_pad_unbound">Нет</string>
     <string name="og_pad_hold">Удерживать %1$s</string>

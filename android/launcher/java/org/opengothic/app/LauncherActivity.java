@@ -173,7 +173,11 @@ public final class LauncherActivity extends AppCompatActivity {
             final Library.Game game = Library.GAMES[i];
             covers[i] = findViewById(ids[i]);
             covers[i].setContentDescription(game.title);
-            covers[i].setOnClickListener(v -> select(index));
+            covers[i].setOnClickListener(v -> {
+                select(index);
+                // A on a focused cover runs the main button, usually Play; a tap only selects the game
+                if (!v.isInTouchMode() && primary.getVisibility() == View.VISIBLE && primary.isEnabled()) primary.performClick();
+            });
             // With a gamepad, moving to a cover selects the game, and the selection ring shows the focus instead of a second ring
             covers[i].setOnFocusChangeListener((v, focused) -> {
                 if (focused) select(index);

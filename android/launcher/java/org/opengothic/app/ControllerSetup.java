@@ -91,6 +91,8 @@ final class ControllerSetup {
     private final float dp;
 
     private Dialog dialog;
+    // Sony's USB vendor; its pads are labelled with symbols instead of letters
+    private final boolean playStation;
     private android.content.Context ctx;
     private LinearLayout tabs;
     private TextView[] tabViews;
@@ -110,6 +112,8 @@ final class ControllerSetup {
         this.activity = activity;
         this.root = root;
         this.dp = activity.getResources().getDisplayMetrics().density;
+        InputDevice pad = controller();
+        this.playStation = pad != null && pad.getVendorId() == 0x054c;
         this.defaults = load(activity.getResources().openRawResource(R.raw.og_gamepad_defaults));
         this.current = copy(defaults);
         File source = file(selected);
@@ -237,7 +241,8 @@ final class ControllerSetup {
         body.addView(scroll, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1));
         page.addView(body, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
 
-        TextView hint = text(activity.getString(R.string.og_pad_hint), 12, R.color.og_muted);
+        TextView hint = text("", 12, R.color.og_muted);
+        setIcons(hint, names(activity.getString(R.string.og_pad_hint)));
         hint.setPadding(0, Math.round(8 * dp), 0, 0);
         page.addView(hint);
 
@@ -300,7 +305,8 @@ final class ControllerSetup {
 
         TextView label = text(label(key), 15, R.color.og_text);
         row.addView(label, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        final TextView binding = text(display(value(section, key)), 14, R.color.og_muted);
+        final TextView binding = text("", 14, R.color.og_muted);
+        setIcons(binding, display(value(section, key)));
         binding.setGravity(Gravity.END);
         row.addView(binding);
 
@@ -435,7 +441,7 @@ final class ControllerSetup {
         if (!held.contains(name)) held.add(name);
         if (!captured.contains(name)) captured.add(name);
         handler.removeCallbacks(captureTimeout);
-        captureView.setText(String.join(" + ", captured));
+        setIcons(captureView, names(String.join(" + ", captured)));
     }
 
     private void release(String name) {
@@ -536,11 +542,53 @@ final class ControllerSetup {
             String c = choice.trim();
             if (out.length() > 0) out.append(" / ");
             if (c.startsWith("Hold:")) {
-                out.append(activity.getString(R.string.og_pad_hold, c.substring(5).replace("+", " + ")));
+                out.append(activity.getString(R.string.og_pad_hold, names(c.substring(5)).replace("+", " + ")));
             } else {
-                out.append(c.replace("+", " + "));
+                out.append(names(c).replace("+", " + "));
             }
         }
+        return out.toString();
+    }
+
+    // The face buttons become private-use characters that icons() draws as matching vector icons:
+    // symbol characters come from different fallback fonts and differ a lot in size
+    private static final String[][] PLAYSTATION = {{"A", "\uE000"}, {"B", "\uE001"}, {"X", "\uE002"}, {"Y", "\uE003"},
+            {"LB", "L1"}, {"RB", "R1"}, {"LT", "L2"}, {"RT", "R2"}, {"Menu", "Options"}, {"View", "Share"}};
+    private static final int[] FACE_ICONS = {R.drawable.og_pad_cross, R.drawable.og_pad_circle, R.drawable.og_pad_square, R.drawable.og_pad_triangle};
+
+    /** Sets text whose face button characters show as icons the size of the text, in its color. */
+    private void setIcons(TextView view, String text) {
+        android.text.SpannableString out = new android.text.SpannableString(text);
+        int size = Math.round(view.getTextSize() * 1.1f);
+        // A little space after an icon that text follows, so a ":" does not touch it
+        int space = Math.round(size * 0.2f);
+        int align = android.os.Build.VERSION.SDK_INT >= 29 ? android.text.style.DynamicDrawableSpan.ALIGN_CENTER : android.text.style.DynamicDrawableSpan.ALIGN_BOTTOM;
+        for (int i = 0; i < text.length(); ++i) {
+            int face = text.charAt(i) - '\uE000';
+            if (face < 0 || face >= FACE_ICONS.length) continue;
+            int gap = i + 1 < text.length() ? space : 0;
+            android.graphics.drawable.Drawable glyph = ContextCompat.getDrawable(ctx, FACE_ICONS[face]).mutate();
+            glyph.setTint(view.getCurrentTextColor());
+            android.graphics.drawable.Drawable icon = new android.graphics.drawable.InsetDrawable(glyph, 0, 0, gap, 0);
+            icon.setBounds(0, 0, size + gap, size);
+            out.setSpan(new android.text.style.ImageSpan(icon, align),
+                    i, i + 1, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        view.setText(out);
+    }
+
+    /** Gamepad.ini keeps Xbox names; a Sony pad shows its own labels. Whole words only, so DpadUp or LeftStickUp stay. */
+    private String names(String text) {
+        if (!playStation) return text;
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("[A-Za-z0-9]+").matcher(text);
+        StringBuffer out = new StringBuffer();
+        while (m.find()) {
+            String token = m.group();
+            for (String[] name : PLAYSTATION)
+                if (name[0].equals(token)) token = name[1];
+            m.appendReplacement(out, java.util.regex.Matcher.quoteReplacement(token));
+        }
+        m.appendTail(out);
         return out.toString();
     }
 
@@ -550,12 +598,17 @@ final class ControllerSetup {
         return key;
     }
 
-    private static String controllerName() {
+    private static InputDevice controller() {
         for (int id : InputDevice.getDeviceIds()) {
             InputDevice device = InputDevice.getDevice(id);
-            if (device != null && !device.isVirtual() && device.supportsSource(InputDevice.SOURCE_GAMEPAD)) return device.getName();
+            if (device != null && !device.isVirtual() && device.supportsSource(InputDevice.SOURCE_GAMEPAD)) return device;
         }
         return null;
+    }
+
+    private static String controllerName() {
+        InputDevice device = controller();
+        return device == null ? null : device.getName();
     }
 
     // ---- Gamepad.ini ----

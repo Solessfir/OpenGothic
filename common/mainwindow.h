@@ -212,6 +212,7 @@ class MainWindow : public Tempest::Window {
     GamepadActivity           controllerActivity;
     void                      setControllerInput(bool enabled);
     bool                      controllerConnected=false;
+    bool                      controllerPlayStation=false;
     bool                      controllerExploration=false;
     bool                      controllerFocused=true;
     bool                      controllerAxesBlocked=true;
