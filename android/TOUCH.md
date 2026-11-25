@@ -15,7 +15,7 @@ An already-held stick or button cannot take control back until released and used
 ![Touch controls with icons and labels](images/touch-controls.jpg)
 
 - **Left half:** touch anywhere to place an invisible movement stick under your thumb. Forward/back moves; sideways turns the character. Small input walks/turns gently, a firmer drag runs.
-- **Right side:** drag anywhere outside the buttons to look around. Mouse speed controls camera sensitivity.
+- **Right side:** drag anywhere outside the buttons to look around. Dragging sideways also turns the hero, on the spot when standing; while dragging, it steers and the left thumb only moves forward or back. Mouse speed controls camera sensitivity.
 - **Lower-right corner:** Use, or Attack with a weapon drawn, with Jump, Draw/Sheathe and, in modern melee controls, Block on an arc around it.
 - **Upper-right corner:** Menu and Inventory.
 

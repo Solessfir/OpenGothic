@@ -562,7 +562,8 @@ void MainWindow::tickGamepad() {
         const float turnSpeed=options.touchTurnSpeed*std::max(0.2f,Gothic::settingsGetF("GAME","mouseSensitivity"))/0.5f;
         // Walk or run follows the whole drag distance, so a wide turn keeps running
         const float travel=ground.second!=0.f ? std::hypot(raw.x,raw.y) : 0.f;
-        player.setTurnMovement(ground.first,ground.second,controllerBindings.automaticWalk(0.f,travel,false,true),turnSpeed);
+        // While the look side is dragged it steers, and the stick only moves forward or back
+        player.setTurnMovement(mobileUi.isLooking() ? 0.f : ground.first,ground.second,controllerBindings.automaticWalk(0.f,travel,false,true),turnSpeed);
         }
       }
     else {
@@ -578,9 +579,9 @@ void MainWindow::tickGamepad() {
     else touchLookIdle+=dt;
     if(swimming && touchLookIdle>=SwimViewDelayMs) camera->easeToSwimView();
     camera->onRotateMouse(PointF(pitch,locked ? 0.f : -yaw));
-    // The swimmer steers from the camera; the character turns only on land
-    if(camera->isFirstPerson() && !locked && !swimming)
-      player.onRotateMouse(-yaw,-pitch);
+    // Looking sideways turns the hero with the camera, in place when standing. The swimmer steers from the camera.
+    if(!locked && !swimming)
+      player.onRotateMouse(-yaw,camera->isFirstPerson() ? -pitch : 0.f);
     const float movement = touchMovementBlocked ? 0.f : std::max(std::abs(touchMove.x),std::abs(touchMove.y));
     const float followSpeed=camera->followSpeed();
     if(auto pl = Gothic::inst().player(); pl!=nullptr && !player.isPressed(KeyCodec::LookBack) &&
