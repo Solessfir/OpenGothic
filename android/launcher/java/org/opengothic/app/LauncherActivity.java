@@ -920,6 +920,19 @@ public final class LauncherActivity extends AppCompatActivity {
     public boolean dispatchKeyEvent(android.view.KeyEvent event) {
         android.view.InputDevice device = event.getDevice();
         if (device != null && device.supportsSource(android.view.InputDevice.SOURCE_GAMEPAD)) lastPad = device.getId();
+        // LB and RB switch games wherever focus is, but not under the download sheet, which belongs to one game
+        int key = event.getKeyCode();
+        if (key == android.view.KeyEvent.KEYCODE_BUTTON_L1 || key == android.view.KeyEvent.KEYCODE_BUTTON_R1) {
+            if (event.getAction() == android.view.KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0 && sheetDim.getVisibility() != View.VISIBLE) {
+                int n = Library.GAMES.length;
+                boolean onCover = false;
+                for (View cover : covers) onCover |= cover.hasFocus();
+                select((selected + (key == android.view.KeyEvent.KEYCODE_BUTTON_R1 ? 1 : n - 1)) % n);
+                // A on the old cover would select its game again
+                if (onCover) covers[selected].requestFocus();
+            }
+            return true;
+        }
         return super.dispatchKeyEvent(event);
     }
 
