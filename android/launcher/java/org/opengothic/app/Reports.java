@@ -362,6 +362,7 @@ final class Reports {
             File user = Library.user(root, game);
             section(b, written("crash.log", new File(user, "crash.log")), tail(new File(user, "crash.log"), 8000));
             section(b, "Performance and memory", ReportLog.diagnostics(new File(user, "log.txt")));
+            section(b, "Shader statistics", ReportLog.shaderStats(new File(user, "log.txt")));
             section(b, "log.txt", tail(new File(user, "log.txt"), 8000));
             section(b, "steam-error.txt", tail(new File(root, "steam-error.txt"), 4000));
         }

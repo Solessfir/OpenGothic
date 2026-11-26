@@ -48,6 +48,10 @@ std::string_view selectDevice(const Tempest::AbstractGraphicsApi& api) {
 
 std::unique_ptr<Tempest::AbstractGraphicsApi> mkApi(const CommandLine& g) {
   Tempest::ApiFlags flg = g.isValidationMode() ? Tempest::ApiFlags::Validation : Tempest::ApiFlags::NoFlags;
+#if defined(__ANDROID__)
+  // Reports include the driver's statistics for shaders that are much slower on some phones
+  Tempest::VulkanApi::requestExtensions({}, {"VK_KHR_pipeline_executable_properties"});
+#endif
   switch(g.graphicsApi()) {
     case CommandLine::DirectX12:
 #if defined(_MSC_VER)
