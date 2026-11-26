@@ -86,6 +86,9 @@ void Camera::reset() {
 
 void Camera::reset(const Npc* pl) {
   const auto& def = cameraDef();
+  // a new world or a respawn needs every shadow cascade drawn again
+  for(auto& h:heldShadow)
+    h.valid = false;
 
   userRange    = (def.best_range - def.min_range)/(def.max_range - def.min_range);
   state.range  = userRange*(def.max_range-def.min_range)+def.min_range;
@@ -402,18 +405,49 @@ Matrix4x4 Camera::mkViewShadowVsm(const Vec3& cameraPos, const Vec3& ldir) const
   }
 
 Matrix4x4 Camera::viewShadow(const Vec3& lightDir, size_t layer) const {
-  return mkViewShadow(inter.target,lightDir,Vec3(),layer);
+  const auto a = shadowAnchor(lightDir,layer);
+  return mkViewShadow(a.target,a.ldir,a.forward,Vec3(),layer);
   }
 
 Matrix4x4 Camera::viewShadowLwc(const Tempest::Vec3& lightDir, size_t layer) const {
   // LWC space is centered on the shaken camera, like viewLwc()
   const Vec3 zero = origin+shake;
-  return mkViewShadow(inter.target-zero,lightDir,Vec3()-zero,layer);
+  const auto a    = shadowAnchor(lightDir,layer);
+  return mkViewShadow(a.target-zero,a.ldir,a.forward,Vec3()-zero,layer);
+  }
+
+bool Camera::holdShadow(size_t layer, bool hold, const Vec3& ldir) {
+  auto& h = heldShadow[layer];
+  // after a teleport, a camera cut or a world change the cascade must cover the new view right away
+  const bool cut = !h.valid || (h.anchor.target-inter.target).length()>500.f ||
+                   Vec3::dotProduct(h.anchor.forward, shadowForward())<0.9f;
+  h.held = hold && !cut;
+  if(!h.held) {
+    h.anchor = {inter.target, ldir, shadowForward()};
+    h.valid  = true;
+    }
+  return h.held;
+  }
+
+Camera::ShadowAnchor Camera::shadowAnchor(const Vec3& ldir, size_t layer) const {
+  if(layer<std::size(heldShadow) && heldShadow[layer].held)
+    return heldShadow[layer].anchor;
+  return {inter.target, ldir, shadowForward()};
+  }
+
+// The far cascade is centered a bit ahead of the camera, where most of the view is. The direction comes
+// from the camera axes: unprojecting points near the far plane jittered it by float precision, which flipped
+// the cascade between two texel steps every frame and made far shadows flicker while standing still.
+Vec3 Camera::shadowForward() const {
+  const auto rot = viewLwc();
+  Vec3 forward = {rot.at(0,2), 0, rot.at(2,2)};
+  const float len = forward.length();
+  return len>0 ? forward/len : Vec3();
   }
 
 // The cascades stay fixed to the world and move in whole texels, so turning or walking does not resample them
 // and shadow edges stand still.
-Matrix4x4 Camera::mkViewShadow(const Vec3& cameraPos, const Vec3& lightDir, const Vec3& worldZero, size_t layer) const {
+Matrix4x4 Camera::mkViewShadow(const Vec3& cameraPos, const Vec3& lightDir, const Vec3& forward, const Vec3& worldZero, size_t layer) const {
   // The sun moves every frame; any change of the projection resamples every shadow edge, which flickers on
   // walls the sun grazes. It moves about 0.06 degrees per second, so steps of 0.2 degrees come every few seconds.
   const float sunStep = 0.2f*float(M_PI)/180.f;
@@ -446,14 +480,6 @@ Matrix4x4 Camera::mkViewShadow(const Vec3& cameraPos, const Vec3& lightDir, cons
   // oblique projection along the sun onto the ground
   view.set(1,0, (ldir.x/std::abs(ldir.y))/smWidth);
   view.set(1,1, (ldir.z/std::abs(ldir.y))/smWidth);
-
-  // The far cascade is centered a bit ahead of the camera, where most of the view is. The direction comes
-  // from the camera axes: unprojecting points near the far plane jittered it by float precision, which flipped
-  // the cascade between two texel steps every frame and made far shadows flicker while standing still.
-  const auto rot = viewLwc();
-  Vec3 forward = {rot.at(0,2), 0, rot.at(2,2)};
-  const float len = forward.length();
-  forward = len>0 ? forward/len : Vec3();
 
   Vec3 center = cameraPos + forward*(smWidth*ahead);
   Vec3 cam    = cameraPos;

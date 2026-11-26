@@ -113,6 +113,8 @@ class Camera final {
 
     Tempest::Matrix4x4 viewShadowVsm(const Tempest::Vec3& ldir) const;
     Tempest::Matrix4x4 viewShadowVsmLwc(const Tempest::Vec3& ldir) const;
+    // A held cascade keeps its placement in the world, so its shadow map can be reused for another frame
+    bool               holdShadow(size_t layer, bool hold, const Tempest::Vec3& ldir);
 
     ListenerPos        listenerPosition() const;
     Tempest::Vec3      originLwc() const { return origin+shake; };
@@ -124,6 +126,12 @@ class Camera final {
     struct Pin {
       Tempest::Vec3       origin = {};
       Tempest::Vec3       spin   = {};
+      };
+
+    struct ShadowAnchor {
+      Tempest::Vec3       target  = {};
+      Tempest::Vec3       ldir    = {};
+      Tempest::Vec3       forward = {};
       };
 
     struct State {
@@ -173,6 +181,13 @@ class Camera final {
 
     mutable int           raysCasted = 0;
 
+    struct HeldShadow {
+      ShadowAnchor        anchor;
+      bool                held  = false;
+      bool                valid = false;
+      };
+    HeldShadow            heldShadow[2];
+
     static const float    minLength;
 
     void                  tickFirstPerson(float dtF);
@@ -190,7 +205,9 @@ class Camera final {
     Tempest::Matrix4x4    mkView    (const Tempest::Vec3& pos, const Tempest::Vec3& spin) const;
     Tempest::Matrix4x4    mkRotation(const Tempest::Vec3& spin) const;
     Tempest::Matrix4x4    mkViewShadowVsm(const Tempest::Vec3& cameraPos, const Tempest::Vec3& ldir) const;
-    Tempest::Matrix4x4    mkViewShadow(const Tempest::Vec3& cameraPos, const Tempest::Vec3& lightDir,
+    ShadowAnchor          shadowAnchor(const Tempest::Vec3& ldir, size_t layer) const;
+    Tempest::Vec3         shadowForward() const;
+    Tempest::Matrix4x4    mkViewShadow(const Tempest::Vec3& cameraPos, const Tempest::Vec3& lightDir, const Tempest::Vec3& forward,
                                        const Tempest::Vec3& worldZero, size_t layer) const;
 
     Tempest::Vec3         followTarget(Tempest::Vec3 pos,  Tempest::Vec3 dest, float dtF);

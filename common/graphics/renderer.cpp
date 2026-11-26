@@ -54,6 +54,8 @@ static Size tileCount(Size sz, int s) {
 
 Renderer::Renderer() {
   auto& device = Resources::device();
+  // Adreno spends about 10 ms of a 30 FPS frame drawing the two shadow cascades; they take turns instead
+  shadowTurns.alternate = std::string_view(device.properties().name).find("Adreno")!=std::string_view::npos;
 
   static const TextureFormat sfrm[] = {
     TextureFormat::Depth16,
@@ -576,6 +578,8 @@ void Renderer::resetShadowmap() {
   if(!changed)
     return;
 
+  for(auto& d:shadowTurns.drawn)
+    d = false;
   Log::i("Shadow map resolution = ", settings.shadowResolution);
 
   for(int i=0; i<Resources::ShadowLayers; ++i)
@@ -779,7 +783,7 @@ void Renderer::dbgDraw(Tempest::Painter& p) {
   }
 
 void Renderer::draw(Attachment& result, Encoder<CommandBuffer>& cmd, uint8_t fId,
-                    WorldView& wview, const Camera& camera, gtime gameTime, uint64_t tickCount) {
+                    WorldView& wview, Camera& camera, gtime gameTime, uint64_t tickCount) {
   shaders.waitCompiler();
 
   const auto res = internalResolution(result.size());
@@ -795,6 +799,12 @@ void Renderer::draw(Attachment& result, Encoder<CommandBuffer>& cmd, uint8_t fId
   if(requiresLightsTree())
     prepareLightsBvh(cmd, wview);
 
+  {
+    const bool ready = shadowTurns.drawn[0] && shadowTurns.drawn[1];
+    for(uint8_t i=0; i<Resources::ShadowLayers; ++i)
+      shadowTurns.skip[i] = camera.holdShadow(i, shadowTurns.alternate && ready && i!=shadowTurns.next, wview.mainLight().dir());
+    shadowTurns.next = uint8_t((shadowTurns.next+1)%Resources::ShadowLayers);
+  }
   updateCamera(wview, camera);
 
   static bool updFr = true;
@@ -2079,12 +2089,14 @@ void Renderer::drawUnderwater(Encoder<CommandBuffer>& cmd, const WorldView& wvie
 
 void Renderer::drawShadowMap(Encoder<CommandBuffer>& cmd, uint8_t fId, WorldView& view) {
   for(uint8_t i=0; i<Resources::ShadowLayers; ++i) {
-    if(shadowMap[i].isEmpty())
+    if(shadowMap[i].isEmpty() || shadowTurns.skip[i])
       continue;
     cmd.setDebugMarker(string_frm("ShadowMap #",i));
     cmd.setFramebuffer({}, {shadowMap[i], 0.f, Tempest::Preserve});
-    if(view.mainLight().dir().y > Camera::minShadowY)
+    const bool sunUp = view.mainLight().dir().y > Camera::minShadowY;
+    if(sunUp)
       view.drawShadow(cmd,fId,i);
+    shadowTurns.drawn[i] = sunUp;
     }
   }
 

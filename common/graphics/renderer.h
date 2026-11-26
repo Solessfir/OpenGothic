@@ -34,7 +34,7 @@ class Renderer final {
               Tempest::VectorImage::Mesh& uiLayer, Tempest::VectorImage::Mesh& numOverlay,
               InventoryMenu &inventory, VideoWidget& video, float hdrPeakNits = 0);
     void draw(Tempest::Attachment& result, Tempest::Encoder<Tempest::CommandBuffer>& cmd, uint8_t fId,
-              WorldView& view, const Camera& camera, gtime gameTime, uint64_t tickCount);
+              WorldView& view, Camera& camera, gtime gameTime, uint64_t tickCount);
 
     void dbgDraw(Tempest::Painter& painter);
     void logSettings() const;
@@ -211,6 +211,13 @@ class Renderer final {
       Tempest::StorageBuffer bvh, tree;
       Tempest::StorageBuffer bvhMorton, bvhAlux, bvhCtrl;
       } lightsTree;
+
+    struct {
+      bool                   alternate = false;
+      uint8_t                next      = 0;
+      bool                   drawn[Resources::ShadowLayers] = {};
+      bool                   skip [Resources::ShadowLayers] = {};
+      } shadowTurns;
 
     struct Sky {
       Quality                quality       = Quality::None;
