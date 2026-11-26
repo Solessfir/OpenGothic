@@ -9,7 +9,9 @@
     <string name="og_pause">Pausar</string>
     <string name="og_cancel">Cancelar</string>
     <string name="og_retry">Reintentar</string>
-    <string name="og_import_zip">Importar un ZIP</string>
+    <string name="og_import">Importar archivos del juego</string>
+    <string name="og_import_from_zip">Archivo ZIP</string>
+    <string name="og_import_from_folder">Carpeta del juego</string>
     <string name="og_view_on_steam">Ver en Steam</string>
     <string name="og_uninstall">Desinstalar</string>
     <string name="og_sign_out">Cerrar sesión</string>
@@ -77,11 +79,11 @@
     <string name="og_installed">Instalado</string>
     <string name="og_in_library">En tu biblioteca de Steam · No está en este dispositivo</string>
     <string name="og_free_on_steam">Gratis en Steam · No está en este dispositivo</string>
-    <string name="og_not_owned">No está en tu biblioteca de Steam. Importa un ZIP de tu propia instalación.</string>
+    <string name="og_not_owned">No está en tu biblioteca de Steam. Importa tu propia instalación como carpeta o ZIP.</string>
     <string name="og_checking_library">Consultando tu biblioteca de Steam…</string>
     <string name="og_library_failed">No se ha podido consultar tu biblioteca de Steam. Comprueba la conexión y vuelve a intentarlo.</string>
-    <string name="og_not_on_device">No está en este dispositivo. Importa un ZIP de tu instalación o inicia sesión para descargarlo de Steam.</string>
-    <string name="og_not_on_device_no_steam">No está en este dispositivo. Importa un ZIP de tu instalación.</string>
+    <string name="og_not_on_device">No está en este dispositivo. Importa tu instalación como carpeta o ZIP, o inicia sesión para descargarlo de Steam.</string>
+    <string name="og_not_on_device_no_steam">No está en este dispositivo. Importa tu instalación como carpeta o ZIP.</string>
     <string name="og_queued">Esperando a que termine la otra descarga</string>
     <string name="og_paused">Descarga pausada</string>
     <string name="og_importing">Importando archivos del juego · %1$d%%</string>
@@ -156,7 +158,9 @@
     <string name="og_err_write_backup">No se puede escribir la copia de seguridad.</string>
     <string name="og_err_open_backup">No se puede abrir la copia de seguridad.</string>
     <string name="og_err_open_archive">No se puede abrir el archivo.</string>
-    <string name="og_err_no_game">El archivo no contiene una instalación de Gothic, Gothic II ni Archolos.</string>
+    <string name="og_err_open_folder">No se puede abrir la carpeta.</string>
+    <string name="og_err_no_game">No se encontró ninguna instalación de Gothic, Gothic II ni Archolos.</string>
+    <string name="og_err_no_picker">Este dispositivo no tiene selector de archivos.</string>
     <string name="og_err_store_update">No se puede guardar la actualización.</string>
     <string name="og_err_reports_unavailable">Aún no se pueden enviar informes. Vuelve a intentarlo más tarde.</string>
     <string name="og_err_reports_limit">Se han enviado demasiados informes desde esta red. Vuelve a intentarlo dentro de un minuto.</string>
