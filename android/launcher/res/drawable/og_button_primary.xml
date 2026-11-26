@@ -1,13 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ripple xmlns:android="http://schemas.android.com/apk/res/android" android:color="#33000000">
+<!-- Focused, as with a gamepad, it keeps its plain look under the focus ring: a ripple tints on focus and flashes grey when focus moves on -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true" android:drawable="@drawable/og_button_primary_fill" />
     <item>
-        <selector>
-            <item android:state_enabled="false">
-                <shape><solid android:color="@color/og_border" /><corners android:radius="8dp" /></shape>
-            </item>
-            <item>
-                <shape><solid android:color="@color/og_text" /><corners android:radius="8dp" /></shape>
-            </item>
-        </selector>
+        <ripple android:color="#33000000">
+            <item android:drawable="@drawable/og_button_primary_fill" />
+        </ripple>
     </item>
-</ripple>
+</selector>
