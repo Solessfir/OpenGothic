@@ -750,8 +750,9 @@ void MainWindow::tickGamepad() {
   const bool locked=player.lockedTarget()!=nullptr;
   // Lock owns horizontal tracking, but vertical look remains under player control.
   camera->onRotateMouse(PointF(look.y*140.f*dtSec*sensitivity*inverse,locked?0.f:-look.x*180.f*dtSec*sensitivity));
-  if(camera->isFirstPerson() && !locked && !swimming)
-    player.onRotateMouse(-look.x*180.f*dtSec*sensitivity,-look.y*140.f*dtSec*sensitivity*inverse);
+  // Looking sideways turns the hero with the camera, in place when standing, like touch look. The swimmer steers from the camera.
+  if(!locked && !swimming)
+    player.onRotateMouse(-look.x*180.f*dtSec*sensitivity,camera->isFirstPerson() ? -look.y*140.f*dtSec*sensitivity*inverse : 0.f);
   if(locked) {
     if(std::abs(look.x)<options.switchReset) controllerSwitchReady=true;
     if(controllerSwitchReady && std::abs(look.x)>options.switchThreshold && now-controllerLastSwitch>=options.switchCooldownMs) {
