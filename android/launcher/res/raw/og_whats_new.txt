@@ -1,3 +1,9 @@
+0.7.13
+- Import a game from its folder, not only from a ZIP: copy the game folder to your phone as it is, and the launcher takes only the files the game needs
+- LB and RB switch between games in the launcher
+- With a gamepad, buttons no longer dim or flash grey when focused, menus show the orange focus ring, and right from a game cover goes to its buttons
+- Crash reports show more accurate graphics timings on Adreno, Mali and PowerVR phones
+
 0.7.12
 - Rebind gamepad buttons in the launcher: ⋯ › Gamepad buttons
 - The launcher works with a gamepad; A on a game cover starts it
