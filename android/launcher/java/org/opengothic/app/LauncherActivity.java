@@ -1039,9 +1039,7 @@ public final class LauncherActivity extends AppCompatActivity {
         row.setGravity(android.view.Gravity.CENTER_VERTICAL);
         row.setMinimumHeight(Math.round(40 * dp));
         row.setPadding(Math.round(16 * dp), 0, Math.round(24 * dp), 0);
-        android.util.TypedValue ripple = new android.util.TypedValue();
-        getTheme().resolveAttribute(android.R.attr.selectableItemBackground, ripple, true);
-        row.setBackgroundResource(ripple.resourceId);
+        row.setBackgroundResource(R.drawable.og_row);
 
         ImageView image = new ImageView(this);
         image.setImageResource(icon);
@@ -1321,9 +1319,7 @@ public final class LauncherActivity extends AppCompatActivity {
         row.setGravity(android.view.Gravity.CENTER_VERTICAL);
         row.setMinimumHeight(Math.round(56 * dp));
         row.setPadding(Math.round(20 * dp), Math.round(6 * dp), Math.round(12 * dp), Math.round(6 * dp));
-        android.util.TypedValue ripple = new android.util.TypedValue();
-        getTheme().resolveAttribute(android.R.attr.selectableItemBackground, ripple, true);
-        row.setBackgroundResource(ripple.resourceId);
+        row.setBackgroundResource(R.drawable.og_row);
 
         if (shots.isEmpty()) {
             ImageView icon = new ImageView(this);
@@ -1397,9 +1393,7 @@ public final class LauncherActivity extends AppCompatActivity {
         row.setGravity(android.view.Gravity.CENTER_VERTICAL);
         row.setMinimumHeight(Math.round(56 * dp));
         row.setPadding(Math.round(20 * dp), Math.round(6 * dp), Math.round(12 * dp), Math.round(6 * dp));
-        android.util.TypedValue ripple = new android.util.TypedValue();
-        getTheme().resolveAttribute(android.R.attr.selectableItemBackground, ripple, true);
-        row.setBackgroundResource(ripple.resourceId);
+        row.setBackgroundResource(R.drawable.og_row);
 
         final ImageView image = new ImageView(this);
         LinearLayout.LayoutParams size;

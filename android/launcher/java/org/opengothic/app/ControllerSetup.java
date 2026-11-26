@@ -362,9 +362,7 @@ final class ControllerSetup {
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setMinimumHeight(Math.round(44 * dp));
         row.setPadding(Math.round(8 * dp), 0, Math.round(8 * dp), 0);
-        android.util.TypedValue ripple = new android.util.TypedValue();
-        ctx.getTheme().resolveAttribute(android.R.attr.selectableItemBackground, ripple, true);
-        row.setBackgroundResource(ripple.resourceId);
+        row.setBackgroundResource(R.drawable.og_row);
         row.setFocusable(true);
         // Left goes to the open tab, not the one beside this row, which focusing would select
         row.setNextFocusLeftId(tabViews[tab].getId());
@@ -899,9 +897,7 @@ final class ControllerSetup {
         b.setTypeface(Typeface.DEFAULT_BOLD);
         b.setPadding(Math.round(16 * dp), Math.round(12 * dp), Math.round(16 * dp), Math.round(12 * dp));
         b.setFocusable(true);
-        android.util.TypedValue ripple = new android.util.TypedValue();
-        ctx.getTheme().resolveAttribute(android.R.attr.selectableItemBackground, ripple, true);
-        b.setBackgroundResource(ripple.resourceId);
+        b.setBackgroundResource(R.drawable.og_row);
         b.setOnClickListener(click);
         LauncherActivity.addFocusRings(b);
         return b;

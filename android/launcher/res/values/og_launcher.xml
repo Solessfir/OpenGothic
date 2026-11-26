@@ -140,5 +140,6 @@
         <item name="android:textSize">15sp</item>
         <item name="fontFamily">@font/og_plex_semibold</item>
         <item name="android:foreground">@drawable/og_focus</item>
+        <item name="android:background">@drawable/og_row</item>
     </style>
 </resources>
