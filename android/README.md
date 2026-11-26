@@ -13,7 +13,7 @@ The default build is **Gothic Launcher** (`org.opengothic.launcher`): one app fo
 3. Pick a game on the left and tap **Download**. Gothic and Gothic II need to be in your Steam library; Archolos is free and is added to it when you download.
 
 Downloads continue in the background with a notification and can be paused. Only the files the engine reads are kept: `Data`, `_work` and the game's own ini files, never executables or Windows plugins.
-Without a Steam account, **Import a ZIP** takes a ZIP of the game folder as it is on Windows, or a `game-data.zip` from the setup scripts (see below); the launcher keeps only what the engine reads and detects which game it holds.
+Without a Steam account, **Import game files** takes the game folder as it is on Windows, either copied to the phone or as a ZIP, or a `game-data.zip` from the setup scripts (see below); the launcher keeps only what the engine reads and detects which game it holds.
 The library art comes from Steam's image servers and is kept for offline use. Steam needs Android 8; ZIP import works on Android 7.
 
 The launcher supports English, German, Polish, Russian and Spanish. It follows German, Polish and Russian game installations; otherwise it uses the phone's language.

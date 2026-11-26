@@ -9,7 +9,9 @@
     <string name="og_pause">Pausieren</string>
     <string name="og_cancel">Abbrechen</string>
     <string name="og_retry">Erneut versuchen</string>
-    <string name="og_import_zip">ZIP importieren</string>
+    <string name="og_import">Spieldateien importieren</string>
+    <string name="og_import_from_zip">ZIP-Datei</string>
+    <string name="og_import_from_folder">Spielordner</string>
     <string name="og_view_on_steam">Auf Steam ansehen</string>
     <string name="og_uninstall">Deinstallieren</string>
     <string name="og_sign_out">Abmelden</string>
@@ -77,11 +79,11 @@
     <string name="og_installed">Installiert</string>
     <string name="og_in_library">In deiner Steam-Bibliothek · Nicht auf diesem Gerät</string>
     <string name="og_free_on_steam">Kostenlos auf Steam · Nicht auf diesem Gerät</string>
-    <string name="og_not_owned">Nicht in deiner Steam-Bibliothek. Importiere stattdessen eine ZIP deiner eigenen Installation.</string>
+    <string name="og_not_owned">Nicht in deiner Steam-Bibliothek. Importiere stattdessen deine eigene Installation als Ordner oder ZIP.</string>
     <string name="og_checking_library">Steam-Bibliothek wird geprüft…</string>
     <string name="og_library_failed">Die Steam-Bibliothek konnte nicht geprüft werden. Prüfe die Verbindung und versuche es erneut.</string>
-    <string name="og_not_on_device">Nicht auf diesem Gerät. Importiere eine ZIP deiner Installation oder melde dich an, um das Spiel von Steam herunterzuladen.</string>
-    <string name="og_not_on_device_no_steam">Nicht auf diesem Gerät. Importiere eine ZIP deiner Installation.</string>
+    <string name="og_not_on_device">Nicht auf diesem Gerät. Importiere deine Installation als Ordner oder ZIP oder melde dich an, um das Spiel von Steam herunterzuladen.</string>
+    <string name="og_not_on_device_no_steam">Nicht auf diesem Gerät. Importiere deine Installation als Ordner oder ZIP.</string>
     <string name="og_queued">Wartet auf den anderen Download</string>
     <string name="og_paused">Download pausiert</string>
     <string name="og_importing">Spieldateien werden importiert · %1$d%%</string>
@@ -156,7 +158,9 @@
     <string name="og_err_write_backup">Die Sicherung konnte nicht geschrieben werden.</string>
     <string name="og_err_open_backup">Die Sicherung konnte nicht geöffnet werden.</string>
     <string name="og_err_open_archive">Das Archiv konnte nicht geöffnet werden.</string>
-    <string name="og_err_no_game">Das Archiv enthält keine Installation von Gothic, Gothic II oder Archolos.</string>
+    <string name="og_err_open_folder">Der Ordner konnte nicht geöffnet werden.</string>
+    <string name="og_err_no_game">Keine Installation von Gothic, Gothic II oder Archolos gefunden.</string>
+    <string name="og_err_no_picker">Dieses Gerät hat keine Dateiauswahl.</string>
     <string name="og_err_store_update">Das Update konnte nicht gespeichert werden.</string>
     <string name="og_err_reports_unavailable">Berichte können noch nicht gesendet werden. Versuche es später erneut.</string>
     <string name="og_err_reports_limit">Zu viele Berichte aus diesem Netzwerk. Versuche es in einer Minute erneut.</string>

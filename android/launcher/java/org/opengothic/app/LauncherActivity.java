@@ -75,6 +75,7 @@ import java.util.Set;
 /** The library: one screen per game with its Steam art, state and the one action that fits. */
 public final class LauncherActivity extends AppCompatActivity {
     private static final int PICK_ARCHIVE = 1;
+    private static final int PICK_FOLDER = 8;
     private static final int SIGN_IN = 2;
     private static final int BACKUP = 5;
     private static final int RESTORE = 6;
@@ -127,6 +128,7 @@ public final class LauncherActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle saved) {
         super.onCreate(saved);
+        Importer.releaseStaleGrants(this);
         setContentView(R.layout.og_launcher);
         // Once laid out, after onCreate has set up every view; rows added later get theirs where they are added
         final View page = findViewById(R.id.og_root);
@@ -482,7 +484,7 @@ public final class LauncherActivity extends AppCompatActivity {
         } else if (d != null && d.error != null) {
             setText(status, d.error);
             status.setTextColor(ContextCompat.getColor(this, R.color.og_error));
-            actions(signedIn ? R.string.og_retry : 0, () -> startDownload(game, d.language), 0, null, R.string.og_import_zip, this::pickArchive);
+            actions(signedIn ? R.string.og_retry : 0, () -> startDownload(game, d.language), 0, null, R.string.og_import, this::pickArchive);
         } else if (Library.staging(root, game).isDirectory()) {
             setText(status, getString(R.string.og_paused));
             actions(signedIn ? R.string.og_resume : 0, () -> startDownload(game, prefs.getString("language_" + game.appId, "")),
@@ -492,20 +494,20 @@ public final class LauncherActivity extends AppCompatActivity {
             if (owned == null && libraryFailed && !refreshing) {
                 setText(status, getString(R.string.og_library_failed));
                 status.setTextColor(ContextCompat.getColor(this, R.color.og_error));
-                actions(R.string.og_retry, () -> refreshLibrary(true), 0, null, R.string.og_import_zip, this::pickArchive);
+                actions(R.string.og_retry, () -> refreshLibrary(true), 0, null, R.string.og_import, this::pickArchive);
             } else if (owned == null) {
                 setText(status, getString(R.string.og_checking_library));
-                actions(0, null, 0, null, R.string.og_import_zip, this::pickArchive);
+                actions(0, null, 0, null, R.string.og_import, this::pickArchive);
             } else if (owned.contains(game.appId) || game.free) {
                 setText(status, getString(owned.contains(game.appId) ? R.string.og_in_library : R.string.og_free_on_steam));
-                actions(R.string.og_download, this::download, 0, null, R.string.og_import_zip, this::pickArchive);
+                actions(R.string.og_download, this::download, 0, null, R.string.og_import, this::pickArchive);
             } else {
                 setText(status, getString(R.string.og_not_owned));
-                actions(R.string.og_import_zip, this::pickArchive, R.string.og_view_on_steam, this::openStore, 0, null);
+                actions(R.string.og_import, this::pickArchive, R.string.og_view_on_steam, this::openStore, 0, null);
             }
         } else {
             setText(status, getString(steamAvailable() ? R.string.og_not_on_device : R.string.og_not_on_device_no_steam));
-            actions(R.string.og_import_zip, this::pickArchive, steamAvailable() ? R.string.og_sign_in_steam : 0, this::signIn, 0, null);
+            actions(R.string.og_import, this::pickArchive, steamAvailable() ? R.string.og_sign_in_steam : 0, this::signIn, 0, null);
         }
         // Saves outlive the game files, so their backup stays reachable after uninstalling
         if (root != null && !Importer.running && (d == null || !d.active()) && !Backups.files(Library.user(root, game)).isEmpty()) {
@@ -634,8 +636,22 @@ public final class LauncherActivity extends AppCompatActivity {
     }
 
     private void pickArchive() {
-        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*");
-        startActivityForResult(intent, PICK_ARCHIVE);
+        String[] sources = {getString(R.string.og_import_from_zip), getString(R.string.og_import_from_folder)};
+        new FocusDialog(this)
+                .setTitle(R.string.og_import)
+                .setItems(sources, (d, which) -> {
+                    try {
+                        if (which == 0)
+                            startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*"), PICK_ARCHIVE);
+                        else
+                            startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE), PICK_FOLDER);
+                    } catch (android.content.ActivityNotFoundException e) {
+                        // Some TV and Go builds ship without the system file picker
+                        message(getString(R.string.og_err_no_picker));
+                    }
+                })
+                .setNegativeButton(R.string.og_cancel, null)
+                .show();
     }
 
     private void openStore() {
@@ -649,8 +665,8 @@ public final class LauncherActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int request, int result, Intent data) {
         super.onActivityResult(request, result, data);
-        if (request == PICK_ARCHIVE && result == RESULT_OK && data != null && data.getData() != null) {
-            Importer.start(this, data.getData());
+        if ((request == PICK_ARCHIVE || request == PICK_FOLDER) && result == RESULT_OK && data != null && data.getData() != null) {
+            Importer.start(this, data.getData(), request == PICK_FOLDER);
             importing = true;
         } else if (request == SIGN_IN && result == RESULT_OK) {
             refreshed = SystemClock.uptimeMillis();

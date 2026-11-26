@@ -9,7 +9,9 @@
     <string name="og_pause">Пауза</string>
     <string name="og_cancel">Отмена</string>
     <string name="og_retry">Повторить</string>
-    <string name="og_import_zip">Импорт ZIP</string>
+    <string name="og_import">Импорт файлов игры</string>
+    <string name="og_import_from_zip">ZIP-файл</string>
+    <string name="og_import_from_folder">Папка игры</string>
     <string name="og_view_on_steam">Открыть в Steam</string>
     <string name="og_uninstall">Удалить</string>
     <string name="og_sign_out">Выйти</string>
@@ -77,11 +79,11 @@
     <string name="og_installed">Установлена</string>
     <string name="og_in_library">В вашей библиотеке Steam · Не на этом устройстве</string>
     <string name="og_free_on_steam">Бесплатно в Steam · Не на этом устройстве</string>
-    <string name="og_not_owned">Нет в вашей библиотеке Steam. Вместо этого импортируйте ZIP своей установки.</string>
+    <string name="og_not_owned">Нет в вашей библиотеке Steam. Вместо этого импортируйте свою установку как папку или ZIP.</string>
     <string name="og_checking_library">Проверка библиотеки Steam…</string>
     <string name="og_library_failed">Не удалось проверить библиотеку Steam. Проверьте подключение и повторите попытку.</string>
-    <string name="og_not_on_device">Не на этом устройстве. Импортируйте ZIP своей установки или войдите, чтобы скачать игру из Steam.</string>
-    <string name="og_not_on_device_no_steam">Не на этом устройстве. Импортируйте ZIP своей установки.</string>
+    <string name="og_not_on_device">Не на этом устройстве. Импортируйте свою установку как папку или ZIP или войдите, чтобы скачать игру из Steam.</string>
+    <string name="og_not_on_device_no_steam">Не на этом устройстве. Импортируйте свою установку как папку или ZIP.</string>
     <string name="og_queued">Ожидание другой загрузки</string>
     <string name="og_paused">Загрузка приостановлена</string>
     <string name="og_importing">Импорт файлов игры · %1$d%%</string>
@@ -156,7 +158,9 @@
     <string name="og_err_write_backup">Не удалось записать резервную копию.</string>
     <string name="og_err_open_backup">Не удалось открыть резервную копию.</string>
     <string name="og_err_open_archive">Не удалось открыть архив.</string>
-    <string name="og_err_no_game">В архиве нет установки Gothic, Gothic II или Archolos.</string>
+    <string name="og_err_open_folder">Не удалось открыть папку.</string>
+    <string name="og_err_no_game">Не найдена установка Gothic, Gothic II или Archolos.</string>
+    <string name="og_err_no_picker">На этом устройстве нет выбора файлов.</string>
     <string name="og_err_store_update">Не удалось сохранить обновление.</string>
     <string name="og_err_reports_unavailable">Отчёты пока нельзя отправить. Попробуйте позже.</string>
     <string name="og_err_reports_limit">Слишком много отчётов из этой сети. Попробуйте через минуту.</string>

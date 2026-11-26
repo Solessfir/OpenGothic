@@ -9,7 +9,9 @@
     <string name="og_pause">Wstrzymaj</string>
     <string name="og_cancel">Anuluj</string>
     <string name="og_retry">Spróbuj ponownie</string>
-    <string name="og_import_zip">Importuj ZIP</string>
+    <string name="og_import">Importuj pliki gry</string>
+    <string name="og_import_from_zip">Plik ZIP</string>
+    <string name="og_import_from_folder">Folder gry</string>
     <string name="og_view_on_steam">Zobacz w Steam</string>
     <string name="og_uninstall">Odinstaluj</string>
     <string name="og_sign_out">Wyloguj</string>
@@ -77,11 +79,11 @@
     <string name="og_installed">Zainstalowana</string>
     <string name="og_in_library">W Twojej bibliotece Steam · Brak na tym urządzeniu</string>
     <string name="og_free_on_steam">Darmowa w Steam · Brak na tym urządzeniu</string>
-    <string name="og_not_owned">Nie ma jej w Twojej bibliotece Steam. Zamiast tego zaimportuj ZIP własnej instalacji.</string>
+    <string name="og_not_owned">Nie ma jej w Twojej bibliotece Steam. Zamiast tego zaimportuj własną instalację jako folder lub ZIP.</string>
     <string name="og_checking_library">Sprawdzanie biblioteki Steam…</string>
     <string name="og_library_failed">Nie udało się sprawdzić biblioteki Steam. Sprawdź połączenie i spróbuj ponownie.</string>
-    <string name="og_not_on_device">Brak na tym urządzeniu. Zaimportuj ZIP swojej instalacji albo zaloguj się, aby pobrać grę ze Steam.</string>
-    <string name="og_not_on_device_no_steam">Brak na tym urządzeniu. Zaimportuj ZIP swojej instalacji.</string>
+    <string name="og_not_on_device">Brak na tym urządzeniu. Zaimportuj swoją instalację jako folder lub ZIP albo zaloguj się, aby pobrać grę ze Steam.</string>
+    <string name="og_not_on_device_no_steam">Brak na tym urządzeniu. Zaimportuj swoją instalację jako folder lub ZIP.</string>
     <string name="og_queued">Czeka na inne pobieranie</string>
     <string name="og_paused">Pobieranie wstrzymane</string>
     <string name="og_importing">Importowanie plików gry · %1$d%%</string>
@@ -156,7 +158,9 @@
     <string name="og_err_write_backup">Nie udało się zapisać kopii zapasowej.</string>
     <string name="og_err_open_backup">Nie udało się otworzyć kopii zapasowej.</string>
     <string name="og_err_open_archive">Nie udało się otworzyć archiwum.</string>
-    <string name="og_err_no_game">Archiwum nie zawiera instalacji Gothic, Gothic II ani Archolos.</string>
+    <string name="og_err_open_folder">Nie udało się otworzyć folderu.</string>
+    <string name="og_err_no_game">Nie znaleziono instalacji Gothic, Gothic II ani Archolos.</string>
+    <string name="og_err_no_picker">To urządzenie nie ma wyboru plików.</string>
     <string name="og_err_store_update">Nie udało się zapisać aktualizacji.</string>
     <string name="og_err_reports_unavailable">Nie można jeszcze wysyłać zgłoszeń. Spróbuj później.</string>
     <string name="og_err_reports_limit">Zbyt wiele zgłoszeń z tej sieci. Spróbuj za minutę.</string>
