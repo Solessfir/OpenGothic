@@ -561,6 +561,8 @@ public final class LauncherActivity extends AppCompatActivity {
             action(buttons[i], texts[i], runs[i]);
             if (kept == null) kept = buttons[i];
         }
+        // Right from a cover goes to the game's buttons; by position the top cover would reach the account button instead
+        for (View cover : covers) cover.setNextFocusRightId(kept != null ? kept.getId() : View.NO_ID);
         for (int i = 0; i < buttons.length; ++i) {
             if (texts[i] != 0) continue;
             if (buttons[i].hasFocus() && kept != null) kept.requestFocus();
