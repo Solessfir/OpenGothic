@@ -113,8 +113,14 @@ Renderer::Renderer() {
   sky.cloudsLut     = device.image2d   (sky.lutRGBAFormat,  2,  1);
   sky.transLut      = device.attachment(sky.lutRGBFormat, 256, 64);
   sky.multiScatLut  = device.attachment(sky.lutRGBFormat,  32, 32);
-  sky.viewLut       = device.attachment(Tempest::TextureFormat::RGBA32F, 128, 64);
-  sky.viewCldLut    = device.attachment(Tempest::TextureFormat::RGBA32F, 512, 256);
+#if defined(__ANDROID__)
+  // Xclipse filters RGBA32F as nearest, which draws the sky in bands; half floats are precise enough for it
+  const auto viewLutFormat = Tempest::TextureFormat::RGBA16F;
+#else
+  const auto viewLutFormat = Tempest::TextureFormat::RGBA32F;
+#endif
+  sky.viewLut       = device.attachment(viewLutFormat, 128, 64);
+  sky.viewCldLut    = device.attachment(viewLutFormat, 512, 256);
   sky.irradianceLut = device.image2d(TextureFormat::RGBA32F, 3,2);
 
   setupSettings();

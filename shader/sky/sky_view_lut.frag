@@ -91,5 +91,5 @@ void main() {
 
   vec3  sun  = raymarchScattering(viewPos, rayDir, sunDir, tMax);
   vec3  moon = raymarchScattering(viewPos, rayDir, normalize(vec3(-1,1,0)), tMax) * scene.isNight * (moonInt);
-  outColor = vec4(sun+moon, 1.0);
+  outColor = vec4((sun+moon)*SkyLutScale, 1.0);
   }

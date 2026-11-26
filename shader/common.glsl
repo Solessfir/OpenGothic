@@ -147,6 +147,10 @@ float rayIntersect(vec3 v, vec3 d, float R) {
   return -b - sqrt(discr);
   }
 
+// The sky view LUTs hold radiance per unit of sun light: the moon's share is about 1e-7, below what half floats keep.
+// Scaled by a power of two it stays exact in 32-bit floats.
+const float SkyLutScale = 8192.0;
+
 /*
  * Final output basically looks up the value from the skyLUT, and then adds a sun on top,
  * does some tonemapping.
@@ -175,7 +179,7 @@ vec3 textureSkyLUT(in sampler2D skyLUT, const vec3 viewPos, vec3 rayDir, vec3 su
   // Non-linear mapping of altitude angle. See Section 5.3 of the paper.
   float v  = 0.5 + 0.5*sign(altitudeAngle)*sqrt(abs(altitudeAngle)*2.0/M_PI);
   vec2  uv = vec2(azimuthAngle / (2.0*M_PI), v);
-  return textureLod(skyLUT, uv, 0).rgb;
+  return textureLod(skyLUT, uv, 0).rgb/SkyLutScale;
   }
 
 // Sample i-th point from Hammersley point set of NumSamples points total.

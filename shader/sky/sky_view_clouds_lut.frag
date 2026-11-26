@@ -62,8 +62,8 @@ void main() {
   vec3  sunDir      = vec3(0.0, sin(sunAltitude), -cos(sunAltitude));
   vec3  rayDir      = vec3(cosAltitude*sin(azimuthAngle), sin(altitudeAngle), -cosAltitude*cos(azimuthAngle));
 
-  vec3 sky = textureLod(skyLUT, uv, 0).rgb;
+  vec3 sky = textureLod(skyLUT, uv, 0).rgb/SkyLutScale;
   sky = applyClouds(sky, rayDir);
 
-  outColor = vec4(sky, 1.0);
+  outColor = vec4(sky*SkyLutScale, 1.0);
   }
