@@ -489,14 +489,19 @@ Matrix4x4 Camera::mkViewShadow(const Vec3& cameraPos, const Vec3& lightDir, cons
   view.project(zero);
 
   // keep the world origin on the texel grid
-  const float step = 2.f/snapGrid;
+  const bool  coarse = coarseFarShadow && layer==1;
+  const float step   = coarse ? 2.f/8.f : 2.f/snapGrid;
   Vec3 shift = zero - center;
   shift.x = std::round(shift.x/step)*step - shift.x;
   shift.y = std::round(shift.y/step)*step - shift.y;
+  // the depth range follows the camera in steps of 1/64 of it, relative to the world origin like the texel grid
+  float depth = 0.5f - cam.z;
+  if(coarse)
+    depth = std::round((depth + zero.z)*64.f)/64.f - zero.z;
 
   Matrix4x4 proj;
   proj.identity();
-  proj.translate(shift.x - center.x, shift.y - center.y, 0.5f - cam.z);
+  proj.translate(shift.x - center.x, shift.y - center.y, depth);
   proj.mul(view);
   return proj;
   }

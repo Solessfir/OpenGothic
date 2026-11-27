@@ -81,7 +81,7 @@ class VisualObjects final {
     void drawTranslucent(Tempest::Encoder<Tempest::CommandBuffer>& cmd);
     void drawWater      (Tempest::Encoder<Tempest::CommandBuffer>& cmd);
     void drawGBuffer    (Tempest::Encoder<Tempest::CommandBuffer>& cmd);
-    void drawShadow     (Tempest::Encoder<Tempest::CommandBuffer>& cmd, int layer);
+    void drawShadow     (Tempest::Encoder<Tempest::CommandBuffer>& cmd, int layer, uint8_t types = DrawCommands::AllTypes);
     void drawVsm        (Tempest::Encoder<Tempest::CommandBuffer>& cmd);
     void drawHiZ        (Tempest::Encoder<Tempest::CommandBuffer>& cmd);
 

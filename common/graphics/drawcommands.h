@@ -57,7 +57,12 @@ class DrawCommands {
     void     visibilityVsm(Tempest::Encoder<Tempest::CommandBuffer>& cmd);
 
     void     drawHiZ(Tempest::Encoder<Tempest::CommandBuffer>& cmd);
-    void     drawCommon(Tempest::Encoder<Tempest::CommandBuffer>& cmd, SceneGlobals::VisCamera viewId, Material::AlphaFunc func);
+    // Bits of Type; the level mesh and static objects never move, so a shadow map can keep them
+    static constexpr uint8_t StaticTypes = (1u<<Landscape) | (1u<<Static);
+    static constexpr uint8_t AllTypes    = 0xFF;
+
+    void     drawCommon(Tempest::Encoder<Tempest::CommandBuffer>& cmd, SceneGlobals::VisCamera viewId, Material::AlphaFunc func,
+                        uint8_t types = AllTypes);
 
     void     drawVsm(Tempest::Encoder<Tempest::CommandBuffer>& cmd);
 

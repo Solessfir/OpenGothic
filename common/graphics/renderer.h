@@ -218,6 +218,14 @@ class Renderer final {
       bool                   drawn[Resources::ShadowLayers] = {};
       bool                   skip [Resources::ShadowLayers] = {};
       } shadowTurns;
+    // The far cascade's level mesh and static objects, drawn again only when the cascade moves. Phones spend
+    // most of the shadow time there; each frame copies it and draws only what moves.
+    struct {
+      bool                   enabled = false;
+      bool                   valid   = false;
+      Tempest::ZBuffer       depth;
+      Tempest::Matrix4x4     matrix;
+      } farStatic;
     uint32_t worldFrames = 0;
 
     struct Sky {

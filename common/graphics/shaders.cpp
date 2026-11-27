@@ -184,6 +184,14 @@ void Shaders::compileShaders() noexcept {
   copyBuf   = computeShader("copy.comp.sprv");
   copyImg   = computeShader("copy_img.comp.sprv");
   copy      = postEffect("copy");
+  {
+    RenderState state;
+    state.setZTestMode(RenderState::ZTestMode::Always);
+    state.setZWriteEnabled(true);
+    auto vs = shaderSource("triangle.vert.sprv");
+    auto fs = shaderSource("copy_depth.frag.sprv");
+    copyDepth = device.pipeline(Triangles, state, device.shader(vs.data,vs.len), device.shader(fs.data,fs.len));
+  }
 
   patch     = computeShader("patch.comp.sprv");
 

@@ -176,9 +176,10 @@ void WorldView::drawHiZ(Tempest::Encoder<Tempest::CommandBuffer>& cmd) {
   visuals.drawHiZ(cmd);
   }
 
-void WorldView::drawShadow(Tempest::Encoder<CommandBuffer>& cmd, uint8_t fId, uint8_t layer) {
-  visuals.drawShadow(cmd,layer);
-  pfxGroup.drawShadow(cmd,fId,layer);
+void WorldView::drawShadow(Tempest::Encoder<CommandBuffer>& cmd, uint8_t fId, uint8_t layer, uint8_t types) {
+  visuals.drawShadow(cmd,layer,types);
+  if(types & (1u<<DrawCommands::Pfx))
+    pfxGroup.drawShadow(cmd,fId,layer);
   }
 
 void WorldView::drawVsm(Tempest::Encoder<Tempest::CommandBuffer>& cmd) {

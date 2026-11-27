@@ -447,7 +447,8 @@ void DrawCommands::drawHiZ(Tempest::Encoder<Tempest::CommandBuffer>& cmd) {
     }
   }
 
-void DrawCommands::drawCommon(Tempest::Encoder<Tempest::CommandBuffer>& cmd, SceneGlobals::VisCamera viewId, Material::AlphaFunc func) {
+void DrawCommands::drawCommon(Tempest::Encoder<Tempest::CommandBuffer>& cmd, SceneGlobals::VisCamera viewId, Material::AlphaFunc func,
+                              uint8_t types) {
   struct Push { uint32_t firstMeshlet; uint32_t meshletCount; } push = {};
 
   auto b = std::lower_bound(ord.begin(), ord.end(), func, [](const DrawCmd* l, Material::AlphaFunc f){
@@ -463,7 +464,7 @@ void DrawCommands::drawCommon(Tempest::Encoder<Tempest::CommandBuffer>& cmd, Sce
     if(cx.alpha!=func)
       continue;
 
-    if(cx.maxPayload==0)
+    if(cx.maxPayload==0 || (types & (1u<<cx.type))==0)
       continue;
 
     const RenderPipeline* pso = nullptr;

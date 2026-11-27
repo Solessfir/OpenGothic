@@ -57,6 +57,9 @@ Renderer::Renderer() {
   // Adreno spends about 10 ms of a 30 FPS frame drawing the two shadow cascades, most of it in the far one.
   // They take turns: the near cascade every second frame, the far one every fourth.
   shadowTurns.alternate = std::string_view(device.properties().name).find("Adreno")!=std::string_view::npos;
+#if defined(__ANDROID__)
+  farStatic.enabled = true;
+#endif
 
   static const TextureFormat sfrm[] = {
     TextureFormat::Depth16,
@@ -347,6 +350,7 @@ void Renderer::togglePathtrace() {
 
 void Renderer::onWorldChanged() {
   sky.lutIsInitialized = false;
+  farStatic.valid      = false;
   resetSkyFog();
   }
 
@@ -597,10 +601,14 @@ void Renderer::resetShadowmap() {
 
   for(int i=0; i<Resources::ShadowLayers; ++i)
     Resources::recycle(std::move(shadowMap[i]));
+  Resources::recycle(std::move(farStatic.depth));
+  farStatic.valid = false;
   for(int i=0; i<Resources::ShadowLayers; ++i) {
     if(used[i])
       shadowMap[i] = device.zbuffer(shadowFormat, size, size);
     }
+  if(farStatic.enabled && used[1] && settings.shadowResolution>0)
+    farStatic.depth = device.zbuffer(shadowFormat, size, size);
   }
 
 void Renderer::resetSkyFog() {
@@ -816,6 +824,7 @@ void Renderer::draw(Attachment& result, Encoder<CommandBuffer>& cmd, uint8_t fId
   if(requiresLightsTree())
     prepareLightsBvh(cmd, wview);
 
+  camera.setCoarseFarShadow(!farStatic.depth.isEmpty());
   {
     static constexpr uint8_t turns[] = {0, 1, 0, Resources::ShadowLayers};
     const bool ready = shadowTurns.drawn[0] && shadowTurns.drawn[1];
@@ -2109,10 +2118,36 @@ void Renderer::drawShadowMap(Encoder<CommandBuffer>& cmd, uint8_t fId, WorldView
   for(uint8_t i=0; i<Resources::ShadowLayers; ++i) {
     if(shadowMap[i].isEmpty() || shadowTurns.skip[i])
       continue;
+    const bool sunUp = view.mainLight().dir().y > Camera::minShadowY;
+    const bool draw  = sunUp && settings.shadowResolution>0;
+    if(i==1 && draw && !farStatic.depth.isEmpty()) {
+      // The rotation part follows only the rounded sun direction, so it repeats exactly. The translation of the
+      // snapped cascade still carries float noise from the camera position; a texel is 2/512 of clip space.
+      bool same = farStatic.valid;
+      for(int c=0; c<4 && same; ++c)
+        for(int r=0; r<4 && same; ++r) {
+          const float a = farStatic.matrix.at(c,r), b = shadowMatrix[1].at(c,r);
+          same = (c==3) ? std::abs(a-b)<1e-4f : a==b;
+          }
+      if(!same) {
+        cmd.setDebugMarker("ShadowMap #1 static");
+        cmd.setFramebuffer({}, {farStatic.depth, 0.f, Tempest::Preserve});
+        view.drawShadow(cmd,fId,i,DrawCommands::StaticTypes);
+        farStatic.matrix = shadowMatrix[1];
+        farStatic.valid  = true;
+        }
+      cmd.setDebugMarker(string_frm("ShadowMap #",i));
+      cmd.setFramebuffer({}, {shadowMap[i], 0.f, Tempest::Preserve});
+      cmd.setBinding(0, farStatic.depth, Sampler::nearest());
+      cmd.setPipeline(shaders.copyDepth);
+      cmd.draw(nullptr, 0, 3);
+      view.drawShadow(cmd,fId,i,uint8_t(~DrawCommands::StaticTypes));
+      shadowTurns.drawn[i] = true;
+      continue;
+      }
     cmd.setDebugMarker(string_frm("ShadowMap #",i));
     cmd.setFramebuffer({}, {shadowMap[i], 0.f, Tempest::Preserve});
-    const bool sunUp = view.mainLight().dir().y > Camera::minShadowY;
-    if(sunUp && settings.shadowResolution>0)
+    if(draw)
       view.drawShadow(cmd,fId,i);
     shadowTurns.drawn[i] = sunUp;
     }

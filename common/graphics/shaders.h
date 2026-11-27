@@ -59,7 +59,7 @@ class Shaders {
     Tempest::ComputePipeline copyBuf;
     Tempest::ComputePipeline copyImg;
     Tempest::ComputePipeline patch;
-    Tempest::RenderPipeline  copy, downscale;
+    Tempest::RenderPipeline  copy, copyDepth, downscale;
     Tempest::RenderPipeline  stash;
     Tempest::RenderPipeline  bink;
 

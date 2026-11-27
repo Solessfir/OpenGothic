@@ -115,6 +115,8 @@ class Camera final {
     Tempest::Matrix4x4 viewShadowVsmLwc(const Tempest::Vec3& ldir) const;
     // A held cascade keeps its placement in the world, so its shadow map can be reused for another frame
     bool               holdShadow(size_t layer, bool hold, const Tempest::Vec3& ldir);
+    // The far cascade moves in steps of 1/8 of its width, so a cache of its static part stays valid between steps
+    void               setCoarseFarShadow(bool coarse) { coarseFarShadow = coarse; }
 
     ListenerPos        listenerPosition() const;
     Tempest::Vec3      originLwc() const { return origin+shake; };
@@ -187,6 +189,7 @@ class Camera final {
       bool                valid = false;
       };
     HeldShadow            heldShadow[2];
+    bool                  coarseFarShadow = false;
 
     static const float    minLength;
 
