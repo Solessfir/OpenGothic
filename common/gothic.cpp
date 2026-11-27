@@ -288,8 +288,9 @@ Gothic::Gothic(GameModDescriptor desc) {
   defaults->set("VIDEO", "zVidBrightness", 0.5f);
   defaults->set("VIDEO", "zVidContrast",   0.5f);
   defaults->set("VIDEO", "zVidGamma",      0.5f);
-  // The far shadow cascade alone took ~13 ms per frame on mobile GPUs in dense towns, ~3 ms with this
-  defaults->set("ENGINE", "shadowFarMinTexels", 32.f);
+  // The far shadow cascade alone took ~13 ms per frame on mobile GPUs in dense towns, ~3 ms with this.
+  // Negative picks a value for the GPU, see DrawCommands.
+  defaults->set("ENGINE", "shadowFarMinTexels", -1.f);
   // HDR output kept bright lights saturated orange and dimmed the rest of the scene; displayMode=auto still opts in
   defaults->set("VIDEO", "displayMode", "sdr");
 #if defined(__ANDROID__)

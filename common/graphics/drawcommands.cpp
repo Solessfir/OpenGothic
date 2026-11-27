@@ -9,6 +9,7 @@
 #include "shaders.h"
 
 #include "gothic.h"
+#include "resources.h"
 
 using namespace Tempest;
 
@@ -296,7 +297,11 @@ void DrawCommands::visibilityPass(Encoder<CommandBuffer>& cmd, int pass) {
     if(viewport==SceneGlobals::V_Shadow1) {
       // Small objects are geometry-heavy in the far cascade and barely visible there.
       // The setting counts texels of the former far cascade, 2.5 cm each; the default skips radii below 80 cm.
-      push.minRadius = Gothic::settingsGetF("ENGINE","shadowFarMinTexels")*2.5f;
+      // Adreno draws depth-only geometry about four times slower than Xclipse: in Khorinis its far cascade cost
+      // 3.3 times the GBuffer, mostly in props of 1.6 to 2.4 m such as carts, stalls and stacked crates.
+      static const float autoTexels = std::string_view(Resources::device().properties().name).find("Adreno")!=std::string_view::npos ? 96.f : 32.f;
+      const float texels = Gothic::settingsGetF("ENGINE","shadowFarMinTexels");
+      push.minRadius = (texels<0 ? autoTexels : texels)*2.5f;
       }
     if(viewport==SceneGlobals::V_Main) {
       // In the main view the same field is a size on screen, in pixels of the render resolution
