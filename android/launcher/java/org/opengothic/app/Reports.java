@@ -190,9 +190,15 @@ final class Reports {
             connection.setReadTimeout(30000);
             connection.setDoOutput(true);
             connection.setRequestProperty("Content-Type", "application/json");
+            // A fixed length streams the body as it is written; otherwise it all goes out inside getResponseCode
+            final byte[] json = new JSONObject(report).toString().getBytes(StandardCharsets.UTF_8);
+            connection.setFixedLengthStreamingMode(json.length);
             int code = Stall.run(connection, stall -> {
                 try (OutputStream out = connection.getOutputStream()) {
-                    out.write(new JSONObject(report).toString().getBytes(StandardCharsets.UTF_8));
+                    for (int at = 0; at < json.length; at += 4096) {
+                        out.write(json, at, Math.min(4096, json.length - at));
+                        stall.progress();
+                    }
                 }
                 stall.written();
                 return connection.getResponseCode();

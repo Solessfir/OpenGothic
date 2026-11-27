@@ -78,7 +78,7 @@ async function launcherConfig(request, env, url) {
   const country = request.cf?.country;
   const notices = (Array.isArray(s.notices) ? s.notices : [])
     .filter(n => n && n.id && (!n.until || n.until >= today))
-    .filter(n => !Array.isArray(n.countries) || n.countries.includes(country))
+    .filter(n => !("countries" in n) || (Array.isArray(n.countries) && n.countries.includes(country)))
     .map(({ countries, ...n }) => n);
   return Response.json({ notices, blocked: blockedReason(s, url.searchParams.get("install"), url.searchParams.get("device")) });
 }

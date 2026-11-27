@@ -74,7 +74,7 @@ allowed = true;
 // launcher.json: notices for everyone, a verdict only for the asking install or device
 const settingsFile = {
   notices: [{ id: "now", text: { en: "Working on it" } }, { id: "old", text: { en: "Gone" }, until: "2000-01-01" },
-            { id: "vpn", text: { ru: "VPN" }, countries: ["RU"] }],
+            { id: "vpn", text: { ru: "VPN" }, countries: ["RU"] }, { id: "typo", text: { en: "x" }, countries: "RU" }],
   blocked: [{ install: "bad-install", reason: "spam" }, { match: "Pixel 1\\b", reason: "broken GPU" }, { match: "(", reason: "broken entry" }],
 };
 const githubFetch = globalThis.fetch;
