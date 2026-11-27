@@ -1,3 +1,8 @@
+0.7.14
+- More accurate frame pacing with the Android frame rate limit
+- Improved performance and stability on Adreno phones
+- Improved problem report uploads on slow connections
+
 0.7.13
 - Import a game from its folder, not only from a ZIP: copy the game folder to your phone as it is, and the launcher takes only the files the game needs
 - LB and RB switch between games in the launcher
