@@ -164,6 +164,7 @@
     <string name="og_err_store_update">No se puede guardar la actualización.</string>
     <string name="og_err_reports_unavailable">Aún no se pueden enviar informes. Vuelve a intentarlo más tarde.</string>
     <string name="og_err_reports_limit">Se han enviado demasiados informes desde esta red. Vuelve a intentarlo dentro de un minuto.</string>
+    <string name="og_err_report_stalled">La conexión con el servidor de informes se ha detenido. Puede deberse a una red que lo bloquea o ralentiza, o a una VPN.</string>
     <string name="og_err_connection_lost">Se ha perdido la conexión con Steam.</string>
     <string name="og_err_session_ended">Tu sesión de Steam ha caducado. Vuelve a iniciar sesión.</string>
     <string name="og_err_session_closed">Steam ha finalizado la sesión (%1$s).</string>

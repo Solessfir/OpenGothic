@@ -164,6 +164,7 @@
     <string name="og_err_store_update">Das Update konnte nicht gespeichert werden.</string>
     <string name="og_err_reports_unavailable">Berichte können noch nicht gesendet werden. Versuche es später erneut.</string>
     <string name="og_err_reports_limit">Zu viele Berichte aus diesem Netzwerk. Versuche es in einer Minute erneut.</string>
+    <string name="og_err_report_stalled">Die Verbindung zum Berichtsserver ist abgebrochen. Ein Netzwerk, das ihn sperrt oder drosselt, oder ein VPN kann die Ursache sein.</string>
     <string name="og_err_connection_lost">Die Verbindung zu Steam wurde unterbrochen.</string>
     <string name="og_err_session_ended">Deine Steam-Sitzung ist abgelaufen. Melde dich erneut an.</string>
     <string name="og_err_session_closed">Steam hat die Sitzung beendet (%1$s).</string>

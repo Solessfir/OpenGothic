@@ -8,6 +8,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Build;
+import android.os.SystemClock;
 
 import org.json.JSONObject;
 import org.opengothic.launcher.R;
@@ -189,10 +190,13 @@ final class Reports {
             connection.setReadTimeout(30000);
             connection.setDoOutput(true);
             connection.setRequestProperty("Content-Type", "application/json");
-            try (OutputStream out = connection.getOutputStream()) {
-                out.write(new JSONObject(report).toString().getBytes(StandardCharsets.UTF_8));
-            }
-            int code = connection.getResponseCode();
+            int code = Stall.run(connection, stall -> {
+                try (OutputStream out = connection.getOutputStream()) {
+                    out.write(new JSONObject(report).toString().getBytes(StandardCharsets.UTF_8));
+                }
+                stall.written();
+                return connection.getResponseCode();
+            });
             if (code == 429) throw new IOException(App.text(R.string.og_err_reports_limit));
             if (code / 100 != 2) throw new IOException("The report server answered " + code + ".");
             if (save == null && shots.isEmpty()) return;
@@ -331,14 +335,64 @@ final class Reports {
             connection.setRequestMethod("PUT");
             connection.setRequestProperty("Content-Type", "application/octet-stream");
             connection.setFixedLengthStreamingMode(save.length());
-            try (InputStream in = new FileInputStream(save); OutputStream out = connection.getOutputStream()) {
-                byte[] buffer = new byte[64 * 1024];
-                for (int n; (n = in.read(buffer)) > 0; ) out.write(buffer, 0, n);
-            }
-            int code = connection.getResponseCode();
+            int code = Stall.run(connection, stall -> {
+                try (InputStream in = new FileInputStream(save); OutputStream out = connection.getOutputStream()) {
+                    byte[] buffer = new byte[64 * 1024];
+                    for (int n; (n = in.read(buffer)) > 0; ) {
+                        out.write(buffer, 0, n);
+                        stall.progress();
+                    }
+                }
+                stall.written();
+                return connection.getResponseCode();
+            });
             if (code / 100 != 2) throw new IOException("The report server answered " + code + ".");
         } finally {
             connection.disconnect();
+        }
+    }
+
+    /**
+     * Read timeouts do not cover writing: a network that silently drops an upload (some filter Cloudflare after the
+     * first few KB) left the report "sending" forever. Without progress for a while the connection is closed.
+     */
+    private static final class Stall {
+        interface Upload {
+            int run(Stall stall) throws IOException;
+        }
+
+        private static final long LIMIT = 45000;
+        private volatile long last = SystemClock.uptimeMillis();
+        private volatile boolean fired;
+
+        static int run(HttpURLConnection connection, Upload upload) throws IOException {
+            Stall stall = new Stall();
+            java.util.Timer timer = new java.util.Timer("report-stall", true);
+            timer.schedule(new java.util.TimerTask() {
+                @Override
+                public void run() {
+                    if (stall.last == Long.MAX_VALUE || SystemClock.uptimeMillis() - stall.last < LIMIT) return;
+                    stall.fired = true;
+                    connection.disconnect();
+                    cancel();
+                }
+            }, 1000, 1000);
+            try {
+                return upload.run(stall);
+            } catch (IOException e) {
+                throw stall.fired ? new IOException(App.text(R.string.og_err_report_stalled)) : e;
+            } finally {
+                timer.cancel();
+            }
+        }
+
+        void progress() {
+            last = SystemClock.uptimeMillis();
+        }
+
+        /** The answer is covered by the read timeout. */
+        void written() {
+            last = Long.MAX_VALUE;
         }
     }
 

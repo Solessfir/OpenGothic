@@ -166,6 +166,7 @@
     <string name="og_err_store_update">Cannot store the update.</string>
     <string name="og_err_reports_unavailable">Reports cannot be sent yet. Try again later.</string>
     <string name="og_err_reports_limit">Too many reports from this network. Try again in a minute.</string>
+    <string name="og_err_report_stalled">The connection to the report server stopped. A network that blocks or slows it, or a VPN, can cause this.</string>
     <string name="og_err_connection_lost">The connection to Steam was lost.</string>
     <string name="og_err_session_ended">Your Steam session has ended. Sign in again.</string>
     <string name="og_err_session_closed">Steam ended the session (%1$s).</string>

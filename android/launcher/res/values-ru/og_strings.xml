@@ -164,6 +164,7 @@
     <string name="og_err_store_update">Не удалось сохранить обновление.</string>
     <string name="og_err_reports_unavailable">Отчёты пока нельзя отправить. Попробуйте позже.</string>
     <string name="og_err_reports_limit">Слишком много отчётов из этой сети. Попробуйте через минуту.</string>
+    <string name="og_err_report_stalled">Соединение с сервером отчётов остановилось. Так бывает, если сеть блокирует или замедляет его, или из-за VPN.</string>
     <string name="og_err_connection_lost">Соединение со Steam потеряно.</string>
     <string name="og_err_session_ended">Сеанс Steam завершён. Войдите снова.</string>
     <string name="og_err_session_closed">Steam завершил сеанс (%1$s).</string>

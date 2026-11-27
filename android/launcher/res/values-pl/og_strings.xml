@@ -164,6 +164,7 @@
     <string name="og_err_store_update">Nie udało się zapisać aktualizacji.</string>
     <string name="og_err_reports_unavailable">Nie można jeszcze wysyłać zgłoszeń. Spróbuj później.</string>
     <string name="og_err_reports_limit">Zbyt wiele zgłoszeń z tej sieci. Spróbuj za minutę.</string>
+    <string name="og_err_report_stalled">Połączenie z serwerem zgłoszeń zostało przerwane. Przyczyną może być sieć, która go blokuje lub spowalnia, albo VPN.</string>
     <string name="og_err_connection_lost">Utracono połączenie ze Steam.</string>
     <string name="og_err_session_ended">Sesja Steam wygasła. Zaloguj się ponownie.</string>
     <string name="og_err_session_closed">Steam zakończył sesję (%1$s).</string>
