@@ -4,6 +4,11 @@
 #include <Tempest/Device>
 #include <Tempest/Log>
 #include <cassert>
+#include <cstdlib>
+#include <fstream>
+#if defined(__ANDROID__)
+#include <Tempest/AndroidApi>
+#endif
 
 #include "gothic.h"
 #include "commandline.h"
@@ -14,6 +19,46 @@
 
 using namespace Tempest;
 
+#if defined(__ANDROID__)
+// Adreno 740 and newer have not shown the compiler crashes of older Adreno yet. They try bindless until a run
+// crashes: the state stays "pending" from startup until a world has rendered for a while, so finding it
+// "pending" on the next start means that run died, and those devices use the slot shaders from then on.
+static std::filesystem::path bindlessProbePath() {
+  return AndroidApi::internalDataPath()/"bindless-probe.txt";
+  }
+
+static std::string bindlessProbeState() {
+  std::ifstream in(bindlessProbePath());
+  std::string state;
+  in >> state;
+  return state;
+  }
+
+static void setBindlessProbeState(const char* state) {
+  std::ofstream(bindlessProbePath(), std::ios::trunc) << state;
+  }
+
+static bool probeBindless(std::string_view name) {
+  const auto at = name.find("Adreno");
+  if(at==std::string_view::npos)
+    return false;
+  const auto digits = name.find_first_of("0123456789", at);
+  if(digits==std::string_view::npos || std::atoi(name.data()+digits)<740)
+    return false;
+  const auto state = bindlessProbeState();
+  if(state=="pending" || state=="crashed") {
+    if(state=="pending")
+      setBindlessProbeState("crashed");
+    Log::i("Bindless material shaders crashed on an earlier start; using slot shaders for ",name);
+    return false;
+    }
+  if(state!="ok")
+    setBindlessProbeState("pending");
+  Log::i("Trying bindless material shaders on ",name," (probe state: ",state.empty() ? "new" : state,")");
+  return true;
+  }
+#endif
+
 static bool hasBindless() {
   const auto& p = Resources::device().properties();
 #if defined(__ANDROID__)
@@ -21,7 +66,7 @@ static bool hasBindless() {
   // Only Xclipse runs the bindless path reliably. Adreno drivers crash compiling the bindless depth pipelines
   // (610, 642L, 650, 725), Mali shows black blocks on foliage (G68) and runs out of memory (G720), and PowerVR
   // crashes updating the descriptor arrays on the first draw (BXM-8-256).
-  if(name.find("Xclipse")==std::string_view::npos) {
+  if(name.find("Xclipse")==std::string_view::npos && !probeBindless(name)) {
     Log::i("Disabling bindless material shaders for ",name);
     return false;
     }
@@ -80,6 +125,18 @@ Shaders::~Shaders() {
 
 void Shaders::waitCompiler() {
   deferredCompilation.wait();
+  }
+
+void Shaders::confirmBindless() {
+  if(!opts.doBindless || bindlessConfirmed)
+    return;
+  bindlessConfirmed = true;
+#if defined(__ANDROID__)
+  if(bindlessProbeState()=="pending") {
+    setBindlessProbeState("ok");
+    Log::i("Bindless material shaders work on this device");
+    }
+#endif
   }
 
 Shaders& Shaders::inst(bool waitCompiler) {

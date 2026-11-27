@@ -218,6 +218,7 @@ class Renderer final {
       bool                   drawn[Resources::ShadowLayers] = {};
       bool                   skip [Resources::ShadowLayers] = {};
       } shadowTurns;
+    uint32_t worldFrames = 0;
 
     struct Sky {
       Quality                quality       = Quality::None;

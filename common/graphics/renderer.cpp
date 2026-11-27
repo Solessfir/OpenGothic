@@ -796,6 +796,9 @@ void Renderer::dbgDraw(Tempest::Painter& p) {
 void Renderer::draw(Attachment& result, Encoder<CommandBuffer>& cmd, uint8_t fId,
                     WorldView& wview, Camera& camera, gtime gameTime, uint64_t tickCount) {
   shaders.waitCompiler();
+  // About half a minute in a world compiles the pipelines of most of its materials
+  if(++worldFrames==1000)
+    shaders.confirmBindless();
 
   const auto res = internalResolution(result.size());
   if(res!=zbuffer.size()) {

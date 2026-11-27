@@ -16,6 +16,8 @@ class Shaders {
     ~Shaders();
 
     void waitCompiler();
+    // A world rendered for a while with the bindless shaders, so they are kept on future starts
+    void confirmBindless();
 
     enum PipelineType: uint8_t {
       T_Depth,
@@ -210,6 +212,7 @@ class Shaders {
 
     Options         opts;
     static Shaders* instance;
+    bool            bindlessConfirmed = false;
 
     std::future<void>        deferredCompilation;
     mutable std::list<Entry> materials;
