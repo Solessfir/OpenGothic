@@ -7,8 +7,12 @@
 #include <Tempest/TextCodec>
 #include <Tempest/Dialog>
 #include <Tempest/SystemApi>
+#if defined(__ANDROID__)
+#include <Tempest/AndroidApi>
+#endif
 
 #include <algorithm>
+#include <cmath>
 
 #include "utils/string_frm.h"
 #include "world/objects/npc.h"
@@ -29,6 +33,16 @@
 using namespace Tempest;
 
 static const float scriptDiv=8192.0f;
+
+// Top of the frame-rate slider: the display's highest refresh rate, stored as 0 (no game cap)
+static int maxFpsSetting() {
+#if defined(__ANDROID__)
+  const int rate = int(std::lround(AndroidApi::maxRefreshRate()));
+  if(rate>30)
+    return rate;
+#endif
+  return 120;
+  }
 
 
 struct GameMenu::KeyEditDialog : Dialog {
@@ -693,7 +707,7 @@ void GameMenu::initAndroidVideo() {
   struct Row { const char* name; const char* label; const char* values; const char* section; const char* option; };
   const Row rows[]={
     {"ANDROID_SCALE","Resolution","","ENGINE","renderScale"},
-    {"ANDROID_FPS","Frame rate","30 FPS|60 FPS|Unlocked","ENGINE","frameRateLimit"},
+    {"ANDROID_FPS","Frame rate","","ENGINE","frameRateLimit"},
     {"ANDROID_SSAO","SSAO","Off|On","ENGINE","zCloudShadowScale"},
     {"ANDROID_SHADOWS","Shadows","512|1024|1536|2048","ENGINE","shadowMapResolution"},
     {"ANDROID_BRIGHTNESS","Brightness","","VIDEO","zVidBrightness"},
@@ -962,6 +976,14 @@ void GameMenu::drawSlider(Painter& p, Item& it, int x, int y, int sw, int sh) {
   if(it.name=="ANDROID_SCALE") {
     v=(std::clamp(v,50.f,100.f)-50.f)/50.f;
     getTextFont(it).drawText(p,x+sw+8,y+getTextFont(it).pixelSize(),string_frm(Gothic::settingsGetI(sec,opt),"%"));
+    p.setBrush(*slider);
+    }
+  if(it.name=="ANDROID_FPS") {
+    const int maxFps = it.value;
+    const int limit  = Gothic::settingsFpsLimit();
+    const int fps    = (limit<=0 || limit>maxFps) ? maxFps : std::max(limit,30);
+    v=float(fps-30)/float(maxFps-30);
+    getTextFont(it).drawText(p,x+sw+8,y+getTextFont(it).pixelSize(),string_frm(fps," FPS"));
     p.setBrush(*slider);
     }
   int   dx = int(float(sw-w)*std::max(0.f,std::min(v,1.f)));
@@ -1496,7 +1518,17 @@ void GameMenu::dragMouse(Point pos) {
       return;
     mouseSlider->value = int(std::round(value*float(count-1)));
     Gothic::settingsSetI(sec,opt,mouseSlider->value);
-    } else {
+    }
+  else if(mouseSlider->name=="ANDROID_SCALE") {
+    Gothic::settingsSetI(sec,opt,50+int(std::round(value*10.f))*5);
+    }
+  else if(mouseSlider->name=="ANDROID_FPS") {
+    const int maxFps = mouseSlider->value;
+    const int steps  = (maxFps-30+9)/10;
+    const int fps    = std::min(30+int(std::round(value*float(steps)))*10, maxFps);
+    Gothic::settingsSetI(sec,opt,fps>=maxFps ? 0 : fps);
+    }
+  else {
     Gothic::settingsSetF(sec,opt,std::round(value*100.f)/100.f);
     }
   update();
@@ -1807,16 +1839,15 @@ void GameMenu::execChgOption(Item &item, int slideDx) {
     return;
     }
   if(item.name=="ANDROID_FPS") {
-    constexpr int values[]={30,60,0};
+    if(slideDx==0)
+      return;
     updateItem(item);
-    if(item.value==3)
-      item.value=slideDx<0 ? 2 : 0;
-    else if(slideDx==0)
-      item.value=(item.value+1)%3;
-    else
-      item.value=std::clamp(item.value+slideDx,0,2);
-    Gothic::settingsSetI(sec,opt,values[item.value]);
-    updateItem(item);
+    const int maxFps = item.value;
+    const int limit  = Gothic::settingsFpsLimit();
+    const int fps    = (limit<=0 || limit>=maxFps) ? maxFps : std::max(limit,30);
+    // 10 FPS steps; a display rate like 144 is reached as its own last step
+    const int next   = slideDx>0 ? std::min((fps/10+1)*10, maxFps) : std::max((fps-1)/10*10, 30);
+    Gothic::settingsSetI(sec,opt,next>=maxFps ? 0 : next);
     return;
     }
   if(item.name=="ANDROID_SHADOWS") {
@@ -1940,14 +1971,8 @@ void GameMenu::updateItem(GameMenu::Item &item) {
   item.value = Gothic::settingsGetI(it->on_chg_set_option_section, it->on_chg_set_option);
   if(item.name=="ANDROID_QUICKSAVES")
     item.value=std::clamp(item.value,0,20);
-  if(item.name=="ANDROID_FPS") {
-    const int limit=Gothic::settingsFpsLimit();
-    item.value=limit==30 ? 0 : (limit==60 ? 1 : (limit==0 ? 2 : 3));
-    it->text[0]="30 FPS|60 FPS|Unlocked";
-    // Preserve and display custom legacy limits until the player chooses a preset.
-    if(item.value==3)
-      it->text[0]+="|"+std::to_string(limit)+" FPS";
-    }
+  if(item.name=="ANDROID_FPS")
+    item.value=maxFpsSetting();
   if(item.name=="ANDROID_SHADOWS") {
     const int size=item.value;
     item.value=size==512 ? 0 : (size==1024 ? 1 : (size==1536 ? 2 : 3));

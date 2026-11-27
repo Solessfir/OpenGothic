@@ -17,7 +17,7 @@ Controller bindings and movement options use a separate [Gamepad.ini](CONTROLLER
 
 ## Graphics and FPS
 
-Options > Video settings offers resolution in 5% steps, a 30 FPS / 60 FPS / Unlocked limit, SSAO on or off, shadow resolution, brightness, contrast and gamma. Changes apply immediately. UI and text always use full resolution. Existing resolution and frame-rate choices are preserved when updating.
+Options > Video settings offers resolution in 5% steps, a frame-rate limit from 30 FPS up to the display's highest refresh rate in 10 FPS steps, SSAO on or off, shadow resolution, brightness, contrast and gamma. Changes apply immediately. UI and text always use full resolution. Existing resolution and frame-rate choices are preserved when updating.
 
 | File section / key | Android default | Options |
 | --- | --- | --- |
@@ -26,12 +26,12 @@ Options > Video settings offers resolution in 5% steps, a 30 FPS / 60 FPS / Unlo
 | `[ENGINE] ssaoHalfResolution` | `1` | `0`: full-resolution ambient occlusion |
 | `[ENGINE] shadowMapResolution` | `1024` | `512` reduces cost; `1536` or `2048` increases shadow detail and cost |
 | `[ENGINE] zMaxFPS` | `60` | `30` reduces power/heat; `0` uncaps gameplay |
-| `[ENGINE] frameRateLimit` | `-1` | Menu selection: `30`, `60` or `0` (Unlocked); `-1` uses the legacy INI limits |
+| `[ENGINE] frameRateLimit` | `-1` | Menu selection: `30` and up, or `0` for the display's highest refresh rate (the top of the slider); `-1` uses the legacy INI limits |
 | `[VIDEO] displayMode` | `sdr` | `auto` uses HDR where supported; `hdr` requests HDR with SDR fallback |
 | `[GAME] showFps` | `0` | `1` shows the text-only FPS counter; also toggle it by holding Back/menu and selecting FPS |
 
 Lower render quality can improve performance, but a cap cannot guarantee sustained FPS.
-A menu selection overrides both `zMaxFPS` and SystemPack's limit. Until you select one, a positive `[PARAMETERS] FPS_Limit` in `Gothic2/System/SystemPack.ini` overrides `zMaxFPS`; otherwise the default is 60 FPS. Unlocked removes the game's cap, but presentation may still be limited by the display.
+A menu selection overrides both `zMaxFPS` and SystemPack's limit. Until you select one, a positive `[PARAMETERS] FPS_Limit` in `Gothic2/System/SystemPack.ini` overrides `zMaxFPS`; otherwise the default is 60 FPS. The top of the slider removes the game's cap, so the display's refresh rate limits presentation.
 Menus are capped at at most 60 FPS.
 
 Automatic HDR requires a compatible HDR display and Vulkan surface; unsupported devices fall back to SDR.

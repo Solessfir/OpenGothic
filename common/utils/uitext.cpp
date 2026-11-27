@@ -68,7 +68,6 @@ const Entry entries[] = {
 
   {"Resolution",              "Auflösung",               "Rozdzielczość",           "Разрешение"},
   {"Frame rate",              "Bildrate",                "Liczba klatek",           "Частота кадров"},
-  {"30 FPS|60 FPS|Unlocked",  "30 FPS|60 FPS|Unbegrenzt","30 FPS|60 FPS|Bez limitu","30 FPS|60 FPS|Без лимита"},
   {"Off|On",                  "Aus|An",                  "Wył.|Wł.",                "Выкл|Вкл"},
   {"Shadows",                 "Schatten",                "Cienie",                  "Тени"},
   {"Brightness",              "Helligkeit",              "Jasność",                 "Яркость"},
