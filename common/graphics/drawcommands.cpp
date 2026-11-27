@@ -298,6 +298,10 @@ void DrawCommands::visibilityPass(Encoder<CommandBuffer>& cmd, int pass) {
       // The setting counts texels of the former far cascade, 2.5 cm each; the default skips radii below 80 cm.
       push.minRadius = Gothic::settingsGetF("ENGINE","shadowFarMinTexels")*2.5f;
       }
+    if(viewport==SceneGlobals::V_Main) {
+      // In the main view the same field is a size on screen, in pixels of the render resolution
+      push.minRadius = Gothic::settingsGetF("ENGINE","minScreenPixels");
+      }
 
     auto* pso = &Shaders::inst().visibilityPassSh;
     if(viewport==SceneGlobals::V_Main)

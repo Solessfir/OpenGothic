@@ -293,6 +293,8 @@ Gothic::Gothic(GameModDescriptor desc) {
   // HDR output kept bright lights saturated orange and dimmed the rest of the scene; displayMode=auto still opts in
   defaults->set("VIDEO", "displayMode", "sdr");
 #if defined(__ANDROID__)
+  // Seen from outside, a town is hundreds of props a few pixels big; Khorinis took Adreno 750 from 75 to 40 FPS
+  defaults->set("ENGINE", "minScreenPixels", 4.f);
   defaults->set("GAME", "cameraElevationOffset", 10.f);
   defaults->set("GAME", "cameraCombatElevationOffset", 20.f);
 #endif

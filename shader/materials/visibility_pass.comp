@@ -197,6 +197,12 @@ void runCluster(const uint clusterId) {
   float depthMin = 1;
   if(!projectCluster(cluster, aabb, depthMin))
     return;
+  if(push.minRadius>0 && cluster.instanceId!=0xFFFFFFFF) {
+    // Props only a few pixels big, such as a distant town's; the level mesh itself stays, so nothing opens a hole
+    const vec2 px = (aabb.zw - aabb.xy)*vec2(scene.screenRes);
+    if(max(px.x, px.y) < push.minRadius)
+      return;
+    }
 #endif
 
 #if defined(LARGE)
