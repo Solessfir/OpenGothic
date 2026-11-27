@@ -44,6 +44,23 @@ static int maxFpsSetting() {
   return 120;
   }
 
+namespace {
+// 10 FPS steps from 30; a display rate like 144 is reached as its own last step
+struct FpsSlider {
+  explicit FpsSlider(int maxFps):maxFps(maxFps), steps((maxFps-30+9)/10) {
+    const int limit = Gothic::settingsFpsLimit();
+    fps = (limit<=0 || limit>=maxFps) ? maxFps : limit;
+    }
+  float pos() const { return fps>=maxFps ? 1.f : std::clamp(float(fps-30)/float(steps*10),0.f,1.f); }
+  int   setting(int value) const { return value>=maxFps ? 0 : value; }
+  int   atPos(float v) const { return setting(std::min(30+int(std::round(v*float(steps)))*10, maxFps)); }
+
+  int maxFps = 0;
+  int steps  = 0;
+  int fps    = 0;
+  };
+}
+
 
 struct GameMenu::KeyEditDialog : Dialog {
   KeyEditDialog(){
@@ -979,11 +996,9 @@ void GameMenu::drawSlider(Painter& p, Item& it, int x, int y, int sw, int sh) {
     p.setBrush(*slider);
     }
   if(it.name=="ANDROID_FPS") {
-    const int maxFps = it.value;
-    const int limit  = Gothic::settingsFpsLimit();
-    const int fps    = (limit<=0 || limit>maxFps) ? maxFps : std::max(limit,30);
-    v=float(fps-30)/float(maxFps-30);
-    getTextFont(it).drawText(p,x+sw+8,y+getTextFont(it).pixelSize(),string_frm(fps," FPS"));
+    const FpsSlider fps(it.value);
+    v=fps.pos();
+    getTextFont(it).drawText(p,x+sw+8,y+getTextFont(it).pixelSize(),string_frm(fps.fps," FPS"));
     p.setBrush(*slider);
     }
   int   dx = int(float(sw-w)*std::max(0.f,std::min(v,1.f)));
@@ -1523,10 +1538,7 @@ void GameMenu::dragMouse(Point pos) {
     Gothic::settingsSetI(sec,opt,50+int(std::round(value*10.f))*5);
     }
   else if(mouseSlider->name=="ANDROID_FPS") {
-    const int maxFps = mouseSlider->value;
-    const int steps  = (maxFps-30+9)/10;
-    const int fps    = std::min(30+int(std::round(value*float(steps)))*10, maxFps);
-    Gothic::settingsSetI(sec,opt,fps>=maxFps ? 0 : fps);
+    Gothic::settingsSetI(sec,opt,FpsSlider(mouseSlider->value).atPos(value));
     }
   else {
     Gothic::settingsSetF(sec,opt,std::round(value*100.f)/100.f);
@@ -1842,12 +1854,12 @@ void GameMenu::execChgOption(Item &item, int slideDx) {
     if(slideDx==0)
       return;
     updateItem(item);
-    const int maxFps = item.value;
-    const int limit  = Gothic::settingsFpsLimit();
-    const int fps    = (limit<=0 || limit>=maxFps) ? maxFps : std::max(limit,30);
-    // 10 FPS steps; a display rate like 144 is reached as its own last step
-    const int next   = slideDx>0 ? std::min((fps/10+1)*10, maxFps) : std::max((fps-1)/10*10, 30);
-    Gothic::settingsSetI(sec,opt,next>=maxFps ? 0 : next);
+    const FpsSlider fps(item.value);
+    // A legacy limit below 30 only moves up
+    if(slideDx<0 && fps.fps<=30)
+      return;
+    const int next = slideDx>0 ? std::min((fps.fps/10+1)*10, fps.maxFps) : std::max((fps.fps-1)/10*10, 30);
+    Gothic::settingsSetI(sec,opt,fps.setting(next));
     return;
     }
   if(item.name=="ANDROID_SHADOWS") {
