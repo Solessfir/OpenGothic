@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <iterator>
 
 #include "utils/string_frm.h"
 #include "world/objects/npc.h"
@@ -726,7 +727,7 @@ void GameMenu::initAndroidVideo() {
     {"ANDROID_SCALE","Resolution","","ENGINE","renderScale"},
     {"ANDROID_FPS","Frame rate","","ENGINE","frameRateLimit"},
     {"ANDROID_SSAO","SSAO","Off|On","ENGINE","zCloudShadowScale"},
-    {"ANDROID_SHADOWS","Shadows","512|1024|1536|2048","ENGINE","shadowMapResolution"},
+    {"ANDROID_SHADOWS","Shadows","Off|256|512|1024|1536|2048","ENGINE","shadowMapResolution"},
     {"ANDROID_BRIGHTNESS","Brightness","","VIDEO","zVidBrightness"},
     {"ANDROID_CONTRAST","Contrast","","VIDEO","zVidContrast"},
     {"ANDROID_GAMMA","Gamma","","VIDEO","zVidGamma"},
@@ -1863,9 +1864,9 @@ void GameMenu::execChgOption(Item &item, int slideDx) {
     return;
     }
   if(item.name=="ANDROID_SHADOWS") {
-    constexpr int values[]={512,1024,1536,2048};
+    constexpr int values[]={0,256,512,1024,1536,2048};
     updateItem(item);
-    item.value=std::clamp(item.value+slideDx,0,3);
+    item.value=std::clamp(item.value+slideDx,0,int(std::size(values))-1);
     Gothic::settingsSetI(sec,opt,values[item.value]);
     return;
     }
@@ -1986,8 +1987,9 @@ void GameMenu::updateItem(GameMenu::Item &item) {
   if(item.name=="ANDROID_FPS")
     item.value=maxFpsSetting();
   if(item.name=="ANDROID_SHADOWS") {
-    const int size=item.value;
-    item.value=size==512 ? 0 : (size==1024 ? 1 : (size==1536 ? 2 : 3));
+    constexpr int values[]={0,256,512,1024,1536,2048};
+    const auto    at=std::find(std::begin(values),std::end(values),item.value);
+    item.value=at==std::end(values) ? int(std::size(values))-1 : int(at-std::begin(values));
     }
   updateSavTitle(item);
   }

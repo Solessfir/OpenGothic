@@ -69,6 +69,7 @@ const Entry entries[] = {
   {"Resolution",              "Auflösung",               "Rozdzielczość",           "Разрешение"},
   {"Frame rate",              "Bildrate",                "Liczba klatek",           "Частота кадров"},
   {"Off|On",                  "Aus|An",                  "Wył.|Wł.",                "Выкл|Вкл"},
+  {"Off|256|512|1024|1536|2048","Aus|256|512|1024|1536|2048","Wył.|256|512|1024|1536|2048","Выкл|256|512|1024|1536|2048"},
   {"Shadows",                 "Schatten",                "Cienie",                  "Тени"},
   {"Brightness",              "Helligkeit",              "Jasność",                 "Яркость"},
   {"Contrast",                "Kontrast",                "Kontrast",                "Контраст"},

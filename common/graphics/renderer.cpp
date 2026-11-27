@@ -133,6 +133,8 @@ Renderer::~Renderer() {
 void Renderer::setupSettings() {
   const int shadowResolution = Gothic::settingsGetI("ENGINE", "shadowMapResolution");
   switch(shadowResolution) {
+    case 0:
+    case 256:
     case 512:
     case 1024:
     case 1536:
@@ -575,10 +577,13 @@ void Renderer::resetShadowmap() {
       }
     }
 
+  // With shadows off the forward and fog shaders still sample a cleared map, which reads as lit
+  const uint32_t size = settings.shadowResolution>0 ? settings.shadowResolution : 16;
+
   // Every settings change lands here, e.g. on each step of a dragged volume slider.
   bool changed = false;
   for(int i=0; i<Resources::ShadowLayers; ++i) {
-    if(used[i]==shadowMap[i].isEmpty() || (used[i] && uint32_t(shadowMap[i].w())!=settings.shadowResolution))
+    if(used[i]==shadowMap[i].isEmpty() || (used[i] && uint32_t(shadowMap[i].w())!=size))
       changed = true;
     }
   if(!changed)
@@ -592,7 +597,7 @@ void Renderer::resetShadowmap() {
     Resources::recycle(std::move(shadowMap[i]));
   for(int i=0; i<Resources::ShadowLayers; ++i) {
     if(used[i])
-      shadowMap[i] = device.zbuffer(shadowFormat, settings.shadowResolution, settings.shadowResolution);
+      shadowMap[i] = device.zbuffer(shadowFormat, size, size);
     }
   }
 
@@ -2100,7 +2105,7 @@ void Renderer::drawShadowMap(Encoder<CommandBuffer>& cmd, uint8_t fId, WorldView
     cmd.setDebugMarker(string_frm("ShadowMap #",i));
     cmd.setFramebuffer({}, {shadowMap[i], 0.f, Tempest::Preserve});
     const bool sunUp = view.mainLight().dir().y > Camera::minShadowY;
-    if(sunUp)
+    if(sunUp && settings.shadowResolution>0)
       view.drawShadow(cmd,fId,i);
     shadowTurns.drawn[i] = sunUp;
     }
