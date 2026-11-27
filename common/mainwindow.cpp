@@ -2047,7 +2047,16 @@ void MainWindow::render(){
     const bool menuFrame = !Gothic::inst().isInGame() && !video.isActive();
     const uint32_t targetFps = menuFrame ? (maxFps==0 ? 60 : std::min(maxFps,60u)) : maxFps;
     framePacer.setFrameRate(Gothic::inst().isBenchmarkModeCi() ? 0 : targetFps);
-    if(!framePacer.ready()) {
+#if defined(__ANDROID__)
+    const bool waitForFrame = targetFps >= 30;
+    if(waitForFrame) {
+      // Polling in 1 ms steps overshoots the deadline on most frames.
+      framePacer.wait();
+      }
+#else
+    constexpr bool waitForFrame = false;
+#endif
+    if(!waitForFrame && !framePacer.ready()) {
       std::this_thread::sleep_for(std::chrono::milliseconds(1));
       return;
       }
