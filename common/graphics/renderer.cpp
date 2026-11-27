@@ -54,7 +54,8 @@ static Size tileCount(Size sz, int s) {
 
 Renderer::Renderer() {
   auto& device = Resources::device();
-  // Adreno spends about 10 ms of a 30 FPS frame drawing the two shadow cascades; they take turns instead
+  // Adreno spends about 10 ms of a 30 FPS frame drawing the two shadow cascades, most of it in the far one.
+  // They take turns: the near cascade every second frame, the far one every fourth.
   shadowTurns.alternate = std::string_view(device.properties().name).find("Adreno")!=std::string_view::npos;
 
   static const TextureFormat sfrm[] = {
@@ -814,10 +815,11 @@ void Renderer::draw(Attachment& result, Encoder<CommandBuffer>& cmd, uint8_t fId
     prepareLightsBvh(cmd, wview);
 
   {
+    static constexpr uint8_t turns[] = {0, 1, 0, Resources::ShadowLayers};
     const bool ready = shadowTurns.drawn[0] && shadowTurns.drawn[1];
     for(uint8_t i=0; i<Resources::ShadowLayers; ++i)
-      shadowTurns.skip[i] = camera.holdShadow(i, shadowTurns.alternate && ready && i!=shadowTurns.next, wview.mainLight().dir());
-    shadowTurns.next = uint8_t((shadowTurns.next+1)%Resources::ShadowLayers);
+      shadowTurns.skip[i] = camera.holdShadow(i, shadowTurns.alternate && ready && i!=turns[shadowTurns.next], wview.mainLight().dir());
+    shadowTurns.next = uint8_t((shadowTurns.next+1)%std::size(turns));
   }
   updateCamera(wview, camera);
 
