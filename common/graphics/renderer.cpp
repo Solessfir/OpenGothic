@@ -578,8 +578,9 @@ void Renderer::resetShadowmap() {
       }
     }
 
-  // With shadows off the forward and fog shaders still sample a cleared map, which reads as lit
-  const uint32_t size = settings.shadowResolution>0 ? settings.shadowResolution : 16;
+  // With shadows off the forward and fog shaders still sample a cleared map, which reads as lit.
+  // At 1x1 the shadow views are disabled, so their visibility passes are skipped too.
+  const uint32_t size = settings.shadowResolution>0 ? settings.shadowResolution : 1;
 
   // Every settings change lands here, e.g. on each step of a dragged volume slider.
   bool changed = false;
