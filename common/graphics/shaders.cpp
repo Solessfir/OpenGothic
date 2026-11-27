@@ -45,7 +45,10 @@ static bool probeBindless(std::string_view name) {
   const auto digits = name.find_first_of("0123456789", at);
   if(digits==std::string_view::npos || std::atoi(name.data()+digits)<740)
     return false;
-  const auto state = bindlessProbeState();
+  auto state = bindlessProbeState();
+  // "-bl 1" tries again after a crash, for testing a driver update
+  if(CommandLine::inst().hasBindlessArg() && CommandLine::inst().isBindless() && state!="ok")
+    state.clear();
   if(state=="pending" || state=="crashed") {
     if(state=="pending")
       setBindlessProbeState("crashed");

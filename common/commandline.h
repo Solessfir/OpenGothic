@@ -43,6 +43,7 @@ class CommandLine {
     bool                hasGiArg()         const { return giArg;        }
     bool                isMeshShading()    const { return isMeshSh;     }
     bool                isBindless()       const { return isBindlessSh; }
+    bool                hasBindlessArg()   const { return bindlessArg;  }
     bool                isVirtualShadow()  const { return isVsm;        }
     bool                isSoftwareShadow() const { return isRtSm;       }
     bool                doStartMenu()      const { return !noMenu;      }
@@ -88,6 +89,7 @@ class CommandLine {
     bool                isMeshSh     = true;
 #endif
     bool                isBindlessSh = true;
+    bool                bindlessArg  = false;
     bool                isVsm        = false;
     bool                isRtSm       = false;
     GiMethod            isGi         = GiMethod::None;

@@ -293,6 +293,7 @@ CommandLine::CommandLine(int argc, const char** argv) {
       ++i;
       if(i<argc)
         isBindlessSh = boolArg(argv[i]);
+      bindlessArg = true;
       }
     else if(arg=="-vsm") {
       // not to document - debug only
