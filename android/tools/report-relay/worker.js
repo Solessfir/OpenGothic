@@ -2,8 +2,9 @@
 // The GitHub token stays a Worker secret, because anything inside the app can be pulled out of the APK.
 // An attached save goes to the "saves" release of the same private repository, linked from the issue.
 // launcher.json in that repository holds notices for the launcher and blocked installs or devices; only the
-// verdict for the asking launcher leaves the Worker, never the list. Changes reach launchers within minutes:
-//   { "notices": [{ "id": "lighting", "text": { "en": "...", "ru": "..." }, "until": "2026-12-01" }],
+// verdict for the asking launcher leaves the Worker, never the list. A notice with "countries" goes only to launchers
+// connecting from one of them, by Cloudflare's guess from the IP address. Changes reach launchers within minutes:
+//   { "notices": [{ "id": "lighting", "text": { "en": "...", "ru": "..." }, "until": "2026-12-01", "countries": ["RU"] }],
 //     "blocked": [{ "install": "<id from a report>", "reason": "..." }, { "match": "<regex on the device>", "reason": "..." }] }
 const SAVE_SIZE = 64 * 1024 * 1024;
 const SETTINGS_AGE = 5 * 60 * 1000;
@@ -12,7 +13,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (request.method === "PUT" && url.pathname === "/save") return save(request, env, url);
-    if (request.method === "GET" && url.pathname === "/config") return launcherConfig(env, url);
+    if (request.method === "GET" && url.pathname === "/config") return launcherConfig(request, env, url);
     if (request.method !== "POST") return new Response("Not found", { status: 404 });
     if (Number(request.headers.get("Content-Length")) > 200000) return new Response("Report too large", { status: 413 });
     const { success } = await env.LIMIT.limit({ key: request.headers.get("CF-Connecting-IP") ?? "" });
@@ -71,10 +72,14 @@ async function save(request, env, url) {
 }
 
 /** The notices still current, and why this install or device is blocked (null when it is not). */
-async function launcherConfig(env, url) {
+async function launcherConfig(request, env, url) {
   const s = await settings(env);
   const today = new Date().toISOString().slice(0, 10);
-  const notices = (Array.isArray(s.notices) ? s.notices : []).filter(n => n && n.id && (!n.until || n.until >= today));
+  const country = request.cf?.country;
+  const notices = (Array.isArray(s.notices) ? s.notices : [])
+    .filter(n => n && n.id && (!n.until || n.until >= today))
+    .filter(n => !Array.isArray(n.countries) || n.countries.includes(country))
+    .map(({ countries, ...n }) => n);
   return Response.json({ notices, blocked: blockedReason(s, url.searchParams.get("install"), url.searchParams.get("device")) });
 }
 

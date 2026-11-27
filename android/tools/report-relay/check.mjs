@@ -73,15 +73,25 @@ allowed = true;
 
 // launcher.json: notices for everyone, a verdict only for the asking install or device
 const settingsFile = {
-  notices: [{ id: "now", text: { en: "Working on it" } }, { id: "old", text: { en: "Gone" }, until: "2000-01-01" }],
+  notices: [{ id: "now", text: { en: "Working on it" } }, { id: "old", text: { en: "Gone" }, until: "2000-01-01" },
+            { id: "vpn", text: { ru: "VPN" }, countries: ["RU"] }],
   blocked: [{ install: "bad-install", reason: "spam" }, { match: "Pixel 1\\b", reason: "broken GPU" }, { match: "(", reason: "broken entry" }],
 };
 const githubFetch = globalThis.fetch;
 globalThis.fetch = async (url, init) => url.endsWith("/contents/launcher.json") ? Response.json(settingsFile) : githubFetch(url, init);
 const fresh = (await import("./worker.js?settings")).default;
-const config = async (query) => (await fresh.fetch(new Request(`https://relay.example/config?${query}`), env)).json();
+const config = async (query, country) => {
+  const request = new Request(`https://relay.example/config?${query}`);
+  // Cloudflare adds request.cf; Node has no such field
+  if (country) Object.defineProperty(request, "cf", { value: { country } });
+  return (await fresh.fetch(request, env)).json();
+};
 let c = await config("install=good&device=Google%20Pixel%208a");
-assert.deepEqual(c.notices.map(n => n.id), ["now"], "An expired notice is gone");
+assert.deepEqual(c.notices.map(n => n.id), ["now"], "An expired notice is gone, and a country notice needs that country");
+assert.deepEqual((await config("install=good&device=x", "DE")).notices.map(n => n.id), ["now"]);
+const ru = (await config("install=good&device=x", "RU")).notices;
+assert.deepEqual(ru.map(n => n.id), ["now", "vpn"], "A country notice reaches launchers from that country");
+assert.equal(ru[1].countries, undefined, "The country list stays in the Worker");
 assert.equal(c.blocked, null);
 assert.deepEqual(Object.keys(c).sort(), ["blocked", "notices"], "The block list itself never leaves the Worker");
 assert.equal((await config("install=bad-install&device=x")).blocked, "spam");
