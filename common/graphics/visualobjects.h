@@ -70,6 +70,8 @@ class VisualObjects final {
     const DrawClusters& clusters()     const { return clustersMem; }
     const DrawCommands& drawCommands() const { return drawCmd; }
     const DrawBuckets&  drawBuckets()  const { return bucketsMem; };
+    // Changes whenever a level mesh or static object appears, disappears or moves, so caches of them can tell
+    uint32_t            staticRevision() const { return staticRev; }
 
     void preFrameUpdate ();
     void prepareGlobals (Tempest::Encoder<Tempest::CommandBuffer>& cmd, uint8_t fId);
@@ -154,6 +156,9 @@ class VisualObjects final {
     std::vector<Object>        objects;
     std::unordered_set<size_t> objectsMorph;
     std::unordered_set<size_t> objectsFree;
+    uint32_t                   staticRev = 0;
+
+    void                       touchStatic(const Object& obj);
 
     friend class Item;
   };

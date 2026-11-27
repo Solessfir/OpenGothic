@@ -19,10 +19,14 @@
 
 using namespace Tempest;
 
+static bool bindlessProbing = false;
+
 #if defined(__ANDROID__)
 // Adreno 740 and newer have not shown the compiler crashes of older Adreno yet. They try bindless until a run
-// crashes: the state stays "pending" from startup until a world has rendered for a while, so finding it
-// "pending" on the next start means that run died, and those devices use the slot shaders from then on.
+// crashes: the state is "pending" from the first bindless material pipeline, where the old drivers crashed,
+// until a world has rendered for a while. Finding it "pending" on the next start means that run died, and
+// those devices use the slot shaders from then on.
+
 static std::filesystem::path bindlessProbePath() {
   return AndroidApi::internalDataPath()/"bindless-probe.txt";
   }
@@ -55,15 +59,27 @@ static bool probeBindless(std::string_view name) {
     Log::i("Bindless material shaders crashed on an earlier start; using slot shaders for ",name);
     return false;
     }
-  if(state!="ok")
-    setBindlessProbeState("pending");
+  if(state!="ok") {
+    setBindlessProbeState("");
+    bindlessProbing = true;
+    }
   Log::i("Trying bindless material shaders on ",name," (probe state: ",state.empty() ? "new" : state,")");
   return true;
   }
 #endif
 
+static void armBindlessProbe() {
+#if defined(__ANDROID__)
+  setBindlessProbeState("pending");
+#endif
+  }
+
 static bool hasBindless() {
   const auto& p = Resources::device().properties();
+  if(!CommandLine::inst().isBindless())
+    return false;
+  if(!p.descriptors.nonUniformIndexing || p.descriptors.maxTexture<65000 || p.descriptors.maxStorage<65000)
+    return false;
 #if defined(__ANDROID__)
   const std::string_view name = p.name;
   // Only Xclipse runs the bindless path reliably. Adreno drivers crash compiling the bindless depth pipelines
@@ -74,9 +90,7 @@ static bool hasBindless() {
     return false;
     }
 #endif
-  if(p.descriptors.nonUniformIndexing && p.descriptors.maxTexture>=65000 && p.descriptors.maxStorage>=65000)
-    return true;
-  return false;
+  return true;
   }
 
 static bool hasTesselation() {
@@ -123,6 +137,11 @@ Shaders::Shaders() {
 
 Shaders::~Shaders() {
   deferredCompilation.wait();
+#if defined(__ANDROID__)
+  // leaving before the world confirmed bindless is not a crash
+  if(bindlessProbing && !bindlessConfirmed && bindlessProbeState()=="pending")
+    setBindlessProbeState("");
+#endif
   instance = nullptr;
   }
 
@@ -135,7 +154,7 @@ void Shaders::confirmBindless() {
     return;
   bindlessConfirmed = true;
 #if defined(__ANDROID__)
-  if(bindlessProbeState()=="pending") {
+  if(bindlessProbing && bindlessProbeState()=="pending") {
     setBindlessProbeState("ok");
     Log::i("Bindless material shaders work on this device");
     }
@@ -155,7 +174,7 @@ const Shaders::Options& Shaders::options() {
 
 void Shaders::setupOptions() {
   auto& gpu = Resources::device().properties();
-  opts.doBindless       = hasBindless() && CommandLine::inst().isBindless();
+  opts.doBindless       = hasBindless();
   opts.doRtScene        = gpu.raytracing.rayQuery && CommandLine::inst().isRayQuery();
   opts.doRayQuery       = opts.doRtScene && opts.doBindless;
   opts.doMeshShading    = gpu.meshlets.meshShader && CommandLine::inst().isMeshShading();
@@ -653,6 +672,8 @@ bool Shaders::isGi2Supported() {
   }
 
 const RenderPipeline* Shaders::materialPipeline(const Material& mat, DrawCommands::Type t, PipelineType pt, bool bl) const {
+  if(bl && bindlessProbing)
+    std::call_once(bindlessArmed, armBindlessProbe);
   if(t==DrawCommands::Static) {
     // same shader
     t = DrawCommands::Movable;

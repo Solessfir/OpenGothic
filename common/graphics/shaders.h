@@ -4,6 +4,7 @@
 #include <Tempest/Shader>
 #include <Tempest/Device>
 #include <future>
+#include <mutex>
 #include <list>
 
 #include "graphics/drawcommands.h"
@@ -213,6 +214,7 @@ class Shaders {
     Options         opts;
     static Shaders* instance;
     bool            bindlessConfirmed = false;
+    mutable std::once_flag bindlessArmed;
 
     std::future<void>        deferredCompilation;
     mutable std::list<Entry> materials;

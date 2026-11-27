@@ -412,6 +412,12 @@ Matrix4x4 Camera::viewShadow(const Vec3& lightDir, size_t layer) const {
 Matrix4x4 Camera::viewShadowLwc(const Tempest::Vec3& lightDir, size_t layer) const {
   // LWC space is centered on the shaken camera, like viewLwc()
   const Vec3 zero = origin+shake;
+  if(coarseFarShadow && layer==1) {
+    // Snapped on its own, a coarse step could round to another cell than the world matrix used for drawing
+    auto m = viewShadow(lightDir,layer);
+    m.translate(zero);
+    return m;
+    }
   const auto a    = shadowAnchor(lightDir,layer);
   return mkViewShadow(a.target-zero,a.ldir,a.forward,Vec3()-zero,layer);
   }

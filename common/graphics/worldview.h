@@ -68,6 +68,7 @@ class WorldView {
     void visibilityVsm  (Tempest::Encoder<Tempest::CommandBuffer>& cmd);
 
     void drawHiZ        (Tempest::Encoder<Tempest::CommandBuffer>& cmd);
+    uint32_t staticRevision() const { return visuals.staticRevision(); }
     void drawShadow     (Tempest::Encoder<Tempest::CommandBuffer>& cmd, uint8_t frameId, uint8_t layer,
                          uint8_t types = DrawCommands::AllTypes);
     void drawVsm        (Tempest::Encoder<Tempest::CommandBuffer>& cmd);

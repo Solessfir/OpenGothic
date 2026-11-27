@@ -616,7 +616,7 @@ void Renderer::resetSkyFog() {
 
   {
     auto q = Quality::VolumetricLQ;
-    if(!settings.zFogRadial || settings.shadowMethod==ShadowMethod::None || shaders.fog3dHQ.isEmpty()) {
+    if(!settings.zFogRadial || settings.shadowMethod==ShadowMethod::None || settings.shadowResolution==0 || shaders.fog3dHQ.isEmpty()) {
       q = Quality::VolumetricLQ;
       } else {
       q = Quality::VolumetricHQ;
@@ -2123,7 +2123,8 @@ void Renderer::drawShadowMap(Encoder<CommandBuffer>& cmd, uint8_t fId, WorldView
     if(i==1 && draw && !farStatic.depth.isEmpty()) {
       // The rotation part follows only the rounded sun direction, so it repeats exactly. The translation of the
       // snapped cascade still carries float noise from the camera position; a texel is 2/512 of clip space.
-      bool same = farStatic.valid;
+      // Movers, items and shown or hidden objects change the static set without moving the cascade
+      bool same = farStatic.valid && farStatic.revision==view.staticRevision();
       for(int c=0; c<4 && same; ++c)
         for(int r=0; r<4 && same; ++r) {
           const float a = farStatic.matrix.at(c,r), b = shadowMatrix[1].at(c,r);
@@ -2133,11 +2134,13 @@ void Renderer::drawShadowMap(Encoder<CommandBuffer>& cmd, uint8_t fId, WorldView
         cmd.setDebugMarker("ShadowMap #1 static");
         cmd.setFramebuffer({}, {farStatic.depth, 0.f, Tempest::Preserve});
         view.drawShadow(cmd,fId,i,DrawCommands::StaticTypes);
-        farStatic.matrix = shadowMatrix[1];
-        farStatic.valid  = true;
+        farStatic.matrix   = shadowMatrix[1];
+        farStatic.revision = view.staticRevision();
+        farStatic.valid    = true;
         }
       cmd.setDebugMarker(string_frm("ShadowMap #",i));
-      cmd.setFramebuffer({}, {shadowMap[i], 0.f, Tempest::Preserve});
+      // every texel is written by the copy
+      cmd.setFramebuffer({}, {shadowMap[i], Tempest::Discard, Tempest::Preserve});
       cmd.setBinding(0, farStatic.depth, Sampler::nearest());
       cmd.setPipeline(shaders.copyDepth);
       cmd.draw(nullptr, 0, 3);

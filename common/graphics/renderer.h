@@ -225,6 +225,7 @@ class Renderer final {
       bool                   valid   = false;
       Tempest::ZBuffer       depth;
       Tempest::Matrix4x4     matrix;
+      uint32_t               revision = 0;
       } farStatic;
     uint32_t worldFrames = 0;
 

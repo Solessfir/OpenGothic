@@ -58,8 +58,10 @@ struct VisualObjects::MorphData {
 void VisualObjects::Item::setObjMatrix(const Tempest::Matrix4x4& pos) {
   if(owner!=nullptr) {
     auto& obj = owner->objects[id];
-    if(obj.pos!=pos)
+    if(obj.pos!=pos) {
       owner->updateRtAs(id);
+      owner->touchStatic(obj);
+      }
     obj.pos = pos;
     owner->updateInstance(id);
     }
@@ -96,6 +98,7 @@ void VisualObjects::Item::setWind(zenkit::AnimationType m, float intensity) {
     return;
   obj.wind          = m;
   obj.windIntensity = intensity;
+  owner->touchStatic(obj);
   owner->updateInstance(id);
   }
 
@@ -239,6 +242,7 @@ VisualObjects::Item VisualObjects::get(const StaticMesh& mesh, const Material& m
     }
 
   updateInstance(id);
+  touchStatic(obj);
   updateRtAs(id);
   return Item(*this, id);
   }
@@ -303,8 +307,14 @@ VisualObjects::Item VisualObjects::get(const StaticMesh& mesh, const Material& m
 
   if(obj.isEmpty())
     return Item(); // null command
+  touchStatic(obj);
   updateRtAs(id);
   return Item(*this, id);
+  }
+
+void VisualObjects::touchStatic(const Object& obj) {
+  if(obj.type==DrawCommands::Landscape || obj.type==DrawCommands::Static)
+    ++staticRev;
   }
 
 size_t VisualObjects::implAlloc() {
@@ -320,6 +330,7 @@ size_t VisualObjects::implAlloc() {
 
 void VisualObjects::free(size_t id) {
   Object& obj = objects[id];
+  touchStatic(obj);
 
   const uint32_t meshletCount = (obj.iboLen/PackedMesh::MaxInd);
   const uint32_t numCluster = (obj.type==DrawCommands::Landscape ? meshletCount : 1);
@@ -434,6 +445,7 @@ void VisualObjects::setAsGhost(size_t id, bool g) {
   auto& obj= objects[id];
   if(obj.isGhost==g)
     return;
+  touchStatic(obj);
 
   auto& bx  = *obj.bucketId;
   auto& cx  = drawCmd[obj.cmdId];
